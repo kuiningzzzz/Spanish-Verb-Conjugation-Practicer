@@ -54,6 +54,7 @@ export default {
   
   // 练习相关
   getExercise: (data) => request({ url: '/exercise/generate', method: 'POST', data }),
+  getOneExercise: (data) => request({ url: '/exercise/generate-one', method: 'POST', data }),
   submitAnswer: (data) => request({ url: '/exercise/submit', method: 'POST', data }),
   
   // 学习记录

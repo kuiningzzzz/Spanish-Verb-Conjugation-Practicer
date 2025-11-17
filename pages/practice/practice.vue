@@ -4,7 +4,7 @@
       <view class="progress-bar">
         <view class="progress-fill" :style="{ width: progress + '%' }"></view>
       </view>
-      <text class="progress-text">{{ currentIndex + 1 }} / {{ exercises.length }}</text>
+      <text class="progress-text">{{ totalAnswered }} / {{ exerciseCount }}</text>
     </view>
 
     <view class="card exercise-card" v-if="currentExercise">
@@ -73,6 +73,12 @@
       </view>
 
       <button class="btn-primary mt-20" @click="submitAnswer">提交答案</button>
+
+      <!-- AI 生成状态指示器 -->
+      <view class="ai-status" v-if="useAI && generatingCount > 0">
+        <view class="ai-status-icon">🤖</view>
+        <text class="ai-status-text">AI 正在生成第 {{ exercises.length + 1 }}-{{ Math.min(exercises.length + generatingCount, exerciseCount) }} 题...</text>
+      </view>
     </view>
 
     <!-- 答案反馈 -->
@@ -165,7 +171,13 @@ export default {
       showFeedback: false,
       showResult: false,
       isCorrect: false,
-      correctCount: 0
+      correctCount: 0,
+      // 流水线相关
+      generatingCount: 0,  // 正在生成的题目数量（支持并发）
+      generationError: false,  // 生成是否出错
+      totalAnswered: 0,  // 已答题数
+      bufferSize: 2,  // 缓冲区大小：保持提前生成2题
+      maxConcurrent: 2  // 最大并发生成数
     }
   },
   computed: {
@@ -173,13 +185,13 @@ export default {
       return this.exercises[this.currentIndex]
     },
     progress() {
-      return this.exercises.length ? ((this.currentIndex + 1) / this.exercises.length) * 100 : 0
+      return this.exerciseCount ? ((this.totalAnswered) / this.exerciseCount) * 100 : 0
     },
     accuracy() {
-      return this.exercises.length ? Math.round((this.correctCount / this.exercises.length) * 100) : 0
+      return this.totalAnswered ? Math.round((this.correctCount / this.totalAnswered) * 100) : 0
     },
     exerciseTypeText() {
-      const types = { choice: '选择题', fill: '填空题', conjugate: '变位练习' }
+      const types = { choice: '选择题', fill: '填空题', conjugate: '变位练习', sentence: '例句填空' }
       return types[this.exerciseType] || ''
     }
   },
@@ -195,33 +207,96 @@ export default {
       this.useAI = e.detail.value
     },
     async startPractice() {
-      const loadingText = this.useAI ? '正在使用 AI 生成练习题...' : '生成练习题...'
-      showLoading(loadingText)
+      showLoading('正在生成第一题...')
 
       try {
-        const res = await api.getExercise({
+        // 流水线模式：先生成第一题
+        const res = await api.getOneExercise({
           exerciseType: this.exerciseType,
-          count: this.exerciseCount,
           useAI: this.useAI
         })
 
         hideLoading()
 
-        if (res.success && res.exercises.length > 0) {
-          this.exercises = res.exercises
+        if (res.success && res.exercise) {
+          this.exercises = [res.exercise]
           this.hasStarted = true
           this.currentIndex = 0
           this.correctCount = 0
+          this.totalAnswered = 0
+          this.generationError = false
           
           if (res.aiEnhanced) {
             showToast('AI 智能出题已启用', 'success')
           }
+
+          // 立即开始预生成题目（根据缓冲区大小）
+          this.fillBuffer()
         } else {
           showToast('获取练习题失败')
         }
       } catch (error) {
         hideLoading()
         showToast('网络错误')
+      }
+    },
+
+    // 填充缓冲区：保持提前生成 bufferSize 道题
+    async fillBuffer() {
+      // 计算还需要的题目数
+      const totalNeeded = this.exerciseCount
+      const currentHave = this.exercises.length
+      const inProgress = this.generatingCount
+      const bufferTarget = this.currentIndex + 1 + this.bufferSize
+      
+      // 计算需要启动多少个生成任务
+      const needed = Math.min(
+        bufferTarget - currentHave - inProgress,  // 缓冲区缺口
+        totalNeeded - currentHave - inProgress,   // 总题目数限制
+        this.maxConcurrent - this.generatingCount // 并发数限制
+      )
+
+      // 启动生成任务
+      for (let i = 0; i < needed; i++) {
+        this.generateNextExercise()
+      }
+    },
+
+    // 后台生成下一题
+    async generateNextExercise() {
+      // 如果已经生成了足够的题目，不再生成
+      if (this.exercises.length >= this.exerciseCount) {
+        return
+      }
+
+      // 并发控制
+      if (this.generatingCount >= this.maxConcurrent) {
+        return
+      }
+
+      this.generatingCount++
+      this.generationError = false
+
+      try {
+        const res = await api.getOneExercise({
+          exerciseType: this.exerciseType,
+          useAI: this.useAI
+        })
+
+        if (res.success && res.exercise) {
+          this.exercises.push(res.exercise)
+          this.generatingCount--
+          
+          // 生成成功后，继续填充缓冲区
+          this.fillBuffer()
+        } else {
+          this.generationError = true
+          this.generatingCount--
+        }
+      } catch (error) {
+        console.error('生成下一题失败:', error)
+        this.generationError = true
+        this.generatingCount--
       }
     },
     selectOption(option) {
@@ -251,21 +326,73 @@ export default {
           if (res.isCorrect) {
             this.correctCount++
           }
+          this.totalAnswered++
           this.showFeedback = true
         }
       } catch (error) {
         showToast('提交失败')
       }
     },
-    nextExercise() {
+
+    async nextExercise() {
       this.showFeedback = false
       this.userAnswer = ''
       this.selectedAnswer = ''
 
-      if (this.currentIndex < this.exercises.length - 1) {
-        this.currentIndex++
-      } else {
+      // 检查是否完成所有题目
+      if (this.totalAnswered >= this.exerciseCount) {
         this.showResult = true
+        return
+      }
+
+      // 检查下一题是否已生成
+      if (this.currentIndex + 1 < this.exercises.length) {
+        // 下一题已准备好，直接跳转
+        this.currentIndex++
+        // 继续填充缓冲区
+        this.fillBuffer()
+      } else {
+        // 下一题还没生成好
+        if (this.generatingCount > 0) {
+          // 正在生成中，显示等待提示
+          showLoading('AI 正在生成下一题，请稍候...')
+          
+          // 轮询等待生成完成
+          const checkInterval = setInterval(() => {
+            if (this.currentIndex + 1 < this.exercises.length) {
+              // 生成完成
+              clearInterval(checkInterval)
+              hideLoading()
+              this.currentIndex++
+              this.fillBuffer()
+            } else if (this.generationError && this.generatingCount === 0) {
+              // 生成失败
+              clearInterval(checkInterval)
+              hideLoading()
+              showToast('生成题目失败，请重试', 'none')
+              // 重试生成
+              this.fillBuffer()
+            }
+          }, 300)
+          
+          // 超时保护（15秒）
+          setTimeout(() => {
+            if (this.generatingCount > 0) {
+              clearInterval(checkInterval)
+              hideLoading()
+              showToast('生成超时，请检查网络', 'none')
+            }
+          }, 15000)
+        } else if (this.generationError) {
+          // 生成出错，重试
+          showToast('正在重新生成...', 'none')
+          await this.fillBuffer()
+          // 重试后检查
+          if (this.currentIndex + 1 < this.exercises.length) {
+            this.currentIndex++
+            this.fillBuffer()
+          }
+        }
       }
     },
     finishPractice() {
@@ -274,11 +401,17 @@ export default {
       this.exercises = []
       this.currentIndex = 0
       this.correctCount = 0
+      this.totalAnswered = 0
+      this.generatingCount = 0
+      this.generationError = false
     },
     restartPractice() {
       this.showResult = false
       this.currentIndex = 0
       this.correctCount = 0
+      this.totalAnswered = 0
+      this.generatingCount = 0
+      this.generationError = false
     }
   }
 }
@@ -517,6 +650,48 @@ export default {
   font-size: 28rpx;
   color: #333;
   margin-bottom: 15rpx;
+}
+
+/* AI 生成状态指示器 */
+.ai-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20rpx;
+  padding: 15rpx 25rpx;
+  background: linear-gradient(135deg, #e0e7ff 0%, #f0e7ff 100%);
+  border-radius: 50rpx;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.ai-status-icon {
+  font-size: 32rpx;
+  margin-right: 10rpx;
+  animation: rotate 3s linear infinite;
+}
+
+.ai-status-text {
+  font-size: 24rpx;
+  color: #667eea;
+  font-weight: 500;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* AI 增强样式 */

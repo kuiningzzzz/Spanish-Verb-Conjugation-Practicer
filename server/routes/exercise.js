@@ -6,7 +6,96 @@ const PracticeRecord = require('../models/PracticeRecord')
 const DeepSeekService = require('../services/deepseek')
 const { authMiddleware } = require('../middleware/auth')
 
-// 生成练习题
+// 生成单个练习题（流水线模式）
+router.post('/generate-one', authMiddleware, async (req, res) => {
+  try {
+    const { exerciseType, lessonNumber, textbookVolume, useAI = true } = req.body
+
+    // 获取一个随机动词
+    const verbs = Verb.getRandom(1, { lessonNumber, textbookVolume })
+    
+    if (verbs.length === 0) {
+      return res.status(404).json({ error: '没有可用的动词' })
+    }
+
+    const verb = verbs[0]
+    const conjugations = Conjugation.getByVerbId(verb.id)
+    
+    if (conjugations.length === 0) {
+      return res.status(404).json({ error: '该动词没有变位数据' })
+    }
+
+    const randomConjugation = conjugations[Math.floor(Math.random() * conjugations.length)]
+
+    let exercise = {
+      verbId: verb.id,
+      infinitive: verb.infinitive,
+      meaning: verb.meaning,
+      tense: randomConjugation.tense,
+      mood: randomConjugation.mood,
+      person: randomConjugation.person,
+      correctAnswer: randomConjugation.conjugated_form,
+      exerciseType
+    }
+
+    // 根据题型生成不同的题目
+    try {
+      switch (exerciseType) {
+        case 'choice':
+          if (useAI) {
+            exercise.options = await DeepSeekService.generateChoiceOptions(verb, randomConjugation, conjugations)
+          } else {
+            exercise.options = generateChoiceOptions(verb.id, randomConjugation, conjugations)
+          }
+          break
+        
+        case 'fill':
+          if (useAI) {
+            const aiExercise = await DeepSeekService.generateFillBlankExercise(verb, randomConjugation)
+            exercise.question = aiExercise.question
+            exercise.hint = aiExercise.hint
+            exercise.example = aiExercise.example
+          } else {
+            exercise.question = `请填写动词 ${verb.infinitive}(${verb.meaning}) 在 ${randomConjugation.mood} ${randomConjugation.tense} ${randomConjugation.person} 的变位形式`
+          }
+          break
+        
+        case 'conjugate':
+          exercise.question = `请写出 ${verb.infinitive}(${verb.meaning}) 的变位`
+          break
+        
+        case 'sentence':
+          if (useAI) {
+            const aiSentence = await DeepSeekService.generateSentenceExercise(verb, randomConjugation)
+            exercise.sentence = aiSentence.sentence
+            exercise.translation = aiSentence.translation
+            exercise.hint = aiSentence.hint
+          } else {
+            exercise.sentence = generateSentence(verb, randomConjugation)
+          }
+          break
+      }
+    } catch (aiError) {
+      console.error('AI 生成失败，使用传统方法:', aiError.message)
+      if (exerciseType === 'choice') {
+        exercise.options = generateChoiceOptions(verb.id, randomConjugation, conjugations)
+      } else if (exerciseType === 'sentence') {
+        exercise.sentence = generateSentence(verb, randomConjugation)
+      }
+    }
+
+    res.json({
+      success: true,
+      exercise,
+      aiEnhanced: useAI
+    })
+  } catch (error) {
+    console.error('生成练习题错误:', error)
+    res.status(500).json({ error: '生成练习题失败' })
+  }
+})
+
+// 生成练习题（批量模式，保留向后兼容）
 router.post('/generate', authMiddleware, async (req, res) => {
   try {
     const { exerciseType, count = 10, lessonNumber, textbookVolume, useAI = true } = req.body
