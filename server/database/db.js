@@ -113,6 +113,34 @@ function initDatabase() {
     )
   `)
 
+  // 收藏单词表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS favorite_verbs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      verb_id INTEGER NOT NULL,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (verb_id) REFERENCES verbs(id) ON DELETE CASCADE,
+      UNIQUE(user_id, verb_id)
+    )
+  `)
+
+  // 错题单词表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS wrong_verbs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      verb_id INTEGER NOT NULL,
+      wrong_count INTEGER DEFAULT 1,
+      last_wrong_at TEXT DEFAULT (datetime('now', 'localtime')),
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (verb_id) REFERENCES verbs(id) ON DELETE CASCADE,
+      UNIQUE(user_id, verb_id)
+    )
+  `)
+
   console.log('数据库初始化完成')
 }
 

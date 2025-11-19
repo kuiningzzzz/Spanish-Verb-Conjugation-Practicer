@@ -29,6 +29,7 @@ app.use('/api/exercise', require('./routes/exercise'))
 app.use('/api/record', require('./routes/record'))
 app.use('/api/checkin', require('./routes/checkin'))
 app.use('/api/leaderboard', require('./routes/leaderboard'))
+app.use('/api/vocabulary', require('./routes/vocabulary'))
 
 // 健康检查
 app.get('/api/health', (req, res) => {

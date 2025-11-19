@@ -20,8 +20,13 @@
     </view>
 
     <view class="card exercise-card" v-if="currentExercise">
-      <view class="exercise-type-tag">
-        <text>{{ exerciseTypeText }}</text>
+      <view class="card-header">
+        <view class="exercise-type-tag">
+          <text>{{ exerciseTypeText }}</text>
+        </view>
+        <view class="favorite-btn" @click="toggleFavorite">
+          <text class="favorite-icon">{{ isFavorited ? '★' : '☆' }}</text>
+        </view>
       </view>
 
       <view class="verb-info">
@@ -49,13 +54,40 @@
       <!-- 例句填空题 -->
       <view v-else-if="exerciseType === 'sentence'" class="sentence-container">
         <view class="sentence-text">{{ currentExercise.sentence }}</view>
-        <view class="translation" v-if="currentExercise.translation">
+        
+        <!-- 辅助按钮组 -->
+        <view class="helper-buttons">
+          <button 
+            v-if="currentExercise.translation" 
+            class="helper-btn" 
+            :class="{ 'active': showTranslation }"
+            @click="toggleTranslation"
+          >
+            <text class="helper-icon">📖</text>
+            <text>{{ showTranslation ? '隐藏翻译' : '查看翻译' }}</text>
+          </button>
+          <button 
+            v-if="currentExercise.hint" 
+            class="helper-btn" 
+            :class="{ 'active': showHint }"
+            @click="toggleHint"
+          >
+            <text class="helper-icon">💡</text>
+            <text>{{ showHint ? '隐藏提示' : '查看提示' }}</text>
+          </button>
+        </view>
+        
+        <!-- 翻译内容 -->
+        <view class="translation" v-if="currentExercise.translation && showTranslation">
           <text>翻译：{{ currentExercise.translation }}</text>
         </view>
-        <view class="hint-box" v-if="currentExercise.hint">
+        
+        <!-- 提示内容 -->
+        <view class="hint-box" v-if="currentExercise.hint && showHint">
           <text class="hint-label">💡 提示：</text>
           <text class="hint-text">{{ currentExercise.hint }}</text>
         </view>
+        
         <input
           class="answer-input"
           v-model="userAnswer"
@@ -69,13 +101,40 @@
         <view class="question-text" v-if="currentExercise.question">
           <text>{{ currentExercise.question }}</text>
         </view>
-        <view class="example-text" v-if="currentExercise.example">
+        
+        <!-- 辅助按钮组 -->
+        <view class="helper-buttons">
+          <button 
+            v-if="currentExercise.example" 
+            class="helper-btn" 
+            :class="{ 'active': showExample }"
+            @click="toggleExample"
+          >
+            <text class="helper-icon">📝</text>
+            <text>{{ showExample ? '隐藏例句' : '查看例句' }}</text>
+          </button>
+          <button 
+            v-if="currentExercise.hint" 
+            class="helper-btn" 
+            :class="{ 'active': showHint }"
+            @click="toggleHint"
+          >
+            <text class="helper-icon">💡</text>
+            <text>{{ showHint ? '隐藏提示' : '查看提示' }}</text>
+          </button>
+        </view>
+        
+        <!-- 例句内容 -->
+        <view class="example-text" v-if="currentExercise.example && showExample">
           <text>例句：{{ currentExercise.example }}</text>
         </view>
-        <view class="hint-box" v-if="currentExercise.hint">
+        
+        <!-- 提示内容 -->
+        <view class="hint-box" v-if="currentExercise.hint && showHint">
           <text class="hint-label">💡 提示：</text>
           <text class="hint-text">{{ currentExercise.hint }}</text>
         </view>
+        
         <input
           class="answer-input"
           v-model="userAnswer"
@@ -277,13 +336,27 @@ export default {
       generationError: false,  // 生成是否出错
       totalAnswered: 0,  // 已答题数
       bufferSize: 2,  // 缓冲区大小：保持提前生成2题
-      maxConcurrent: 2  // 最大并发生成数
+      maxConcurrent: 2,  // 最大并发生成数
+      
+      // 单词本相关
+      isFavorited: false,  // 当前单词是否已收藏
+      practiceMode: 'normal', // 练习模式：normal/favorite/wrong
+      
+      // 辅助内容显示控制
+      showExample: false,    // 是否显示例句
+      showHint: false,       // 是否显示提示
+      showTranslation: false // 是否显示翻译
     }
   },
-  onLoad() {
+  onLoad(options) {
     // 获取系统信息，设置状态栏高度
     const systemInfo = uni.getSystemInfoSync()
     this.statusBarHeight = systemInfo.statusBarHeight || 0
+    
+    // 获取练习模式参数
+    if (options.mode) {
+      this.practiceMode = options.mode // favorite: 收藏练习, wrong: 错题练习
+    }
   },
   computed: {
     containerPaddingTop() {
@@ -402,7 +475,8 @@ export default {
           useAI: this.useAI,
           tenses: this.selectedTenses,
           conjugationTypes: this.selectedConjugationTypes,
-          includeIrregular: this.includeIrregular
+          includeIrregular: this.includeIrregular,
+          practiceMode: this.practiceMode  // 传递练习模式
         })
 
         hideLoading()
@@ -414,6 +488,9 @@ export default {
           this.correctCount = 0
           this.totalAnswered = 0
           this.generationError = false
+          
+          // 检查第一题的收藏状态
+          this.checkFavoriteStatus()
           
           if (res.aiEnhanced) {
             showToast('AI 智能出题已启用', 'success')
@@ -488,7 +565,8 @@ export default {
           useAI: this.useAI,
           tenses: this.selectedTenses,
           conjugationTypes: this.selectedConjugationTypes,
-          includeIrregular: this.includeIrregular
+          includeIrregular: this.includeIrregular,
+          practiceMode: this.practiceMode  // 传递练习模式
         })
 
         if (res.success && res.exercise) {
@@ -510,6 +588,76 @@ export default {
     selectOption(option) {
       this.selectedAnswer = option
     },
+    
+    // 切换收藏状态
+    async toggleFavorite() {
+      if (!this.currentExercise) return
+      
+      try {
+        const verbId = this.currentExercise.verbId
+        
+        if (this.isFavorited) {
+          // 取消收藏
+          const res = await api.removeFavorite({ verbId })
+          if (res.success) {
+            this.isFavorited = false
+            showToast('已取消收藏', 'success')
+          }
+        } else {
+          // 添加收藏
+          const res = await api.addFavorite({ verbId })
+          if (res.success) {
+            this.isFavorited = true
+            showToast('收藏成功', 'success')
+          }
+        }
+      } catch (error) {
+        console.error('收藏操作失败:', error)
+        showToast('操作失败', 'none')
+      }
+    },
+    
+    // 检查当前单词是否已收藏
+    async checkFavoriteStatus() {
+      if (!this.currentExercise) return
+      
+      try {
+        const res = await api.checkFavorite(this.currentExercise.verbId)
+        if (res.success) {
+          this.isFavorited = res.isFavorited
+        }
+      } catch (error) {
+        console.error('检查收藏状态失败:', error)
+      }
+    },
+    
+    // 记录错题
+    async recordWrongAnswer() {
+      if (!this.currentExercise) return
+      
+      try {
+        const verbId = this.currentExercise.verbId
+        await api.addWrongVerb({ verbId })
+      } catch (error) {
+        console.error('记录错题失败:', error)
+      }
+    },
+    
+    // 切换例句显示
+    toggleExample() {
+      this.showExample = !this.showExample
+    },
+    
+    // 切换提示显示
+    toggleHint() {
+      this.showHint = !this.showHint
+    },
+    
+    // 切换翻译显示
+    toggleTranslation() {
+      this.showTranslation = !this.showTranslation
+    },
+    
     async submitAnswer() {
       const answer = this.exerciseType === 'choice' ? this.selectedAnswer : this.userAnswer
 
@@ -533,6 +681,9 @@ export default {
           this.isCorrect = res.isCorrect
           if (res.isCorrect) {
             this.correctCount++
+          } else {
+            // 答错了，记录到错题本
+            this.recordWrongAnswer()
           }
           this.totalAnswered++
           this.showFeedback = true
@@ -546,6 +697,11 @@ export default {
       this.showFeedback = false
       this.userAnswer = ''
       this.selectedAnswer = ''
+      
+      // 重置辅助内容显示状态
+      this.showExample = false
+      this.showHint = false
+      this.showTranslation = false
 
       // 检查是否完成所有题目
       if (this.totalAnswered >= this.exerciseCount) {
@@ -557,6 +713,8 @@ export default {
       if (this.currentIndex + 1 < this.exercises.length) {
         // 下一题已准备好，直接跳转
         this.currentIndex++
+        // 检查新题目的收藏状态
+        this.checkFavoriteStatus()
         // 继续填充缓冲区
         this.fillBuffer()
       } else {
@@ -720,6 +878,13 @@ export default {
   margin-top: 20rpx;
 }
 
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
 .exercise-type-tag {
   display: inline-block;
   background: #f0f0f0;
@@ -727,6 +892,17 @@ export default {
   border-radius: 8rpx;
   font-size: 22rpx;
   color: #666;
+}
+
+.favorite-btn {
+  padding: 10rpx 15rpx;
+  cursor: pointer;
+}
+
+.favorite-icon {
+  font-size: 48rpx;
+  color: #ffd700;
+  line-height: 1;
 }
 
 .verb-info {
@@ -793,6 +969,116 @@ export default {
 
 .input-container {
   padding: 20rpx 0;
+}
+
+/* 辅助按钮组样式 */
+.helper-buttons {
+  display: flex;
+  gap: 15rpx;
+  margin: 25rpx 0 20rpx 0;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.helper-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 18rpx 30rpx;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  border: 2rpx solid #d1d9e6;
+  border-radius: 50rpx;
+  font-size: 26rpx;
+  color: #555;
+  transition: all 0.3s ease;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+}
+
+.helper-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+  color: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+  transform: translateY(-2rpx);
+}
+
+.helper-icon {
+  font-size: 32rpx;
+  line-height: 1;
+}
+
+/* 例句、翻译、提示样式 */
+.sentence-container {
+  padding: 20rpx 0;
+}
+
+.sentence-text {
+  font-size: 30rpx;
+  color: #333;
+  line-height: 1.8;
+  margin-bottom: 20rpx;
+  padding: 25rpx;
+  background: #f8f9fa;
+  border-radius: 12rpx;
+  border-left: 4rpx solid #667eea;
+}
+
+.translation {
+  background: #e8f5e9;
+  padding: 20rpx 25rpx;
+  border-radius: 12rpx;
+  margin: 20rpx 0;
+  font-size: 26rpx;
+  color: #2e7d32;
+  line-height: 1.6;
+  border-left: 4rpx solid #4caf50;
+  animation: slideIn 0.3s ease;
+}
+
+.example-text {
+  background: #fff3e0;
+  padding: 20rpx 25rpx;
+  border-radius: 12rpx;
+  margin: 20rpx 0;
+  font-size: 26rpx;
+  color: #e65100;
+  line-height: 1.6;
+  border-left: 4rpx solid #ff9800;
+  animation: slideIn 0.3s ease;
+}
+
+.hint-box {
+  background: #fff8e1;
+  padding: 20rpx 25rpx;
+  border-radius: 12rpx;
+  margin: 20rpx 0;
+  border-left: 4rpx solid #ffa726;
+  animation: slideIn 0.3s ease;
+}
+
+.hint-label {
+  font-size: 24rpx;
+  color: #f57c00;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.hint-text {
+  font-size: 26rpx;
+  color: #ef6c00;
+  line-height: 1.6;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .answer-input {

@@ -81,5 +81,19 @@ export default {
   getCheckInHistory: () => request({ url: '/checkin/history' }),
   
   // 排行榜
-  getLeaderboard: (type) => request({ url: `/leaderboard/${type}` })
+  getLeaderboard: (type) => request({ url: `/leaderboard/${type}` }),
+  
+  // 单词本相关
+  getVocabularyStats: () => request({ url: '/vocabulary/stats' }),
+  
+  // 收藏
+  addFavorite: (data) => request({ url: '/vocabulary/favorite/add', method: 'POST', data }),
+  removeFavorite: (data) => request({ url: '/vocabulary/favorite/remove', method: 'POST', data }),
+  checkFavorite: (verbId) => request({ url: `/vocabulary/favorite/check/${verbId}` }),
+  getFavoriteList: () => request({ url: '/vocabulary/favorite/list' }),
+  
+  // 错题
+  addWrongVerb: (data) => request({ url: '/vocabulary/wrong/add', method: 'POST', data }),
+  removeWrongVerb: (data) => request({ url: '/vocabulary/wrong/remove', method: 'POST', data }),
+  getWrongList: () => request({ url: '/vocabulary/wrong/list' })
 }

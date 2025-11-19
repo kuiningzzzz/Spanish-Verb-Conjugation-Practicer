@@ -51,36 +51,44 @@ class Verb {
     let query = 'SELECT * FROM verbs WHERE 1=1'
     const params = []
 
-    if (filters.lessonNumber) {
-      query += ' AND lesson_number <= ?'
-      params.push(filters.lessonNumber)
-    }
-
-    if (filters.textbookVolume) {
-      query += ' AND textbook_volume = ?'
-      params.push(filters.textbookVolume)
-    }
-
-    // 按变位类型筛选
-    if (filters.conjugationTypes && filters.conjugationTypes.length > 0) {
-      // 变位类型映射：数据库中存储的是数字 1, 2, 3
-      const typeMap = {
-        'ar': 1,  // 第一变位
-        'er': 2,  // 第二变位
-        'ir': 3   // 第三变位
+    // 如果指定了动词ID列表，只从这些动词中选择
+    if (filters.verbIds && filters.verbIds.length > 0) {
+      const placeholders = filters.verbIds.map(() => '?').join(',')
+      query += ` AND id IN (${placeholders})`
+      params.push(...filters.verbIds)
+    } else {
+      // 原有的筛选逻辑
+      if (filters.lessonNumber) {
+        query += ' AND lesson_number <= ?'
+        params.push(filters.lessonNumber)
       }
-      
-      const types = filters.conjugationTypes.map(t => typeMap[t]).filter(t => t !== undefined)
-      if (types.length > 0) {
-        const placeholders = types.map(() => '?').join(',')
-        query += ` AND conjugation_type IN (${placeholders})`
-        params.push(...types)
-      }
-    }
 
-    // 是否只要规则动词
-    if (filters.onlyRegular === true) {
-      query += ' AND is_irregular = 0'
+      if (filters.textbookVolume) {
+        query += ' AND textbook_volume = ?'
+        params.push(filters.textbookVolume)
+      }
+
+      // 按变位类型筛选
+      if (filters.conjugationTypes && filters.conjugationTypes.length > 0) {
+        // 变位类型映射：数据库中存储的是数字 1, 2, 3
+        const typeMap = {
+          'ar': 1,  // 第一变位
+          'er': 2,  // 第二变位
+          'ir': 3   // 第三变位
+        }
+        
+        const types = filters.conjugationTypes.map(t => typeMap[t]).filter(t => t !== undefined)
+        if (types.length > 0) {
+          const placeholders = types.map(() => '?').join(',')
+          query += ` AND conjugation_type IN (${placeholders})`
+          params.push(...types)
+        }
+      }
+
+      // 是否只要规则动词
+      if (filters.onlyRegular === true) {
+        query += ' AND is_irregular = 0'
+      }
     }
 
     query += ' ORDER BY RANDOM() LIMIT ?'

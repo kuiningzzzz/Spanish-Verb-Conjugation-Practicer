@@ -1,61 +1,458 @@
 <template>
   <view class="container">
-    <view class="placeholder-content">
-      <text class="placeholder-icon">📚</text>
-      <text class="placeholder-title">单词本</text>
-      <text class="placeholder-desc">功能开发中，敬请期待...</text>
+    <!-- 统计卡片 -->
+    <view class="card stats-card">
+      <view class="stats-row">
+        <view class="stat-item">
+          <text class="stat-number">{{ favoriteCount }}</text>
+          <text class="stat-label">收藏单词</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-number">{{ wrongCount }}</text>
+          <text class="stat-label">错题单词</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 专项练习入口 -->
+    <view class="practice-entries">
+      <view class="entry-card" @click="startFavoritePractice">
+        <view class="entry-icon">⭐</view>
+        <view class="entry-content">
+          <text class="entry-title">收藏专练</text>
+          <text class="entry-desc">练习已收藏的单词</text>
+        </view>
+        <view class="entry-arrow">→</view>
+      </view>
+
+      <view class="entry-card" @click="startWrongPractice">
+        <view class="entry-icon">❌</view>
+        <view class="entry-content">
+          <text class="entry-title">错题专练</text>
+          <text class="entry-desc">练习做错的单词</text>
+        </view>
+        <view class="entry-arrow">→</view>
+      </view>
+    </view>
+
+    <!-- Tab切换 -->
+    <view class="tabs">
+      <view 
+        :class="['tab-item', activeTab === 'favorite' ? 'active' : '']" 
+        @click="switchTab('favorite')"
+      >
+        <text>收藏单词 ({{ favoriteCount }})</text>
+      </view>
+      <view 
+        :class="['tab-item', activeTab === 'wrong' ? 'active' : '']" 
+        @click="switchTab('wrong')"
+      >
+        <text>错题单词 ({{ wrongCount }})</text>
+      </view>
+    </view>
+
+    <!-- 收藏列表 -->
+    <view v-if="activeTab === 'favorite'" class="word-list">
+      <view v-if="favoriteList.length === 0" class="empty-placeholder">
+        <text class="empty-icon">📚</text>
+        <text class="empty-text">还没有收藏单词</text>
+        <text class="empty-hint">在练习时点击星标收藏</text>
+      </view>
+
+      <view 
+        v-for="item in favoriteList" 
+        :key="item.id" 
+        class="word-item card"
+      >
+        <view class="word-header">
+          <view class="word-main">
+            <text class="word-infinitive">{{ item.infinitive }}</text>
+            <text class="word-meaning">{{ item.meaning }}</text>
+          </view>
+          <view class="word-actions">
+            <view class="word-tag">{{ item.conjugationType }}</view>
+            <text class="remove-btn" @click="removeFavorite(item.verb_id)">删除</text>
+          </view>
+        </view>
+        <view class="word-meta">
+          <text class="meta-item">{{ item.isIrregular ? '不规则' : '规则' }}</text>
+          <text class="meta-item">收藏于 {{ formatDate(item.created_at) }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 错题列表 -->
+    <view v-if="activeTab === 'wrong'" class="word-list">
+      <view v-if="wrongList.length === 0" class="empty-placeholder">
+        <text class="empty-icon">✅</text>
+        <text class="empty-text">还没有错题记录</text>
+        <text class="empty-hint">继续加油！</text>
+      </view>
+
+      <view 
+        v-for="item in wrongList" 
+        :key="item.id" 
+        class="word-item card"
+      >
+        <view class="word-header">
+          <view class="word-main">
+            <text class="word-infinitive">{{ item.infinitive }}</text>
+            <text class="word-meaning">{{ item.meaning }}</text>
+          </view>
+          <view class="word-actions">
+            <view class="word-tag">{{ item.conjugationType }}</view>
+            <view class="wrong-count">错 {{ item.wrong_count }} 次</view>
+            <text class="remove-btn" @click="removeWrong(item.verb_id)">删除</text>
+          </view>
+        </view>
+        <view class="word-meta">
+          <text class="meta-item">{{ item.isIrregular ? '不规则' : '规则' }}</text>
+          <text class="meta-item">最近错误: {{ formatDate(item.last_wrong_at) }}</text>
+        </view>
+      </view>
     </view>
   </view>
 </template>
 
 <script>
+import api from '@/utils/api.js'
+import { showToast, showLoading, hideLoading } from '@/utils/common.js'
+
 export default {
   data() {
-    return {}
+    return {
+      activeTab: 'favorite',
+      favoriteCount: 0,
+      wrongCount: 0,
+      favoriteList: [],
+      wrongList: []
+    }
   },
-  onLoad() {
-    console.log('单词本页面加载')
+  onShow() {
+    // 每次显示页面时刷新数据
+    this.loadStats()
+    this.loadList()
+  },
+  methods: {
+    async loadStats() {
+      try {
+        const res = await api.getVocabularyStats()
+        if (res.success) {
+          this.favoriteCount = res.stats.favoriteCount
+          this.wrongCount = res.stats.wrongCount
+        }
+      } catch (error) {
+        console.error('加载统计失败:', error)
+      }
+    },
+
+    async loadList() {
+      if (this.activeTab === 'favorite') {
+        await this.loadFavoriteList()
+      } else {
+        await this.loadWrongList()
+      }
+    },
+
+    async loadFavoriteList() {
+      try {
+        showLoading('加载中...')
+        const res = await api.getFavoriteList()
+        hideLoading()
+        
+        if (res.success) {
+          this.favoriteList = res.favorites
+        }
+      } catch (error) {
+        hideLoading()
+        console.error('加载收藏列表失败:', error)
+      }
+    },
+
+    async loadWrongList() {
+      try {
+        showLoading('加载中...')
+        const res = await api.getWrongList()
+        hideLoading()
+        
+        if (res.success) {
+          this.wrongList = res.wrongs
+        }
+      } catch (error) {
+        hideLoading()
+        console.error('加载错题列表失败:', error)
+      }
+    },
+
+    switchTab(tab) {
+      this.activeTab = tab
+      this.loadList()
+    },
+
+    async removeFavorite(verbId) {
+      try {
+        const res = await api.removeFavorite({ verbId })
+        if (res.success) {
+          showToast('已取消收藏', 'success')
+          this.loadStats()
+          this.loadFavoriteList()
+        }
+      } catch (error) {
+        showToast('操作失败', 'none')
+      }
+    },
+
+    async removeWrong(verbId) {
+      try {
+        const res = await api.removeWrongVerb({ verbId })
+        if (res.success) {
+          showToast('已删除', 'success')
+          this.loadStats()
+          this.loadWrongList()
+        }
+      } catch (error) {
+        showToast('操作失败', 'none')
+      }
+    },
+
+    startFavoritePractice() {
+      if (this.favoriteCount === 0) {
+        showToast('还没有收藏单词', 'none')
+        return
+      }
+      uni.navigateTo({
+        url: '/pages/practice/practice?mode=favorite'
+      })
+    },
+
+    startWrongPractice() {
+      if (this.wrongCount === 0) {
+        showToast('还没有错题记录', 'none')
+        return
+      }
+      uni.navigateTo({
+        url: '/pages/practice/practice?mode=wrong'
+      })
+    },
+
+    formatDate(dateStr) {
+      if (!dateStr) return ''
+      const date = new Date(dateStr)
+      const month = date.getMonth() + 1
+      const day = date.getDate()
+      return `${month}月${day}日`
+    }
   }
 }
 </script>
 
 <style scoped>
 .container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   min-height: 100vh;
   padding: 40rpx;
   background: #f8f8f8;
 }
 
-.placeholder-content {
-  text-align: center;
-  padding: 80rpx 40rpx;
-  background: #fff;
-  border-radius: 20rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
-  width: 100%;
+/* 统计卡片 */
+.stats-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  margin-bottom: 30rpx;
 }
 
-.placeholder-icon {
+.stats-row {
+  display: flex;
+  justify-content: space-around;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-number {
+  display: block;
+  font-size: 56rpx;
+  font-weight: bold;
+  margin-bottom: 10rpx;
+}
+
+.stat-label {
+  display: block;
+  font-size: 28rpx;
+  opacity: 0.9;
+}
+
+/* 专项练习入口 */
+.practice-entries {
+  margin-bottom: 30rpx;
+}
+
+.entry-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s;
+  cursor: pointer;
+}
+
+.entry-card:active {
+  transform: scale(0.98);
+}
+
+.entry-icon {
+  font-size: 60rpx;
+  margin-right: 24rpx;
+}
+
+.entry-content {
+  flex: 1;
+}
+
+.entry-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.entry-desc {
+  display: block;
+  font-size: 26rpx;
+  color: #999;
+}
+
+.entry-arrow {
+  font-size: 40rpx;
+  color: #667eea;
+}
+
+/* Tab切换 */
+.tabs {
+  display: flex;
+  background: #fff;
+  border-radius: 12rpx;
+  padding: 8rpx;
+  margin-bottom: 30rpx;
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx;
+  font-size: 28rpx;
+  color: #666;
+  border-radius: 8rpx;
+  transition: all 0.3s;
+}
+
+.tab-item.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  font-weight: bold;
+}
+
+/* 单词列表 */
+.word-list {
+  margin-bottom: 40rpx;
+}
+
+.word-item {
+  margin-bottom: 20rpx;
+  padding: 30rpx;
+}
+
+.word-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20rpx;
+}
+
+.word-main {
+  flex: 1;
+}
+
+.word-infinitive {
+  display: block;
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.word-meaning {
+  display: block;
+  font-size: 28rpx;
+  color: #666;
+}
+
+.word-actions {
+  display: flex;
+  align-items: center;
+  gap: 15rpx;
+}
+
+.word-tag {
+  background: #f0f0f0;
+  padding: 8rpx 16rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  color: #666;
+}
+
+.wrong-count {
+  background: #fff0f0;
+  color: #ff4d4f;
+  padding: 8rpx 16rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  font-weight: bold;
+}
+
+.remove-btn {
+  color: #ff4d4f;
+  font-size: 26rpx;
+  padding: 8rpx 16rpx;
+}
+
+.word-meta {
+  display: flex;
+  gap: 30rpx;
+}
+
+.meta-item {
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 空状态 */
+.empty-placeholder {
+  text-align: center;
+  padding: 120rpx 40rpx;
+}
+
+.empty-icon {
   display: block;
   font-size: 120rpx;
   margin-bottom: 30rpx;
 }
 
-.placeholder-title {
+.empty-text {
   display: block;
-  font-size: 48rpx;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 20rpx;
+  font-size: 32rpx;
+  color: #666;
+  margin-bottom: 15rpx;
+  font-weight: 500;
 }
 
-.placeholder-desc {
+.empty-hint {
   display: block;
-  font-size: 28rpx;
+  font-size: 26rpx;
   color: #999;
-  line-height: 1.6;
 }
 </style>

@@ -16,20 +16,45 @@ router.post('/generate-one', authMiddleware, async (req, res) => {
       useAI = true,
       tenses = [],           // 选择的时态数组
       conjugationTypes = [], // 选择的变位类型数组
-      includeIrregular = true // 是否包含不规则动词
+      includeIrregular = true, // 是否包含不规则动词
+      practiceMode = 'normal' // 练习模式：normal/favorite/wrong
     } = req.body
+
+    const userId = req.userId
 
     // 构建查询条件
     const queryOptions = { lessonNumber, textbookVolume }
     
-    // 如果指定了变位类型，添加到查询条件
-    if (conjugationTypes && conjugationTypes.length > 0) {
-      queryOptions.conjugationTypes = conjugationTypes
-    }
-    
-    // 如果不包含不规则动词，添加到查询条件
-    if (!includeIrregular) {
-      queryOptions.onlyRegular = true
+    // 根据练习模式获取动词ID列表
+    if (practiceMode === 'favorite') {
+      // 收藏练习模式
+      const FavoriteVerb = require('../models/FavoriteVerb')
+      const verbIds = FavoriteVerb.getVerbIds(userId)
+      
+      if (verbIds.length === 0) {
+        return res.status(404).json({ error: '还没有收藏的单词' })
+      }
+      
+      queryOptions.verbIds = verbIds
+    } else if (practiceMode === 'wrong') {
+      // 错题练习模式
+      const WrongVerb = require('../models/WrongVerb')
+      const verbIds = WrongVerb.getVerbIds(userId)
+      
+      if (verbIds.length === 0) {
+        return res.status(404).json({ error: '还没有错题记录' })
+      }
+      
+      queryOptions.verbIds = verbIds
+    } else {
+      // 普通模式，应用原有的筛选条件
+      if (conjugationTypes && conjugationTypes.length > 0) {
+        queryOptions.conjugationTypes = conjugationTypes
+      }
+      
+      if (!includeIrregular) {
+        queryOptions.onlyRegular = true
+      }
     }
 
     // 获取一个随机动词
