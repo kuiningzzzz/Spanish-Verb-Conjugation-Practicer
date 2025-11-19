@@ -15,7 +15,14 @@
     {
       "path": "pages/practice/practice",
       "style": {
-        "navigationBarTitleText": "开始练习"
+        "navigationBarTitleText": "开始练习",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/vocabulary/vocabulary",
+      "style": {
+        "navigationBarTitleText": "单词本"
       }
     },
     {
@@ -54,8 +61,8 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/practice/practice",
-        "text": "练习"
+        "pagePath": "pages/vocabulary/vocabulary",
+        "text": "单词本"
       },
       {
         "pagePath": "pages/statistics/statistics",

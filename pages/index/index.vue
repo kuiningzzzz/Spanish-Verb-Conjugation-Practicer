@@ -124,7 +124,7 @@ export default {
       }
     },
     startPractice() {
-      uni.switchTab({
+      uni.navigateTo({
         url: '/pages/practice/practice'
       })
     },

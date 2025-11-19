@@ -1,5 +1,17 @@
 <template>
-  <view class="container">
+  <view class="container" :style="{ paddingTop: containerPaddingTop }">
+    <!-- 自定义导航栏 -->
+    <view class="custom-navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="navbar-content">
+        <view class="navbar-back" @click="goBack">
+          <text class="back-icon">←</text>
+          <text class="back-text">返回</text>
+        </view>
+        <view class="navbar-title">开始练习</view>
+        <view class="navbar-placeholder"></view>
+      </view>
+    </view>
+    
     <view class="practice-header">
       <view class="progress-bar">
         <view class="progress-fill" :style="{ width: progress + '%' }"></view>
@@ -219,6 +231,7 @@ import { showToast, showLoading, hideLoading } from '@/utils/common.js'
 export default {
   data() {
     return {
+      statusBarHeight: 0, // 状态栏高度
       hasStarted: false,
       exerciseTypes: [
         { value: 'choice', label: '选择题' },
@@ -267,7 +280,17 @@ export default {
       maxConcurrent: 2  // 最大并发生成数
     }
   },
+  onLoad() {
+    // 获取系统信息，设置状态栏高度
+    const systemInfo = uni.getSystemInfoSync()
+    this.statusBarHeight = systemInfo.statusBarHeight || 0
+  },
   computed: {
+    containerPaddingTop() {
+      // 状态栏高度 + 导航栏内容高度(88rpx转px) + 额外间距
+      const navBarHeight = 88 / 750 * uni.getSystemInfoSync().windowWidth // 88rpx转px
+      return (this.statusBarHeight + navBarHeight + 10) + 'px'
+    },
     currentExercise() {
       return this.exercises[this.currentIndex]
     },
@@ -283,6 +306,25 @@ export default {
     }
   },
   methods: {
+    goBack() {
+      if (this.hasStarted) {
+        uni.showModal({
+          title: '提示',
+          content: '练习尚未完成，确定要返回吗？',
+          success: (res) => {
+            if (res.confirm) {
+              uni.navigateBack({
+                delta: 1
+              })
+            }
+          }
+        })
+      } else {
+        uni.navigateBack({
+          delta: 1
+        })
+      }
+    },
     onExerciseTypeChange(e) {
       this.exerciseTypeIndex = e.detail.value
       this.exerciseType = this.exerciseTypes[e.detail.value].value
@@ -584,7 +626,71 @@ export default {
 </script>
 
 <style scoped>
+/* 自定义导航栏 */
+.custom-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-bottom: 1rpx solid #f0f0f0;
+  z-index: 1000;
+  /* padding-top 通过行内样式动态设置 */
+}
+
+.navbar-content {
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32rpx;
+}
+
+.navbar-back {
+  display: flex;
+  align-items: center;
+  padding: 10rpx 0;
+  cursor: pointer;
+  min-width: 120rpx;
+}
+
+.back-icon {
+  font-size: 40rpx;
+  color: #667eea;
+  font-weight: bold;
+  margin-right: 8rpx;
+  line-height: 1;
+}
+
+.back-text {
+  font-size: 32rpx;
+  color: #667eea;
+  line-height: 1;
+}
+
+.navbar-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 36rpx;
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+}
+
+.navbar-placeholder {
+  width: 120rpx;
+}
+
+/* 容器样式 */
+.container {
+  min-height: 100vh;
+  background: #f8f8f8;
+  /* padding-top 通过行内样式动态设置 */
+}
+
 .practice-header {
+  /* margin-top 已由容器的 padding-top 处理 */
   padding: 20rpx;
   background: #fff;
 }
