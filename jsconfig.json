@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "lib": [
+      "esnext",
+      "dom"
+    ],
+    "module": "commonjs",
+    "target": "es6",
+    "jsx": "preserve",
+    "sourceMap": false,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": [
+    "**/*.js",
+    "**/*.vue",
+    "**/*.json"
+  ],
+  "exclude": [
+    "node_modules",
+    "unpackage",
+    "server"
+  ]
+}
