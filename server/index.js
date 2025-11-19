@@ -22,6 +22,14 @@ try {
   console.log('示例数据已存在或初始化失败:', error.message)
 }
 
+// 启动定时任务调度器
+try {
+  const SchedulerService = require('./services/scheduler')
+  SchedulerService.startAll()
+} catch (error) {
+  console.log('定时任务启动失败:', error.message)
+}
+
 // 路由
 app.use('/api/user', require('./routes/user'))
 app.use('/api/verb', require('./routes/verb'))
@@ -30,6 +38,7 @@ app.use('/api/record', require('./routes/record'))
 app.use('/api/checkin', require('./routes/checkin'))
 app.use('/api/leaderboard', require('./routes/leaderboard'))
 app.use('/api/vocabulary', require('./routes/vocabulary'))
+app.use('/api/question', require('./routes/question'))  // 题库管理路由
 
 // 健康检查
 app.get('/api/health', (req, res) => {

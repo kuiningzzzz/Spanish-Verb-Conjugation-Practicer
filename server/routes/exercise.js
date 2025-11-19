@@ -3,31 +3,35 @@ const router = express.Router()
 const Verb = require('../models/Verb')
 const Conjugation = require('../models/Conjugation')
 const PracticeRecord = require('../models/PracticeRecord')
-const DeepSeekService = require('../services/deepseek')
+const Question = require('../models/Question')
+const ExerciseGeneratorService = require('../services/exerciseGenerator')
 const { authMiddleware } = require('../middleware/auth')
 
-// 生成单个练习题（流水线模式）
+// 生成单个练习题（新版：题库+AI混合模式）
 router.post('/generate-one', authMiddleware, async (req, res) => {
   try {
     const { 
       exerciseType, 
-      lessonNumber, 
-      textbookVolume, 
-      useAI = true,
-      tenses = [],           // 选择的时态数组
-      conjugationTypes = [], // 选择的变位类型数组
-      includeIrregular = true, // 是否包含不规则动词
-      practiceMode = 'normal' // 练习模式：normal/favorite/wrong
+      tenses = [],
+      conjugationTypes = [],
+      includeIrregular = true,
+      practiceMode = 'normal'
     } = req.body
 
     const userId = req.userId
 
-    // 构建查询条件
-    const queryOptions = { lessonNumber, textbookVolume }
-    
+    // 准备生成选项
+    const options = {
+      userId,
+      exerciseType,
+      tenses,
+      conjugationTypes,
+      includeIrregular,
+      practiceMode
+    }
+
     // 根据练习模式获取动词ID列表
     if (practiceMode === 'favorite') {
-      // 收藏练习模式
       const FavoriteVerb = require('../models/FavoriteVerb')
       const verbIds = FavoriteVerb.getVerbIds(userId)
       
@@ -35,9 +39,8 @@ router.post('/generate-one', authMiddleware, async (req, res) => {
         return res.status(404).json({ error: '还没有收藏的单词' })
       }
       
-      queryOptions.verbIds = verbIds
+      options.verbIds = verbIds
     } else if (practiceMode === 'wrong') {
-      // 错题练习模式
       const WrongVerb = require('../models/WrongVerb')
       const verbIds = WrongVerb.getVerbIds(userId)
       
@@ -45,128 +48,19 @@ router.post('/generate-one', authMiddleware, async (req, res) => {
         return res.status(404).json({ error: '还没有错题记录' })
       }
       
-      queryOptions.verbIds = verbIds
-    } else {
-      // 普通模式，应用原有的筛选条件
-      if (conjugationTypes && conjugationTypes.length > 0) {
-        queryOptions.conjugationTypes = conjugationTypes
-      }
-      
-      if (!includeIrregular) {
-        queryOptions.onlyRegular = true
-      }
+      options.verbIds = verbIds
     }
 
-    // 获取一个随机动词
-    const verbs = Verb.getRandom(1, queryOptions)
-    
-    if (verbs.length === 0) {
-      return res.status(404).json({ error: '没有符合条件的动词' })
-    }
-
-    const verb = verbs[0]
-    const conjugations = Conjugation.getByVerbId(verb.id)
-    
-    if (conjugations.length === 0) {
-      return res.status(404).json({ error: '该动词没有变位数据' })
-    }
-
-    // 根据选择的时态筛选变位
-    let filteredConjugations = conjugations
-    if (tenses && tenses.length > 0) {
-      // 时态映射（前端传来的值 -> 数据库中的值）
-      const tenseMap = {
-        'presente': '现在时',
-        'preterito': '简单过去时',
-        'futuro': '将来时',
-        'imperfecto': '过去未完成时',
-        'condicional': '条件式'
-      }
-      
-      const selectedTenseNames = tenses.map(t => tenseMap[t]).filter(Boolean)
-      filteredConjugations = conjugations.filter(c => selectedTenseNames.includes(c.tense))
-    }
-    
-    if (filteredConjugations.length === 0) {
-      return res.status(404).json({ error: '没有符合所选时态的变位数据' })
-    }
-
-    const randomConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
-
-    // 变位类型数字转文字
-    const conjugationTypeMap = {
-      1: '第一变位',
-      2: '第二变位',
-      3: '第三变位'
-    }
-
-    let exercise = {
-      verbId: verb.id,
-      infinitive: verb.infinitive,
-      meaning: verb.meaning,
-      tense: randomConjugation.tense,
-      mood: randomConjugation.mood,
-      person: randomConjugation.person,
-      correctAnswer: randomConjugation.conjugated_form,
-      exerciseType,
-      conjugationType: conjugationTypeMap[verb.conjugation_type] || '未知',  // 将数字转换为文字
-      isIrregular: verb.is_irregular === 1      // 添加是否不规则信息
-    }
-
-    // 根据题型生成不同的题目
-    try {
-      switch (exerciseType) {
-        case 'choice':
-          if (useAI) {
-            exercise.options = await DeepSeekService.generateChoiceOptions(verb, randomConjugation, filteredConjugations)
-          } else {
-            exercise.options = generateChoiceOptions(verb.id, randomConjugation, filteredConjugations)
-          }
-          break
-        
-        case 'fill':
-          if (useAI) {
-            const aiExercise = await DeepSeekService.generateFillBlankExercise(verb, randomConjugation)
-            exercise.question = aiExercise.question
-            exercise.hint = aiExercise.hint
-            exercise.example = aiExercise.example
-          } else {
-            exercise.question = `请填写动词 ${verb.infinitive}(${verb.meaning}) 在 ${randomConjugation.mood} ${randomConjugation.tense} ${randomConjugation.person} 的变位形式`
-          }
-          break
-        
-        case 'conjugate':
-          exercise.question = `请写出 ${verb.infinitive}(${verb.meaning}) 的变位`
-          break
-        
-        case 'sentence':
-          if (useAI) {
-            const aiSentence = await DeepSeekService.generateSentenceExercise(verb, randomConjugation)
-            exercise.sentence = aiSentence.sentence
-            exercise.translation = aiSentence.translation
-            exercise.hint = aiSentence.hint
-          } else {
-            exercise.sentence = generateSentence(verb, randomConjugation)
-          }
-          break
-      }
-    } catch (aiError) {
-      console.error('AI 生成失败，使用传统方法:', aiError.message)
-      if (exerciseType === 'choice') {
-        exercise.options = generateChoiceOptions(verb.id, randomConjugation, filteredConjugations)
-      } else if (exerciseType === 'sentence') {
-        exercise.sentence = generateSentence(verb, randomConjugation)
-      }
-    }
+    // 使用新的生成服务
+    const exercise = await ExerciseGeneratorService.generateOne(options)
 
     res.json({
       success: true,
-      exercise,
-      aiEnhanced: useAI
+      exercise
     })
   } catch (error) {
     console.error('生成练习题错误:', error)
-    res.status(500).json({ error: '生成练习题失败' })
+    res.status(500).json({ error: error.message || '生成练习题失败' })
   }
 })
 
@@ -269,16 +163,29 @@ router.post('/generate', authMiddleware, async (req, res) => {
 })
 
 // 提交答案
+// 提交答案
 router.post('/submit', authMiddleware, (req, res) => {
   try {
-    const { verbId, exerciseType, answer, correctAnswer, tense, mood, person } = req.body
+    const { 
+      verbId, 
+      exerciseType, 
+      answer, 
+      correctAnswer, 
+      tense, 
+      mood, 
+      person,
+      questionId,        // 题库题目ID（如果来自题库）
+      questionSource     // 题目来源：'public' 或 'private'
+    } = req.body
+
+    const userId = req.userId
 
     // 判断答案是否正确
     const isCorrect = answer.trim().toLowerCase() === correctAnswer.trim().toLowerCase()
 
     // 保存练习记录
     PracticeRecord.create({
-      userId: req.userId,
+      userId: userId,
       verbId,
       exerciseType,
       isCorrect: isCorrect ? 1 : 0,
@@ -288,6 +195,19 @@ router.post('/submit', authMiddleware, (req, res) => {
       mood,
       person
     })
+
+    // 如果是题库题目且答对了，记录并更新置信度
+    if (isCorrect && questionId && questionSource) {
+      try {
+        // 记录用户答对次数
+        Question.recordCorrectAnswer(userId, questionId, questionSource)
+        
+        // 如果是公共题库题目，不更新置信度（置信度只通过收藏/取消收藏更新）
+        // 置信度更新逻辑已移至收藏功能中
+      } catch (error) {
+        console.error('记录题库答题信息失败:', error)
+      }
+    }
 
     res.json({
       success: true,

@@ -26,6 +26,12 @@
       }
     },
     {
+      "path": "pages/question-bank/question-bank",
+      "style": {
+        "navigationBarTitleText": "我的题库"
+      }
+    },
+    {
       "path": "pages/statistics/statistics",
       "style": {
         "navigationBarTitleText": "学习统计"

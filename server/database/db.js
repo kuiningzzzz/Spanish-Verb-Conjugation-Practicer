@@ -141,6 +141,68 @@ function initDatabase() {
     )
   `)
 
+  // 公共题库表（填空题和例句填空）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS public_questions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      verb_id INTEGER NOT NULL,
+      question_type TEXT NOT NULL CHECK(question_type IN ('fill', 'sentence')),
+      question_text TEXT NOT NULL,
+      correct_answer TEXT NOT NULL,
+      example_sentence TEXT,
+      translation TEXT,
+      hint TEXT,
+      tense TEXT NOT NULL,
+      mood TEXT NOT NULL,
+      person TEXT NOT NULL,
+      confidence_score INTEGER DEFAULT 50 CHECK(confidence_score >= 0 AND confidence_score <= 100),
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (verb_id) REFERENCES verbs(id) ON DELETE CASCADE
+    )
+  `)
+
+  // 私人题库表（用户收藏的题目）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS private_questions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      verb_id INTEGER NOT NULL,
+      question_type TEXT NOT NULL CHECK(question_type IN ('fill', 'sentence')),
+      question_text TEXT NOT NULL,
+      correct_answer TEXT NOT NULL,
+      example_sentence TEXT,
+      translation TEXT,
+      hint TEXT,
+      tense TEXT NOT NULL,
+      mood TEXT NOT NULL,
+      person TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (verb_id) REFERENCES verbs(id) ON DELETE CASCADE
+    )
+  `)
+
+  // 用户答题记录表（记录每个用户对每个题目做对的次数）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_question_records (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      question_id INTEGER NOT NULL,
+      question_type TEXT NOT NULL CHECK(question_type IN ('public', 'private')),
+      correct_count INTEGER DEFAULT 0,
+      last_practiced_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(user_id, question_id, question_type)
+    )
+  `)
+
+  // 创建索引
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_public_questions_verb ON public_questions(verb_id)`)
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_public_questions_type ON public_questions(question_type)`)
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_public_questions_created ON public_questions(created_at)`)
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_private_questions_user ON private_questions(user_id)`)
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_user_question_records ON user_question_records(user_id, question_id, question_type)`)
+
   console.log('数据库初始化完成')
 }
 

@@ -11,6 +11,10 @@
           <text class="stat-number">{{ wrongCount }}</text>
           <text class="stat-label">错题单词</text>
         </view>
+        <view class="stat-item">
+          <text class="stat-number">{{ questionCount }}</text>
+          <text class="stat-label">收藏题目</text>
+        </view>
       </view>
     </view>
 
@@ -30,6 +34,15 @@
         <view class="entry-content">
           <text class="entry-title">错题专练</text>
           <text class="entry-desc">练习做错的单词</text>
+        </view>
+        <view class="entry-arrow">→</view>
+      </view>
+
+      <view class="entry-card" @click="viewQuestions">
+        <view class="entry-icon">📝</view>
+        <view class="entry-content">
+          <text class="entry-title">收藏题目</text>
+          <text class="entry-desc">查看已收藏的填空题和例句题</text>
         </view>
         <view class="entry-arrow">→</view>
       </view>
@@ -124,6 +137,7 @@ export default {
       activeTab: 'favorite',
       favoriteCount: 0,
       wrongCount: 0,
+      questionCount: 0,
       favoriteList: [],
       wrongList: []
     }
@@ -140,6 +154,12 @@ export default {
         if (res.success) {
           this.favoriteCount = res.stats.favoriteCount
           this.wrongCount = res.stats.wrongCount
+        }
+
+        // 加载题目统计
+        const questionRes = await api.getQuestionStats()
+        if (questionRes.success) {
+          this.questionCount = questionRes.stats.totalCount
         }
       } catch (error) {
         console.error('加载统计失败:', error)
@@ -232,6 +252,16 @@ export default {
       }
       uni.navigateTo({
         url: '/pages/practice/practice?mode=wrong'
+      })
+    },
+
+    viewQuestions() {
+      if (this.questionCount === 0) {
+        showToast('还没有收藏题目', 'none')
+        return
+      }
+      uni.navigateTo({
+        url: '/pages/question-bank/question-bank'
       })
     },
 

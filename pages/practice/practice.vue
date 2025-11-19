@@ -24,8 +24,19 @@
         <view class="exercise-type-tag">
           <text>{{ exerciseTypeText }}</text>
         </view>
-        <view class="favorite-btn" @click="toggleFavorite">
-          <text class="favorite-icon">{{ isFavorited ? '★' : '☆' }}</text>
+        <view class="header-actions">
+          <!-- 单词收藏按钮 -->
+          <view class="favorite-btn" @click="toggleFavorite">
+            <text class="favorite-icon">{{ isFavorited ? '★' : '☆' }}</text>
+          </view>
+          <!-- 题目收藏按钮（仅填空题和例句填空） -->
+          <view 
+            v-if="exerciseType === 'fill' || exerciseType === 'sentence'" 
+            class="question-favorite-btn" 
+            @click="toggleQuestionFavorite"
+          >
+            <text class="question-favorite-icon">{{ isQuestionFavorited ? '📌' : '📍' }}</text>
+          </view>
         </view>
       </view>
 
@@ -145,10 +156,10 @@
 
       <button class="btn-primary mt-20" @click="submitAnswer">提交答案</button>
 
-      <!-- AI 生成状态指示器 -->
-      <view class="ai-status" v-if="useAI && generatingCount > 0">
+      <!-- 题目生成状态指示器 -->
+      <view class="ai-status" v-if="generatingCount > 0">
         <view class="ai-status-icon">🤖</view>
-        <text class="ai-status-text">AI 正在生成第 {{ exercises.length + 1 }}-{{ Math.min(exercises.length + generatingCount, exerciseCount) }} 题...</text>
+        <text class="ai-status-text">正在生成第 {{ exercises.length + 1 }}-{{ Math.min(exercises.length + generatingCount, exerciseCount) }} 题...</text>
       </view>
     </view>
 
@@ -265,19 +276,6 @@
         </view>
       </view>
 
-      <view class="form-item ai-switch-item">
-        <view class="ai-switch-header">
-          <view class="ai-switch-title">
-            <text class="ai-icon">🤖</text>
-            <text class="label ai-label">AI 智能出题</text>
-          </view>
-          <switch :checked="useAI" @change="onAISwitchChange" color="#667eea" />
-        </view>
-        <view class="ai-description-box">
-          <text class="ai-description">✨ 开启后使用 AI 生成更高质量、更具针对性的练习题，确保答案唯一性</text>
-        </view>
-      </view>
-
       <button class="btn-primary mt-20" @click="startPractice">开始练习</button>
     </view>
   </view>
@@ -301,7 +299,6 @@ export default {
       exerciseTypeIndex: 0,
       exerciseType: 'choice',
       exerciseCount: 10,
-      useAI: true,
       
       // 专项练习设置
       tenseOptions: [
@@ -341,6 +338,9 @@ export default {
       // 单词本相关
       isFavorited: false,  // 当前单词是否已收藏
       practiceMode: 'normal', // 练习模式：normal/favorite/wrong
+      
+      // 题目收藏相关（仅填空题和例句填空）
+      isQuestionFavorited: false,  // 当前题目是否已收藏
       
       // 辅助内容显示控制
       showExample: false,    // 是否显示例句
@@ -404,9 +404,6 @@ export default {
     },
     onCountChange(e) {
       this.exerciseCount = e.detail.value
-    },
-    onAISwitchChange(e) {
-      this.useAI = e.detail.value
     },
     
     // 专项练习设置方法
@@ -472,7 +469,6 @@ export default {
         // 流水线模式：先生成第一题
         const res = await api.getOneExercise({
           exerciseType: this.exerciseType,
-          useAI: this.useAI,
           tenses: this.selectedTenses,
           conjugationTypes: this.selectedConjugationTypes,
           includeIrregular: this.includeIrregular,
@@ -491,11 +487,8 @@ export default {
           
           // 检查第一题的收藏状态
           this.checkFavoriteStatus()
+          this.checkQuestionFavoriteStatus()
           
-          if (res.aiEnhanced) {
-            showToast('AI 智能出题已启用', 'success')
-          }
-
           // 立即开始预生成题目（根据缓冲区大小）
           this.fillBuffer()
         } else {
@@ -562,7 +555,6 @@ export default {
       try {
         const res = await api.getOneExercise({
           exerciseType: this.exerciseType,
-          useAI: this.useAI,
           tenses: this.selectedTenses,
           conjugationTypes: this.selectedConjugationTypes,
           includeIrregular: this.includeIrregular,
@@ -643,6 +635,68 @@ export default {
       }
     },
     
+    // 检查当前题目是否已收藏（仅填空题和例句填空）
+    async checkQuestionFavoriteStatus() {
+      const ex = this.currentExercise
+      if (!ex || (ex.exerciseType !== 'fill' && ex.exerciseType !== 'sentence')) {
+        this.isQuestionFavorited = false
+        return
+      }
+      
+      // 如果题目来自私人题库，默认已收藏
+      if (ex.questionSource === 'private') {
+        this.isQuestionFavorited = true
+        return
+      }
+      
+      // TODO: 暂时设为未收藏，后续可以添加检查逻辑
+      this.isQuestionFavorited = false
+    },
+    
+    // 切换题目收藏状态（仅填空题和例句填空）
+    async toggleQuestionFavorite() {
+      const ex = this.currentExercise
+      if (!ex || (ex.exerciseType !== 'fill' && ex.exerciseType !== 'sentence')) {
+        showToast('只支持收藏填空题和例句填空', 'none')
+        return
+      }
+      
+      try {
+        if (this.isQuestionFavorited) {
+          // 取消收藏
+          showToast('该功能开发中', 'none')
+          // TODO: 需要知道privateQuestionId才能取消收藏
+        } else {
+          // 收藏题目
+          const questionData = {
+            verbId: ex.verbId,
+            questionType: ex.exerciseType,
+            questionText: ex.exerciseType === 'sentence' ? ex.sentence : ex.question,
+            correctAnswer: ex.correctAnswer,
+            exampleSentence: ex.example || ex.sentence,
+            translation: ex.translation,
+            hint: ex.hint,
+            tense: ex.tense,
+            mood: ex.mood,
+            person: ex.person
+          }
+          
+          // 如果题目来自公共题库，传递questionId
+          if (ex.questionId && ex.questionSource === 'public') {
+            questionData.questionId = ex.questionId
+            questionData.questionSource = ex.questionSource
+          }
+          
+          await api.favoriteQuestion(questionData)
+          this.isQuestionFavorited = true
+          showToast('题目已收藏', 'success')
+        }
+      } catch (error) {
+        console.error('收藏题目失败:', error)
+        showToast('操作失败', 'none')
+      }
+    },
+    
     // 切换例句显示
     toggleExample() {
       this.showExample = !this.showExample
@@ -674,7 +728,9 @@ export default {
           correctAnswer: this.currentExercise.correctAnswer,
           tense: this.currentExercise.tense,
           mood: this.currentExercise.mood,
-          person: this.currentExercise.person
+          person: this.currentExercise.person,
+          questionId: this.currentExercise.questionId,           // 题库题目ID（如果有）
+          questionSource: this.currentExercise.questionSource     // 题目来源（public/private）
         })
 
         if (res.success) {
@@ -715,13 +771,14 @@ export default {
         this.currentIndex++
         // 检查新题目的收藏状态
         this.checkFavoriteStatus()
+        this.checkQuestionFavoriteStatus()
         // 继续填充缓冲区
         this.fillBuffer()
       } else {
         // 下一题还没生成好
         if (this.generatingCount > 0) {
           // 正在生成中，显示等待提示
-          showLoading('AI 正在生成下一题，请稍候...')
+          showLoading('正在生成下一题，请稍候...')
           
           // 轮询等待生成完成
           const checkInterval = setInterval(() => {
@@ -899,9 +956,25 @@ export default {
   cursor: pointer;
 }
 
+.header-actions {
+  display: flex;
+  gap: 15rpx;
+  align-items: center;
+}
+
+.question-favorite-btn {
+  padding: 10rpx 15rpx;
+  cursor: pointer;
+}
+
 .favorite-icon {
   font-size: 48rpx;
   color: #ffd700;
+  line-height: 1;
+}
+
+.question-favorite-icon {
+  font-size: 44rpx;
   line-height: 1;
 }
 

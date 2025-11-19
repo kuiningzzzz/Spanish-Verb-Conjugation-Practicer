@@ -95,5 +95,11 @@ export default {
   // 错题
   addWrongVerb: (data) => request({ url: '/vocabulary/wrong/add', method: 'POST', data }),
   removeWrongVerb: (data) => request({ url: '/vocabulary/wrong/remove', method: 'POST', data }),
-  getWrongList: () => request({ url: '/vocabulary/wrong/list' })
+  getWrongList: () => request({ url: '/vocabulary/wrong/list' }),
+  
+  // 题库相关
+  favoriteQuestion: (data) => request({ url: '/question/favorite', method: 'POST', data }),
+  unfavoriteQuestion: (data) => request({ url: '/question/unfavorite', method: 'POST', data }),
+  getMyQuestions: (params) => request({ url: '/question/my-questions', data: params }),
+  getQuestionStats: () => request({ url: '/question/stats' })
 }
