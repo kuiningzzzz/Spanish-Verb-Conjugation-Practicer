@@ -61,6 +61,28 @@ class Verb {
       params.push(filters.textbookVolume)
     }
 
+    // 按变位类型筛选
+    if (filters.conjugationTypes && filters.conjugationTypes.length > 0) {
+      // 变位类型映射：数据库中存储的是数字 1, 2, 3
+      const typeMap = {
+        'ar': 1,  // 第一变位
+        'er': 2,  // 第二变位
+        'ir': 3   // 第三变位
+      }
+      
+      const types = filters.conjugationTypes.map(t => typeMap[t]).filter(t => t !== undefined)
+      if (types.length > 0) {
+        const placeholders = types.map(() => '?').join(',')
+        query += ` AND conjugation_type IN (${placeholders})`
+        params.push(...types)
+      }
+    }
+
+    // 是否只要规则动词
+    if (filters.onlyRegular === true) {
+      query += ' AND is_irregular = 0'
+    }
+
     query += ' ORDER BY RANDOM() LIMIT ?'
     params.push(count)
 

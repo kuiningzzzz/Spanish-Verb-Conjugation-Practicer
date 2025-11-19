@@ -9,13 +9,34 @@ const { authMiddleware } = require('../middleware/auth')
 // 生成单个练习题（流水线模式）
 router.post('/generate-one', authMiddleware, async (req, res) => {
   try {
-    const { exerciseType, lessonNumber, textbookVolume, useAI = true } = req.body
+    const { 
+      exerciseType, 
+      lessonNumber, 
+      textbookVolume, 
+      useAI = true,
+      tenses = [],           // 选择的时态数组
+      conjugationTypes = [], // 选择的变位类型数组
+      includeIrregular = true // 是否包含不规则动词
+    } = req.body
+
+    // 构建查询条件
+    const queryOptions = { lessonNumber, textbookVolume }
+    
+    // 如果指定了变位类型，添加到查询条件
+    if (conjugationTypes && conjugationTypes.length > 0) {
+      queryOptions.conjugationTypes = conjugationTypes
+    }
+    
+    // 如果不包含不规则动词，添加到查询条件
+    if (!includeIrregular) {
+      queryOptions.onlyRegular = true
+    }
 
     // 获取一个随机动词
-    const verbs = Verb.getRandom(1, { lessonNumber, textbookVolume })
+    const verbs = Verb.getRandom(1, queryOptions)
     
     if (verbs.length === 0) {
-      return res.status(404).json({ error: '没有可用的动词' })
+      return res.status(404).json({ error: '没有符合条件的动词' })
     }
 
     const verb = verbs[0]
@@ -25,7 +46,34 @@ router.post('/generate-one', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: '该动词没有变位数据' })
     }
 
-    const randomConjugation = conjugations[Math.floor(Math.random() * conjugations.length)]
+    // 根据选择的时态筛选变位
+    let filteredConjugations = conjugations
+    if (tenses && tenses.length > 0) {
+      // 时态映射（前端传来的值 -> 数据库中的值）
+      const tenseMap = {
+        'presente': '现在时',
+        'preterito': '简单过去时',
+        'futuro': '将来时',
+        'imperfecto': '过去未完成时',
+        'condicional': '条件式'
+      }
+      
+      const selectedTenseNames = tenses.map(t => tenseMap[t]).filter(Boolean)
+      filteredConjugations = conjugations.filter(c => selectedTenseNames.includes(c.tense))
+    }
+    
+    if (filteredConjugations.length === 0) {
+      return res.status(404).json({ error: '没有符合所选时态的变位数据' })
+    }
+
+    const randomConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
+
+    // 变位类型数字转文字
+    const conjugationTypeMap = {
+      1: '第一变位',
+      2: '第二变位',
+      3: '第三变位'
+    }
 
     let exercise = {
       verbId: verb.id,
@@ -35,7 +83,9 @@ router.post('/generate-one', authMiddleware, async (req, res) => {
       mood: randomConjugation.mood,
       person: randomConjugation.person,
       correctAnswer: randomConjugation.conjugated_form,
-      exerciseType
+      exerciseType,
+      conjugationType: conjugationTypeMap[verb.conjugation_type] || '未知',  // 将数字转换为文字
+      isIrregular: verb.is_irregular === 1      // 添加是否不规则信息
     }
 
     // 根据题型生成不同的题目
@@ -43,9 +93,9 @@ router.post('/generate-one', authMiddleware, async (req, res) => {
       switch (exerciseType) {
         case 'choice':
           if (useAI) {
-            exercise.options = await DeepSeekService.generateChoiceOptions(verb, randomConjugation, conjugations)
+            exercise.options = await DeepSeekService.generateChoiceOptions(verb, randomConjugation, filteredConjugations)
           } else {
-            exercise.options = generateChoiceOptions(verb.id, randomConjugation, conjugations)
+            exercise.options = generateChoiceOptions(verb.id, randomConjugation, filteredConjugations)
           }
           break
         
@@ -78,7 +128,7 @@ router.post('/generate-one', authMiddleware, async (req, res) => {
     } catch (aiError) {
       console.error('AI 生成失败，使用传统方法:', aiError.message)
       if (exerciseType === 'choice') {
-        exercise.options = generateChoiceOptions(verb.id, randomConjugation, conjugations)
+        exercise.options = generateChoiceOptions(verb.id, randomConjugation, filteredConjugations)
       } else if (exerciseType === 'sentence') {
         exercise.sentence = generateSentence(verb, randomConjugation)
       }

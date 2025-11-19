@@ -133,6 +133,67 @@
         <slider @change="onCountChange" :value="exerciseCount" min="5" max="30" show-value />
       </view>
 
+      <!-- 专项练习设置 -->
+      <view class="form-item theme-practice-item">
+        <view class="theme-header">
+          <text class="theme-icon">🎯</text>
+          <text class="label theme-label">专项练习</text>
+        </view>
+        
+        <!-- 时态选择 -->
+        <view class="theme-section">
+          <text class="theme-subtitle">时态选择</text>
+          <view class="checkbox-group">
+            <view 
+              v-for="(tense, index) in tenseOptions" 
+              :key="index"
+              :class="['checkbox-item', selectedTenses.includes(tense.value) ? 'checked' : '']"
+              @click="toggleTense(tense.value)"
+            >
+              <text class="checkbox-icon">{{ selectedTenses.includes(tense.value) ? '☑' : '☐' }}</text>
+              <text class="checkbox-label">{{ tense.label }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 变位类型选择 -->
+        <view class="theme-section">
+          <text class="theme-subtitle">变位类型</text>
+          <view class="checkbox-group">
+            <view 
+              v-for="(type, index) in conjugationTypes" 
+              :key="index"
+              :class="['checkbox-item', selectedConjugationTypes.includes(type.value) ? 'checked' : '']"
+              @click="toggleConjugationType(type.value)"
+            >
+              <text class="checkbox-icon">{{ selectedConjugationTypes.includes(type.value) ? '☑' : '☐' }}</text>
+              <text class="checkbox-label">{{ type.label }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 不规则动词选项 -->
+        <view class="theme-section">
+          <text class="theme-subtitle">动词规则性</text>
+          <view class="checkbox-group">
+            <view 
+              :class="['checkbox-item', includeIrregular ? 'checked' : '']"
+              @click="includeIrregular = !includeIrregular"
+            >
+              <text class="checkbox-icon">{{ includeIrregular ? '☑' : '☐' }}</text>
+              <text class="checkbox-label">包含不规则动词</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 快速设置 -->
+        <view class="quick-settings">
+          <text class="quick-label">快速设置：</text>
+          <button class="quick-btn" @click="selectAllThemes">全选</button>
+          <button class="quick-btn secondary" @click="clearAllThemes">清除</button>
+        </view>
+      </view>
+
       <view class="form-item ai-switch-item">
         <view class="ai-switch-header">
           <view class="ai-switch-title">
@@ -169,6 +230,27 @@ export default {
       exerciseType: 'choice',
       exerciseCount: 10,
       useAI: true,
+      
+      // 专项练习设置
+      tenseOptions: [
+        { value: 'presente', label: '现在时' },
+        { value: 'preterito', label: '简单过去时' },
+        { value: 'futuro', label: '将来时' }
+        // 注意：过去未完成时和条件式暂未添加数据，待后续扩展
+        // { value: 'imperfecto', label: '过去未完成时' },
+        // { value: 'condicional', label: '条件式' }
+      ],
+      selectedTenses: ['presente', 'preterito', 'futuro'],  // 默认全选现有时态
+      
+      conjugationTypes: [
+        { value: 'ar', label: '第一变位 (-ar)' },
+        { value: 'er', label: '第二变位 (-er)' },
+        { value: 'ir', label: '第三变位 (-ir)' }
+      ],
+      selectedConjugationTypes: ['ar', 'er', 'ir'],  // 默认全选
+      
+      includeIrregular: true,  // 是否包含不规则动词
+      
       exercises: [],
       currentIndex: 0,
       userAnswer: '',
@@ -211,14 +293,74 @@ export default {
     onAISwitchChange(e) {
       this.useAI = e.detail.value
     },
+    
+    // 专项练习设置方法
+    toggleTense(tense) {
+      const index = this.selectedTenses.indexOf(tense)
+      if (index > -1) {
+        this.selectedTenses.splice(index, 1)
+      } else {
+        this.selectedTenses.push(tense)
+      }
+    },
+    
+    toggleConjugationType(type) {
+      const index = this.selectedConjugationTypes.indexOf(type)
+      if (index > -1) {
+        this.selectedConjugationTypes.splice(index, 1)
+      } else {
+        this.selectedConjugationTypes.push(type)
+      }
+    },
+    
+    selectAllThemes() {
+      this.selectedTenses = this.tenseOptions.map(t => t.value)
+      this.selectedConjugationTypes = this.conjugationTypes.map(c => c.value)
+      this.includeIrregular = true
+      showToast('已全选所有选项', 'success')
+    },
+    
+    clearAllThemes() {
+      this.selectedTenses = []
+      this.selectedConjugationTypes = []
+      this.includeIrregular = false
+      showToast('已清除所有选项', 'none')
+    },
+    
     async startPractice() {
+      // 验证是否登录
+      const token = uni.getStorageSync('token')
+      if (!token) {
+        showToast('请先登录', 'none')
+        setTimeout(() => {
+          uni.navigateTo({
+            url: '/pages/login/login'
+          })
+        }, 1500)
+        return
+      }
+      
+      // 验证是否至少选择了一个时态和变位类型
+      if (this.selectedTenses.length === 0) {
+        showToast('请至少选择一个时态', 'none')
+        return
+      }
+      
+      if (this.selectedConjugationTypes.length === 0) {
+        showToast('请至少选择一个变位类型', 'none')
+        return
+      }
+      
       showLoading('正在生成第一题...')
 
       try {
         // 流水线模式：先生成第一题
         const res = await api.getOneExercise({
           exerciseType: this.exerciseType,
-          useAI: this.useAI
+          useAI: this.useAI,
+          tenses: this.selectedTenses,
+          conjugationTypes: this.selectedConjugationTypes,
+          includeIrregular: this.includeIrregular
         })
 
         hideLoading()
@@ -241,8 +383,24 @@ export default {
           showToast('获取练习题失败')
         }
       } catch (error) {
+        console.error('练习获取失败:', error)
         hideLoading()
-        showToast('网络错误')
+        
+        // 更详细的错误信息
+        if (error.error === '无效的token' || error.error === 'token已过期') {
+          showToast('登录已过期，请重新登录', 'none')
+          setTimeout(() => {
+            uni.removeStorageSync('token')
+            uni.removeStorageSync('userInfo')
+            uni.navigateTo({
+              url: '/pages/login/login'
+            })
+          }, 1500)
+        } else if (error.error) {
+          showToast(error.error, 'none')
+        } else {
+          showToast('网络请求失败，请检查网络连接', 'none')
+        }
       }
     },
 
@@ -285,7 +443,10 @@ export default {
       try {
         const res = await api.getOneExercise({
           exerciseType: this.exerciseType,
-          useAI: this.useAI
+          useAI: this.useAI,
+          tenses: this.selectedTenses,
+          conjugationTypes: this.selectedConjugationTypes,
+          includeIrregular: this.includeIrregular
         })
 
         if (res.success && res.exercise) {
@@ -703,6 +864,120 @@ export default {
 
 slider {
   margin-top: 10rpx;
+}
+
+/* 专项练习样式 */
+.theme-practice-item {
+  background: linear-gradient(135deg, #fff9f0 0%, #fff5fb 100%);
+  border: 2rpx solid #ffe7d6;
+  border-radius: 16rpx;
+  padding: 25rpx;
+  margin-bottom: 35rpx;
+  box-shadow: 0 4rpx 12rpx rgba(255, 153, 0, 0.08);
+}
+
+.theme-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+  padding-bottom: 15rpx;
+  border-bottom: 2rpx solid #ffe7d6;
+}
+
+.theme-icon {
+  font-size: 36rpx;
+  margin-right: 12rpx;
+}
+
+.theme-label {
+  margin-bottom: 0;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #ff9500;
+}
+
+.theme-section {
+  margin-bottom: 25rpx;
+}
+
+.theme-subtitle {
+  display: block;
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 12rpx;
+  font-weight: 500;
+}
+
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.checkbox-item {
+  background: #fff;
+  padding: 12rpx 20rpx;
+  border-radius: 8rpx;
+  border: 2rpx solid #e9ecef;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.checkbox-item.checked {
+  background: linear-gradient(135deg, #fff4e6 0%, #ffe7d6 100%);
+  border-color: #ff9500;
+}
+
+.checkbox-icon {
+  font-size: 28rpx;
+  margin-right: 8rpx;
+  color: #999;
+}
+
+.checkbox-item.checked .checkbox-icon {
+  color: #ff9500;
+}
+
+.checkbox-label {
+  font-size: 24rpx;
+  color: #333;
+}
+
+.quick-settings {
+  display: flex;
+  align-items: center;
+  margin-top: 20rpx;
+  padding-top: 15rpx;
+  border-top: 2rpx solid #ffe7d6;
+}
+
+.quick-label {
+  font-size: 24rpx;
+  color: #666;
+  margin-right: 15rpx;
+}
+
+.quick-btn {
+  padding: 8rpx 20rpx;
+  border-radius: 6rpx;
+  font-size: 22rpx;
+  background: linear-gradient(135deg, #ff9500 0%, #ff6b00 100%);
+  color: #fff;
+  border: none;
+  margin-right: 10rpx;
+  min-width: auto;
+  line-height: 1.4;
+}
+
+.quick-btn.secondary {
+  background: #fff;
+  color: #ff9500;
+  border: 2rpx solid #ff9500;
+}
+
+.quick-btn::after {
+  border: none;
 }
 
 /* AI 开关样式优化 */

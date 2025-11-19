@@ -1,10 +1,18 @@
 // API基础配置
-const BASE_URL = 'http://3111933e.r39.cpolar.top/api'
+const BASE_URL = 'http://362ff83b.r39.cpolar.top/api'
 
 // 请求封装
 const request = (options) => {
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync('token')
+    
+    // 调试信息
+    console.log('API请求:', {
+      url: BASE_URL + options.url,
+      method: options.method || 'GET',
+      hasToken: !!token,
+      data: options.data
+    })
     
     uni.request({
       url: BASE_URL + options.url,
@@ -15,6 +23,11 @@ const request = (options) => {
         'Authorization': token ? `Bearer ${token}` : ''
       },
       success: (res) => {
+        console.log('API响应:', {
+          statusCode: res.statusCode,
+          data: res.data
+        })
+        
         if (res.statusCode === 200) {
           resolve(res.data)
         } else if (res.statusCode === 401) {
@@ -30,9 +43,11 @@ const request = (options) => {
         }
       },
       fail: (err) => {
+        console.error('API请求失败:', err)
         uni.showToast({
-          title: '网络请求失败',
-          icon: 'none'
+          title: '网络请求失败: ' + (err.errMsg || '未知错误'),
+          icon: 'none',
+          duration: 3000
         })
         reject(err)
       }
