@@ -1,6 +1,6 @@
 const Verb = require('../models/Verb')
 const Conjugation = require('../models/Conjugation')
-const { db } = require('../database/db')
+const { vocabularyDb: db } = require('../database/db')
 
 // 初始化示例数据
 function initSampleData() {

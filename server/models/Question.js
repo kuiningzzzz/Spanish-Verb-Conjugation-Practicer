@@ -1,4 +1,4 @@
-const { db } = require('../database/db')
+const { userDb, questionDb, vocabularyDb } = require('../database/db')
 
 class Question {
   // ==================== 公共题库操作 ====================
@@ -21,7 +21,7 @@ class Question {
       confidenceScore = 50
     } = questionData
 
-    const stmt = db.prepare(`
+    const stmt = questionDb.prepare(`
       INSERT INTO public_questions (
         verb_id, question_type, question_text, correct_answer,
         example_sentence, translation, hint, tense, mood, person, confidence_score
@@ -42,47 +42,56 @@ class Question {
   static getRandomFromPublic(filters = {}) {
     const { questionType, tenses = [], conjugationTypes = [], includeIrregular = true, limit = 1 } = filters
 
-    let query = `
-      SELECT pq.*, v.infinitive, v.meaning, v.conjugation_type, v.is_irregular
-      FROM public_questions pq
-      JOIN verbs v ON pq.verb_id = v.id
-      WHERE 1=1
-    `
+    let query = `SELECT * FROM public_questions WHERE 1=1`
     const params = []
 
     if (questionType) {
-      query += ` AND pq.question_type = ?`
+      query += ` AND question_type = ?`
       params.push(questionType)
     }
 
     if (tenses.length > 0) {
       const placeholders = tenses.map(() => '?').join(',')
-      query += ` AND pq.tense IN (${placeholders})`
+      query += ` AND tense IN (${placeholders})`
       params.push(...tenses)
-    }
-
-    if (conjugationTypes.length > 0) {
-      const placeholders = conjugationTypes.map(() => '?').join(',')
-      query += ` AND v.conjugation_type IN (${placeholders})`
-      params.push(...conjugationTypes)
-    }
-
-    if (!includeIrregular) {
-      query += ` AND v.is_irregular = 0`
     }
 
     query += ` ORDER BY RANDOM() LIMIT ?`
     params.push(limit)
 
-    const stmt = db.prepare(query)
-    return limit === 1 ? stmt.get(...params) : stmt.all(...params)
+    const stmt = questionDb.prepare(query)
+    const questions = limit === 1 ? [stmt.get(...params)].filter(Boolean) : stmt.all(...params)
+    
+    // 如果需要动词信息，从词库数据库获取
+    if (questions.length > 0) {
+      const verbIds = questions.map(q => q.verb_id)
+      const placeholders = verbIds.map(() => '?').join(',')
+      const verbStmt = vocabularyDb.prepare(`
+        SELECT * FROM verbs WHERE id IN (${placeholders})
+      `)
+      const verbs = verbStmt.all(...verbIds)
+      const verbMap = {}
+      verbs.forEach(v => verbMap[v.id] = v)
+      
+      questions.forEach(q => {
+        const verb = verbMap[q.verb_id]
+        if (verb) {
+          q.infinitive = verb.infinitive
+          q.meaning = verb.meaning
+          q.conjugation_type = verb.conjugation_type
+          q.is_irregular = verb.is_irregular
+        }
+      })
+    }
+
+    return limit === 1 ? questions[0] : questions
   }
 
   /**
    * 更新公共题库题目的置信度
    */
   static updateConfidence(questionId, delta) {
-    const stmt = db.prepare(`
+    const stmt = questionDb.prepare(`
       UPDATE public_questions
       SET confidence_score = MIN(100, MAX(0, confidence_score + ?))
       WHERE id = ?
@@ -94,12 +103,12 @@ class Question {
   /**
    * 删除超过30天的公共题库题目
    */
-  static deleteOldPublicQuestions() {
-    const stmt = db.prepare(`
+  static deleteOldPublicQuestions(daysOld = 30) {
+    const stmt = questionDb.prepare(`
       DELETE FROM public_questions
-      WHERE datetime(created_at) <= datetime('now', '-30 days')
+      WHERE datetime(created_at) <= datetime('now', '-' || ? || ' days')
     `)
-    const result = stmt.run()
+    const result = stmt.run(daysOld)
     return result.changes
   }
 
@@ -116,7 +125,7 @@ class Question {
       params.push(questionType)
     }
 
-    const stmt = db.prepare(query)
+    const stmt = questionDb.prepare(query)
     const result = stmt.get(...params)
     return result.count
   }
@@ -141,7 +150,7 @@ class Question {
     } = questionData
 
     // 检查是否已存在
-    const existStmt = db.prepare(`
+    const existStmt = userDb.prepare(`
       SELECT id FROM private_questions 
       WHERE user_id = ? AND verb_id = ? AND question_type = ? AND question_text = ?
     `)
@@ -151,7 +160,7 @@ class Question {
       return existing.id
     }
 
-    const stmt = db.prepare(`
+    const stmt = userDb.prepare(`
       INSERT INTO private_questions (
         user_id, verb_id, question_type, question_text, correct_answer,
         example_sentence, translation, hint, tense, mood, person
@@ -170,7 +179,7 @@ class Question {
    * 从私人题库删除题目
    */
   static removeFromPrivate(userId, questionId) {
-    const stmt = db.prepare(`
+    const stmt = userDb.prepare(`
       DELETE FROM private_questions
       WHERE id = ? AND user_id = ?
     `)
@@ -183,23 +192,42 @@ class Question {
    */
   static getPrivateByUser(userId, filters = {}) {
     const { questionType } = filters
-    let query = `
-      SELECT pq.*, v.infinitive, v.meaning, v.conjugation_type, v.is_irregular
-      FROM private_questions pq
-      JOIN verbs v ON pq.verb_id = v.id
-      WHERE pq.user_id = ?
-    `
+    let query = `SELECT * FROM private_questions WHERE user_id = ?`
     const params = [userId]
 
     if (questionType) {
-      query += ` AND pq.question_type = ?`
+      query += ` AND question_type = ?`
       params.push(questionType)
     }
 
-    query += ` ORDER BY pq.created_at DESC`
+    query += ` ORDER BY created_at DESC`
 
-    const stmt = db.prepare(query)
-    return stmt.all(...params)
+    const stmt = userDb.prepare(query)
+    const questions = stmt.all(...params)
+    
+    // 获取动词信息
+    if (questions.length > 0) {
+      const verbIds = [...new Set(questions.map(q => q.verb_id))]
+      const placeholders = verbIds.map(() => '?').join(',')
+      const verbStmt = vocabularyDb.prepare(`
+        SELECT * FROM verbs WHERE id IN (${placeholders})
+      `)
+      const verbs = verbStmt.all(...verbIds)
+      const verbMap = {}
+      verbs.forEach(v => verbMap[v.id] = v)
+      
+      questions.forEach(q => {
+        const verb = verbMap[q.verb_id]
+        if (verb) {
+          q.infinitive = verb.infinitive
+          q.meaning = verb.meaning
+          q.conjugation_type = verb.conjugation_type
+          q.is_irregular = verb.is_irregular
+        }
+      })
+    }
+
+    return questions
   }
 
   /**
@@ -208,24 +236,43 @@ class Question {
   static getRandomFromPrivate(userId, filters = {}) {
     const { questionType, limit = 1 } = filters
 
-    let query = `
-      SELECT pq.*, v.infinitive, v.meaning, v.conjugation_type, v.is_irregular
-      FROM private_questions pq
-      JOIN verbs v ON pq.verb_id = v.id
-      WHERE pq.user_id = ?
-    `
+    let query = `SELECT * FROM private_questions WHERE user_id = ?`
     const params = [userId]
 
     if (questionType) {
-      query += ` AND pq.question_type = ?`
+      query += ` AND question_type = ?`
       params.push(questionType)
     }
 
     query += ` ORDER BY RANDOM() LIMIT ?`
     params.push(limit)
 
-    const stmt = db.prepare(query)
-    return limit === 1 ? stmt.get(...params) : stmt.all(...params)
+    const stmt = userDb.prepare(query)
+    const questions = limit === 1 ? [stmt.get(...params)].filter(Boolean) : stmt.all(...params)
+    
+    // 获取动词信息
+    if (questions.length > 0) {
+      const verbIds = [...new Set(questions.map(q => q.verb_id))]
+      const placeholders = verbIds.map(() => '?').join(',')
+      const verbStmt = vocabularyDb.prepare(`
+        SELECT * FROM verbs WHERE id IN (${placeholders})
+      `)
+      const verbs = verbStmt.all(...verbIds)
+      const verbMap = {}
+      verbs.forEach(v => verbMap[v.id] = v)
+      
+      questions.forEach(q => {
+        const verb = verbMap[q.verb_id]
+        if (verb) {
+          q.infinitive = verb.infinitive
+          q.meaning = verb.meaning
+          q.conjugation_type = verb.conjugation_type
+          q.is_irregular = verb.is_irregular
+        }
+      })
+    }
+
+    return limit === 1 ? questions[0] : questions
   }
 
   /**
@@ -241,7 +288,7 @@ class Question {
       params.push(questionType)
     }
 
-    const stmt = db.prepare(query)
+    const stmt = userDb.prepare(query)
     const result = stmt.get(...params)
     return result.count
   }
@@ -252,7 +299,7 @@ class Question {
    * 记录用户答对题目
    */
   static recordCorrectAnswer(userId, questionId, questionType) {
-    const stmt = db.prepare(`
+    const stmt = userDb.prepare(`
       INSERT INTO user_question_records (user_id, question_id, question_type, correct_count, last_practiced_at)
       VALUES (?, ?, ?, 1, datetime('now', 'localtime'))
       ON CONFLICT(user_id, question_id, question_type) 
@@ -268,7 +315,7 @@ class Question {
    * 获取用户对某题的答对次数
    */
   static getCorrectCount(userId, questionId, questionType) {
-    const stmt = db.prepare(`
+    const stmt = userDb.prepare(`
       SELECT correct_count FROM user_question_records
       WHERE user_id = ? AND question_id = ? AND question_type = ?
     `)
@@ -279,15 +326,27 @@ class Question {
   /**
    * 删除超过30天公共题目的相关记录
    */
-  static deleteOldQuestionRecords() {
-    const stmt = db.prepare(`
-      DELETE FROM user_question_records
-      WHERE question_type = 'public' AND question_id IN (
-        SELECT id FROM public_questions
-        WHERE datetime(created_at) <= datetime('now', '-30 days')
-      )
+  static deleteOldQuestionRecords(daysOld = 30) {
+    // 先从题库数据库获取要删除的题目ID
+    const questionStmt = questionDb.prepare(`
+      SELECT id FROM public_questions
+      WHERE datetime(created_at) <= datetime('now', '-' || ? || ' days')
     `)
-    const result = stmt.run()
+    const oldQuestions = questionStmt.all(daysOld)
+    
+    if (oldQuestions.length === 0) {
+      return 0
+    }
+
+    const questionIds = oldQuestions.map(q => q.id)
+    const placeholders = questionIds.map(() => '?').join(',')
+    
+    // 从用户数据库删除相关记录
+    const stmt = userDb.prepare(`
+      DELETE FROM user_question_records
+      WHERE question_type = 'public' AND question_id IN (${placeholders})
+    `)
+    const result = stmt.run(...questionIds)
     return result.changes
   }
 
@@ -295,7 +354,7 @@ class Question {
    * 检查题目是否存在于公共题库
    */
   static existsInPublic(verbId, questionText) {
-    const stmt = db.prepare(`
+    const stmt = questionDb.prepare(`
       SELECT id FROM public_questions
       WHERE verb_id = ? AND question_text = ?
     `)

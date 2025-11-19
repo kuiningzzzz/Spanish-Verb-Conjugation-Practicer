@@ -1,4 +1,4 @@
-const { db } = require('../database/db')
+const { vocabularyDb: db } = require('../database/db')
 
 class Verb {
   // 创建动词

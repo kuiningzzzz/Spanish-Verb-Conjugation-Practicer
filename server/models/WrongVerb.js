@@ -1,4 +1,4 @@
-const { db } = require('../database/db')
+const { userDb: db } = require('../database/db')
 
 class WrongVerb {
   // 添加或更新错题记录

@@ -1,4 +1,4 @@
-const { db } = require('../database/db')
+const { userDb: db } = require('../database/db')
 
 class PracticeRecord {
   // 创建练习记录

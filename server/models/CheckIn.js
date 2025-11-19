@@ -1,4 +1,4 @@
-const { db } = require('../database/db')
+const { userDb: db } = require('../database/db')
 
 class CheckIn {
   // 打卡
