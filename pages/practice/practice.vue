@@ -1754,12 +1754,14 @@ slider {
 
 /* 专项练习样式 */
 .theme-practice-item {
-  background: linear-gradient(135deg, #fff9f0 0%, #fff5fb 100%);
-  border: 2rpx solid #ffe7d6;
+  background: linear-gradient(135deg, #f8f9ff 0%, #fff5fb 100%);
+  border: 2rpx solid #e0e7ff;
   border-radius: 16rpx;
   padding: 25rpx;
   margin-bottom: 35rpx;
-  box-shadow: 0 4rpx 12rpx rgba(255, 153, 0, 0.08);
+  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.08);
+  transition: all 0.3s ease;
+  position: relative;
 }
 
 .theme-header {
@@ -1767,7 +1769,7 @@ slider {
   align-items: center;
   margin-bottom: 20rpx;
   padding-bottom: 15rpx;
-  border-bottom: 2rpx solid #ffe7d6;
+  border-bottom: 2rpx solid #e0e7ff;
 }
 
 .theme-icon {
@@ -1779,7 +1781,10 @@ slider {
   margin-bottom: 0;
   font-size: 30rpx;
   font-weight: 600;
-  color: #ff9500;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .theme-section {
@@ -1811,8 +1816,8 @@ slider {
 }
 
 .checkbox-item.checked {
-  background: linear-gradient(135deg, #fff4e6 0%, #ffe7d6 100%);
-  border-color: #ff9500;
+  background: linear-gradient(135deg, #f0e7ff 0%, #e0e7ff 100%);
+  border-color: #667eea;
 }
 
 .checkbox-icon {
@@ -1822,7 +1827,7 @@ slider {
 }
 
 .checkbox-item.checked .checkbox-icon {
-  color: #ff9500;
+  color: #667eea;
 }
 
 .checkbox-label {
@@ -1835,7 +1840,7 @@ slider {
   align-items: center;
   margin-top: 20rpx;
   padding-top: 15rpx;
-  border-top: 2rpx solid #ffe7d6;
+  border-top: 2rpx solid #e0e7ff;
 }
 
 .quick-label {
@@ -1848,7 +1853,7 @@ slider {
   padding: 8rpx 20rpx;
   border-radius: 6rpx;
   font-size: 22rpx;
-  background: linear-gradient(135deg, #ff9500 0%, #ff6b00 100%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #fff;
   border: none;
   margin-right: 10rpx;
@@ -1858,8 +1863,8 @@ slider {
 
 .quick-btn.secondary {
   background: #fff;
-  color: #ff9500;
-  border: 2rpx solid #ff9500;
+  color: #667eea;
+  border: 2rpx solid #667eea;
 }
 
 .quick-btn::after {
