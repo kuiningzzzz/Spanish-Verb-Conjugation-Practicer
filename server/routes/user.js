@@ -96,7 +96,8 @@ router.post('/login', (req, res) => {
         email: user.email,
         school: user.school,
         enrollmentYear: user.enrollment_year,
-        userType: user.user_type
+        userType: user.user_type,
+        created_at: user.created_at
       }
     })
   } catch (error) {
@@ -122,7 +123,8 @@ router.get('/info', require('../middleware/auth').authMiddleware, (req, res) => 
         school: user.school,
         enrollmentYear: user.enrollment_year,
         userType: user.user_type,
-        subscriptionEndDate: user.subscription_end_date
+        subscriptionEndDate: user.subscription_end_date,
+        created_at: user.created_at
       }
     })
   } catch (error) {

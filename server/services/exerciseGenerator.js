@@ -9,15 +9,25 @@ const QuestionValidatorService = require('./questionValidator')
  */
 class ExerciseGeneratorService {
   /**
-   * 生成单个题目
-   * 策略：
-   * - 选择题和变位题：使用固定算法生成（不调用AI）
-   * - 填空题和例句填空：80-90%从题库，10-20%用AI生成
+   * 生成单个题目（保留向后兼容）
    */
   static async generateOne(options) {
+    const batch = await this.generateBatch({ ...options, count: 1 })
+    return batch.exercises[0]
+  }
+
+  /**
+   * 批量生成题目（新策略）
+   * 策略：
+   * - 选择题和变位题：使用固定算法生成（不调用AI）
+   * - 填空题和例句填空：按比例从题库和AI混合获取
+   * - 一次性生成所有需要的题目，管理题目池
+   */
+  static async generateBatch(options) {
     const {
       userId,
       exerciseType,
+      count = 10,
       tenses = [],
       conjugationTypes = [],
       includeIrregular = true,
@@ -25,51 +35,118 @@ class ExerciseGeneratorService {
       verbIds = null
     } = options
 
-    // 选择题和变位题：直接用固定算法
+    const exercises = []
+    const questionPool = [] // 题目池
+
+    // 选择题和变位题：直接用固定算法生成所有题目（同步、不使用AI）
     if (exerciseType === 'choice' || exerciseType === 'conjugate') {
-      return await this.generateTraditionalExercise(options)
+      console.log(`批量生成 - 使用传统算法生成${exerciseType === 'choice' ? '选择题' : '变位题'}: ${count}个`)
+      for (let i = 0; i < count; i++) {
+        const exercise = this.generateTraditionalExercise(options)
+        exercises.push(exercise)
+      }
+      return { exercises, questionPool: [] }
     }
 
     // 填空题和例句填空：混合模式
     if (exerciseType === 'fill' || exerciseType === 'sentence') {
-      // 决定使用题库还是AI生成（80-90%题库，10-20%AI）
-      const useQuestionBank = Math.random() < 0.85 // 85%使用题库
+      // 计算题库题和AI题的数量（85%题库，15%AI）
+      const bankCount = Math.round(count * 0.85)
+      let actualBankCount = 0  // 实际从题库获取的数量
 
-      if (useQuestionBank) {
-        // 从题库获取
-        const questionBankExercise = await this.getFromQuestionBank(options)
-        if (questionBankExercise) {
-          return questionBankExercise
-        }
-        // 题库没有合适题目，降级到AI生成
+      // 从题库获取题目池（一次性获取所需数量）
+      if (bankCount > 0 && userId) {
+        console.log(`批量生成 - 准备从题库获取:`, { bankCount, exerciseType })
+        
+        const smartQuestions = Question.getSmartFromPublic(userId, {
+          questionType: exerciseType,
+          tenses,
+          conjugationTypes,
+          includeIrregular
+        }, bankCount)
+
+        actualBankCount = smartQuestions.length
+        console.log(`批量生成 - 题库返回:`, {
+          returnedCount: actualBankCount,
+          questionIds: smartQuestions.map(q => q.id)
+        })
+
+        // 将题库题目添加到题目池
+        questionPool.push(...smartQuestions.map(q => ({
+          ...this.formatQuestionBankExercise(q, 'public'),
+          _fromPool: true,
+          _poolIndex: questionPool.length
+        })))
       }
 
-      // AI生成新题
-      return await this.generateWithAI(options)
+      // 计算需要AI生成的数量：总数 - 实际从题库获取的数量
+      const aiCount = count - actualBankCount
+      console.log(`批量生成 - AI题目数量:`, { total: count, fromBank: actualBankCount, needAI: aiCount })
+
+      // 性能优化：立即返回题库题目，AI题目由前端异步调用生成
+      if (aiCount > 0) {
+        // 准备AI生成所需的参数
+        const aiOptions = {
+          exerciseType,
+          tenses,
+          userId,
+          conjugationTypes,
+          includeIrregular,
+          verbIds
+        }
+        
+        console.log(`立即返回题库题目，前端需异步生成 ${aiCount} 个AI题目`)
+        return { 
+          exercises,        // AI生成的题目（暂时为空）
+          questionPool,     // 题库题目（立即返回）
+          needAI: aiCount,  // 需要生成的AI题目数量
+          aiOptions         // AI生成所需参数
+        }
+      }
+
+      return { exercises, questionPool }
     }
 
     // 默认使用传统方法
-    return await this.generateTraditionalExercise(options)
+    for (let i = 0; i < count; i++) {
+      const exercise = await this.generateTraditionalExercise(options)
+      exercises.push(exercise)
+    }
+    return { exercises, questionPool: [] }
   }
 
   /**
-   * 从题库获取题目
+   * 从题库获取题目（使用智能推荐算法）
    */
   static async getFromQuestionBank(options) {
     const { userId, exerciseType, tenses, conjugationTypes, includeIrregular } = options
 
     try {
-      // 先尝试从公共题库获取
-      const publicQuestion = Question.getRandomFromPublic({
-        questionType: exerciseType,
-        tenses,
-        conjugationTypes,
-        includeIrregular,
-        limit: 1
-      })
+      // 使用智能推荐算法从公共题库获取
+      if (userId) {
+        const smartQuestions = Question.getSmartFromPublic(userId, {
+          questionType: exerciseType,
+          tenses,
+          conjugationTypes,
+          includeIrregular
+        }, 1)
 
-      if (publicQuestion) {
-        return this.formatQuestionBankExercise(publicQuestion, 'public')
+        if (smartQuestions.length > 0) {
+          return this.formatQuestionBankExercise(smartQuestions[0], 'public')
+        }
+      } else {
+        // 如果没有用户ID，使用旧的随机方法
+        const publicQuestion = Question.getRandomFromPublic({
+          questionType: exerciseType,
+          tenses,
+          conjugationTypes,
+          includeIrregular,
+          limit: 1
+        })
+
+        if (publicQuestion) {
+          return this.formatQuestionBankExercise(publicQuestion, 'public')
+        }
       }
 
       // 如果公共题库没有，尝试从用户私人题库获取
@@ -279,12 +356,20 @@ class ExerciseGeneratorService {
     // 3次尝试后的处理
     if (!validation || !validation.passed || !aiResult) {
       console.log(`[AI生成] 经过${maxRetries}次尝试仍未生成合格题目，最后错误: ${lastError}`)
+      
+      // 填空题和例句填空无法用传统方法生成，直接返回错误
+      if (exerciseType === 'fill' || exerciseType === 'sentence') {
+        console.log(`[AI生成] 填空题/例句填空无法降级，返回null`)
+        return null
+      }
+      
+      // 选择题和变位题可以降级使用传统算法（同步方法）
       console.log(`[AI生成] 降级使用传统算法生成题目`)
-      // 降级到传统方法生成
-      return await this.generateTraditionalExercise(options)
+      return this.generateTraditionalExercise(options)
     }
 
     // 验证通过，保存到公共题库（统一初始置信度为50）
+    let savedQuestionId = null
     try {
       const questionData = {
         verbId: verb.id,
@@ -302,8 +387,15 @@ class ExerciseGeneratorService {
 
       // 检查是否已存在相同题目
       if (!Question.existsInPublic(verb.id, questionData.questionText)) {
-        Question.addToPublic(questionData)
-        console.log(`新题目已加入公共题库（初始置信度: 50）`)
+        savedQuestionId = Question.addToPublic(questionData)
+        console.log(`新题目已加入公共题库（ID: ${savedQuestionId}，初始置信度: 50）`)
+      } else {
+        // 如果已存在，获取已有题目的ID
+        const existing = Question.findByVerbAndText(verb.id, questionData.questionText)
+        if (existing) {
+          savedQuestionId = existing.id
+          console.log(`题目已存在于题库（ID: ${savedQuestionId}）`)
+        }
       }
     } catch (error) {
       console.error('保存题目到题库失败:', error)
@@ -313,6 +405,8 @@ class ExerciseGeneratorService {
     const conjugationTypeMap = { 1: '第一变位', 2: '第二变位', 3: '第三变位' }
 
     const exercise = {
+      questionId: savedQuestionId,  // 添加questionId
+      questionSource: 'public',      // 添加questionSource
       verbId: verb.id,
       infinitive: verb.infinitive,
       meaning: verb.meaning,
@@ -341,9 +435,225 @@ class ExerciseGeneratorService {
   }
 
   /**
-   * 使用传统固定算法生成（选择题、变位题）
+   * 为指定动词使用AI生成题目（批量生成专用）
    */
-  static async generateTraditionalExercise(options) {
+  static async generateWithAIForVerb(verb, options) {
+    const { exerciseType, tenses, userId } = options
+    const maxRetries = 3
+
+    const conjugations = Conjugation.getByVerbId(verb.id)
+    if (conjugations.length === 0) {
+      throw new Error('该动词没有变位数据')
+    }
+
+    // 根据时态筛选
+    let filteredConjugations = conjugations
+    if (tenses && tenses.length > 0) {
+      const tenseMap = {
+        'presente': '现在时',
+        'preterito': '简单过去时',
+        'futuro': '将来时'
+      }
+      const selectedTenseNames = tenses.map(t => tenseMap[t]).filter(Boolean)
+      filteredConjugations = conjugations.filter(c => selectedTenseNames.includes(c.tense))
+    }
+
+    if (filteredConjugations.length === 0) {
+      throw new Error('没有符合所选时态的变位数据')
+    }
+
+    const randomConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
+
+    // 重试循环
+    let aiResult = null
+    let validation = null
+    let lastError = null
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[AI生成] 为${verb.infinitive}第${attempt}次尝试生成题目 (类型: ${exerciseType})`)
+
+        if (exerciseType === 'sentence') {
+          aiResult = await DeepSeekService.generateSentenceExercise(verb, randomConjugation)
+        } else if (exerciseType === 'fill') {
+          aiResult = await DeepSeekService.generateFillBlankExercise(verb, randomConjugation)
+        } else {
+          throw new Error('不支持的AI生成题型')
+        }
+
+        const dataCheck = this.validateAIResultData(aiResult, exerciseType)
+        if (!dataCheck.valid) {
+          console.log(`[AI生成] 第${attempt}次数据验证失败: ${dataCheck.reason}`)
+          lastError = dataCheck.reason
+          continue
+        }
+
+        validation = await QuestionValidatorService.quickValidate({
+          questionType: exerciseType,
+          questionText: exerciseType === 'sentence' ? aiResult.sentence : aiResult.question,
+          correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
+          exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
+          translation: aiResult.translation || null,
+          hint: aiResult.hint || null,
+          verb: verb
+        })
+
+        if (validation.passed) {
+          console.log(`[AI生成] 第${attempt}次尝试成功`)
+          break
+        } else {
+          console.log(`[AI生成] 第${attempt}次质量验证未通过: ${validation.reason}`)
+          lastError = validation.reason
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 500))
+          }
+        }
+      } catch (error) {
+        console.error(`[AI生成] 第${attempt}次尝试出错:`, error.message)
+        lastError = error.message
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+      }
+    }
+
+    if (!validation || !validation.passed || !aiResult) {
+      console.log(`[AI生成] ${verb.infinitive}经过${maxRetries}次尝试仍未生成合格题目`)
+      return null
+    }
+
+    // 保存到公共题库
+    let savedQuestionId = null
+    try {
+      const questionData = {
+        verbId: verb.id,
+        questionType: exerciseType,
+        questionText: exerciseType === 'sentence' ? aiResult.sentence : aiResult.question,
+        correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
+        exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
+        translation: aiResult.translation || null,
+        hint: aiResult.hint || null,
+        tense: randomConjugation.tense,
+        mood: randomConjugation.mood,
+        person: randomConjugation.person,
+        confidenceScore: 50
+      }
+
+      if (!Question.existsInPublic(verb.id, questionData.questionText)) {
+        savedQuestionId = Question.addToPublic(questionData)
+        console.log(`新题目已加入公共题库: ${verb.infinitive} (ID: ${savedQuestionId})`)
+      } else {
+        const existing = Question.findByVerbAndText(verb.id, questionData.questionText)
+        if (existing) {
+          savedQuestionId = existing.id
+          console.log(`题目已存在: ${verb.infinitive} (ID: ${savedQuestionId})`)
+        }
+      }
+    } catch (error) {
+      console.error('保存题目到题库失败:', error)
+    }
+
+    // 格式化返回
+    const conjugationTypeMap = { 1: '第一变位', 2: '第二变位', 3: '第三变位' }
+
+    const exercise = {
+      questionId: savedQuestionId,  // 添加questionId
+      questionSource: 'public',      // 添加questionSource
+      verbId: verb.id,
+      infinitive: verb.infinitive,
+      meaning: verb.meaning,
+      tense: randomConjugation.tense,
+      mood: randomConjugation.mood,
+      person: randomConjugation.person,
+      correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
+      exerciseType: exerciseType,
+      conjugationType: conjugationTypeMap[verb.conjugation_type] || '未知',
+      isIrregular: verb.is_irregular === 1,
+      fromQuestionBank: false,
+      aiGenerated: true
+    }
+
+    if (exerciseType === 'sentence') {
+      exercise.sentence = aiResult.sentence
+      exercise.translation = aiResult.translation
+      exercise.hint = aiResult.hint
+    } else if (exerciseType === 'fill') {
+      exercise.question = aiResult.question
+      exercise.example = aiResult.example || null
+      exercise.hint = aiResult.hint
+    }
+
+    return exercise
+  }
+
+  /**
+   * 单个AI题目异步生成（供前端调用）
+   */
+  static async generateSingleAI(options) {
+    const { exerciseType, tenses, userId, conjugationTypes, includeIrregular, verbIds } = options
+
+    // 准备动词查询选项
+    const queryOptions = {}
+    if (verbIds && verbIds.length > 0) {
+      queryOptions.verbIds = verbIds
+    } else {
+      if (conjugationTypes && conjugationTypes.length > 0) {
+        queryOptions.conjugationTypes = conjugationTypes
+      }
+      if (!includeIrregular) {
+        queryOptions.onlyRegular = true
+      }
+    }
+
+    // 获取多个候选动词（预防失败）
+    const aiVerbs = Verb.getRandom(3, queryOptions)
+    if (aiVerbs.length === 0) {
+      throw new Error('没有可用的动词')
+    }
+
+    console.log(`单个AI生成 - 获取候选动词:`, aiVerbs.map(v => v.infinitive))
+
+    // 尝试为每个动词生成，直到成功
+    for (const verb of aiVerbs) {
+      try {
+        const aiExercise = await this.generateWithAIForVerb(verb, {
+          exerciseType,
+          tenses,
+          userId
+        })
+        
+        if (aiExercise) {
+          console.log(`单个AI生成成功: ${verb.infinitive}`)
+          return aiExercise
+        }
+      } catch (error) {
+        console.error(`为动词 ${verb.infinitive} 生成AI题目失败:`, error.message)
+      }
+    }
+
+    // 所有动词都失败，尝试从题库补充
+    console.log('AI生成全部失败，尝试从题库补充')
+    if (userId) {
+      const supplementQuestions = Question.getSmartFromPublic(userId, {
+        questionType: exerciseType,
+        tenses,
+        conjugationTypes,
+        includeIrregular
+      }, 1)
+
+      if (supplementQuestions.length > 0) {
+        return this.formatQuestionBankExercise(supplementQuestions[0], 'public')
+      }
+    }
+
+    throw new Error('AI生成失败且题库无可用题目')
+  }
+
+  /**
+   * 使用传统固定算法生成（选择题、变位题）
+   * 注意：该方法为同步方法，不涉及AI，不需要await
+   */
+  static generateTraditionalExercise(options) {
     const { exerciseType, tenses, conjugationTypes, includeIrregular, verbIds } = options
 
     // 获取动词

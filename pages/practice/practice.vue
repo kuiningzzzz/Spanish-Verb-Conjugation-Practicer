@@ -12,6 +12,11 @@
       </view>
     </view>
     
+    <!-- 自定义消息提示条 -->
+    <view class="custom-message" :class="{ 'show': showCustomMessage, 'success': messageType === 'success', 'error': messageType === 'error' }">
+      <text class="message-text">{{ customMessageText }}</text>
+    </view>
+    
     <view class="practice-header">
       <view class="progress-bar">
         <view class="progress-fill" :style="{ width: progress + '%' }"></view>
@@ -21,8 +26,13 @@
 
     <view class="card exercise-card" v-if="currentExercise">
       <view class="card-header">
-        <view class="exercise-type-tag">
-          <text>{{ exerciseTypeText }}</text>
+        <view class="header-tags">
+          <view class="exercise-type-tag">
+            <text>{{ exerciseTypeText }}</text>
+          </view>
+          <view class="retry-tag" v-if="currentExercise.isRetry">
+            <text>错题重做</text>
+          </view>
         </view>
         <view class="header-actions">
           <!-- 单词收藏按钮 -->
@@ -166,12 +176,33 @@
     <!-- 答案反馈 -->
     <view class="modal" v-if="showFeedback" @click="nextExercise">
       <view class="modal-content" :class="isCorrect ? 'correct' : 'wrong'" @click.stop>
+        <!-- 错题重做标记 -->
+        <view class="retry-badge" v-if="currentExercise && currentExercise.isRetry">
+          <text class="retry-text">🔄 错题重做</text>
+        </view>
+        
         <view class="feedback-icon">{{ isCorrect ? '✓' : '✗' }}</view>
         <text class="feedback-title">{{ isCorrect ? '回答正确！' : '回答错误' }}</text>
         <view class="feedback-detail" v-if="!isCorrect">
           <text class="label">正确答案：</text>
           <text class="answer">{{ currentExercise.correctAnswer }}</text>
         </view>
+        
+        <!-- 题目评价按钮（仅错题重做时显示） -->
+        <view class="rating-buttons" v-if="showRatingButtons && !hasRated">
+          <text class="rating-prompt">这道题的质量如何？</text>
+          <view class="rating-btns">
+            <button class="rating-btn good-btn" @click="rateQuestion(1)">
+              <text class="rating-icon">👍</text>
+              <text>好题</text>
+            </button>
+            <button class="rating-btn bad-btn" @click="rateQuestion(-1)">
+              <text class="rating-icon">👎</text>
+              <text>坏题</text>
+            </button>
+          </view>
+        </view>
+        
         <button class="btn-secondary mt-20" @click="nextExercise">下一题</button>
       </view>
     </view>
@@ -321,6 +352,10 @@ export default {
       includeIrregular: true,  // 是否包含不规则动词
       
       exercises: [],
+      wrongExercises: [],  // 错题队列
+      wrongExercisesSet: new Set(),  // 已添加到错题队列的题目集合（避免重复）
+      questionPool: [],  // 题目池（用于从题库题中随机抽取）
+      usedPoolIndices: new Set(),  // 已使用的题目池索引
       currentIndex: 0,
       userAnswer: '',
       selectedAnswer: '',
@@ -345,7 +380,17 @@ export default {
       // 辅助内容显示控制
       showExample: false,    // 是否显示例句
       showHint: false,       // 是否显示提示
-      showTranslation: false // 是否显示翻译
+      showTranslation: false, // 是否显示翻译
+      
+      // 题目评价相关
+      showRatingButtons: false,  // 是否显示评价按钮（仅错题重做时显示）
+      hasRated: false,  // 当前题目是否已评价
+      
+      // 自定义消息提示
+      showCustomMessage: false,
+      customMessageText: '',
+      messageType: 'success',  // 'success' 或 'error'
+      messageTimer: null
     }
   },
   onLoad(options) {
@@ -463,34 +508,48 @@ export default {
         return
       }
       
-      showLoading('正在生成第一题...')
+      showLoading('正在生成练习...')
 
       try {
-        // 流水线模式：先生成第一题
-        const res = await api.getOneExercise({
+        // 使用新的批量生成接口
+        const res = await api.getBatchExercises({
           exerciseType: this.exerciseType,
+          count: this.exerciseCount,
           tenses: this.selectedTenses,
           conjugationTypes: this.selectedConjugationTypes,
           includeIrregular: this.includeIrregular,
-          practiceMode: this.practiceMode  // 传递练习模式
+          practiceMode: this.practiceMode
         })
 
         hideLoading()
 
-        if (res.success && res.exercise) {
-          this.exercises = [res.exercise]
+        if (res.success) {
+          // 初始化练习
+          this.exercises = res.exercises || []
+          this.questionPool = res.questionPool || []
+          this.usedPoolIndices = new Set()
           this.hasStarted = true
           this.currentIndex = 0
           this.correctCount = 0
           this.totalAnswered = 0
-          this.generationError = false
+          
+          // 从题目池中随机抽取需要的题目添加到exercises中
+          this.fillFromQuestionPool()
           
           // 检查第一题的收藏状态
-          this.checkFavoriteStatus()
-          this.checkQuestionFavoriteStatus()
+          if (this.exercises.length > 0) {
+            this.checkFavoriteStatus()
+            this.checkQuestionFavoriteStatus()
+          } else {
+            showToast('未能生成练习题，请重试')
+            return
+          }
           
-          // 立即开始预生成题目（根据缓冲区大小）
-          this.fillBuffer()
+          // 异步生成AI题目（如果需要）
+          if (res.needAI && res.needAI > 0 && res.aiOptions) {
+            console.log(`开始异步生成 ${res.needAI} 个AI题目`)
+            this.generateAIQuestionsAsync(res.needAI, res.aiOptions)
+          }
         } else {
           showToast('获取练习题失败')
         }
@@ -515,68 +574,107 @@ export default {
         }
       }
     },
-
-    // 填充缓冲区：保持提前生成 bufferSize 道题
-    async fillBuffer() {
-      // 计算还需要的题目数
-      const totalNeeded = this.exerciseCount
-      const currentHave = this.exercises.length
-      const inProgress = this.generatingCount
-      const bufferTarget = this.currentIndex + 1 + this.bufferSize
-      
-      // 计算需要启动多少个生成任务
-      const needed = Math.min(
-        bufferTarget - currentHave - inProgress,  // 缓冲区缺口
-        totalNeeded - currentHave - inProgress,   // 总题目数限制
-        this.maxConcurrent - this.generatingCount // 并发数限制
-      )
-
-      // 启动生成任务
-      for (let i = 0; i < needed; i++) {
-        this.generateNextExercise()
-      }
-    },
-
-    // 后台生成下一题
-    async generateNextExercise() {
-      // 如果已经生成了足够的题目，不再生成
-      if (this.exercises.length >= this.exerciseCount) {
-        return
-      }
-
-      // 并发控制
-      if (this.generatingCount >= this.maxConcurrent) {
-        return
-      }
-
-      this.generatingCount++
-      this.generationError = false
-
-      try {
-        const res = await api.getOneExercise({
-          exerciseType: this.exerciseType,
-          tenses: this.selectedTenses,
-          conjugationTypes: this.selectedConjugationTypes,
-          includeIrregular: this.includeIrregular,
-          practiceMode: this.practiceMode  // 传递练习模式
-        })
-
-        if (res.success && res.exercise) {
-          this.exercises.push(res.exercise)
-          this.generatingCount--
+    
+    // 异步生成AI题目并随机插入
+    async generateAIQuestionsAsync(count, aiOptions) {
+      for (let i = 0; i < count; i++) {
+        try {
+          console.log(`正在生成第 ${i + 1}/${count} 个AI题目`)
           
-          // 生成成功后，继续填充缓冲区
-          this.fillBuffer()
-        } else {
-          this.generationError = true
-          this.generatingCount--
+          const res = await api.generateSingleAI({ aiOptions })
+          
+          if (res.success && res.exercise) {
+            // 随机插入到exercises数组中
+            const randomIndex = Math.floor(Math.random() * (this.exercises.length + 1))
+            this.exercises.splice(randomIndex, 0, res.exercise)
+            
+            console.log(`AI题目已插入到位置 ${randomIndex}, 当前题目总数: ${this.exercises.length}`)
+            
+            // 如果插入位置在当前题目之前，需要调整currentIndex
+            if (randomIndex <= this.currentIndex) {
+              this.currentIndex++
+            }
+          }
+        } catch (error) {
+          console.error(`生成第 ${i + 1} 个AI题目失败:`, error)
+          // 失败不中断，继续生成下一个
         }
-      } catch (error) {
-        console.error('生成下一题失败:', error)
-        this.generationError = true
-        this.generatingCount--
       }
+      
+      console.log('AI题目异步生成完成')
     },
+    
+    // 从题目池中随机抽取题目
+    fillFromQuestionPool() {
+      if (this.questionPool.length === 0) {
+        console.log('题目池为空')
+        return
+      }
+      
+      console.log('题目池信息：', {
+        poolSize: this.questionPool.length,
+        currentExercises: this.exercises.length,
+        targetCount: this.exerciseCount
+      })
+      
+      // 计算还需要多少题库题
+      const totalNeeded = this.exerciseCount
+      const aiCount = this.exercises.length // AI生成的题目
+      const bankNeeded = totalNeeded - aiCount // 需要从题库抽取的数量
+      
+      // 从题目池中随机抽取
+      const availableCount = this.questionPool.length - this.usedPoolIndices.size
+      const toExtract = Math.min(bankNeeded, availableCount)
+      
+      console.log('准备从题目池抽取：', { bankNeeded, availableCount, toExtract })
+      
+      for (let i = 0; i < toExtract; i++) {
+        // 从未使用的题目中随机选择
+        let randomIndex
+        do {
+          randomIndex = Math.floor(Math.random() * this.questionPool.length)
+        } while (this.usedPoolIndices.has(randomIndex))
+        
+        this.usedPoolIndices.add(randomIndex)
+        const selectedQuestion = this.questionPool[randomIndex]
+        console.log(`抽取题目 ${i + 1}/${toExtract}:`, {
+          index: randomIndex,
+          questionId: selectedQuestion.questionId,
+          infinitive: selectedQuestion.infinitive
+        })
+        this.exercises.push(selectedQuestion)
+      }
+      
+      // 使用 Fisher-Yates 洗牌算法打乱题目顺序
+      for (let i = this.exercises.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[this.exercises[i], this.exercises[j]] = [this.exercises[j], this.exercises[i]]
+      }
+      
+      console.log('打乱后的题目列表：', this.exercises.map(e => ({
+        id: e.questionId,
+        verb: e.infinitive,
+        type: e.exerciseType
+      })))
+    },
+    
+    // 显示自定义消息提示
+    showMessage(text, type = 'success', duration = 3000) {
+      // 清除之前的定时器
+      if (this.messageTimer) {
+        clearTimeout(this.messageTimer)
+      }
+      
+      this.customMessageText = text
+      this.messageType = type
+      this.showCustomMessage = true
+      
+      // 自动隐藏
+      this.messageTimer = setTimeout(() => {
+        this.showCustomMessage = false
+      }, duration)
+    },
+    
     selectOption(option) {
       this.selectedAnswer = option
     },
@@ -632,6 +730,48 @@ export default {
         await api.addWrongVerb({ verbId })
       } catch (error) {
         console.error('记录错题失败:', error)
+      }
+    },
+    
+    // 用户评价题目（好题/坏题）
+    async rateQuestion(rating) {
+      const ex = this.currentExercise
+      
+      // 检查是否有题目信息
+      if (!ex) {
+        showToast('当前没有题目', 'none')
+        return
+      }
+      
+      // 检查是否已经评价过
+      if (this.hasRated) {
+        showToast('已经评价过了', 'none')
+        return
+      }
+      
+      // AI新生成的题目可能还没有questionId（正在保存中）
+      if (!ex.questionId || !ex.questionSource) {
+        showToast('题目信息不完整，请稍后再试', 'none')
+        return
+      }
+      
+      try {
+        const res = await api.rateQuestion({
+          questionId: ex.questionId,
+          questionSource: ex.questionSource,
+          rating: rating  // 1=好题, -1=坏题
+        })
+        
+        if (res.success) {
+          this.hasRated = true
+          // 使用自定义消息提示
+          this.showMessage(res.message, 'success', 3000)
+          // 隐藏评价按钮
+          this.showRatingButtons = false
+        }
+      } catch (error) {
+        console.error('评价题目失败:', error)
+        showToast('评价失败', 'none')
       }
     },
     
@@ -740,8 +880,25 @@ export default {
           } else {
             // 答错了，记录到错题本
             this.recordWrongAnswer()
+            
+            // 添加到错题队列（如果还没添加过）
+            const exerciseKey = `${this.currentExercise.verbId}-${this.currentExercise.exerciseType}-${this.currentExercise.tense}-${this.currentExercise.person}`
+            if (!this.wrongExercisesSet.has(exerciseKey) && !this.currentExercise.isRetry) {
+              this.wrongExercisesSet.add(exerciseKey)
+              // 标记为重做题目
+              const retryExercise = { ...this.currentExercise, isRetry: true }
+              this.wrongExercises.push(retryExercise)
+              console.log('错题已添加到队列，当前错题数:', this.wrongExercises.length)
+            }
           }
           this.totalAnswered++
+          
+          // 如果是重做的错题且是填空题或例句填空，显示评价按钮
+          if (this.currentExercise.isRetry && 
+              (this.exerciseType === 'fill' || this.exerciseType === 'sentence')) {
+            this.showRatingButtons = true
+          }
+          
           this.showFeedback = true
         }
       } catch (error) {
@@ -753,14 +910,33 @@ export default {
       this.showFeedback = false
       this.userAnswer = ''
       this.selectedAnswer = ''
+      this.showRatingButtons = false
+      this.hasRated = false
       
       // 重置辅助内容显示状态
       this.showExample = false
       this.showHint = false
       this.showTranslation = false
 
-      // 检查是否完成所有题目
-      if (this.totalAnswered >= this.exerciseCount) {
+      // 检查是否完成所有初始题目（但还有错题需要重做）
+      if (this.totalAnswered >= this.exerciseCount && this.wrongExercises.length > 0) {
+        // 开始重做错题
+        console.log('开始重做错题，共', this.wrongExercises.length, '题')
+        // 将错题添加到exercises数组
+        this.exercises.push(...this.wrongExercises)
+        // 清空错题队列
+        this.wrongExercises = []
+        // 更新总题数
+        this.exerciseCount = this.exercises.length
+        // 继续下一题
+        this.currentIndex++
+        this.checkFavoriteStatus()
+        this.checkQuestionFavoriteStatus()
+        return
+      }
+
+      // 检查是否完成所有题目（包括错题重做）
+      if (this.currentIndex + 1 >= this.exercises.length && this.wrongExercises.length === 0) {
         this.showResult = true
         return
       }
@@ -772,8 +948,10 @@ export default {
         // 检查新题目的收藏状态
         this.checkFavoriteStatus()
         this.checkQuestionFavoriteStatus()
-        // 继续填充缓冲区
-        this.fillBuffer()
+        // 继续填充缓冲区（只有在非错题重做阶段）
+        if (this.totalAnswered < this.exerciseCount) {
+          this.fillBuffer()
+        }
       } else {
         // 下一题还没生成好
         if (this.generatingCount > 0) {
@@ -842,6 +1020,53 @@ export default {
 
 <style scoped>
 /* 自定义导航栏 */
+.custom-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* 自定义消息提示条 */
+.custom-message {
+  position: fixed;
+  top: calc(var(--status-bar-height) + 88rpx + 10rpx);
+  left: 30rpx;
+  right: 30rpx;
+  padding: 24rpx 30rpx;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  color: #fff;
+  text-align: center;
+  transform: translateY(-200%);
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 999;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.15);
+  line-height: 1.5;
+}
+
+.custom-message.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.custom-message.success {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.custom-message.error {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.message-text {
+  color: #fff;
+  font-weight: 500;
+}
+
 .custom-navbar {
   position: fixed;
   top: 0;
@@ -942,6 +1167,12 @@ export default {
   margin-bottom: 20rpx;
 }
 
+.header-tags {
+  display: flex;
+  gap: 15rpx;
+  align-items: center;
+}
+
 .exercise-type-tag {
   display: inline-block;
   background: #f0f0f0;
@@ -949,6 +1180,16 @@ export default {
   border-radius: 8rpx;
   font-size: 22rpx;
   color: #666;
+}
+
+.retry-tag {
+  display: inline-block;
+  background: #ff4444;
+  padding: 10rpx 20rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  color: #fff;
+  font-weight: bold;
 }
 
 .favorite-btn {
@@ -1603,6 +1844,97 @@ slider {
   margin-top: 15rpx;
   font-size: 24rpx;
   border-left: 4rpx solid #f57c00;
+}
+
+/* 错题重做标记 */
+.retry-badge {
+  position: absolute;
+  top: -15rpx;
+  right: 20rpx;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+  color: #fff;
+  padding: 8rpx 20rpx;
+  border-radius: 30rpx;
+  font-size: 22rpx;
+  box-shadow: 0 4rpx 12rpx rgba(255, 107, 107, 0.3);
+  animation: shake 0.5s ease-in-out;
+}
+
+.retry-text {
+  font-weight: 600;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5rpx); }
+  75% { transform: translateX(5rpx); }
+}
+
+/* 题目评价按钮 */
+.rating-buttons {
+  margin-top: 30rpx;
+  padding-top: 25rpx;
+  border-top: 2rpx dashed rgba(0, 0, 0, 0.1);
+  width: 100%;
+}
+
+.rating-prompt {
+  display: block;
+  text-align: center;
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 20rpx;
+}
+
+.rating-btns {
+  display: flex;
+  gap: 20rpx;
+  justify-content: center;
+}
+
+.rating-btn {
+  flex: 1;
+  max-width: 200rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx;
+  border-radius: 12rpx;
+  border: none;
+  font-size: 26rpx;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+.rating-btn::after {
+  border: none;
+}
+
+.good-btn {
+  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  color: #fff;
+}
+
+.good-btn:active {
+  background: linear-gradient(135deg, #389e0d 0%, #52c41a 100%);
+  transform: scale(0.95);
+}
+
+.bad-btn {
+  background: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%);
+  color: #fff;
+}
+
+.bad-btn:active {
+  background: linear-gradient(135deg, #cf1322 0%, #ff4d4f 100%);
+  transform: scale(0.95);
+}
+
+.rating-icon {
+  font-size: 36rpx;
+  margin-bottom: 8rpx;
 }
 
 .ai-example {

@@ -9,11 +9,11 @@ function initSampleData() {
   const result = stmt.get()
   
   if (result.count > 0) {
-    console.log('数据库已有数据，跳过初始化')
+    console.log('   ℹ️  词库已有数据，跳过初始化\n')
     return
   }
 
-  console.log('开始初始化示例数据...')
+  console.log('\n📚 开始初始化词库数据...')
 
   // 第一课的动词示例
   const lesson1Verbs = [
@@ -54,7 +54,7 @@ function initSampleData() {
     Conjugation.createBatch(verbId, conjugations)
   }
 
-  console.log(`示例数据初始化完成，共插入 ${allVerbs.length} 个动词`)
+  console.log(`\x1b[32m   ✓ 词库数据初始化完成\x1b[0m，共插入 \x1b[33m${allVerbs.length}\x1b[0m 个动词\n`)
 }
 
 // 生成动词变位

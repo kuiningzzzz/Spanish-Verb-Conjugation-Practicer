@@ -45,7 +45,9 @@
             <text class="meta-tag" v-if="item.mood">{{ item.mood }}</text>
             <text class="meta-tag" v-if="item.person">{{ item.person }}</text>
           </view>
-          <text class="delete-btn" @click="deleteQuestion(item.id)">删除</text>
+          <view class="delete-btn" @click.stop="deleteQuestion(item.id)">
+            <text>🗑️ 删除</text>
+          </view>
         </view>
 
         <!-- 题目内容 -->
@@ -127,12 +129,19 @@ export default {
         const res = await api.getMyQuestions()
         hideLoading()
 
+        console.log('获取题目列表响应:', res)
         if (res.success) {
           // 按题目类型分类
           this.fillQuestions = res.questions.filter(q => q.question_type === 'fill')
           this.sentenceQuestions = res.questions.filter(q => q.question_type === 'sentence')
           this.fillCount = this.fillQuestions.length
           this.sentenceCount = this.sentenceQuestions.length
+          
+          console.log('填空题数量:', this.fillCount)
+          console.log('例句数量:', this.sentenceCount)
+          if (res.questions.length > 0) {
+            console.log('第一道题示例:', res.questions[0])
+          }
         }
       } catch (error) {
         hideLoading()
@@ -146,14 +155,21 @@ export default {
     },
 
     async deleteQuestion(questionId) {
+      console.log('点击删除按钮，题目ID:', questionId)
+      
       const result = await showModal('确认删除', '确定要删除这道题目吗？')
-      if (!result) return
+      if (!result) {
+        console.log('用户取消删除')
+        return
+      }
 
       try {
         showLoading('删除中...')
+        console.log('发送删除请求，参数:', { privateQuestionId: questionId })
         const res = await api.unfavoriteQuestion({ privateQuestionId: questionId })
         hideLoading()
 
+        console.log('删除响应:', res)
         if (res.success) {
           showToast('删除成功', 'success')
           this.loadQuestions()
@@ -279,7 +295,20 @@ export default {
 .delete-btn {
   color: #ff4d4f;
   font-size: 26rpx;
-  padding: 8rpx 16rpx;
+  padding: 12rpx 20rpx;
+  background: #fff1f0;
+  border-radius: 8rpx;
+  border: 1rpx solid #ffccc7;
+  min-width: 100rpx;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.delete-btn:active {
+  background: #ff4d4f;
+  color: #fff;
+  transform: scale(0.95);
 }
 
 /* 题目内容 */

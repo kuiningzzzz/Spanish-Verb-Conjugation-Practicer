@@ -25,10 +25,14 @@ export function formatDate(date, format = 'YYYY-MM-DD HH:mm:ss') {
  * 显示提示消息
  */
 export function showToast(title, icon = 'none', duration = 2000) {
+  // 对于长文本，增加显示时长，并且不限制文本长度
+  const finalDuration = title.length > 10 ? 3000 : duration
+  
   uni.showToast({
     title,
     icon,
-    duration
+    duration: finalDuration,
+    mask: false  // 不显示透明蒙层，避免阻挡用户操作
   })
 }
 
@@ -63,6 +67,24 @@ export function showConfirm(content, title = '提示') {
         } else {
           reject()
         }
+      }
+    })
+  })
+}
+
+/**
+ * 模态对话框（返回 true/false）
+ */
+export function showModal(title = '提示', content = '') {
+  return new Promise((resolve) => {
+    uni.showModal({
+      title,
+      content,
+      success: (res) => {
+        resolve(res.confirm)
+      },
+      fail: () => {
+        resolve(false)
       }
     })
   })

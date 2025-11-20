@@ -70,6 +70,8 @@ export default {
   // 练习相关
   getExercise: (data) => request({ url: '/exercise/generate', method: 'POST', data }),
   getOneExercise: (data) => request({ url: '/exercise/generate-one', method: 'POST', data }),
+  getBatchExercises: (data) => request({ url: '/exercise/generate-batch', method: 'POST', data }),
+  generateSingleAI: (data) => request({ url: '/exercise/generate-single-ai', method: 'POST', data }),
   submitAnswer: (data) => request({ url: '/exercise/submit', method: 'POST', data }),
   
   // 学习记录
@@ -101,5 +103,6 @@ export default {
   favoriteQuestion: (data) => request({ url: '/question/favorite', method: 'POST', data }),
   unfavoriteQuestion: (data) => request({ url: '/question/unfavorite', method: 'POST', data }),
   getMyQuestions: (params) => request({ url: '/question/my-questions', data: params }),
-  getQuestionStats: () => request({ url: '/question/stats' })
+  getQuestionStats: () => request({ url: '/question/stats' }),
+  rateQuestion: (data) => request({ url: '/question/rate', method: 'POST', data })
 }

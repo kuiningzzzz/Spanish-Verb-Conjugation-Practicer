@@ -13,16 +13,17 @@ questionDb.pragma('foreign_keys = ON')
 
 // 初始化数据库表
 function initDatabase() {
-  console.log('初始化用户数据库...')
+  console.log('\n💾 数据库初始化...')
+  console.log('   • 用户数据库: user_data.db')
   initUserDatabase()
   
-  console.log('初始化词库数据库...')
+  console.log('   • 词库数据库: vocabulary.db')
   initVocabularyDatabase()
   
-  console.log('初始化题库数据库...')
+  console.log('   • 题库数据库: questions.db')
   initQuestionDatabase()
   
-  console.log('所有数据库初始化完成')
+  console.log('\x1b[32m   ✓ 数据库初始化完成\x1b[0m')
 }
 
 // 初始化用户数据库
@@ -137,19 +138,34 @@ function initUserDatabase() {
       tense TEXT NOT NULL,
       mood TEXT NOT NULL,
       person TEXT NOT NULL,
+      public_question_id INTEGER,
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `)
 
-  // 用户答题记录表（记录每个用户对每个题目做对的次数）
+  // 数据迁移：为已存在的private_questions表添加public_question_id列
+  try {
+    const columns = userDb.prepare("PRAGMA table_info(private_questions)").all()
+    const hasPublicQuestionId = columns.some(col => col.name === 'public_question_id')
+    if (!hasPublicQuestionId) {
+      userDb.exec('ALTER TABLE private_questions ADD COLUMN public_question_id INTEGER')
+      console.log('   ℹ️  数据库迁移: 添加 public_question_id 列')
+    }
+  } catch (error) {
+    console.log('   ⚠️  数据库迁移失败:', error.message)
+  }
+
+  // 用户答题记录表（记录每个用户对每个题目的练习次数和评价）
   userDb.exec(`
     CREATE TABLE IF NOT EXISTS user_question_records (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       question_id INTEGER NOT NULL,
       question_type TEXT NOT NULL CHECK(question_type IN ('public', 'private')),
+      practice_count INTEGER DEFAULT 0,
       correct_count INTEGER DEFAULT 0,
+      rating INTEGER DEFAULT 0 CHECK(rating IN (-1, 0, 1)),
       last_practiced_at TEXT DEFAULT (datetime('now', 'localtime')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       UNIQUE(user_id, question_id, question_type)

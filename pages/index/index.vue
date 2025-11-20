@@ -99,6 +99,14 @@ export default {
     },
     async loadData() {
       try {
+        // 获取最新用户信息
+        const userRes = await api.getUserInfo()
+        if (userRes.success) {
+          this.userInfo = userRes.user
+          // 更新本地缓存
+          uni.setStorageSync('userInfo', userRes.user)
+        }
+
         // 获取统计数据
         const statsRes = await api.getStatistics()
         if (statsRes.success) {

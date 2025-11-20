@@ -11,13 +11,16 @@ class SchedulerService {
   static startAll() {
     // 每天凌晨0点执行清理任务
     cron.schedule('0 0 * * *', () => {
-      console.log('开始执行定时清理任务...')
+      console.log('\n' + '='.repeat(60))
+      console.log('⏰ 定时任务触发 | ' + new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }))
+      console.log('='.repeat(60))
       this.cleanOldQuestions()
+      console.log('='.repeat(60) + '\n')
     }, {
       timezone: 'Asia/Shanghai'
     })
 
-    console.log('定时任务调度器已启动')
+    console.log('\x1b[36m✓ 定时任务调度器已启动\x1b[0m (每天凌晨0点清理超过30天的题目)')
   }
 
   /**
@@ -25,13 +28,21 @@ class SchedulerService {
    */
   static cleanOldQuestions() {
     try {
+      console.log('\n🧹 开始清理超过30天的旧题目...')
+      console.log('-'.repeat(60))
+      
       // 先删除答题记录
+      console.log('📊 步骤1: 清理答题记录...')
       const recordsDeleted = Question.deleteOldQuestionRecords()
-      console.log(`已删除 ${recordsDeleted} 条超期题目的答题记录`)
+      console.log(`   ✓ 已删除 \x1b[33m${recordsDeleted}\x1b[0m 条超期题目的答题记录`)
 
       // 再删除题目本身
+      console.log('\n📝 步骤2: 清理公共题库题目...')
       const questionsDeleted = Question.deleteOldPublicQuestions()
-      console.log(`已删除 ${questionsDeleted} 道超过30天的公共题库题目`)
+      console.log(`   ✓ 已删除 \x1b[33m${questionsDeleted}\x1b[0m 道超过30天的公共题库题目`)
+      
+      console.log('-'.repeat(60))
+      console.log(`\x1b[32m✓ 清理完成\x1b[0m | 记录: ${recordsDeleted} 条 | 题目: ${questionsDeleted} 道\n`)
 
       return {
         recordsDeleted,
@@ -39,7 +50,7 @@ class SchedulerService {
         success: true
       }
     } catch (error) {
-      console.error('清理旧题目失败:', error)
+      console.error('\x1b[31m✗ 清理旧题目失败:\x1b[0m', error)
       return {
         success: false,
         error: error.message
@@ -51,8 +62,12 @@ class SchedulerService {
    * 手动触发清理（用于测试或管理员手动操作）
    */
   static manualClean() {
-    console.log('手动触发清理任务...')
-    return this.cleanOldQuestions()
+    console.log('\n' + '='.repeat(60))
+    console.log('👤 手动触发清理任务 | ' + new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }))
+    console.log('='.repeat(60))
+    const result = this.cleanOldQuestions()
+    console.log('='.repeat(60) + '\n')
+    return result
   }
 }
 

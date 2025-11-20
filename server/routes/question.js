@@ -27,7 +27,7 @@ router.post('/favorite', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: '只支持收藏填空题和例句填空' })
     }
 
-    // 添加到私人题库
+    // 添加到私人题库（如果来自公共题库，保存public_question_id）
     const privateQuestionId = Question.addToPrivate(userId, {
       verbId,
       questionType,
@@ -38,13 +38,18 @@ router.post('/favorite', authMiddleware, async (req, res) => {
       hint,
       tense,
       mood,
-      person
+      person,
+      publicQuestionId: (questionSource === 'public' ? questionId : null)
     })
 
     // 如果是从公共题库收藏，增加该题目的置信度
     if (questionId && questionSource === 'public') {
-      Question.updateConfidence(questionId, 2) // 收藏+2
-      console.log(`公共题库题目 ${questionId} 置信度+2`)
+      const updated = Question.updateConfidence(questionId, 2)
+      if (updated) {
+        console.log(`✓ 公共题库题目 ${questionId} 置信度+2`)
+      } else {
+        console.log(`⚠ 公共题库题目 ${questionId} 不存在，无法更新置信度`)
+      }
     }
 
     res.json({
@@ -67,19 +72,26 @@ router.post('/unfavorite', authMiddleware, async (req, res) => {
       publicQuestionId    // 对应的公共题库题目ID（如果有）
     } = req.body
 
-    // 从私人题库删除
-    const removed = Question.removeFromPrivate(userId, privateQuestionId)
+    console.log('收到删除请求:', { userId, privateQuestionId })
 
-    // 如果有对应的公共题库题目，降低置信度
-    if (removed && publicQuestionId) {
-      Question.updateConfidence(publicQuestionId, -2) // 取消收藏-2
-      console.log(`公共题库题目 ${publicQuestionId} 置信度-2`)
+    // 从私人题库删除（返回是否删除成功和关联的公共题库ID）
+    const result = Question.removeFromPrivate(userId, privateQuestionId)
+    console.log('删除结果:', result)
+
+    // 如果删除成功且有关联的公共题库题目，降低置信度
+    if (result.removed && result.publicQuestionId) {
+      const updated = Question.updateConfidence(result.publicQuestionId, -2)
+      if (updated) {
+        console.log(`✓ 公共题库题目 ${result.publicQuestionId} 置信度-2`)
+      } else {
+        console.log(`✗ 公共题库题目 ${result.publicQuestionId} 不存在或已被删除，跳过置信度更新`)
+      }
     }
 
     res.json({
       success: true,
-      removed,
-      message: removed ? '已取消收藏' : '题目不存在'
+      removed: result.removed,
+      message: result.removed ? '已取消收藏' : '题目不存在'
     })
   } catch (error) {
     console.error('取消收藏失败:', error)
@@ -142,6 +154,44 @@ router.get('/stats', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('获取统计信息失败:', error)
     res.status(500).json({ error: '获取统计失败' })
+  }
+})
+
+// 用户对题目进行评价（好题/坏题）
+router.post('/rate', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    const { questionId, questionSource, rating } = req.body
+
+    // 验证参数
+    if (!questionId || !questionSource || rating === undefined) {
+      return res.status(400).json({ error: '缺少必要参数' })
+    }
+
+    if (![1, -1, 0].includes(rating)) {
+      return res.status(400).json({ error: '评价值必须为 1(好题)、-1(坏题) 或 0(取消评价)' })
+    }
+
+    if (!['public', 'private'].includes(questionSource)) {
+      return res.status(400).json({ error: '题目来源必须为 public 或 private' })
+    }
+
+    // 记录评价
+    Question.rateQuestion(userId, questionId, questionSource, rating)
+
+    const message = rating === 1 
+      ? '我们会多为您推荐这类题目' 
+      : rating === -1 
+        ? '我们会减少为您推荐这类题目' 
+        : '已取消评价'
+
+    res.json({
+      success: true,
+      message
+    })
+  } catch (error) {
+    console.error('评价题目失败:', error)
+    res.status(500).json({ error: '评价失败' })
   }
 })
 

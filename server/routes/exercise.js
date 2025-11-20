@@ -7,7 +7,69 @@ const Question = require('../models/Question')
 const ExerciseGeneratorService = require('../services/exerciseGenerator')
 const { authMiddleware } = require('../middleware/auth')
 
-// 生成单个练习题（新版：题库+AI混合模式）
+// 批量生成练习题（新版：题库+AI混合模式，带题目池管理）
+router.post('/generate-batch', authMiddleware, async (req, res) => {
+  try {
+    const { 
+      exerciseType, 
+      count = 10,
+      tenses = [],
+      conjugationTypes = [],
+      includeIrregular = true,
+      practiceMode = 'normal'
+    } = req.body
+
+    const userId = req.userId
+
+    // 准备生成选项
+    const options = {
+      userId,
+      exerciseType,
+      count,
+      tenses,
+      conjugationTypes,
+      includeIrregular,
+      practiceMode
+    }
+
+    // 根据练习模式获取动词ID列表
+    if (practiceMode === 'favorite') {
+      const FavoriteVerb = require('../models/FavoriteVerb')
+      const verbIds = FavoriteVerb.getVerbIds(userId)
+      
+      if (verbIds.length === 0) {
+        return res.status(404).json({ error: '还没有收藏的单词' })
+      }
+      
+      options.verbIds = verbIds
+    } else if (practiceMode === 'wrong') {
+      const WrongVerb = require('../models/WrongVerb')
+      const verbIds = WrongVerb.getVerbIds(userId)
+      
+      if (verbIds.length === 0) {
+        return res.status(404).json({ error: '还没有错题记录' })
+      }
+      
+      options.verbIds = verbIds
+    }
+
+    // 批量生成题目和题目池
+    const result = await ExerciseGeneratorService.generateBatch(options)
+
+    res.json({
+      success: true,
+      exercises: result.exercises,
+      questionPool: result.questionPool,  // 返回题目池供前端管理
+      needAI: result.needAI || 0,         // 需要异步生成的AI题目数量
+      aiOptions: result.aiOptions || null // AI生成所需参数
+    })
+  } catch (error) {
+    console.error('批量生成练习题错误:', error)
+    res.status(500).json({ error: error.message || '批量生成练习题失败' })
+  }
+})
+
+// 生成单个练习题（保留向后兼容）
 router.post('/generate-one', authMiddleware, async (req, res) => {
   try {
     const { 
@@ -64,6 +126,28 @@ router.post('/generate-one', authMiddleware, async (req, res) => {
   }
 })
 
+// 单个AI题目异步生成（供前端异步调用）
+router.post('/generate-single-ai', authMiddleware, async (req, res) => {
+  try {
+    const { aiOptions } = req.body
+
+    if (!aiOptions) {
+      return res.status(400).json({ error: '缺少AI生成参数' })
+    }
+
+    // 生成单个AI题目
+    const exercise = await ExerciseGeneratorService.generateSingleAI(aiOptions)
+
+    res.json({
+      success: true,
+      exercise
+    })
+  } catch (error) {
+    console.error('单个AI题目生成错误:', error)
+    res.status(500).json({ error: error.message || 'AI题目生成失败' })
+  }
+})
+
 // 生成练习题（批量模式，保留向后兼容）
 router.post('/generate', authMiddleware, async (req, res) => {
   try {
@@ -101,12 +185,8 @@ router.post('/generate', authMiddleware, async (req, res) => {
       try {
         switch (exerciseType) {
           case 'choice':
-            // 选择题：使用 AI 生成更好的干扰选项
-            if (useAI) {
-              exercise.options = await DeepSeekService.generateChoiceOptions(verb, randomConjugation, conjugations)
-            } else {
-              exercise.options = generateChoiceOptions(verb.id, randomConjugation, conjugations)
-            }
+            // 选择题：使用传统方法生成干扰选项（不使用AI）
+            exercise.options = generateChoiceOptions(verb.id, randomConjugation, conjugations)
             break
           
           case 'fill':
@@ -122,7 +202,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
             break
           
           case 'conjugate':
-            // 变位题：给出时态和人称
+            // 变位题：给出时态和人称（不使用AI）
             exercise.question = `请写出 ${verb.infinitive}(${verb.meaning}) 的变位`
             break
           
@@ -141,10 +221,10 @@ router.post('/generate', authMiddleware, async (req, res) => {
       } catch (aiError) {
         console.error('AI 生成失败，使用传统方法:', aiError.message)
         // AI 失败时使用传统方法
-        if (exerciseType === 'choice') {
-          exercise.options = generateChoiceOptions(verb.id, randomConjugation, conjugations)
-        } else if (exerciseType === 'sentence') {
+        if (exerciseType === 'sentence') {
           exercise.sentence = generateSentence(verb, randomConjugation)
+        } else if (exerciseType === 'fill') {
+          exercise.question = `请填写动词 ${verb.infinitive}(${verb.meaning}) 在 ${randomConjugation.mood} ${randomConjugation.tense} ${randomConjugation.person} 的变位形式`
         }
       }
 
@@ -162,7 +242,6 @@ router.post('/generate', authMiddleware, async (req, res) => {
   }
 })
 
-// 提交答案
 // 提交答案
 router.post('/submit', authMiddleware, (req, res) => {
   try {
@@ -196,14 +275,11 @@ router.post('/submit', authMiddleware, (req, res) => {
       person
     })
 
-    // 如果是题库题目且答对了，记录并更新置信度
-    if (isCorrect && questionId && questionSource) {
+    // 如果是题库题目，记录用户练习情况
+    if (questionId && questionSource) {
       try {
-        // 记录用户答对次数
-        Question.recordCorrectAnswer(userId, questionId, questionSource)
-        
-        // 如果是公共题库题目，不更新置信度（置信度只通过收藏/取消收藏更新）
-        // 置信度更新逻辑已移至收藏功能中
+        // 记录练习（包括答对和答错），但不影响置信度
+        Question.recordPractice(userId, questionId, questionSource, isCorrect)
       } catch (error) {
         console.error('记录题库答题信息失败:', error)
       }
