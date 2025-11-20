@@ -168,11 +168,6 @@
 
       <!-- 内嵌答案反馈区域 -->
       <view class="inline-feedback" v-if="showFeedback" :class="isCorrect ? 'correct' : 'wrong'">
-        <!-- 错题重做标记 -->
-        <view class="retry-badge" v-if="currentExercise && currentExercise.isRetry">
-          <text class="retry-text">🔄 错题重做</text>
-        </view>
-        
         <view class="feedback-header">
           <view class="feedback-icon">{{ isCorrect ? '✓' : '✗' }}</view>
           <text class="feedback-title">{{ isCorrect ? '回答正确！' : '回答错误' }}</text>
@@ -790,7 +785,13 @@ export default {
         return
       }
       
-      // TODO: 暂时设为未收藏，后续可以添加检查逻辑
+      // 如果题目有privateQuestionId，说明已经被收藏过
+      if (ex.privateQuestionId) {
+        this.isQuestionFavorited = true
+        return
+      }
+      
+      // 其他情况默认未收藏
       this.isQuestionFavorited = false
     },
     
@@ -805,8 +806,35 @@ export default {
       try {
         if (this.isQuestionFavorited) {
           // 取消收藏
-          showToast('该功能开发中', 'none')
-          // TODO: 需要知道privateQuestionId才能取消收藏
+          // 如果题目来自私人题库，使用questionId作为privateQuestionId
+          // 如果题目是刚收藏的，使用保存的privateQuestionId
+          const privateQuestionId = ex.questionSource === 'private' ? ex.questionId : ex.privateQuestionId
+          
+          if (!privateQuestionId) {
+            showToast('无法取消收藏，题目信息不完整', 'none')
+            return
+          }
+          
+          const unfavoriteData = {
+            privateQuestionId: privateQuestionId
+          }
+          
+          // 如果有关联的公共题库ID，也传递过去
+          if (ex.publicQuestionId) {
+            unfavoriteData.publicQuestionId = ex.publicQuestionId
+          } else if (ex.questionSource === 'public' && ex.questionId) {
+            unfavoriteData.publicQuestionId = ex.questionId
+          }
+          
+          const res = await api.unfavoriteQuestion(unfavoriteData)
+          if (res.success) {
+            this.isQuestionFavorited = false
+            // 清除privateQuestionId
+            if (ex.privateQuestionId) {
+              delete ex.privateQuestionId
+            }
+            showToast('已取消收藏', 'success')
+          }
         } else {
           // 收藏题目
           const questionData = {
@@ -828,12 +856,16 @@ export default {
             questionData.questionSource = ex.questionSource
           }
           
-          await api.favoriteQuestion(questionData)
-          this.isQuestionFavorited = true
-          showToast('题目已收藏', 'success')
+          const res = await api.favoriteQuestion(questionData)
+          if (res.success && res.privateQuestionId) {
+            // 保存privateQuestionId到当前题目，以便后续取消收藏
+            ex.privateQuestionId = res.privateQuestionId
+            this.isQuestionFavorited = true
+            showToast('题目已收藏', 'success')
+          }
         }
       } catch (error) {
-        console.error('收藏题目失败:', error)
+        console.error('操作题目收藏失败:', error)
         showToast('操作失败', 'none')
       }
     },
@@ -1471,20 +1503,6 @@ export default {
 .inline-feedback.wrong {
   border-left: 6rpx solid #ff4d4f;
   background: linear-gradient(135deg, #fff1f0 0%, #ffffff 100%);
-}
-
-.inline-feedback .retry-badge {
-  display: inline-block;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  padding: 6rpx 16rpx;
-  border-radius: 20rpx;
-  font-size: 22rpx;
-  margin-bottom: 15rpx;
-}
-
-.inline-feedback .retry-text {
-  font-size: 22rpx;
 }
 
 .inline-feedback .feedback-header {
