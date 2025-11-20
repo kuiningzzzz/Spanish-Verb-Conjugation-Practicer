@@ -100,32 +100,59 @@ export default {
     async loadData() {
       try {
         // 获取最新用户信息
-        const userRes = await api.getUserInfo()
-        if (userRes.success) {
-          this.userInfo = userRes.user
-          // 更新本地缓存
-          uni.setStorageSync('userInfo', userRes.user)
+        try {
+          const userRes = await api.getUserInfo()
+          if (userRes.success) {
+            this.userInfo = userRes.user
+            // 更新本地缓存
+            uni.setStorageSync('userInfo', userRes.user)
+          }
+        } catch (error) {
+          console.error('获取用户信息失败:', error)
         }
 
         // 获取统计数据
-        const statsRes = await api.getStatistics()
-        if (statsRes.success) {
-          this.todayStats = statsRes.statistics.today || { total: 0, correct: 0 }
-          this.totalStats = statsRes.statistics || {}
+        try {
+          const statsRes = await api.getStatistics()
+          if (statsRes.success) {
+            this.todayStats = statsRes.statistics.today || { total: 0, correct: 0 }
+            this.totalStats = statsRes.statistics || {}
+          }
+        } catch (error) {
+          console.error('获取统计数据失败:', error)
         }
 
         // 获取打卡信息
-        const checkInRes = await api.getCheckInHistory()
-        if (checkInRes.success) {
-          this.streakDays = checkInRes.streakDays || 0
-          this.hasCheckedInToday = checkInRes.hasCheckedInToday
+        try {
+          const checkInRes = await api.getCheckInHistory()
+          console.log('📅 打卡信息返回:', checkInRes)
+          if (checkInRes.success) {
+            // 使用严格的类型检查，避免0被误判为falsy
+            this.streakDays = typeof checkInRes.streakDays === 'number' ? checkInRes.streakDays : 0
+            this.hasCheckedInToday = checkInRes.hasCheckedInToday
+            console.log('✅ 连续打卡天数:', this.streakDays)
+          } else {
+            console.error('❌ 获取打卡信息失败:', checkInRes)
+          }
+        } catch (error) {
+          console.error('获取打卡信息异常:', error)
         }
 
         // 计算学习天数
         if (this.userInfo.created_at) {
           const start = new Date(this.userInfo.created_at)
           const now = new Date()
-          this.studyDays = Math.floor((now - start) / (1000 * 60 * 60 * 24))
+          
+          // 验证日期是否有效
+          if (!isNaN(start.getTime())) {
+            const days = Math.floor((now - start) / (1000 * 60 * 60 * 24))
+            this.studyDays = Math.max(0, days) // 确保不会出现负数
+          } else {
+            console.error('无效的创建日期:', this.userInfo.created_at)
+            this.studyDays = 0
+          }
+        } else {
+          this.studyDays = 0
         }
       } catch (error) {
         console.error('加载数据失败:', error)

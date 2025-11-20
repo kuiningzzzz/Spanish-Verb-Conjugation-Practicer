@@ -50,7 +50,8 @@ router.post('/register', (req, res) => {
         email: user.email,
         school: user.school,
         enrollmentYear: user.enrollment_year,
-        userType: user.user_type
+        userType: user.user_type,
+        created_at: user.created_at
       }
     })
   } catch (error) {

@@ -50,7 +50,11 @@ class CheckIn {
     today.setHours(0, 0, 0, 0)
 
     for (let i = 0; i < records.length; i++) {
-      const checkInDate = new Date(records[i].check_in_date)
+      // 修复时区问题：使用本地时间解析日期字符串
+      const dateStr = records[i].check_in_date
+      const [year, month, day] = dateStr.split('-').map(Number)
+      const checkInDate = new Date(year, month - 1, day)
+      
       const expectedDate = new Date(today)
       expectedDate.setDate(today.getDate() - i)
       expectedDate.setHours(0, 0, 0, 0)
