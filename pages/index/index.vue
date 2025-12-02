@@ -36,7 +36,8 @@
     </view>
 
     <view class="action-buttons">
-      <button class="btn-primary" @click="startPractice">开始练习</button>
+      <button class="btn-primary" @click="goToCourse">课程练习</button>
+      <button class="btn-primary mt-20" @click="startPractice">开始练习</button>
       <button class="btn-secondary mt-20" @click="checkIn" v-if="!hasCheckedInToday">每日打卡</button>
       <view class="checked-in-tip mt-20" v-else>
         <text>✓ 今日已打卡</text>
@@ -214,6 +215,11 @@ export default {
     goToStatistics() {
       uni.switchTab({
         url: '/pages/statistics/statistics'
+      })
+    },
+    goToCourse() {
+      uni.navigateTo({
+        url: '/pages/course/course'
       })
     }
   }

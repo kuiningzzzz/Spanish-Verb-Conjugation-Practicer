@@ -106,5 +106,14 @@ export default {
   unfavoriteQuestion: (data) => request({ url: '/question/unfavorite', method: 'POST', data }),
   getMyQuestions: (params) => request({ url: '/question/my-questions', data: params }),
   getQuestionStats: () => request({ url: '/question/stats' }),
-  rateQuestion: (data) => request({ url: '/question/rate', method: 'POST', data })
+  rateQuestion: (data) => request({ url: '/question/rate', method: 'POST', data }),
+  
+  // 课程相关
+  getTextbooks: () => request({ url: '/course/textbooks' }),
+  getLessonsByBook: (bookId) => request({ url: `/course/textbooks/${bookId}/lessons` }),
+  getLessonVocabulary: (lessonId) => request({ url: `/course/lessons/${lessonId}/vocabulary` }),
+  getLessonDetail: (lessonId) => request({ url: `/course/lessons/${lessonId}` }),
+  createTextbook: (data) => request({ url: '/course/textbooks', method: 'POST', data }),
+  createLesson: (data) => request({ url: '/course/lessons', method: 'POST', data }),
+  addVerbsToLesson: (lessonId, data) => request({ url: `/course/lessons/${lessonId}/verbs`, method: 'POST', data })
 }

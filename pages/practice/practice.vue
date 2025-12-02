@@ -228,18 +228,41 @@
 
     <!-- 配置面板 -->
     <view class="settings-card card" v-if="!hasStarted">
+      <!-- 课程模式提示 -->
+      <view v-if="isCourseMode" class="course-mode-tip">
+        <text class="tip-icon">📚</text>
+        <view class="tip-content">
+          <text class="tip-title">课程练习模式</text>
+          <text class="tip-text">{{ lessonTitle }}</text>
+          <text class="tip-hint">练习范围和设置已根据课程配置自动锁定</text>
+        </view>
+      </view>
+      
       <text class="title">练习设置</text>
       
       <view class="form-item">
         <text class="label">练习类型</text>
-        <picker @change="onExerciseTypeChange" :value="exerciseTypeIndex" :range="exerciseTypes" range-key="label">
-          <view class="picker">{{ exerciseTypes[exerciseTypeIndex].label }}</view>
+        <picker 
+          @change="onExerciseTypeChange" 
+          :value="exerciseTypeIndex" 
+          :range="exerciseTypes" 
+          range-key="label"
+          :disabled="isCourseMode"
+        >
+          <view class="picker" :class="{ 'disabled': isCourseMode }">{{ exerciseTypes[exerciseTypeIndex].label }}</view>
         </picker>
       </view>
 
       <view class="form-item">
         <text class="label">题目数量</text>
-        <slider @change="onCountChange" :value="exerciseCount" min="5" max="30" show-value />
+        <slider 
+          @change="onCountChange" 
+          :value="exerciseCount" 
+          min="5" 
+          max="30" 
+          show-value 
+          :disabled="isCourseMode"
+        />
       </view>
 
       <!-- 专项练习设置 -->
@@ -247,6 +270,7 @@
         <view class="theme-header">
           <text class="theme-icon">🎯</text>
           <text class="label theme-label">专项练习</text>
+          <text v-if="isCourseMode" class="locked-badge">🔒 已锁定</text>
         </view>
         
         <!-- 时态选择 -->
@@ -256,8 +280,8 @@
             <view 
               v-for="(tense, index) in tenseOptions" 
               :key="index"
-              :class="['checkbox-item', selectedTenses.includes(tense.value) ? 'checked' : '']"
-              @click="toggleTense(tense.value)"
+              :class="['checkbox-item', selectedTenses.includes(tense.value) ? 'checked' : '', isCourseMode ? 'disabled' : '']"
+              @click="!isCourseMode && toggleTense(tense.value)"
             >
               <text class="checkbox-icon">{{ selectedTenses.includes(tense.value) ? '☑' : '☐' }}</text>
               <text class="checkbox-label">{{ tense.label }}</text>
@@ -272,8 +296,8 @@
             <view 
               v-for="(type, index) in conjugationTypes" 
               :key="index"
-              :class="['checkbox-item', selectedConjugationTypes.includes(type.value) ? 'checked' : '']"
-              @click="toggleConjugationType(type.value)"
+              :class="['checkbox-item', selectedConjugationTypes.includes(type.value) ? 'checked' : '', isCourseMode ? 'disabled' : '']"
+              @click="!isCourseMode && toggleConjugationType(type.value)"
             >
               <text class="checkbox-icon">{{ selectedConjugationTypes.includes(type.value) ? '☑' : '☐' }}</text>
               <text class="checkbox-label">{{ type.label }}</text>
@@ -286,8 +310,8 @@
           <text class="theme-subtitle">动词规则性</text>
           <view class="checkbox-group">
             <view 
-              :class="['checkbox-item', includeIrregular ? 'checked' : '']"
-              @click="includeIrregular = !includeIrregular"
+              :class="['checkbox-item', includeIrregular ? 'checked' : '', isCourseMode ? 'disabled' : '']"
+              @click="!isCourseMode && (includeIrregular = !includeIrregular)"
             >
               <text class="checkbox-icon">{{ includeIrregular ? '☑' : '☐' }}</text>
               <text class="checkbox-label">包含不规则动词</text>
@@ -296,14 +320,14 @@
         </view>
 
         <!-- 快速设置 -->
-        <view class="quick-settings">
+        <view class="quick-settings" v-if="!isCourseMode">
           <text class="quick-label">快速设置：</text>
           <button class="quick-btn" @click="selectAllThemes">全选</button>
           <button class="quick-btn secondary" @click="clearAllThemes">清除</button>
         </view>
       </view>
 
-      <button class="btn-primary mt-20" @click="startPractice">开始练习</button>
+      <button class="btn-primary mt-20" @click="startPractice" v-if="!isCourseMode">开始练习</button>
     </view>
   </view>
 </template>
@@ -326,6 +350,13 @@ export default {
       exerciseTypeIndex: 0,
       exerciseType: 'choice',
       exerciseCount: 10,
+      
+      // 课程模式相关
+      isCourseMode: false,  // 是否为课程模式
+      lessonId: null,       // 课程ID
+      lessonTitle: '',      // 课程标题
+      lessonVocabulary: [], // 课程单词列表
+      lessonConfig: null,   // 课程配置（时态、变位类型等）
       
       // 专项练习设置
       tenseOptions: [
@@ -394,9 +425,15 @@ export default {
     const systemInfo = uni.getSystemInfoSync()
     this.statusBarHeight = systemInfo.statusBarHeight || 0
     
-    // 获取练习模式参数
-    if (options.mode) {
-      this.practiceMode = options.mode // favorite: 收藏练习, wrong: 错题练习
+    // 检查是否为课程模式
+    if (options.mode === 'course' && options.lessonId) {
+      this.isCourseMode = true
+      this.lessonId = options.lessonId
+      this.lessonTitle = decodeURIComponent(options.lessonTitle || '课程练习')
+      this.loadLessonConfig()
+    } else if (options.mode) {
+      // 其他练习模式：favorite: 收藏练习, wrong: 错题练习
+      this.practiceMode = options.mode
     }
   },
   computed: {
@@ -480,6 +517,50 @@ export default {
       showToast('已清除所有选项', 'none')
     },
     
+    // 加载课程配置
+    async loadLessonConfig() {
+      try {
+        showLoading('加载课程配置...')
+        
+        // 获取课程详情
+        const lessonRes = await api.getLessonDetail(this.lessonId)
+        if (lessonRes.success && lessonRes.lesson) {
+          const lesson = lessonRes.lesson
+          this.lessonConfig = lesson
+          
+          // 如果课程配置了时态，使用课程的时态设置
+          if (lesson.tenses && lesson.tenses.length > 0) {
+            this.selectedTenses = lesson.tenses
+          }
+          
+          // 如果课程配置了变位类型，使用课程的变位类型设置
+          if (lesson.conjugation_types && lesson.conjugation_types.length > 0) {
+            this.selectedConjugationTypes = lesson.conjugation_types
+          }
+        }
+        
+        // 获取课程单词列表
+        const vocabRes = await api.getLessonVocabulary(this.lessonId)
+        if (vocabRes.success && vocabRes.vocabulary) {
+          this.lessonVocabulary = vocabRes.vocabulary
+          console.log('课程单词列表:', this.lessonVocabulary)
+        }
+        
+        hideLoading()
+        
+        // 自动开始练习
+        if (this.lessonVocabulary.length > 0) {
+          this.startPractice()
+        } else {
+          showToast('该课程暂无单词', 'none')
+        }
+      } catch (error) {
+        hideLoading()
+        console.error('加载课程配置失败:', error)
+        showToast('加载课程失败', 'none')
+      }
+    },
+    
     async startPractice() {
       // 验证是否登录
       const token = uni.getStorageSync('token')
@@ -507,15 +588,23 @@ export default {
       showLoading('正在生成练习...')
 
       try {
-        // 使用新的批量生成接口
-        const res = await api.getBatchExercises({
+        // 构建请求参数
+        const requestData = {
           exerciseType: this.exerciseType,
           count: this.exerciseCount,
           tenses: this.selectedTenses,
           conjugationTypes: this.selectedConjugationTypes,
           includeIrregular: this.includeIrregular,
           practiceMode: this.practiceMode
-        })
+        }
+        
+        // 如果是课程模式，传递课程单词ID列表
+        if (this.isCourseMode && this.lessonVocabulary.length > 0) {
+          requestData.verbIds = this.lessonVocabulary.map(v => v.id)
+        }
+        
+        // 使用新的批量生成接口
+        const res = await api.getBatchExercises(requestData)
 
         hideLoading()
 
@@ -1709,6 +1798,67 @@ export default {
 
 .settings-card {
   margin-top: 20rpx;
+}
+
+/* 课程模式提示 */
+.course-mode-tip {
+  background: linear-gradient(135deg, #e0e7ff 0%, #f0e7ff 100%);
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 30rpx;
+  display: flex;
+  align-items: flex-start;
+  border: 2rpx solid #667eea;
+}
+
+.tip-icon {
+  font-size: 40rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.tip-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.tip-title {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #667eea;
+  margin-bottom: 8rpx;
+}
+
+.tip-text {
+  font-size: 26rpx;
+  color: #333;
+  margin-bottom: 6rpx;
+}
+
+.tip-hint {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.locked-badge {
+  font-size: 22rpx;
+  color: #999;
+  margin-left: auto;
+  background: #f0f0f0;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+.checkbox-item.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.picker.disabled {
+  opacity: 0.6;
+  background: #f0f0f0;
+  cursor: not-allowed;
 }
 
 .settings-card .title {

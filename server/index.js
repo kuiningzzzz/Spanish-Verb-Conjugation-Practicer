@@ -26,6 +26,14 @@ try {
   console.log('\x1b[33m   ⚠ 示例数据初始化失败:\x1b[0m', error.message)
 }
 
+// 初始化课程示例数据
+try {
+  const { initSampleCourseData } = require('./data/initCourseData')
+  initSampleCourseData()
+} catch (error) {
+  console.log('\x1b[33m   ⚠ 课程数据初始化失败:\x1b[0m', error.message)
+}
+
 // 启动定时任务调度器
 try {
   const SchedulerService = require('./services/scheduler')
@@ -43,6 +51,7 @@ app.use('/api/checkin', require('./routes/checkin'))
 app.use('/api/leaderboard', require('./routes/leaderboard'))
 app.use('/api/vocabulary', require('./routes/vocabulary'))
 app.use('/api/question', require('./routes/question'))  // 题库管理路由
+app.use('/api/course', require('./routes/course'))  // 课程路由
 
 // 健康检查
 app.get('/api/health', (req, res) => {

@@ -197,10 +197,55 @@ function initVocabularyDatabase() {
     )
   `)
 
+  // 教材表
+  vocabularyDb.exec(`
+    CREATE TABLE IF NOT EXISTS textbooks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      cover_image TEXT,
+      order_index INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    )
+  `)
+
+  // 课程表
+  vocabularyDb.exec(`
+    CREATE TABLE IF NOT EXISTS lessons (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      textbook_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      lesson_number INTEGER NOT NULL,
+      description TEXT,
+      grammar_points TEXT,
+      tenses TEXT,
+      conjugation_types TEXT,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (textbook_id) REFERENCES textbooks(id) ON DELETE CASCADE
+    )
+  `)
+
+  // 课程-单词关联表
+  vocabularyDb.exec(`
+    CREATE TABLE IF NOT EXISTS lesson_verbs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      lesson_id INTEGER NOT NULL,
+      verb_id INTEGER NOT NULL,
+      order_index INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE,
+      FOREIGN KEY (verb_id) REFERENCES verbs(id) ON DELETE CASCADE,
+      UNIQUE(lesson_id, verb_id)
+    )
+  `)
+
   // 创建索引
   vocabularyDb.exec(`CREATE INDEX IF NOT EXISTS idx_conjugations_verb ON conjugations(verb_id)`)
   vocabularyDb.exec(`CREATE INDEX IF NOT EXISTS idx_conjugations_tense ON conjugations(tense, mood)`)
   vocabularyDb.exec(`CREATE INDEX IF NOT EXISTS idx_verbs_lesson ON verbs(lesson_number, textbook_volume)`)
+  vocabularyDb.exec(`CREATE INDEX IF NOT EXISTS idx_lessons_textbook ON lessons(textbook_id)`)
+  vocabularyDb.exec(`CREATE INDEX IF NOT EXISTS idx_lesson_verbs_lesson ON lesson_verbs(lesson_id)`)
+  vocabularyDb.exec(`CREATE INDEX IF NOT EXISTS idx_lesson_verbs_verb ON lesson_verbs(verb_id)`)
 }
 
 // 初始化题库数据库
