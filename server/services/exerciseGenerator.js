@@ -115,7 +115,7 @@ class ExerciseGeneratorService {
       const aiCount = count - actualBankCount
       console.log(`批量生成 - AI题目数量:`, { total: count, fromBank: actualBankCount, needAI: aiCount })
 
-      // 性能优化：立即返回题库题目，AI题目由前端异步调用生成
+      // 性能优化：立即返回题库题目（如果有的话），AI题目由前端异步调用生成
       if (aiCount > 0) {
         // 准备AI生成所需的参数
         const aiOptions = {
@@ -127,10 +127,15 @@ class ExerciseGeneratorService {
           verbIds
         }
         
-        console.log(`立即返回题库题目，前端需异步生成 ${aiCount} 个AI题目`)
+        if (actualBankCount > 0) {
+          console.log(`立即返回 ${actualBankCount} 个题库题目，前端需异步生成 ${aiCount} 个AI题目`)
+        } else {
+          console.log(`题库为空，前端需异步生成全部 ${aiCount} 个AI题目`)
+        }
+        
         return { 
           exercises,        // AI生成的题目（暂时为空）
-          questionPool,     // 题库题目（立即返回）
+          questionPool,     // 题库题目（可能为空）
           needAI: aiCount,  // 需要生成的AI题目数量
           aiOptions         // AI生成所需参数
         }
@@ -331,7 +336,7 @@ class ExerciseGeneratorService {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`[AI生成] 第${attempt}次尝试生成题目 (动词: ${verb.infinitive}, 类型: ${exerciseType})`)
+        console.log(`[AI生成] 为${verb.infinitive}第${attempt}次尝试生成题目 (类型: ${exerciseType})`)
 
         // 使用AI生成题目
         if (exerciseType === 'sentence') {
@@ -369,9 +374,9 @@ class ExerciseGeneratorService {
           console.log(`[AI生成] 第${attempt}次质量验证未通过: ${validation.reason}`)
           lastError = validation.reason
           
-          // 如果不是最后一次尝试，继续重试
+          // 如果不是最后一次尝试，继续重试（短延迟）
           if (attempt < maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, 500))  // 延迟500ms后重试
+            await new Promise(resolve => setTimeout(resolve, 1000))
           }
         }
       } catch (error) {
@@ -379,8 +384,12 @@ class ExerciseGeneratorService {
         lastError = error.message
         
         // 如果不是最后一次尝试，继续重试
+        // 对于服务繁忙错误，使用更长的延迟
         if (attempt < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          const isServiceBusy = error.message.includes('繁忙') || error.message.includes('频繁')
+          const delay = isServiceBusy ? 3000 : 1500
+          console.log(`[AI生成] ${delay/1000}秒后重试...`)
+          await new Promise(resolve => setTimeout(resolve, delay))
         }
       }
     }

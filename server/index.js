@@ -88,6 +88,23 @@ const startServer = async () => {
     } catch (error) {
       console.log('\x1b[33m   ⚠ 邮件服务测试失败:\x1b[0m', error.message)
     }
+    
+    // 检查 DeepSeek API 配置
+    try {
+      const DeepSeekService = require('./services/deepseek')
+      const config = DeepSeekService.checkConfig()
+      if (config.configured) {
+        console.log('\n   \x1b[32m✓ DeepSeek API 已配置\x1b[0m')
+        console.log(`     • API Key: ${config.apiKey}`)
+        console.log(`     • API URL: ${config.apiUrl}`)
+      } else {
+        console.log('\n   \x1b[33m⚠️  DeepSeek API 未配置\x1b[0m')
+        console.log('     AI 生成题目功能将不可用')
+        console.log('     请在 .env 文件中配置 DEEPSEEK_API_KEY')
+      }
+    } catch (error) {
+      console.log('\n   \x1b[33m⚠️  DeepSeek 配置检查失败:\x1b[0m', error.message)
+    }
   })
 }
 

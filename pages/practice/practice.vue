@@ -658,14 +658,23 @@ export default {
           // 从题目池中随机抽取需要的题目添加到exercises中
           this.fillFromQuestionPool()
           
-          // 检查第一题的收藏状态
-          if (this.exercises.length > 0) {
-            // 初始化组合填空的答案数组
-            if (this.exerciseType === 'combo-fill' && this.currentExercise.comboItems) {
-              this.comboAnswers = new Array(this.currentExercise.comboItems.length).fill('')
+          // 检查是否有足够的题目（题库题或等待AI生成）
+          const hasEnoughQuestions = this.exercises.length > 0 || (res.needAI && res.needAI > 0)
+          
+          if (hasEnoughQuestions) {
+            // 如果有题库题，检查第一题的收藏状态
+            if (this.exercises.length > 0) {
+              // 初始化组合填空的答案数组
+              if (this.exerciseType === 'combo-fill' && this.currentExercise.comboItems) {
+                this.comboAnswers = new Array(this.currentExercise.comboItems.length).fill('')
+              }
+              this.checkFavoriteStatus()
+              this.checkQuestionFavoriteStatus()
+            } else if (res.needAI && res.needAI > 0) {
+              // 题库为空，等待AI生成
+              console.log('题库为空，等待AI生成题目...')
+              showToast('正在生成练习题，请稍候...', 'loading', 3000)
             }
-            this.checkFavoriteStatus()
-            this.checkQuestionFavoriteStatus()
           } else {
             showToast('未能生成练习题，请重试')
             return
@@ -703,31 +712,87 @@ export default {
     
     // 异步生成AI题目并随机插入
     async generateAIQuestionsAsync(count, aiOptions) {
+      const isFirstBatch = this.exercises.length === 0  // 判断是否是第一批题目（题库为空）
+      let successCount = 0  // 成功生成的题目数量
+      let failCount = 0     // 失败次数
+      
       for (let i = 0; i < count; i++) {
         try {
           console.log(`正在生成第 ${i + 1}/${count} 个AI题目`)
           
+          // 显示生成进度
+          this.generatingCount = count - i
+          
           const res = await api.generateSingleAI({ aiOptions })
           
           if (res.success && res.exercise) {
-            // 随机插入到exercises数组中
-            const randomIndex = Math.floor(Math.random() * (this.exercises.length + 1))
-            this.exercises.splice(randomIndex, 0, res.exercise)
+            successCount++
             
-            console.log(`AI题目已插入到位置 ${randomIndex}, 当前题目总数: ${this.exercises.length}`)
-            
-            // 如果插入位置在当前题目之前，需要调整currentIndex
-            if (randomIndex <= this.currentIndex) {
-              this.currentIndex++
+            // 如果是第一批题目，按顺序添加；否则随机插入
+            if (isFirstBatch && i === 0) {
+              // 第一题直接添加到开头
+              this.exercises.push(res.exercise)
+              console.log(`第一个AI题目已生成，开始练习`)
+              
+              // 隐藏加载提示，初始化第一题
+              uni.hideToast()
+              if (this.exerciseType === 'combo-fill' && this.currentExercise.comboItems) {
+                this.comboAnswers = new Array(this.currentExercise.comboItems.length).fill('')
+              }
+              this.checkFavoriteStatus()
+              this.checkQuestionFavoriteStatus()
+            } else {
+              // 后续题目随机插入
+              const randomIndex = Math.floor(Math.random() * (this.exercises.length + 1))
+              this.exercises.splice(randomIndex, 0, res.exercise)
+              
+              console.log(`AI题目已插入到位置 ${randomIndex}, 当前题目总数: ${this.exercises.length}`)
+              
+              // 如果插入位置在当前题目之前，需要调整currentIndex
+              if (randomIndex <= this.currentIndex) {
+                this.currentIndex++
+              }
             }
+          } else {
+            failCount++
+            console.error(`生成第 ${i + 1} 个AI题目失败: API返回无效数据`)
           }
         } catch (error) {
+          failCount++
           console.error(`生成第 ${i + 1} 个AI题目失败:`, error)
-          // 失败不中断，继续生成下一个
+          
+          // 如果是第一批题目且前几次都失败了，给用户提示
+          if (isFirstBatch && i < 3 && failCount > i) {
+            if (i === 2) {
+              // 连续3次失败，提示用户
+              uni.hideToast()
+              uni.showModal({
+                title: 'AI生成失败',
+                content: 'AI服务当前繁忙，无法生成题目。建议：\n1. 稍后再试\n2. 或先进行其他练习模式\n\n如果题库有数据，将优先使用题库题目。',
+                showCancel: false
+              })
+              this.generatingCount = 0
+              return  // 停止继续生成
+            }
+          }
         }
       }
       
-      console.log('AI题目异步生成完成')
+      this.generatingCount = 0
+      console.log(`AI题目异步生成完成: 成功 ${successCount}/${count}, 失败 ${failCount}/${count}`)
+      
+      // 如果是第一批且全部失败，显示错误信息
+      if (isFirstBatch && successCount === 0) {
+        uni.showModal({
+          title: '生成失败',
+          content: '无法生成练习题，AI服务可能暂时不可用。\n\n建议：\n1. 检查网络连接\n2. 稍后再试\n3. 或选择其他练习模式',
+          showCancel: false,
+          success: () => {
+            // 返回上一页
+            uni.navigateBack()
+          }
+        })
+      }
     },
     
     // 从题目池中随机抽取题目

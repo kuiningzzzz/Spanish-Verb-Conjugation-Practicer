@@ -1,18 +1,50 @@
 const axios = require('axios')
-require('dotenv').config()
+const path = require('path')
+require('dotenv').config({ path: path.join(__dirname, '../.env') })
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY
 const DEEPSEEK_API_URL = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions'
 
+// 启动时检查配置
+if (!DEEPSEEK_API_KEY) {
+  console.warn('⚠️  警告: DEEPSEEK_API_KEY 未配置，AI 功能将不可用')
+} else {
+  console.log('✓ DeepSeek API 配置已加载')
+  console.log(`  • API URL: ${DEEPSEEK_API_URL}`)
+  console.log(`  • API Key: ${DEEPSEEK_API_KEY.substring(0, 10)}...`)
+}
+
 class DeepSeekService {
   /**
-   * 调用 DeepSeek API
+   * 检查 API 配置是否完整
+   */
+  static checkConfig() {
+    return {
+      configured: !!DEEPSEEK_API_KEY,
+      apiKey: DEEPSEEK_API_KEY ? `${DEEPSEEK_API_KEY.substring(0, 10)}...` : null,
+      apiUrl: DEEPSEEK_API_URL
+    }
+  }
+
+  /**
+   * 调用 DeepSeek API（带重试机制）
    * @param {string} prompt - 提示词
    * @param {number} maxTokens - 最大token数
+   * @param {number} retryCount - 当前重试次数（内部使用）
    * @returns {Promise<string>} AI 响应内容
    */
-  static async chat(prompt, maxTokens = 1000) {
+  static async chat(prompt, maxTokens = 1000, retryCount = 0) {
+    // 先检查配置
+    if (!DEEPSEEK_API_KEY) {
+      throw new Error('DeepSeek API Key 未配置，请在 .env 文件中设置 DEEPSEEK_API_KEY')
+    }
+    
+    const maxRetries = 3
+    const baseDelay = 2000 // 基础延迟2秒
+    
     try {
+      console.log(`[DeepSeek] 调用 API (尝试 ${retryCount + 1}/${maxRetries + 1})...`)
+      
       const response = await axios.post(
         DEEPSEEK_API_URL,
         {
@@ -41,8 +73,37 @@ class DeepSeekService {
 
       return response.data.choices[0].message.content
     } catch (error) {
-      console.error('DeepSeek API 调用失败:', error.response?.data || error.message)
-      throw new Error('AI 服务暂时不可用')
+      const errorData = error.response?.data
+      const errorCode = errorData?.error?.code
+      const errorMessage = errorData?.error?.message || error.message
+      
+      // 判断是否为临时性错误（服务繁忙、速率限制等）
+      const isTemporaryError = 
+        errorCode === 'service_unavailable_error' ||
+        errorCode === 'rate_limit_exceeded' ||
+        error.code === 'ETIMEDOUT' ||
+        error.code === 'ECONNRESET'
+      
+      // 如果是临时性错误且还有重试次数，使用指数退避策略重试
+      if (isTemporaryError && retryCount < maxRetries) {
+        const delay = baseDelay * Math.pow(2, retryCount) // 2s, 4s, 8s
+        console.log(`DeepSeek API 临时性错误 (${errorCode}), ${delay/1000}秒后进行第 ${retryCount + 1} 次重试...`)
+        
+        await new Promise(resolve => setTimeout(resolve, delay))
+        return this.chat(prompt, maxTokens, retryCount + 1)
+      }
+      
+      // 记录详细错误信息
+      console.error('DeepSeek API 调用失败:', errorData || error.message)
+      
+      // 根据错误类型返回不同的错误信息
+      if (errorCode === 'service_unavailable_error') {
+        throw new Error('AI 服务当前繁忙，请稍后再试')
+      } else if (errorCode === 'rate_limit_exceeded') {
+        throw new Error('请求过于频繁，请稍后再试')
+      } else {
+        throw new Error('AI 服务暂时不可用')
+      }
     }
   }
 
