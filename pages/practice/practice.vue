@@ -39,9 +39,9 @@
           <view class="favorite-btn" @click="toggleFavorite">
             <text class="favorite-icon">{{ isFavorited ? '★' : '☆' }}</text>
           </view>
-          <!-- 题目收藏按钮（仅填空题和例句填空） -->
+          <!-- 题目收藏按钮（仅例句填空） -->
           <view 
-            v-if="exerciseType === 'fill' || exerciseType === 'sentence'" 
+            v-if="exerciseType === 'sentence'" 
             class="question-favorite-btn" 
             @click="toggleQuestionFavorite"
           >
@@ -55,25 +55,21 @@
         <text class="meaning">{{ currentExercise.meaning }}</text>
       </view>
 
-      <view v-if="exerciseType !== 'sentence'" class="question-section">
+      <view v-if="exerciseType === 'combo-fill'" class="question-section combo-section">
+        <text class="tense-info">{{ currentExercise.mood }}</text>
+        <text class="combo-hint">请填写以下6种变位形式</text>
+      </view>
+      <view v-else-if="exerciseType === 'quick-fill'" class="question-section">
+        <text class="tense-info">{{ currentExercise.mood }} - {{ currentExercise.tense }}</text>
+        <text class="person-info">{{ currentExercise.person }}</text>
+      </view>
+      <view v-else-if="exerciseType !== 'sentence'" class="question-section">
         <text class="tense-info">{{ currentExercise.mood }} - {{ currentExercise.tense }}</text>
         <text class="person-info">{{ currentExercise.person }}</text>
       </view>
 
-      <!-- 选择题 -->
-      <view v-if="exerciseType === 'choice'" class="options-container">
-        <view
-          v-for="(option, index) in currentExercise.options"
-          :key="index"
-          :class="['option-item', selectedAnswer === option ? 'selected' : '', showFeedback ? 'disabled' : '']"
-          @click="!showFeedback && selectOption(option)"
-        >
-          <text>{{ option }}</text>
-        </view>
-      </view>
-
       <!-- 例句填空题 -->
-      <view v-else-if="exerciseType === 'sentence'" class="sentence-container">
+      <view v-if="exerciseType === 'sentence'" class="sentence-container">
         <view class="sentence-text">{{ currentExercise.sentence }}</view>
         
         <!-- 辅助按钮组 -->
@@ -118,56 +114,44 @@
         />
       </view>
 
-      <!-- 填空题和变位题 -->
-      <view v-else class="input-container">
-        <view class="question-text" v-if="currentExercise.question">
-          <text>{{ currentExercise.question }}</text>
-        </view>
-        
-        <!-- 辅助按钮组 -->
-        <view class="helper-buttons">
-          <button 
-            v-if="currentExercise.example" 
-            class="helper-btn" 
-            :class="{ 'active': showExample }"
-            @click="toggleExample"
-          >
-            <text class="helper-icon">📝</text>
-            <text>{{ showExample ? '隐藏例句' : '查看例句' }}</text>
-          </button>
-          <button 
-            v-if="currentExercise.hint" 
-            class="helper-btn" 
-            :class="{ 'active': showHint }"
-            @click="toggleHint"
-          >
-            <text class="helper-icon">💡</text>
-            <text>{{ showHint ? '隐藏提示' : '查看提示' }}</text>
-          </button>
-        </view>
-        
-        <!-- 例句内容 -->
-        <view class="example-text" v-if="currentExercise.example && showExample">
-          <text>例句：{{ currentExercise.example }}</text>
-        </view>
-        
-        <!-- 提示内容 -->
-        <view class="hint-box" v-if="currentExercise.hint && showHint">
-          <text class="hint-label">💡 提示：</text>
-          <text class="hint-text">{{ currentExercise.hint }}</text>
-        </view>
-        
+      <!-- 快变快填题 -->
+      <view v-if="exerciseType === 'quick-fill'" class="input-container">
         <input
           class="answer-input"
           v-model="userAnswer"
-          placeholder="请输入变位形式"
+          placeholder="请输入目标变位形式"
           :disabled="showFeedback"
           :focus="!showFeedback"
         />
       </view>
 
-      <!-- 内嵌答案反馈区域 -->
-      <view class="inline-feedback" v-if="showFeedback" :class="isCorrect ? 'correct' : 'wrong'">
+      <!-- 组合填空题 -->
+      <view v-if="exerciseType === 'combo-fill' && currentExercise.comboItems" class="combo-container">
+        <view 
+          v-for="(item, index) in currentExercise.comboItems" 
+          :key="index" 
+          class="combo-item"
+          :class="{ 'answered': comboAnswers[index], 'correct': showFeedback && item.isCorrect, 'wrong': showFeedback && !item.isCorrect && comboAnswers[index] }"
+        >
+          <view class="combo-label">
+            <text class="combo-number">{{ index + 1 }}.</text>
+            <text class="combo-person">{{ item.person }}</text>
+          </view>
+          <input
+            class="combo-input"
+            v-model="comboAnswers[index]"
+            :placeholder="'请输入' + item.person + '形式'"
+            :disabled="showFeedback"
+          />
+          <view v-if="showFeedback && !item.isCorrect && comboAnswers[index]" class="combo-correct-answer">
+            <text class="correct-label">正确答案：</text>
+            <text class="correct-text">{{ item.correctAnswer }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 内嵌答案反馈区域（组合填空题不显示，因为每个输入框都有独立反馈） -->
+      <view class="inline-feedback" v-if="showFeedback && exerciseType !== 'combo-fill'" :class="isCorrect ? 'correct' : 'wrong'">
         <view class="feedback-header">
           <view class="feedback-icon">{{ isCorrect ? '✓' : '✗' }}</view>
           <text class="feedback-title">{{ isCorrect ? '回答正确！' : '回答错误' }}</text>
@@ -386,13 +370,12 @@ export default {
       statusBarHeight: 0, // 状态栏高度
       hasStarted: false,
       exerciseTypes: [
-        { value: 'choice', label: '选择题' },
-        { value: 'fill', label: '填空题' },
-        { value: 'conjugate', label: '变位练习' },
-        { value: 'sentence', label: '例句填空' }
+        { value: 'sentence', label: '例句填空' },
+        { value: 'quick-fill', label: '快变快填' },
+        { value: 'combo-fill', label: '组合填空' }
       ],
       exerciseTypeIndex: 0,
-      exerciseType: 'choice',
+      exerciseType: 'sentence',
       exerciseCount: 10,
       
       // 课程模式相关
@@ -430,6 +413,7 @@ export default {
       currentIndex: 0,
       userAnswer: '',
       selectedAnswer: '',
+      comboAnswers: [],  // 组合填空的答案数组
       showFeedback: false,
       showResult: false,
       isCorrect: false,
@@ -505,7 +489,7 @@ export default {
       return this.totalAnswered ? Math.round((this.correctCount / this.totalAnswered) * 100) : 0
     },
     exerciseTypeText() {
-      const types = { choice: '选择题', fill: '填空题', conjugate: '变位练习', sentence: '例句填空' }
+      const types = { sentence: '例句填空', 'quick-fill': '快变快填', 'combo-fill': '组合填空' }
       return types[this.exerciseType] || ''
     }
   },
@@ -676,6 +660,10 @@ export default {
           
           // 检查第一题的收藏状态
           if (this.exercises.length > 0) {
+            // 初始化组合填空的答案数组
+            if (this.exerciseType === 'combo-fill' && this.currentExercise.comboItems) {
+              this.comboAnswers = new Array(this.currentExercise.comboItems.length).fill('')
+            }
             this.checkFavoriteStatus()
             this.checkQuestionFavoriteStatus()
           } else {
@@ -1039,7 +1027,69 @@ export default {
     },
     
     async submitAnswer() {
-      const answer = this.exerciseType === 'choice' ? this.selectedAnswer : this.userAnswer
+      // 组合填空题的答案处理
+      if (this.exerciseType === 'combo-fill') {
+        // 检查是否全部填写
+        if (this.comboAnswers.some(a => !a || !a.trim())) {
+          showToast('请填写所有空格')
+          return
+        }
+        
+        try {
+          // 批量提交组合填空的答案
+          let correctCount = 0
+          const items = this.currentExercise.comboItems
+          
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i]
+            const userAnswer = this.comboAnswers[i].trim()
+            
+            const res = await api.submitAnswer({
+              verbId: this.currentExercise.verbId,
+              exerciseType: 'combo-fill',
+              answer: userAnswer,
+              correctAnswer: item.correctAnswer,
+              tense: item.tense,
+              mood: item.mood,
+              person: item.person
+            })
+            
+            if (res.success && res.isCorrect) {
+              correctCount++
+              item.isCorrect = true
+            } else {
+              item.isCorrect = false
+            }
+          }
+          
+          // 如果全对才算正确
+          this.isCorrect = (correctCount === items.length)
+          if (this.isCorrect) {
+            this.correctCount++
+          } else {
+            // 答错了，记录到错题本
+            this.recordWrongAnswer()
+            
+            // 添加到错题队列
+            const exerciseKey = `${this.currentExercise.verbId}-combo-fill-${this.currentExercise.mood}`
+            if (!this.wrongExercisesSet.has(exerciseKey) && !this.currentExercise.isRetry) {
+              this.wrongExercisesSet.add(exerciseKey)
+              const retryExercise = { ...this.currentExercise, isRetry: true }
+              this.wrongExercises.push(retryExercise)
+              console.log('错题已添加到队列，当前错题数:', this.wrongExercises.length)
+            }
+          }
+          
+          this.totalAnswered++
+          this.showFeedback = true
+        } catch (error) {
+          showToast('提交失败')
+        }
+        return
+      }
+      
+      // 其他题型的答案处理
+      const answer = this.userAnswer
 
       if (!answer) {
         showToast('请先作答')
@@ -1079,8 +1129,8 @@ export default {
           }
           this.totalAnswered++
           
-          // 如果是填空题或例句填空（AI生成题或题库题），显示评价按钮
-          if (this.exerciseType === 'fill' || this.exerciseType === 'sentence') {
+          // 如果是例句填空（AI生成题或题库题），显示评价按钮
+          if (this.exerciseType === 'sentence') {
             // 只有AI生成的题目或题库题目才显示评价按钮
             if (this.currentExercise.aiGenerated || this.currentExercise.fromQuestionBank) {
               this.showRatingButtons = true
@@ -1098,6 +1148,7 @@ export default {
       this.showFeedback = false
       this.userAnswer = ''
       this.selectedAnswer = ''
+      this.comboAnswers = []  // 重置组合填空答案
       this.showRatingButtons = false
       this.hasRated = false
       
@@ -1124,6 +1175,10 @@ export default {
       if (this.currentIndex + 1 < this.exercises.length) {
         // 下一题已准备好，直接跳转
         this.currentIndex++
+        // 初始化组合填空的答案数组
+        if (this.exerciseType === 'combo-fill' && this.currentExercise.comboItems) {
+          this.comboAnswers = new Array(this.currentExercise.comboItems.length).fill('')
+        }
         // 检查新题目的收藏状态
         this.checkFavoriteStatus()
         this.checkQuestionFavoriteStatus()
@@ -1634,6 +1689,7 @@ export default {
   padding: 0 30rpx;
   font-size: 32rpx;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .answer-input[disabled] {
@@ -2502,5 +2558,135 @@ slider {
 
 .summary-actions .btn-icon {
   font-size: 28rpx;
+}
+
+/* 快变快填样式 */
+.given-form-section {
+  background: linear-gradient(135deg, #e3f2fd 0%, #e1f5fe 100%);
+  border-left: 6rpx solid #2196f3;
+  padding: 25rpx;
+  border-radius: 12rpx;
+  margin-bottom: 30rpx;
+}
+
+.given-label {
+  display: block;
+  font-size: 24rpx;
+  color: #1976d2;
+  margin-bottom: 10rpx;
+  font-weight: 500;
+}
+
+.given-form {
+  display: block;
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #0d47a1;
+  margin-bottom: 8rpx;
+}
+
+.given-desc {
+  display: block;
+  font-size: 24rpx;
+  color: #1976d2;
+  font-style: italic;
+}
+
+/* 组合填空样式 */
+.combo-section {
+  margin-bottom: 20rpx;
+}
+
+.combo-hint {
+  display: block;
+  font-size: 24rpx;
+  color: #ff9800;
+  margin-top: 10rpx;
+  font-weight: 500;
+}
+
+.combo-container {
+  margin-top: 20rpx;
+}
+
+.combo-item {
+  background: #f8f9fa;
+  border-radius: 12rpx;
+  padding: 30rpx 25rpx;
+  margin-bottom: 25rpx;
+  border: 2rpx solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.combo-item.answered {
+  background: #fff;
+  border-color: #667eea;
+}
+
+.combo-item.correct {
+  background: #f6ffed;
+  border-color: #52c41a;
+}
+
+.combo-item.wrong {
+  background: #fff2f0;
+  border-color: #ff4d4f;
+}
+
+.combo-label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.combo-number {
+  font-size: 24rpx;
+  color: #999;
+  margin-right: 10rpx;
+  font-weight: bold;
+}
+
+.combo-person {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 600;
+}
+
+.combo-input {
+  width: 100%;
+  height: 90rpx;
+  background: white;
+  padding: 25rpx 30rpx;
+  border-radius: 12rpx;
+  font-size: 32rpx;
+  border: 2rpx solid #e0e0e0;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.combo-input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 4rpx rgba(102, 126, 234, 0.1);
+}
+
+.combo-correct-answer {
+  margin-top: 15rpx;
+  padding: 15rpx;
+  background: #fff3cd;
+  border-radius: 8rpx;
+  border-left: 4rpx solid #ffc107;
+}
+
+.correct-label {
+  font-size: 24rpx;
+  color: #856404;
+  margin-right: 10rpx;
+}
+
+.correct-text {
+  font-size: 28rpx;
+  color: #856404;
+  font-weight: bold;
 }
 </style>

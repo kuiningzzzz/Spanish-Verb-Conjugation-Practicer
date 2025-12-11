@@ -38,9 +38,9 @@ class ExerciseGeneratorService {
     const exercises = []
     const questionPool = [] // 题目池
 
-    // 选择题和变位题：直接用固定算法生成所有题目（同步、不使用AI）
-    if (exerciseType === 'choice' || exerciseType === 'conjugate') {
-      console.log(`批量生成 - 使用传统算法生成${exerciseType === 'choice' ? '选择题' : '变位题'}: ${count}个`)
+    // 快变快填和组合填空：直接用固定算法生成所有题目（同步、不使用AI）
+    if (exerciseType === 'quick-fill' || exerciseType === 'combo-fill') {
+      console.log(`批量生成 - 使用传统算法生成${exerciseType === 'quick-fill' ? '快变快填' : '组合填空'}题: ${count}个`)
       
       // 使用Set来跟踪已生成的题目，避免重复
       const generatedKeys = new Set()
@@ -49,15 +49,26 @@ class ExerciseGeneratorService {
       
       while (exercises.length < count && attempts < maxAttempts) {
         attempts++
-        const exercise = this.generateTraditionalExercise(options)
-        
-        // 生成唯一键：动词ID + 时态 + 语气 + 人称
-        const key = `${exercise.verbId}-${exercise.tense}-${exercise.mood}-${exercise.person}`
-        
-        // 检查是否重复
-        if (!generatedKeys.has(key)) {
-          generatedKeys.add(key)
-          exercises.push(exercise)
+        try {
+          const exercise = this.generateTraditionalExercise(options)
+          
+          // 生成唯一键
+          let key
+          if (exerciseType === 'quick-fill') {
+            key = `${exercise.verbId}-${exercise.tense}-${exercise.mood}-${exercise.person}`
+          } else {
+            key = `${exercise.verbId}-${exercise.mood}`
+          }
+          
+          // 检查是否重复
+          if (!generatedKeys.has(key)) {
+            generatedKeys.add(key)
+            exercises.push(exercise)
+          }
+        } catch (error) {
+          // 生成失败，继续尝试下一个
+          console.log(`题目生成失败，继续尝试: ${error.message}`)
+          continue
         }
       }
       
@@ -69,8 +80,8 @@ class ExerciseGeneratorService {
       return { exercises, questionPool: [] }
     }
 
-    // 填空题和例句填空：混合模式
-    if (exerciseType === 'fill' || exerciseType === 'sentence') {
+    // 例句填空：混合模式
+    if (exerciseType === 'sentence') {
       // 计算题库题和AI题的数量（85%题库，15%AI）
       const bankCount = Math.round(count * 0.85)
       let actualBankCount = 0  // 实际从题库获取的数量
@@ -717,9 +728,112 @@ class ExerciseGeneratorService {
       throw new Error('没有符合所选时态的变位数据')
     }
 
-    const randomConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
     const conjugationTypeMap = { 1: '第一变位', 2: '第二变位', 3: '第三变位' }
 
+    // 快变快填题
+    if (exerciseType === 'quick-fill') {
+      // 随机选择一个变位作为给定形式
+      const givenConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
+      // 再随机选择一个不同的变位作为目标形式
+      const targetConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
+      
+      const exercise = {
+        verbId: verb.id,
+        infinitive: verb.infinitive,
+        meaning: verb.meaning,
+        mood: targetConjugation.mood,
+        tense: targetConjugation.tense,
+        person: targetConjugation.person,
+        correctAnswer: targetConjugation.conjugated_form,
+        exerciseType: 'quick-fill',
+        conjugationType: conjugationTypeMap[verb.conjugation_type] || '未知',
+        isIrregular: verb.is_irregular === 1,
+        fromQuestionBank: false,
+        aiGenerated: false,
+        givenForm: givenConjugation.conjugated_form,
+        givenDesc: `${givenConjugation.mood} - ${givenConjugation.tense} - ${givenConjugation.person}`
+      }
+      
+      return exercise
+    }
+
+    // 组合填空题
+    if (exerciseType === 'combo-fill') {
+      // 获取所有可用的语气
+      const availableMoods = [...new Set(filteredConjugations.map(c => c.mood))]
+      
+      if (availableMoods.length === 0) {
+        throw new Error('该动词没有可用的变位数据')
+      }
+      
+      // 尝试每个语气，找到一个有足够变位的
+      let selectedMood = null
+      let selectedConjugations = []
+      
+      for (const mood of availableMoods) {
+        // 获取该语气下的所有变位
+        const moodConjugations = filteredConjugations.filter(c => c.mood === mood)
+        
+        // 至少需要2个变位才能形成有意义的练习
+        if (moodConjugations.length >= 2) {
+          selectedMood = mood
+          
+          // 按人称排序（使用数据库中的实际人称值）
+          const personOrder = ['yo', 'tú', 'él/ella/usted', 'nosotros', 'vosotros', 'ellos/ellas/ustedes']
+          const sortedConjugations = []
+          
+          personOrder.forEach(person => {
+            const conj = moodConjugations.find(c => c.person === person)
+            if (conj) {
+              sortedConjugations.push(conj)
+            }
+          })
+          
+          // 随机选择最多6个不同的变位
+          if (sortedConjugations.length <= 6) {
+            selectedConjugations = sortedConjugations
+          } else {
+            const shuffled = [...sortedConjugations].sort(() => Math.random() - 0.5)
+            selectedConjugations = shuffled.slice(0, 6)
+          }
+          
+          break // 找到合适的语气就退出循环
+        }
+      }
+      
+      // 如果没有找到合适的语气
+      if (!selectedMood || selectedConjugations.length === 0) {
+        throw new Error('该动词在所选时态范围内没有足够的变位数据（至少需要2个变位）')
+      }
+      
+      // 构建组合填空题目
+      const comboItems = selectedConjugations.map(c => ({
+        tense: c.tense,
+        mood: c.mood,
+        person: c.person,
+        correctAnswer: c.conjugated_form
+      }))
+      
+      const exercise = {
+        verbId: verb.id,
+        infinitive: verb.infinitive,
+        meaning: verb.meaning,
+        mood: selectedMood,
+        exerciseType: 'combo-fill',
+        conjugationType: conjugationTypeMap[verb.conjugation_type] || '未知',
+        isIrregular: verb.is_irregular === 1,
+        fromQuestionBank: false,
+        aiGenerated: false,
+        comboItems: comboItems,
+        correctAnswer: comboItems[0].correctAnswer  // 用于统计的代表答案
+      }
+      
+      return exercise
+    }
+
+    // 如果是其他题型，返回基本结构
+    const randomConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
+    
     const exercise = {
       verbId: verb.id,
       infinitive: verb.infinitive,
@@ -735,22 +849,11 @@ class ExerciseGeneratorService {
       aiGenerated: false
     }
 
-    // 选择题：生成干扰选项
-    if (exerciseType === 'choice') {
-      const options = this.generateChoiceOptions(randomConjugation, filteredConjugations)
-      exercise.options = options
-    }
-
-    // 变位题
-    if (exerciseType === 'conjugate') {
-      exercise.question = `请写出 ${verb.infinitive}(${verb.meaning}) 的变位`
-    }
-
     return exercise
   }
 
   /**
-   * 生成选择题干扰选项
+   * 生成选择题干扰选项（已弃用）
    */
   static generateChoiceOptions(correctConjugation, allConjugations) {
     const options = [correctConjugation.conjugated_form]
