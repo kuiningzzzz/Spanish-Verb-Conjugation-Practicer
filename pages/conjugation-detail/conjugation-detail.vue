@@ -40,10 +40,18 @@
               <view 
                 v-for="(conj, index) in tense.conjugations" 
                 :key="`${tense.tense}-${conj.person}-${index}`" 
-                class="conjugation-row"
               >
-                <view class="person-label">{{ getPersonLabel(conj.person) }}</view>
-                <view class="conjugated-form">{{ conj.conjugated_form }}</view>
+                <!-- vos人称前添加分隔标签 -->
+                <view v-if="isVosPerson(conj.person)" class="vos-divider">
+                  <view class="divider-line"></view>
+                  <text class="divider-text">拉美用法</text>
+                  <view class="divider-line"></view>
+                </view>
+                
+                <view :class="['conjugation-row', isVosPerson(conj.person) ? 'vos-row' : '']">
+                  <view class="person-label">{{ getPersonLabel(conj.person) }}</view>
+                  <view class="conjugated-form">{{ conj.conjugated_form }}</view>
+                </view>
               </view>
             </view>
           </view>
@@ -226,19 +234,19 @@ export default {
     // 获取人称标签
     getPersonLabel(person) {
       const personMap = {
-        'yo': 'yo (我)',
-        'tú': 'tú (你)',
-        'él/ella/usted': 'él/ella/usted (他/她/您)',
-        'nosotros': 'nosotros (我们)',
-        'vosotros': 'vosotros (你们)',
-        'ellos/ellas/ustedes': 'ellos/ellas/ustedes (他们/她们/您们)',
-        'vos': 'vos (你-拉美)',
-        'tú (afirmativo)': 'tú (你-肯定命令)',
-        'tú (negativo)': 'tú (你-否定命令)',
-        'usted': 'usted (您)',
-        'nosotros/nosotras': 'nosotros/nosotras (我们)',
-        'vosotros/vosotras': 'vosotros/vosotras (你们)',
-        'ustedes': 'ustedes (您们)'
+        'yo': 'yo',
+        'tú': 'tú',
+        'él/ella/usted': 'él/ella/usted',
+        'nosotros': 'nosotros',
+        'vosotros': 'vosotros',
+        'ellos/ellas/ustedes': 'ellos/ellas/ustedes',
+        'vos': 'vos',
+        'tú (afirmativo)': 'tú (afirmativo)',
+        'tú (negativo)': 'tú (negativo)',
+        'usted': 'usted',
+        'nosotros/nosotras': 'nosotros/nosotras',
+        'vosotros/vosotras': 'vosotros/vosotras',
+        'ustedes': 'ustedes'
       }
       return personMap[person] || person
     },
@@ -248,7 +256,6 @@ export default {
       const order = {
         'yo': 1,
         'tú': 2,
-        'vos': 2.5,
         'él/ella/usted': 3,
         'usted': 3,
         'nosotros': 4,
@@ -258,9 +265,15 @@ export default {
         'ellos/ellas/ustedes': 6,
         'ustedes': 6,
         'tú (afirmativo)': 2.1,
-        'tú (negativo)': 2.2
+        'tú (negativo)': 2.2,
+        'vos': 100  // vos放到最后（拉美专用）
       }
       return order[person] || 99
+    },
+
+    // 检查是否是vos人称（用于添加分隔线）
+    isVosPerson(person) {
+      return person === 'vos'
     },
 
     // 复制所有变位
@@ -461,15 +474,44 @@ export default {
   background-color: #fff;
 }
 
-.conjugation-row {
-  display: flex;
-  align-items: center;
-  padding: 20rpx 30rpx;
-  border-bottom: 1rpx solid #f0f0f0;
-}
-
 .conjugation-row:last-child {
   border-bottom: none;
+}
+
+/* vos人称分隔器 */
+.vos-divider {
+  display: flex;
+  align-items: center;
+  margin: 20rpx 30rpx 10rpx;
+  gap: 15rpx;
+}
+
+.divider-line {
+  flex: 1;
+  height: 1rpx;
+  background: linear-gradient(to right, transparent, #d0d0d0, transparent);
+}
+
+.divider-text {
+  font-size: 22rpx;
+  color: #999;
+  padding: 4rpx 12rpx;
+  background-color: #f5f5f5;
+  border-radius: 10rpx;
+  white-space: nowrap;
+}
+
+/* vos人称行样式 */
+.conjugation-row.vos-row {
+  background-color: #fafafa;
+}
+
+.conjugation-row.vos-row .person-label {
+  color: #999;
+}
+
+.conjugation-row.vos-row .conjugated-form {
+  color: #666;
 }
 
 .person-label {
