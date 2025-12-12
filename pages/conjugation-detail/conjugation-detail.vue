@@ -146,7 +146,14 @@ export default {
           }
         }
         
-        groups[moodKey].tenses[tenseKey].conjugations.push(conj)
+        // 检查是否已存在该人称
+        const existingConj = groups[moodKey].tenses[tenseKey].conjugations.find(c => c.person === conj.person)
+        if (existingConj) {
+          // 合并多个变位形式，用 / 分隔
+          existingConj.conjugated_form += ' / ' + conj.conjugated_form
+        } else {
+          groups[moodKey].tenses[tenseKey].conjugations.push(conj)
+        }
       })
       
       // 转换为数组格式，并对人称排序

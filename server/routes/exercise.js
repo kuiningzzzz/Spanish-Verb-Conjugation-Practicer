@@ -259,8 +259,18 @@ router.post('/submit', authMiddleware, (req, res) => {
 
     const userId = req.userId
 
-    // 判断答案是否正确
-    const isCorrect = answer.trim().toLowerCase() === correctAnswer.trim().toLowerCase()
+    // 判断答案是否正确（支持多个答案，用 | 分隔）
+    let isCorrect = false
+    const userAnswer = answer.trim().toLowerCase()
+    const correctAnswers = correctAnswer.split('|').map(a => a.trim().toLowerCase())
+    
+    // 只要匹配任意一个正确答案即可
+    for (const correct of correctAnswers) {
+      if (userAnswer === correct) {
+        isCorrect = true
+        break
+      }
+    }
 
     // 保存练习记录
     PracticeRecord.create({

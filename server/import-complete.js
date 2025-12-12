@@ -203,13 +203,13 @@ const transaction = db.transaction(() => {
           const forms = tenseData[personKey]
           
           if (forms && Array.isArray(forms)) {
-            // 处理多个变位形式（如虚拟式过去时有两种形式）
-            for (const form of forms) {
-              if (form && form.length > 0) {
-                insertConjugation.run(verbId, tenseName, '陈述式', personName, form, isIrregularTense)
-                stats.totalConjugations++
-                stats.indicative++
-              }
+            // 将多个变位形式合并为一条记录，用 | 分隔
+            const validForms = forms.filter(form => form && form.length > 0)
+            if (validForms.length > 0) {
+              const mergedForm = validForms.join(' | ')
+              insertConjugation.run(verbId, tenseName, '陈述式', personName, mergedForm, isIrregularTense)
+              stats.totalConjugations++
+              stats.indicative++
             }
           }
         }
@@ -231,12 +231,13 @@ const transaction = db.transaction(() => {
           const forms = tenseData[personKey]
           
           if (forms && Array.isArray(forms)) {
-            for (const form of forms) {
-              if (form && form.length > 0) {
-                insertConjugation.run(verbId, tenseName, '虚拟式', personName, form, isIrregularTense)
-                stats.totalConjugations++
-                stats.subjunctive++
-              }
+            // 将多个变位形式合并为一条记录，用 | 分隔
+            const validForms = forms.filter(form => form && form.length > 0)
+            if (validForms.length > 0) {
+              const mergedForm = validForms.join(' | ')
+              insertConjugation.run(verbId, tenseName, '虚拟式', personName, mergedForm, isIrregularTense)
+              stats.totalConjugations++
+              stats.subjunctive++
             }
           }
         }
@@ -253,12 +254,12 @@ const transaction = db.transaction(() => {
           const forms = verbData.imperative.affirmative[personKey]
           
           if (forms && Array.isArray(forms)) {
-            for (const form of forms) {
-              if (form && form.length > 0) {
-                insertConjugation.run(verbId, '肯定命令式', '命令式', personName, form, isIrregularTense)
-                stats.totalConjugations++
-                stats.imperative++
-              }
+            const validForms = forms.filter(form => form && form.length > 0)
+            if (validForms.length > 0) {
+              const mergedForm = validForms.join(' | ')
+              insertConjugation.run(verbId, '肯定命令式', '命令式', personName, mergedForm, isIrregularTense)
+              stats.totalConjugations++
+              stats.imperative++
             }
           }
         }
@@ -272,12 +273,12 @@ const transaction = db.transaction(() => {
           const forms = verbData.imperative.negative[personKey]
           
           if (forms && Array.isArray(forms)) {
-            for (const form of forms) {
-              if (form && form.length > 0) {
-                insertConjugation.run(verbId, '否定命令式', '命令式', personName, form, isIrregularTense)
-                stats.totalConjugations++
-                stats.imperative++
-              }
+            const validForms = forms.filter(form => form && form.length > 0)
+            if (validForms.length > 0) {
+              const mergedForm = validForms.join(' | ')
+              insertConjugation.run(verbId, '否定命令式', '命令式', personName, mergedForm, isIrregularTense)
+              stats.totalConjugations++
+              stats.imperative++
             }
           }
         }
@@ -299,12 +300,12 @@ const transaction = db.transaction(() => {
           const forms = tenseData[personKey]
           
           if (forms && Array.isArray(forms)) {
-            for (const form of forms) {
-              if (form && form.length > 0) {
-                insertConjugation.run(verbId, tenseName, '复合陈述式', personName, form, isIrregularTense)
-                stats.totalConjugations++
-                stats.compoundIndicative++
-              }
+            const validForms = forms.filter(form => form && form.length > 0)
+            if (validForms.length > 0) {
+              const mergedForm = validForms.join(' | ')
+              insertConjugation.run(verbId, tenseName, '复合陈述式', personName, mergedForm, isIrregularTense)
+              stats.totalConjugations++
+              stats.compoundIndicative++
             }
           }
         }
@@ -326,12 +327,12 @@ const transaction = db.transaction(() => {
           const forms = tenseData[personKey]
           
           if (forms && Array.isArray(forms)) {
-            for (const form of forms) {
-              if (form && form.length > 0) {
-                insertConjugation.run(verbId, tenseName, '复合虚拟式', personName, form, isIrregularTense)
-                stats.totalConjugations++
-                stats.compoundSubjunctive++
-              }
+            const validForms = forms.filter(form => form && form.length > 0)
+            if (validForms.length > 0) {
+              const mergedForm = validForms.join(' | ')
+              insertConjugation.run(verbId, tenseName, '复合虚拟式', personName, mergedForm, isIrregularTense)
+              stats.totalConjugations++
+              stats.compoundSubjunctive++
             }
           }
         }
