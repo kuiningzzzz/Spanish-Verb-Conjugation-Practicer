@@ -55,15 +55,14 @@
         <text class="meaning">{{ currentExercise.meaning }}</text>
       </view>
 
-      <view v-if="exerciseType === 'combo-fill'" class="question-section combo-section">
-        <text class="tense-info">{{ currentExercise.mood }}</text>
-        <text class="combo-hint">请填写以下6种变位形式</text>
-      </view>
-      <view v-else-if="exerciseType === 'quick-fill'" class="question-section">
+      <!-- 组合填空题不需要顶部提示，每个题目都有详细要求 -->
+      
+      <!-- 快变快填题和其他题型的题干信息 -->
+      <view v-if="exerciseType === 'quick-fill'" class="question-section">
         <text class="tense-info">{{ currentExercise.mood }} - {{ currentExercise.tense }}</text>
         <text class="person-info">{{ currentExercise.person }}</text>
       </view>
-      <view v-else-if="exerciseType !== 'sentence'" class="question-section">
+      <view v-else-if="exerciseType !== 'sentence' && exerciseType !== 'combo-fill'" class="question-section">
         <text class="tense-info">{{ currentExercise.mood }} - {{ currentExercise.tense }}</text>
         <text class="person-info">{{ currentExercise.person }}</text>
       </view>
@@ -133,14 +132,20 @@
           class="combo-item"
           :class="{ 'answered': comboAnswers[index], 'correct': showFeedback && item.isCorrect, 'wrong': showFeedback && !item.isCorrect && comboAnswers[index] }"
         >
-          <view class="combo-label">
+          <view class="combo-header">
             <text class="combo-number">{{ index + 1 }}.</text>
-            <text class="combo-person">{{ item.person }}</text>
+            <view class="combo-requirement">
+              <text class="requirement-mood">{{ item.mood }}</text>
+              <text class="requirement-divider">-</text>
+              <text class="requirement-tense">{{ item.tense }}</text>
+              <text class="requirement-divider">-</text>
+              <text class="requirement-person">{{ item.person }}</text>
+            </view>
           </view>
           <input
             class="combo-input"
             v-model="comboAnswers[index]"
-            :placeholder="'请输入' + item.person + '形式'"
+            placeholder="请输入变位形式"
             :disabled="showFeedback"
           />
           <view v-if="showFeedback && !item.isCorrect && comboAnswers[index]" class="combo-correct-answer">
@@ -1880,32 +1885,6 @@ export default {
   color: #667eea;
 }
 
-.options-container {
-  display: flex;
-  flex-direction: column;
-  gap: 15rpx;
-}
-
-.option-item {
-  background: #f5f5f5;
-  padding: 30rpx;
-  border-radius: 12rpx;
-  text-align: center;
-  font-size: 28rpx;
-  border: 2rpx solid transparent;
-}
-
-.option-item.selected {
-  background: #e6f7ff;
-  border-color: #667eea;
-  color: #667eea;
-}
-
-.option-item.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 .input-container {
   padding: 20rpx 0;
 }
@@ -2972,18 +2951,6 @@ slider {
 }
 
 /* 组合填空样式 */
-.combo-section {
-  margin-bottom: 20rpx;
-}
-
-.combo-hint {
-  display: block;
-  font-size: 24rpx;
-  color: #ff9800;
-  margin-top: 10rpx;
-  font-weight: 500;
-}
-
 .combo-container {
   margin-top: 20rpx;
 }
@@ -3012,23 +2979,57 @@ slider {
   border-color: #ff4d4f;
 }
 
-.combo-label {
+.combo-header {
   display: flex;
   align-items: center;
   margin-bottom: 20rpx;
+  gap: 15rpx;
 }
 
 .combo-number {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #999;
-  margin-right: 10rpx;
   font-weight: bold;
+  flex-shrink: 0;
 }
 
-.combo-person {
-  font-size: 28rpx;
-  color: #333;
-  font-weight: 600;
+.combo-requirement {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  flex-wrap: wrap;
+}
+
+.requirement-mood {
+  font-size: 24rpx;
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  font-weight: 500;
+}
+
+.requirement-tense {
+  font-size: 24rpx;
+  color: #764ba2;
+  background: rgba(118, 75, 162, 0.1);
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  font-weight: 500;
+}
+
+.requirement-person {
+  font-size: 24rpx;
+  color: #52c41a;
+  background: rgba(82, 196, 26, 0.1);
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  font-weight: 500;
+}
+
+.requirement-divider {
+  font-size: 20rpx;
+  color: #d9d9d9;
 }
 
 .combo-input {

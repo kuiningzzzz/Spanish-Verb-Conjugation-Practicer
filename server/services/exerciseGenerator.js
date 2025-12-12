@@ -871,12 +871,12 @@ class ExerciseGeneratorService {
     
     // 根据人称选项筛选
     if (options.includeVos === false) {
-      // 排除 vos 相关的变位
-      filteredConjugations = filteredConjugations.filter(c => !c.person.includes('vos') || c.person === 'nosotros' || c.person === 'vosotros')
+      // 排除 vos（拉美第二人称单数）
+      filteredConjugations = filteredConjugations.filter(c => c.person !== 'vos')
     }
     
     if (options.includeVosotros === false) {
-      // 排除 vosotros/vosotras
+      // 排除 vosotros（西班牙第二人称复数）
       filteredConjugations = filteredConjugations.filter(c => c.person !== 'vosotros' && c.person !== 'vosotras')
     }
 
