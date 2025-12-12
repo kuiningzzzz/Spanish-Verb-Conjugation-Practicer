@@ -26,7 +26,7 @@ router.get('/list', authMiddleware, (req, res) => {
   }
 })
 
-// 获取动词详情
+// 获取动词详情和完整变位
 router.get('/:id', authMiddleware, (req, res) => {
   try {
     const verbId = parseInt(req.params.id)
@@ -38,9 +38,24 @@ router.get('/:id', authMiddleware, (req, res) => {
 
     const conjugations = Conjugation.getByVerbId(verbId)
 
+    // 格式化动词信息
+    const conjugationTypeMap = {
+      1: '第一变位',
+      2: '第二变位',
+      3: '第三变位'
+    }
+
+    const formattedVerb = {
+      id: verb.id,
+      infinitive: verb.infinitive,
+      meaning: verb.meaning,
+      conjugationType: conjugationTypeMap[verb.conjugation_type] || '未知',
+      isIrregular: verb.is_irregular === 1
+    }
+
     res.json({
       success: true,
-      verb,
+      verb: formattedVerb,
       conjugations
     })
   } catch (error) {

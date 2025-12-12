@@ -38,6 +38,12 @@
       }
     },
     {
+      "path": "pages/conjugation-detail/conjugation-detail",
+      "style": {
+        "navigationBarTitleText": "完整变位表"
+      }
+    },
+    {
       "path": "pages/statistics/statistics",
       "style": {
         "navigationBarTitleText": "学习统计"

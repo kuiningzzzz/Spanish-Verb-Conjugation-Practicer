@@ -69,6 +69,7 @@ export default {
   // 动词相关
   getVerbList: (params) => request({ url: '/verb/list', data: params }),
   getVerbDetail: (id) => request({ url: `/verb/${id}` }),
+  getVerbConjugations: (id) => request({ url: `/verb/${id}` }),  // 获取动词完整变位
   
   // 练习相关
   getExercise: (data) => request({ url: '/exercise/generate', method: 'POST', data }),

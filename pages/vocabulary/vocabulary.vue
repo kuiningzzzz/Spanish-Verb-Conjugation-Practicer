@@ -84,6 +84,7 @@
           </view>
           <view class="word-actions">
             <view class="word-tag">{{ item.conjugationType }}</view>
+            <text class="detail-btn" @click="viewConjugations(item.verb_id)">查看全变位</text>
             <text class="remove-btn" @click="removeFavorite(item.verb_id)">删除</text>
           </view>
         </view>
@@ -115,6 +116,7 @@
           <view class="word-actions">
             <view class="word-tag">{{ item.conjugationType }}</view>
             <view class="wrong-count">错 {{ item.wrong_count }} 次</view>
+            <text class="detail-btn" @click="viewConjugations(item.verb_id)">查看全变位</text>
             <text class="remove-btn" @click="removeWrong(item.verb_id)">删除</text>
           </view>
         </view>
@@ -233,6 +235,13 @@ export default {
       } catch (error) {
         showToast('操作失败', 'none')
       }
+    },
+
+    // 查看动词完整变位
+    viewConjugations(verbId) {
+      uni.navigateTo({
+        url: `/pages/conjugation-detail/conjugation-detail?verbId=${verbId}`
+      })
     },
 
     startFavoritePractice() {
@@ -425,6 +434,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 15rpx;
+  flex-wrap: wrap;
 }
 
 .word-tag {
@@ -442,6 +452,14 @@ export default {
   border-radius: 8rpx;
   font-size: 22rpx;
   font-weight: bold;
+}
+
+.detail-btn {
+  color: #667eea;
+  font-size: 26rpx;
+  padding: 8rpx 16rpx;
+  background: #f0f3ff;
+  border-radius: 8rpx;
 }
 
 .remove-btn {
