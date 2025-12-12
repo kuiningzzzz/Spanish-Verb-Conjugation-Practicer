@@ -295,11 +295,19 @@
 
       <!-- 专项练习设置 -->
       <view class="form-item theme-practice-item">
-        <view class="theme-header">
-          <text class="theme-icon">🎯</text>
-          <text class="label theme-label">专项练习</text>
-          <text v-if="isCourseMode" class="locked-badge">🔒 已锁定</text>
+        <view class="theme-header" @click="!isCourseMode && toggleThemeSettings()">
+          <view class="theme-header-left">
+            <text class="theme-icon">🎯</text>
+            <text class="label theme-label">专项练习</text>
+            <text v-if="isCourseMode" class="locked-badge">🔒 已锁定</text>
+          </view>
+          <view class="theme-header-right" v-if="!isCourseMode">
+            <text class="expand-icon">{{ themeSettingsExpanded ? '▲' : '▼' }}</text>
+          </view>
         </view>
+        
+        <!-- 专项练习详细设置（可折叠） -->
+        <view class="theme-details" v-show="themeSettingsExpanded || isCourseMode">
         
         <!-- 语气分组选择 -->
         <view class="theme-section">
@@ -381,7 +389,7 @@
           <view class="checkbox-group">
             <view 
               :class="['checkbox-item', includeIrregular ? 'checked' : '', isCourseMode ? 'disabled' : '']"
-              @click="!isCourseMode && (includeIrregular = !includeIrregular)"
+              @click="!isCourseMode && toggleIrregular()"
             >
               <text class="checkbox-icon">{{ includeIrregular ? '☑' : '☐' }}</text>
               <text class="checkbox-label">包含不规则动词</text>
@@ -395,6 +403,9 @@
           <button class="quick-btn" @click="selectAllThemes">全选</button>
           <button class="quick-btn secondary" @click="clearAllThemes">清除</button>
         </view>
+        
+        </view>
+        <!-- 结束 theme-details -->
       </view>
 
       <button class="btn-primary mt-20" @click="startPractice" v-if="!isCourseMode">开始练习</button>
@@ -465,9 +476,12 @@ export default {
         { value: 'er', label: '第二变位 (-er)' },
         { value: 'ir', label: '第三变位 (-ir)' }
       ],
-      selectedConjugationTypes: ['ar', 'er', 'ir'],  // 默认全选
+      selectedConjugationTypes: [],  // 从缓存或默认全选
       
       includeIrregular: true,  // 是否包含不规则动词
+      
+      // 专项练习折叠状态
+      themeSettingsExpanded: false,  // 默认折叠
       
       exercises: [],
       wrongExercises: [],  // 错题队列
@@ -525,6 +539,9 @@ export default {
     // 获取系统信息，设置状态栏高度
     const systemInfo = uni.getSystemInfoSync()
     this.statusBarHeight = systemInfo.statusBarHeight || 0
+    
+    // 加载专项练习缓存配置
+    this.loadThemeSettings()
     
     // 检查是否为课程模式
     if (options.mode === 'course' && options.lessonId) {
@@ -593,6 +610,46 @@ export default {
     },
     
     // 专项练习设置方法
+    // 加载专项练习缓存配置
+    loadThemeSettings() {
+      try {
+        const cached = uni.getStorageSync('themeSettings')
+        if (cached) {
+          const settings = JSON.parse(cached)
+          this.selectedMoods = settings.selectedMoods || []
+          this.selectedTenses = settings.selectedTenses || []
+          this.selectedConjugationTypes = settings.selectedConjugationTypes || []
+          this.includeIrregular = settings.includeIrregular !== undefined ? settings.includeIrregular : true
+        } else {
+          // 没有缓存，默认全选
+          this.selectAllThemes()
+        }
+      } catch (e) {
+        // 缓存读取失败，默认全选
+        this.selectAllThemes()
+      }
+    },
+    
+    // 保存专项练习配置到缓存
+    saveThemeSettings() {
+      try {
+        const settings = {
+          selectedMoods: this.selectedMoods,
+          selectedTenses: this.selectedTenses,
+          selectedConjugationTypes: this.selectedConjugationTypes,
+          includeIrregular: this.includeIrregular
+        }
+        uni.setStorageSync('themeSettings', JSON.stringify(settings))
+      } catch (e) {
+        console.error('保存设置失败:', e)
+      }
+    },
+    
+    // 切换专项练习折叠状态
+    toggleThemeSettings() {
+      this.themeSettingsExpanded = !this.themeSettingsExpanded
+    },
+    
     toggleMood(mood) {
       const index = this.selectedMoods.indexOf(mood)
       if (index > -1) {
@@ -604,7 +661,17 @@ export default {
         })
       } else {
         this.selectedMoods.push(mood)
+        // 选择语气时，自动选中该语气下的所有时态
+        const tensesInMood = this.tenseOptions
+          .filter(t => t.mood === mood)
+          .map(t => t.value)
+        tensesInMood.forEach(tense => {
+          if (!this.selectedTenses.includes(tense)) {
+            this.selectedTenses.push(tense)
+          }
+        })
       }
+      this.saveThemeSettings()
     },
     
     toggleTense(tense) {
@@ -614,17 +681,39 @@ export default {
       } else {
         this.selectedTenses.push(tense)
       }
+      this.saveThemeSettings()
+    },
+    
+    toggleConjugationType(type) {
+      const index = this.selectedConjugationTypes.indexOf(type)
+      if (index > -1) {
+        this.selectedConjugationTypes.splice(index, 1)
+      } else {
+        this.selectedConjugationTypes.push(type)
+      }
+      this.saveThemeSettings()
+    },
+    
+    toggleIrregular() {
+      this.includeIrregular = !this.includeIrregular
+      this.saveThemeSettings()
     },
     
     selectAllThemes() {
       this.selectedMoods = ['indicativo', 'subjuntivo', 'imperativo', 'indicativo_compuesto', 'subjuntivo_compuesto']
       this.selectedTenses = this.tenseOptions.map(t => t.value)
+      this.selectedConjugationTypes = this.conjugationTypes.map(c => c.value)
+      this.includeIrregular = true
+      this.saveThemeSettings()
       showToast('已全选所有选项', 'success')
     },
     
     clearAllThemes() {
       this.selectedMoods = []
       this.selectedTenses = []
+      this.selectedConjugationTypes = []
+      this.includeIrregular = false
+      this.saveThemeSettings()
       showToast('已清除所有选项', 'none')
     },
     
@@ -2222,9 +2311,34 @@ slider {
 .theme-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 20rpx;
   padding-bottom: 15rpx;
   border-bottom: 2rpx solid #e0e7ff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.theme-header:active {
+  opacity: 0.8;
+}
+
+.theme-header-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.theme-header-right {
+  display: flex;
+  align-items: center;
+}
+
+.expand-icon {
+  font-size: 24rpx;
+  color: #667eea;
+  font-weight: bold;
+  transition: transform 0.3s ease;
 }
 
 .theme-icon {
@@ -2240,6 +2354,21 @@ slider {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.theme-details {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .theme-section {
