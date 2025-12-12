@@ -41,3 +41,6 @@ coverage/
 # 临时文件
 *.tmp
 .tmp/
+
+.venv/
+data/
