@@ -19,11 +19,11 @@
       <!-- 按语气分组显示 -->
       <view v-for="(group, moodKey) in groupedConjugations" :key="moodKey" class="mood-group">
         <view class="mood-header" @click="toggleMood(moodKey)">
-          <view class="mood-info">
-            <text class="mood-name">{{ getMoodName(moodKey) }}</text>
+          <text class="mood-name">{{ getMoodName(moodKey) }}</text>
+          <view class="mood-right">
             <text class="mood-count">{{ group.tenses.length }}个时态</text>
+            <text class="toggle-icon">{{ expandedMoods[moodKey] ? '▼' : '▶' }}</text>
           </view>
-          <text class="toggle-icon">{{ expandedMoods[moodKey] ? '▼' : '▶' }}</text>
         </view>
 
         <!-- 语气展开后显示时态列表 -->
@@ -202,11 +202,11 @@ export default {
     // 获取语气名称
     getMoodName(mood) {
       const moodMap = {
-        'indicativo': '直陈式',
-        'subjuntivo': '虚拟式',
-        'imperativo': '命令式',
-        'indicativo_compuesto': '直陈式复合时态',
-        'subjuntivo_compuesto': '虚拟式复合时态'
+        '陈述式': '陈述式 (Indicativo)',
+        '虚拟式': '虚拟式 (Subjuntivo)',
+        '命令式': '命令式 (Imperativo)',
+        '复合陈述式': '复合陈述式 (Indicativo Compuesto)',
+        '复合虚拟式': '复合虚拟式 (Subjuntivo Compuesto)'
       }
       return moodMap[mood] || mood
     },
@@ -216,17 +216,22 @@ export default {
       const tenseMap = {
         '现在时': '现在时 (Presente)',
         '简单过去时': '简单过去时 (Pretérito)',
-        '过去未完成时': '过去未完成时 (Imperfecto)',
+        '未完成过去时': '未完成过去时 (Imperfecto)',
         '将来时': '将来时 (Futuro)',
         '条件式': '条件式 (Condicional)',
         '现在完成时': '现在完成时 (Pretérito Perfecto)',
         '过去完成时': '过去完成时 (Pluscuamperfecto)',
         '将来完成时': '将来完成时 (Futuro Perfecto)',
         '条件完成时': '条件完成时 (Condicional Perfecto)',
-        '虚拟式现在时': '虚拟式现在时 (Presente)',
-        '虚拟式过去时': '虚拟式过去时 (Imperfecto)',
-        '虚拟式现在完成时': '虚拟式现在完成时 (Pretérito Perfecto)',
-        '虚拟式过去完成时': '虚拟式过去完成时 (Pluscuamperfecto)'
+        '虚拟现在时': '虚拟现在时 (Presente)',
+        '虚拟过去时': '虚拟过去时 (Imperfecto)',
+        '虚拟将来时': '虚拟将来时 (Futuro)',
+        '虚拟现在完成时': '虚拟现在完成时 (Pretérito Perfecto)',
+        '虚拟过去完成时': '虚拟过去完成时 (Pluscuamperfecto)',
+        '虚拟将来完成时': '虚拟将来完成时 (Futuro Perfecto)',
+        '肯定命令式': '肯定命令式 (Imperativo Afirmativo)',
+        '否定命令式': '否定命令式 (Imperativo Negativo)',
+        '先过去时': '先过去时 (Pretérito Anterior)'
       }
       return tenseMap[tense] || tense
     },
@@ -395,6 +400,7 @@ export default {
   border-radius: 20rpx;
   cursor: pointer;
   transition: all 0.3s;
+  gap: 20rpx;
 }
 
 .mood-header:active {
@@ -402,16 +408,20 @@ export default {
   transform: scale(0.98);
 }
 
-.mood-info {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-}
-
 .mood-name {
+  flex: 1;
   font-size: 32rpx;
   font-weight: bold;
   color: #fff;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.mood-right {
+  display: flex;
+  align-items: center;
+  gap: 15rpx;
+  flex-shrink: 0;
 }
 
 .mood-count {
@@ -420,12 +430,14 @@ export default {
   padding: 6rpx 16rpx;
   background: rgba(255, 255, 255, 0.2);
   border-radius: 20rpx;
+  white-space: nowrap;
 }
 
 .toggle-icon {
   font-size: 28rpx;
   color: #fff;
   transition: transform 0.3s;
+  flex-shrink: 0;
 }
 
 .tenses-container {
