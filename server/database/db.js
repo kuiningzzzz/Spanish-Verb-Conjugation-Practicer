@@ -197,6 +197,8 @@ function initUserDatabase() {
       user_id INTEGER NOT NULL,
       lesson_id INTEGER NOT NULL,
       completed_count INTEGER DEFAULT 0,
+      study_completed_count INTEGER DEFAULT 0,
+      review_completed_count INTEGER DEFAULT 0,
       last_completed_at TEXT,
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
       updated_at TEXT DEFAULT (datetime('now', 'localtime')),

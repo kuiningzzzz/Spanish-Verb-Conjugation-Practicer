@@ -44,8 +44,15 @@
             <view class="lesson-header" @click="toggleLesson(lesson.id)">
               <view class="lesson-title-wrapper">
                 <text class="lesson-title">{{ lesson.title }}</text>
-                <text v-if="lesson.isCompleted" class="complete-badge">✓ 已完成</text>
-                <text v-if="lesson.completedCount > 1" class="complete-count">×{{ lesson.completedCount }}</text>
+                <text v-if="lesson.isCompleted" class="complete-badge complete-all">✓ 已完成</text>
+                <view v-else class="progress-badges">
+                  <text v-if="lesson.studyCompletedCount > 0" class="progress-badge study">
+                    学习✓{{ lesson.studyCompletedCount > 1 ? '×' + lesson.studyCompletedCount : '' }}
+                  </text>
+                  <text v-if="lesson.reviewCompletedCount > 0" class="progress-badge review">
+                    复习✓{{ lesson.reviewCompletedCount > 1 ? '×' + lesson.reviewCompletedCount : '' }}
+                  </text>
+                </view>
               </view>
               <view class="lesson-actions">
                 <button 
@@ -60,6 +67,13 @@
                   @click.stop="startLessonPractice(lesson)"
                 >
                   {{ lesson.isCompleted ? '继续学习' : '开始学习' }}
+                </button>
+                <button 
+                  v-if="lesson.lessonNumber > 1"
+                  class="btn-small btn-review" 
+                  @click.stop="startRollingReview(lesson)"
+                >
+                  滚动复习
                 </button>
               </view>
             </view>
@@ -228,6 +242,13 @@ export default {
       
       uni.navigateTo({
         url: `/pages/practice/practice?mode=course&lessonId=${lesson.id}&lessonTitle=${encodeURIComponent(lesson.title)}`
+      })
+    },
+    
+    // 开始滚动复习（从第1课到本课）
+    startRollingReview(lesson) {
+      uni.navigateTo({
+        url: `/pages/practice/practice?mode=rollingReview&lessonId=${lesson.id}&lessonTitle=${encodeURIComponent(lesson.title)}&lessonNumber=${lesson.lessonNumber}`
       })
     },
     
@@ -486,6 +507,36 @@ export default {
   border-radius: 8rpx;
 }
 
+.complete-badge.complete-all {
+  background: #f0f9ff;
+  color: #67c23a;
+  border: 1rpx solid #67c23a;
+}
+
+.progress-badges {
+  display: flex;
+  gap: 8rpx;
+}
+
+.progress-badge {
+  font-size: 20rpx;
+  padding: 2rpx 8rpx;
+  border-radius: 8rpx;
+  border: 1rpx solid;
+}
+
+.progress-badge.study {
+  color: #409eff;
+  background: #ecf5ff;
+  border-color: #409eff;
+}
+
+.progress-badge.review {
+  color: #f56c6c;
+  background: #fef0f0;
+  border-color: #f56c6c;
+}
+
 .complete-count {
   font-size: 20rpx;
   color: #909399;
@@ -514,6 +565,11 @@ export default {
 
 .btn-study {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.btn-review {
+  background: linear-gradient(135deg, #5565f8 0%, #235d87 100%);
   color: #fff;
 }
 

@@ -119,9 +119,12 @@ router.get('/textbooks/:id/lessons', authMiddleware, (req, res) => {
       const progress = UserLessonProgress.getProgress(userId, lesson.id);
       return {
         ...lesson,
+        lessonNumber: lesson.lesson_number, // 添加驼峰命名字段
         vocabularyCount: Lesson.getVocabularyCount(lesson.id),
         completedCount: progress ? progress.completed_count : 0,
-        isCompleted: progress && progress.completed_count >= 1,
+        studyCompletedCount: progress ? progress.study_completed_count : 0,
+        reviewCompletedCount: progress ? progress.review_completed_count : 0,
+        isCompleted: progress && progress.study_completed_count >= 1 && progress.review_completed_count >= 1,
         lastCompletedAt: progress ? progress.last_completed_at : null
       };
     });
@@ -153,6 +156,92 @@ router.get('/lessons/:id/vocabulary', authMiddleware, (req, res) => {
     res.status(500).json({
       success: false,
       message: '获取单词列表失败'
+    });
+  }
+});
+
+// 获取滚动复习单词列表（从第1课到指定课程）
+router.get('/lessons/:id/rolling-review', authMiddleware, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { lessonNumber } = req.query;
+    
+    // 获取当前课程
+    const currentLesson = Lesson.getById(id);
+    if (!currentLesson) {
+      return res.status(404).json({
+        success: false,
+        message: '课程不存在'
+      });
+    }
+    
+    // 获取同一教材的所有课程
+    const allLessons = Lesson.getByTextbookId(currentLesson.textbook_id);
+    
+    // 筛选出lesson_number从1到指定数字的课程
+    const targetLessonNumber = parseInt(lessonNumber) || currentLesson.lesson_number;
+    const lessonsToReview = allLessons.filter(
+      lesson => lesson.lesson_number >= 1 && lesson.lesson_number <= targetLessonNumber
+    );
+    
+    // 获取所有这些课程的单词（去重）
+    const vocabularyMap = new Map();
+    lessonsToReview.forEach(lesson => {
+      const lessonVocab = Lesson.getVocabulary(lesson.id);
+      lessonVocab.forEach(word => {
+        if (!vocabularyMap.has(word.id)) {
+          vocabularyMap.set(word.id, word);
+        }
+      });
+    });
+    
+    const vocabulary = Array.from(vocabularyMap.values());
+    
+    // 合并所有课程的语气、时态和变位类型配置
+    const moodsSet = new Set();
+    const tensesSet = new Set();
+    const conjugationTypesSet = new Set();
+    
+    lessonsToReview.forEach(lesson => {
+      // 解析并合并语气
+      if (lesson.moods) {
+        const moods = JSON.parse(lesson.moods);
+        moods.forEach(mood => moodsSet.add(mood));
+      }
+      
+      // 解析并合并时态
+      if (lesson.tenses) {
+        const tenses = JSON.parse(lesson.tenses);
+        tenses.forEach(tense => tensesSet.add(tense));
+      }
+      
+      // 解析并合并变位类型
+      if (lesson.conjugation_types) {
+        const types = JSON.parse(lesson.conjugation_types);
+        types.forEach(type => conjugationTypesSet.add(type));
+      }
+    });
+    
+    res.json({
+      success: true,
+      vocabulary,
+      reviewRange: {
+        from: 1,
+        to: targetLessonNumber,
+        totalLessons: lessonsToReview.length,
+        totalWords: vocabulary.length
+      },
+      config: {
+        moods: Array.from(moodsSet),
+        tenses: Array.from(tensesSet),
+        conjugation_types: Array.from(conjugationTypesSet)
+      }
+    });
+  } catch (error) {
+    console.error('获取滚动复习单词列表失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取滚动复习单词列表失败'
     });
   }
 });
@@ -199,6 +288,7 @@ router.post('/lessons/:id/complete', authMiddleware, (req, res) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
+    const { type } = req.body; // 'study' 或 'review'
     
     // 检查课程是否存在
     const lesson = Lesson.getById(id);
@@ -209,13 +299,16 @@ router.post('/lessons/:id/complete', authMiddleware, (req, res) => {
       });
     }
     
-    UserLessonProgress.markCompleted(userId, id);
+    UserLessonProgress.markCompleted(userId, id, type);
     const progress = UserLessonProgress.getProgress(userId, id);
     
     res.json({
       success: true,
       message: '已标记完成',
-      completedCount: progress.completed_count
+      completedCount: progress.completed_count,
+      studyCompletedCount: progress.study_completed_count,
+      reviewCompletedCount: progress.review_completed_count,
+      isCompleted: progress.study_completed_count >= 1 && progress.review_completed_count >= 1
     });
   } catch (error) {
     console.error('标记课程完成失败:', error);

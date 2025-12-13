@@ -263,11 +263,11 @@
     <view class="settings-card card" v-if="!hasStarted">
       <!-- 课程模式提示 -->
       <view v-if="isCourseMode" class="course-mode-tip">
-        <text class="tip-icon">📚</text>
+        <text class="tip-icon">{{ isRollingReview ? '🔄' : '📚' }}</text>
         <view class="tip-content">
-          <text class="tip-title">课程练习模式</text>
+          <text class="tip-title">{{ isRollingReview ? '滚动复习模式' : '课程练习模式' }}</text>
           <text class="tip-text">{{ lessonTitle }}</text>
-          <text class="tip-hint">练习范围和设置已根据课程配置自动锁定</text>
+          <text class="tip-hint">{{ isRollingReview ? '综合复习前面课程的所有单词及变位' : '练习范围和设置已根据课程配置自动锁定' }}</text>
         </view>
       </view>
       
@@ -458,7 +458,9 @@ export default {
       
       // 课程模式相关
       isCourseMode: false,  // 是否为课程模式
+      isRollingReview: false, // 是否为滚动复习模式
       lessonId: null,       // 课程ID
+      lessonNumber: 1,      // 课程编号（用于滚动复习）
       lessonTitle: '',      // 课程标题
       lessonVocabulary: [], // 课程单词列表
       lessonConfig: null,   // 课程配置（时态、变位类型等）
@@ -579,6 +581,14 @@ export default {
       this.lessonId = options.lessonId
       this.lessonTitle = decodeURIComponent(options.lessonTitle || '课程练习')
       this.loadLessonConfig()
+    } else if (options.mode === 'rollingReview' && options.lessonId) {
+      // 滚动复习模式
+      this.isCourseMode = true
+      this.isRollingReview = true
+      this.lessonId = options.lessonId
+      this.lessonNumber = parseInt(options.lessonNumber || 1)
+      this.lessonTitle = `滚动复习：第1-${this.lessonNumber}课`
+      this.loadRollingReviewConfig()
     } else if (options.mode) {
       // 其他练习模式：favorite: 收藏练习, wrong: 错题练习
       this.practiceMode = options.mode
@@ -809,6 +819,51 @@ export default {
         hideLoading()
         console.error('加载课程配置失败:', error)
         showToast('加载课程失败', 'none')
+      }
+    },
+    
+    // 加载滚动复习配置（从第1课到指定课程）
+    async loadRollingReviewConfig() {
+      try {
+        showLoading('加载滚动复习配置...')
+        
+        // 获取从第1课到当前课的所有单词和合并后的配置
+        const vocabRes = await api.getRollingReviewVocabulary(this.lessonId, this.lessonNumber)
+        if (vocabRes.success) {
+          // 设置单词列表
+          if (vocabRes.vocabulary) {
+            this.lessonVocabulary = vocabRes.vocabulary
+            console.log(`滚动复习单词列表（第1-${this.lessonNumber}课）:`, this.lessonVocabulary)
+          }
+          
+          // 使用后端返回的合并配置（包含所有课程的语气、时态、变位类型）
+          if (vocabRes.config) {
+            if (vocabRes.config.moods && vocabRes.config.moods.length > 0) {
+              this.selectedMoods = vocabRes.config.moods
+            }
+            
+            if (vocabRes.config.tenses && vocabRes.config.tenses.length > 0) {
+              this.selectedTenses = vocabRes.config.tenses
+            }
+            
+            if (vocabRes.config.conjugation_types && vocabRes.config.conjugation_types.length > 0) {
+              this.selectedConjugationTypes = vocabRes.config.conjugation_types
+            }
+            
+            console.log('滚动复习配置（合并第1-' + this.lessonNumber + '课）:', {
+              moods: this.selectedMoods,
+              tenses: this.selectedTenses,
+              conjugationTypes: this.selectedConjugationTypes,
+              vocabularyCount: this.lessonVocabulary.length
+            })
+          }
+        }
+        
+        hideLoading()
+      } catch (error) {
+        hideLoading()
+        console.error('加载滚动复习配置失败:', error)
+        showToast('加载滚动复习失败', 'none')
       }
     },
     
@@ -1649,8 +1704,10 @@ export default {
     // 标记课程完成
     async markLessonComplete() {
       try {
-        await api.markLessonComplete(this.lessonId)
-        console.log('课程已标记完成')
+        // 根据模式确定完成类型
+        const type = this.isRollingReview ? 'review' : 'study'
+        await api.markLessonComplete(this.lessonId, type)
+        console.log(`课程已标记完成 (${type})`)
       } catch (error) {
         console.error('标记课程完成失败:', error)
         // 不影响用户体验，静默失败
