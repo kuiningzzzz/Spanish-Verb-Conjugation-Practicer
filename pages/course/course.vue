@@ -145,11 +145,14 @@ export default {
   },
   onShow() {
     // 每次显示时刷新列表
-    this.loadTextbooks()
-    // 如果有展开的教材，也刷新其课程列表
-    if (this.expandedBookId) {
-      this.refreshExpandedBookLessons()
-    }
+    const previousExpandedBookId = this.expandedBookId
+    this.loadTextbooks().then(() => {
+      // 如果之前有展开的教材，刷新其课程列表
+      if (previousExpandedBookId) {
+        this.expandedBookId = previousExpandedBookId
+        this.refreshExpandedBookLessons()
+      }
+    })
   },
   methods: {
     async loadTextbooks() {
@@ -157,6 +160,7 @@ export default {
         const res = await api.getTextbooks()
         if (res.success) {
           this.textbooks = res.textbooks
+          console.log('教材列表已加载:', this.textbooks)
         }
       } catch (error) {
         console.error('加载课程失败:', error)
@@ -172,7 +176,7 @@ export default {
         this.expandedLessonId = null
         
         // 加载该教材的课程列表
-        const book = this.textbooks.find(b => b.id === bookId)
+        const book = this.textbooks.find(b => b.textbook_id === bookId)
         if (book && (!book.lessons || book.lessons.length === 0)) {
           try {
             const res = await api.getLessonsByBook(bookId)
@@ -195,7 +199,7 @@ export default {
         this.expandedLessonId = lessonId
         
         // 加载该课程的单词列表
-        const book = this.textbooks.find(b => b.id === this.expandedBookId)
+        const book = this.textbooks.find(b => b.textbook_id === this.expandedBookId)
         if (book) {
           const lesson = book.lessons.find(l => l.id === lessonId)
           if (lesson && (!lesson.vocabulary || lesson.vocabulary.length === 0)) {
@@ -241,10 +245,12 @@ export default {
       try {
         const res = await api.getLessonsByBook(this.expandedBookId)
         if (res.success) {
-          const book = this.textbooks.find(b => b.textbook_id === this.expandedBookId || b.id === this.expandedBookId)
+          const book = this.textbooks.find(b => b.textbook_id === this.expandedBookId)
           if (book) {
             book.lessons = res.lessons
             this.$forceUpdate()
+          } else {
+            console.log('未找到展开的教材，expandedBookId:', this.expandedBookId, '教材列表:', this.textbooks)
           }
         }
       } catch (error) {

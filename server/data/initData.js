@@ -44,11 +44,23 @@ function importFromVerbsJson(filePath) {
     'conditional': '条件式'
   }
 
+  // 复合时态映射
+  const compoundTenseMapping = {
+    // 复合陈述式
+    'preterite_perfect': '现在完成时',      // pretérito perfecto
+    'pluperfect': '过去完成时',              // pluscuamperfecto
+    'future_perfect': '将来完成时',          // futuro perfecto
+    'conditional_perfect': '条件完成时',      // condicional perfecto
+    'preterite_anterior': '先过去时'         // pretérito anterior
+  }
+
   // 语气映射
   const moodMapping = {
     'indicative': '陈述式',
     'subjunctive': '虚拟式',
-    'imperative': '命令式'
+    'imperative': '命令式',
+    'compound_indicative': '复合陈述式',
+    'compound_subjunctive': '复合虚拟式'
   }
 
   // 人称映射
@@ -313,6 +325,54 @@ function importFromVerbsJson(filePath) {
             
             if (forms && Array.isArray(forms) && forms[0] && forms[0].length > 0) {
               insertConjugation.run(verbId, '否定命令式', '命令式', personName, forms[0], isIrregularTense)
+              conjugationCount++
+            }
+          }
+        }
+      }
+
+      // 插入变位 - 复合陈述式（compound_indicative）
+      if (verbData.compound_indicative) {
+        const compoundIndicative = verbData.compound_indicative
+        for (const tenseKey in compoundIndicative) {
+          if (!compoundTenseMapping[tenseKey]) continue
+          
+          const tenseData = compoundIndicative[tenseKey]
+          if (!tenseData) continue
+
+          const tenseName = compoundTenseMapping[tenseKey]
+          const isIrregularTense = tenseData.regular === false ? 1 : 0
+
+          for (const personKey in personMapping) {
+            const personName = personMapping[personKey]
+            const forms = tenseData[personKey]
+            
+            if (forms && Array.isArray(forms) && forms[0]) {
+              insertConjugation.run(verbId, tenseName, '复合陈述式', personName, forms[0], isIrregularTense)
+              conjugationCount++
+            }
+          }
+        }
+      }
+
+      // 插入变位 - 复合虚拟式（compound_subjunctive）
+      if (verbData.compound_subjunctive) {
+        const compoundSubjunctive = verbData.compound_subjunctive
+        for (const tenseKey in compoundSubjunctive) {
+          if (!compoundTenseMapping[tenseKey]) continue
+          
+          const tenseData = compoundSubjunctive[tenseKey]
+          if (!tenseData) continue
+
+          const tenseName = compoundTenseMapping[tenseKey]
+          const isIrregularTense = tenseData.regular === false ? 1 : 0
+
+          for (const personKey in personMapping) {
+            const personName = personMapping[personKey]
+            const forms = tenseData[personKey]
+            
+            if (forms && Array.isArray(forms) && forms[0]) {
+              insertConjugation.run(verbId, tenseName, '复合虚拟式', personName, forms[0], isIrregularTense)
               conjugationCount++
             }
           }
