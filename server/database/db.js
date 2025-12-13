@@ -223,6 +223,7 @@ function initVocabularyDatabase() {
       meaning TEXT NOT NULL,
       conjugation_type INTEGER NOT NULL,
       is_irregular INTEGER DEFAULT 0,
+      is_reflexive INTEGER DEFAULT 0,
       lesson_number INTEGER,
       textbook_volume INTEGER DEFAULT 1,
       frequency_level INTEGER DEFAULT 1,

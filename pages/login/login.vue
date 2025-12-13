@@ -189,7 +189,7 @@ export default {
         hideLoading()
 
         if (res.success) {
-          showToast('验证码已发送，请查收邮件', 'success')
+          showToast('验证码已发送', 'success')
           
           // 开始倒计时
           this.codeCountdown = 60

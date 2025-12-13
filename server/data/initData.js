@@ -214,8 +214,8 @@ function importFromVerbsJson(filePath) {
   let conjugationCount = 0
 
   const insertVerb = db.prepare(`
-    INSERT INTO verbs (infinitive, meaning, conjugation_type, is_irregular, frequency_level)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO verbs (infinitive, meaning, conjugation_type, is_irregular, is_reflexive, frequency_level)
+    VALUES (?, ?, ?, ?, ?, ?)
   `)
 
   const insertConjugation = db.prepare(`
@@ -245,10 +245,13 @@ function importFromVerbsJson(filePath) {
         }
       }
       
+      // 判断是否为反身动词
+      const isReflexive = verbData.is_reflexive ? 1 : 0
+      
       const frequency = highFrequencyVerbs.includes(infinitive) || highFrequencyVerbs.includes(baseInfinitive) ? 1 : 2
 
       // 插入动词
-      const result = insertVerb.run(infinitive, meaning, conjugationType, isIrregular, frequency)
+      const result = insertVerb.run(infinitive, meaning, conjugationType, isIrregular, isReflexive, frequency)
       const verbId = result.lastInsertRowid
       verbCount++
 

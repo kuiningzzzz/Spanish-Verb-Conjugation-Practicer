@@ -8,6 +8,7 @@
           <view class="verb-badges">
             <view class="badge badge-type">{{ verbInfo.conjugationType }}</view>
             <view v-if="verbInfo.isIrregular" class="badge badge-irregular">不规则</view>
+            <view v-if="verbInfo.isReflexive" class="badge badge-reflexive">反身</view>
           </view>
         </view>
         <view class="favorite-icon" @click="toggleFavorite">
@@ -20,6 +21,41 @@
     <!-- 变位表格 -->
     <view class="conjugation-section">
       <view class="section-title">📋 完整变位表</view>
+
+      <!-- 反身代词变位（仅反身动词显示） -->
+      <view v-if="verbInfo.isReflexive" class="mood-group">
+        <view class="mood-header" @click="toggleReflexivePronouns">
+          <text class="mood-name">反身代词变位 (Pronombres Reflexivos)</text>
+          <view class="mood-right">
+            <text class="mood-count">7个人称</text>
+            <text class="toggle-icon">{{ showReflexivePronouns ? '▼' : '▶' }}</text>
+          </view>
+        </view>
+
+        <!-- 反身代词表格 -->
+        <view v-if="showReflexivePronouns" class="tenses-container">
+          <view class="tense-card card">
+            <view class="conjugation-table">
+              <view 
+                v-for="(pronoun, index) in reflexivePronouns" 
+                :key="pronoun.person"
+              >
+                <!-- vos人称前添加分隔标签 -->
+                <view v-if="pronoun.person === 'vos'" class="vos-divider">
+                  <view class="divider-line"></view>
+                  <text class="divider-text">拉美用法</text>
+                  <view class="divider-line"></view>
+                </view>
+                
+                <view :class="['conjugation-row', pronoun.person === 'vos' ? 'vos-row' : '']">
+                  <view class="person-label">{{ pronoun.person }}</view>
+                  <view class="conjugated-form">{{ pronoun.pronoun }}</view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
 
       <!-- 按语气分组显示 -->
       <view v-for="(group, moodKey) in groupedConjugations" :key="moodKey" class="mood-group">
@@ -90,13 +126,24 @@ export default {
         infinitive: '',
         meaning: '',
         conjugationType: '',
-        isIrregular: false
+        isIrregular: false,
+        isReflexive: false
       },
       conjugations: [],
       groupedConjugations: {},
       expandedMoods: {},  // 记录每个语气的展开状态
       expandedTenses: {},  // 记录每个时态的展开状态 {moodKey: {tenseKey: true/false}}
-      isFavorited: false  // 收藏状态
+      isFavorited: false,  // 收藏状态
+      showReflexivePronouns: true,  // 反身代词表格展开状态
+      reflexivePronouns: [
+        { person: 'yo', pronoun: 'me' },
+        { person: 'tú', pronoun: 'te' },
+        { person: 'él/ella/usted', pronoun: 'se' },
+        { person: 'nosotros', pronoun: 'nos' },
+        { person: 'vosotros', pronoun: 'os' },
+        { person: 'ellos/ellas/ustedes', pronoun: 'se' },
+        { person: 'vos', pronoun: 'te' }
+      ]
     }
   },
   onLoad(options) {
@@ -296,6 +343,11 @@ export default {
       return person === 'vos'
     },
 
+    // 切换反身代词表格展开/折叠
+    toggleReflexivePronouns() {
+      this.showReflexivePronouns = !this.showReflexivePronouns
+    },
+
     // 复制所有变位
     copyAll() {
       let text = `${this.verbInfo.infinitive} - ${this.verbInfo.meaning}\n\n`
@@ -441,6 +493,11 @@ export default {
 .badge-irregular {
   background-color: #fff3e0;
   color: #f57c00;
+}
+
+.badge-reflexive {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
 }
 
 .verb-meaning {
