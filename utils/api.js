@@ -113,9 +113,14 @@ export default {
   
   // 课程相关
   getTextbooks: () => request({ url: '/course/textbooks' }),
+  getAvailableTextbooks: () => request({ url: '/course/textbooks/available' }),
+  addTextbook: (textbookId) => request({ url: `/course/textbooks/${textbookId}/add`, method: 'POST' }),
+  removeTextbook: (textbookId) => request({ url: `/course/textbooks/${textbookId}`, method: 'DELETE' }),
   getLessonsByBook: (bookId) => request({ url: `/course/textbooks/${bookId}/lessons` }),
   getLessonVocabulary: (lessonId) => request({ url: `/course/lessons/${lessonId}/vocabulary` }),
   getLessonDetail: (lessonId) => request({ url: `/course/lessons/${lessonId}` }),
+  markLessonComplete: (lessonId) => request({ url: `/course/lessons/${lessonId}/complete`, method: 'POST' }),
+  resetLessonProgress: (lessonId) => request({ url: `/course/lessons/${lessonId}/progress`, method: 'DELETE' }),
   createTextbook: (data) => request({ url: '/course/textbooks', method: 'POST', data }),
   createLesson: (data) => request({ url: '/course/lessons', method: 'POST', data }),
   addVerbsToLesson: (lessonId, data) => request({ url: `/course/lessons/${lessonId}/verbs`, method: 'POST', data })

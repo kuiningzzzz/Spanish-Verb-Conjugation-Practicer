@@ -5,6 +5,14 @@
       <text class="subtitle">选择课程进行系统化学习</text>
     </view>
 
+    <!-- 添加教材按钮 -->
+    <view class="add-textbook-section">
+      <button class="btn-add-textbook-top" @click="showAddTextbookModal">
+        <text class="add-icon">+</text>
+        <text>添加教材</text>
+      </button>
+    </view>
+
     <view class="textbook-list">
       <view 
         v-for="book in textbooks" 
@@ -20,7 +28,10 @@
               <text class="textbook-desc">{{ book.description }}</text>
             </view>
           </view>
-          <text class="expand-icon">{{ expandedBookId === book.id ? '▼' : '▶' }}</text>
+          <view class="header-actions">
+            <text class="remove-btn" @click.stop="removeTextbook(book.textbook_id)">移除</text>
+            <text class="expand-icon">{{ expandedBookId === book.id ? '▼' : '▶' }}</text>
+          </view>
         </view>
 
         <!-- 课程列表 -->
@@ -31,7 +42,11 @@
             class="lesson-item"
           >
             <view class="lesson-header" @click="toggleLesson(lesson.id)">
-              <text class="lesson-title">{{ lesson.title }}</text>
+              <view class="lesson-title-wrapper">
+                <text class="lesson-title">{{ lesson.title }}</text>
+                <text v-if="lesson.isCompleted" class="complete-badge">✓ 已完成</text>
+                <text v-if="lesson.completedCount > 1" class="complete-count">×{{ lesson.completedCount }}</text>
+              </view>
               <view class="lesson-actions">
                 <button 
                   class="btn-small btn-expand" 
@@ -44,7 +59,7 @@
                   class="btn-small btn-study" 
                   @click.stop="startLessonPractice(lesson)"
                 >
-                  学习
+                  {{ lesson.isCompleted ? '继续学习' : '开始学习' }}
                 </button>
               </view>
             </view>
@@ -79,8 +94,33 @@
 
       <view v-if="!textbooks || textbooks.length === 0" class="empty-state">
         <text class="empty-icon">📖</text>
-        <text class="empty-text">暂无课程</text>
-        <text class="empty-hint">敬请期待更多课程内容</text>
+        <text class="empty-text">还没有添加教材</text>
+        <text class="empty-hint">点击上方按钮添加教材开始学习</text>
+      </view>
+    </view>
+
+    <!-- 添加教材弹窗 -->
+    <view v-if="showModal" class="modal-overlay" @click="closeModal">
+      <view class="modal-content" @click.stop>
+        <view class="modal-header">
+          <text class="modal-title">选择教材</text>
+          <text class="modal-close" @click="closeModal">×</text>
+        </view>
+        <view class="modal-body">
+          <view 
+            v-for="book in availableTextbooks" 
+            :key="book.id" 
+            class="textbook-option"
+            :class="{ 'added': book.isAdded }"
+            @click="toggleTextbook(book)"
+          >
+            <view class="option-info">
+              <text class="option-name">{{ book.name }}</text>
+              <text class="option-desc">{{ book.description }}</text>
+            </view>
+            <text class="option-status">{{ book.isAdded ? '已添加 ✓' : '添加' }}</text>
+          </view>
+        </view>
       </view>
     </view>
   </view>
@@ -94,12 +134,22 @@ export default {
   data() {
     return {
       textbooks: [],
+      availableTextbooks: [],
       expandedBookId: null,
-      expandedLessonId: null
+      expandedLessonId: null,
+      showModal: false
     }
   },
   onLoad() {
     this.loadTextbooks()
+  },
+  onShow() {
+    // 每次显示时刷新列表
+    this.loadTextbooks()
+    // 如果有展开的教材，也刷新其课程列表
+    if (this.expandedBookId) {
+      this.refreshExpandedBookLessons()
+    }
   },
   methods: {
     async loadTextbooks() {
@@ -182,6 +232,88 @@ export default {
       uni.navigateTo({
         url: `/pages/conjugation-detail/conjugation-detail?verbId=${verbId}`
       })
+    },
+    
+    // 刷新已展开教材的课程列表
+    async refreshExpandedBookLessons() {
+      if (!this.expandedBookId) return
+      
+      try {
+        const res = await api.getLessonsByBook(this.expandedBookId)
+        if (res.success) {
+          const book = this.textbooks.find(b => b.textbook_id === this.expandedBookId || b.id === this.expandedBookId)
+          if (book) {
+            book.lessons = res.lessons
+            this.$forceUpdate()
+          }
+        }
+      } catch (error) {
+        console.error('刷新课程列表失败:', error)
+      }
+    },
+    
+    async showAddTextbookModal() {
+      try {
+        const res = await api.getAvailableTextbooks()
+        if (res.success) {
+          this.availableTextbooks = res.textbooks
+          this.showModal = true
+        }
+      } catch (error) {
+        console.error('获取可用教材失败:', error)
+        showToast('加载失败', 'none')
+      }
+    },
+    
+    // 关闭弹窗
+    closeModal() {
+      this.showModal = false
+    },
+    
+    // 切换教材（添加/移除）
+    async toggleTextbook(book) {
+      try {
+        if (book.isAdded) {
+          const res = await api.removeTextbook(book.id)
+          if (res.success) {
+            showToast('已移除', 'success')
+            book.isAdded = false
+            this.loadTextbooks()
+          }
+        } else {
+          const res = await api.addTextbook(book.id)
+          if (res.success) {
+            showToast('添加成功', 'success')
+            book.isAdded = true
+            this.loadTextbooks()
+          }
+        }
+      } catch (error) {
+        console.error('操作失败:', error)
+        showToast('操作失败', 'none')
+      }
+    },
+    
+    // 移除教材
+    async removeTextbook(textbookId) {
+      uni.showModal({
+        title: '确认移除',
+        content: '确定要移除这个教材吗？',
+        success: async (res) => {
+          if (res.confirm) {
+            try {
+              const result = await api.removeTextbook(textbookId)
+              if (result.success) {
+                showToast('已移除', 'success')
+                this.loadTextbooks()
+              }
+            } catch (error) {
+              console.error('移除失败:', error)
+              showToast('操作失败', 'none')
+            }
+          }
+        }
+      })
     }
   }
 }
@@ -211,6 +343,30 @@ export default {
   display: block;
   font-size: 26rpx;
   color: #999;
+}
+
+.add-textbook-section {
+  padding: 20rpx 20rpx 0;
+}
+
+.btn-add-textbook-top {
+  width: 100%;
+  padding: 24rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  font-size: 28rpx;
+  border-radius: 12rpx;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+}
+
+.add-icon {
+  font-size: 32rpx;
+  font-weight: bold;
 }
 
 .textbook-list {
@@ -263,6 +419,20 @@ export default {
   color: #999;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.remove-btn {
+  font-size: 24rpx;
+  color: #f56c6c;
+  padding: 4rpx 12rpx;
+  border: 1rpx solid #f56c6c;
+  border-radius: 8rpx;
+}
+
 .expand-icon {
   font-size: 24rpx;
   color: #999;
@@ -288,11 +458,34 @@ export default {
   align-items: center;
 }
 
+.lesson-title-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
 .lesson-title {
   font-size: 28rpx;
   color: #333;
   font-weight: 500;
-  flex: 1;
+}
+
+.complete-badge {
+  font-size: 22rpx;
+  color: #67c23a;
+  background: #f0f9ff;
+  border: 1rpx solid #67c23a;
+  padding: 2rpx 8rpx;
+  border-radius: 8rpx;
+}
+
+.complete-count {
+  font-size: 20rpx;
+  color: #909399;
+  background: #f4f4f5;
+  padding: 2rpx 8rpx;
+  border-radius: 8rpx;
 }
 
 .lesson-actions {
@@ -417,5 +610,101 @@ export default {
 .empty-hint {
   font-size: 26rpx;
   color: #999;
+}
+
+/* 弹窗样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  width: 85%;
+  max-height: 70vh;
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 30rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.modal-close {
+  font-size: 48rpx;
+  color: #999;
+  line-height: 1;
+}
+
+.modal-body {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 20rpx;
+}
+
+.textbook-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  background: #f9f9f9;
+  border-radius: 12rpx;
+  border: 2rpx solid transparent;
+  transition: all 0.3s;
+}
+
+.textbook-option.added {
+  background: #f0f2ff;
+  border-color: #667eea;
+}
+
+.option-info {
+  flex: 1;
+}
+
+.option-name {
+  display: block;
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 8rpx;
+}
+
+.option-desc {
+  display: block;
+  font-size: 24rpx;
+  color: #999;
+}
+
+.option-status {
+  font-size: 24rpx;
+  color: #667eea;
+  padding: 8rpx 20rpx;
+  border: 1rpx solid #667eea;
+  border-radius: 20rpx;
+}
+
+.textbook-option.added .option-status {
+  background: #667eea;
+  color: #fff;
 }
 </style>

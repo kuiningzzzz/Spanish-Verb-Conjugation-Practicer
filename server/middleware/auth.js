@@ -15,6 +15,7 @@ function authMiddleware(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET)
     req.userId = decoded.userId
+    req.user = { id: decoded.userId } // 添加 req.user 对象以兼容新路由
     next()
   } catch (error) {
     return res.status(401).json({ error: '无效的token' })

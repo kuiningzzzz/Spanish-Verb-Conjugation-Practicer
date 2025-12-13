@@ -178,10 +178,39 @@ function initUserDatabase() {
     )
   `)
 
+  // 用户添加的教材表
+  userDb.exec(`
+    CREATE TABLE IF NOT EXISTS user_textbooks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      textbook_id INTEGER NOT NULL,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(user_id, textbook_id)
+    )
+  `)
+
+  // 用户课程进度表（记录每个课程的完成次数）
+  userDb.exec(`
+    CREATE TABLE IF NOT EXISTS user_lesson_progress (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      lesson_id INTEGER NOT NULL,
+      completed_count INTEGER DEFAULT 0,
+      last_completed_at TEXT,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      updated_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(user_id, lesson_id)
+    )
+  `)
+
   // 创建索引
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_practice_records_user ON practice_records(user_id)`)
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_private_questions_user ON private_questions(user_id)`)
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_user_question_records ON user_question_records(user_id, question_id, question_type)`)
+  userDb.exec(`CREATE INDEX IF NOT EXISTS idx_user_textbooks ON user_textbooks(user_id)`)
+  userDb.exec(`CREATE INDEX IF NOT EXISTS idx_user_lesson_progress ON user_lesson_progress(user_id, lesson_id)`)
 }
 
 // 初始化词库数据库

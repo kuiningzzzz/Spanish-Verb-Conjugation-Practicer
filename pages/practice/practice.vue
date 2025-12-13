@@ -433,7 +433,7 @@
         <!-- 结束 theme-details -->
       </view>
 
-      <button class="btn-primary mt-20" @click="startPractice" v-if="!isCourseMode">开始练习</button>
+      <button class="btn-primary mt-20" @click="startPractice">开始练习</button>
     </view>
   </view>
 </template>
@@ -1628,6 +1628,11 @@ export default {
     },
     
     finishPractice() {
+      // 如果是课程模式，自动标记课程完成
+      if (this.isCourseMode && this.lessonId) {
+        this.markLessonComplete()
+      }
+      
       this.showResult = false
       this.showSummary = false
       this.hasStarted = false
@@ -1639,6 +1644,17 @@ export default {
       this.generationError = false
       this.wrongExercises = []
       this.wrongExercisesSet.clear()
+    },
+    
+    // 标记课程完成
+    async markLessonComplete() {
+      try {
+        await api.markLessonComplete(this.lessonId)
+        console.log('课程已标记完成')
+      } catch (error) {
+        console.error('标记课程完成失败:', error)
+        // 不影响用户体验，静默失败
+      }
     },
     restartPractice() {
       this.showResult = false
