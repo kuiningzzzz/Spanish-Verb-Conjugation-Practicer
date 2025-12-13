@@ -20,11 +20,11 @@
     <!-- 搜索结果 -->
     <view v-if="showSearchResults" class="search-results">
       <!-- 精确匹配结果 -->
-      <view v-if="searchResults.exactMatches.length > 0" class="results-section">
-        <view class="section-title">精确匹配</view>
+      <view v-if="hasExactResults" class="results-section">
+        <!-- 原型精确匹配 -->
         <view 
-          v-for="verb in searchResults.exactMatches" 
-          :key="'exact-' + verb.id"
+          v-for="(verb, index) in displayedExactInfinitive" 
+          :key="'exact-inf-' + verb.id"
           class="result-item"
           @click="viewVerbDetail(verb.id)"
         >
@@ -33,26 +33,49 @@
             <text v-if="verb.isIrregular" class="irregular-badge">不规则</text>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
-          <!-- 如果是通过变位形式匹配的，显示匹配的变位 -->
+          <view class="verb-meta">
+            <text class="meta-item">{{ verb.conjugationType }}</text>
+          </view>
+        </view>
+
+        <!-- 变位精确匹配 -->
+        <view 
+          v-for="(verb, index) in displayedExactConjugation" 
+          :key="'exact-conj-' + verb.id"
+          class="result-item"
+          @click="viewVerbDetail(verb.id)"
+        >
+          <view class="result-header">
+            <text class="verb-infinitive">{{ verb.infinitive }}</text>
+            <text v-if="verb.isIrregular" class="irregular-badge">不规则</text>
+          </view>
+          <text class="verb-meaning">{{ verb.meaning }}</text>
+          <!-- 显示匹配的变位 -->
           <view v-if="verb.matchedForm" class="matched-form-info">
             <text class="matched-form-label">匹配变位：</text>
             <text class="matched-form-text">{{ verb.matchedForm }}</text>
-            <text class="original-verb-label">原型：{{ verb.infinitive }}</text>
           </view>
           <view class="verb-meta">
             <text class="meta-item">{{ verb.conjugationType }}</text>
           </view>
         </view>
+
+        <!-- 显示更多按钮（精确匹配） -->
+        <view v-if="hasMoreExactResults" class="show-more-btn" @click="showMoreExact">
+          显示更多 (剩余 {{ remainingExactCount }} 条)
+        </view>
       </view>
 
       <!-- 模糊匹配结果 -->
-      <view v-if="searchResults.fuzzyMatches.length > 0" class="results-section">
+      <view v-if="hasFuzzyResults" class="results-section fuzzy-section">
         <view class="section-title">
           <text>你想检索的单词还可能是：</text>
         </view>
+
+        <!-- 原型模糊匹配 -->
         <view 
-          v-for="verb in searchResults.fuzzyMatches" 
-          :key="'fuzzy-' + verb.id"
+          v-for="(verb, index) in displayedFuzzyInfinitive" 
+          :key="'fuzzy-inf-' + verb.id"
           class="result-item fuzzy-item"
           @click="viewVerbDetail(verb.id)"
         >
@@ -61,20 +84,41 @@
             <text v-if="verb.isIrregular" class="irregular-badge">不规则</text>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
-          <!-- 如果是通过变位形式匹配的，显示匹配的变位 -->
+          <view class="verb-meta">
+            <text class="meta-item">{{ verb.conjugationType }}</text>
+          </view>
+        </view>
+
+        <!-- 变位模糊匹配 -->
+        <view 
+          v-for="(verb, index) in displayedFuzzyConjugation" 
+          :key="'fuzzy-conj-' + verb.id"
+          class="result-item fuzzy-item"
+          @click="viewVerbDetail(verb.id)"
+        >
+          <view class="result-header">
+            <text class="verb-infinitive">{{ verb.infinitive }}</text>
+            <text v-if="verb.isIrregular" class="irregular-badge">不规则</text>
+          </view>
+          <text class="verb-meaning">{{ verb.meaning }}</text>
+          <!-- 显示匹配的变位 -->
           <view v-if="verb.matchedForm" class="matched-form-info">
             <text class="matched-form-label">匹配变位：</text>
             <text class="matched-form-text">{{ verb.matchedForm }}</text>
-            <text class="original-verb-label">原型：{{ verb.infinitive }}</text>
           </view>
           <view class="verb-meta">
             <text class="meta-item">{{ verb.conjugationType }}</text>
           </view>
         </view>
+
+        <!-- 显示更多按钮（模糊匹配） -->
+        <view v-if="hasMoreFuzzyResults" class="show-more-btn" @click="showMoreFuzzy">
+          显示更多 (剩余 {{ remainingFuzzyCount }} 条)
+        </view>
       </view>
 
       <!-- 无结果 -->
-      <view v-if="searchResults.exactMatches.length === 0 && searchResults.fuzzyMatches.length === 0" class="no-results">
+      <view v-if="!hasExactResults && !hasFuzzyResults" class="no-results">
         <text class="no-results-icon">🔍</text>
         <text class="no-results-text">未找到匹配的单词</text>
         <text class="no-results-hint">试试其他关键词或检查拼写</text>
@@ -109,10 +153,89 @@ export default {
       searchKeyword: '',
       showSearchResults: false,
       searchResults: {
-        exactMatches: [],
-        fuzzyMatches: []
+        exactInfinitive: [],
+        exactConjugation: [],
+        fuzzyInfinitive: [],
+        fuzzyConjugation: []
       },
-      searchTimer: null
+      searchTimer: null,
+      // 分页控制
+      exactDisplayCount: 10, // 精确匹配默认显示10条
+      fuzzyDisplayCount: 5   // 模糊匹配默认显示5条
+    }
+  },
+
+  computed: {
+    // 当前显示的精确匹配结果（原型）
+    displayedExactInfinitive() {
+      return this.searchResults.exactInfinitive.slice(0, this.exactDisplayCount)
+    },
+    
+    // 当前显示的精确匹配结果（变位）
+    displayedExactConjugation() {
+      const remaining = this.exactDisplayCount - this.displayedExactInfinitive.length
+      if (remaining <= 0) return []
+      return this.searchResults.exactConjugation.slice(0, remaining)
+    },
+    
+    // 当前显示的模糊匹配结果（原型）
+    displayedFuzzyInfinitive() {
+      return this.searchResults.fuzzyInfinitive.slice(0, this.fuzzyDisplayCount)
+    },
+    
+    // 当前显示的模糊匹配结果（变位）
+    displayedFuzzyConjugation() {
+      const remaining = this.fuzzyDisplayCount - this.displayedFuzzyInfinitive.length
+      if (remaining <= 0) return []
+      return this.searchResults.fuzzyConjugation.slice(0, remaining)
+    },
+    
+    // 是否有精确匹配结果
+    hasExactResults() {
+      return this.searchResults.exactInfinitive.length > 0 || 
+             this.searchResults.exactConjugation.length > 0
+    },
+    
+    // 是否有模糊匹配结果
+    hasFuzzyResults() {
+      return this.searchResults.fuzzyInfinitive.length > 0 || 
+             this.searchResults.fuzzyConjugation.length > 0
+    },
+    
+    // 是否有更多精确匹配结果
+    hasMoreExactResults() {
+      const totalExact = this.searchResults.exactInfinitive.length + 
+                         this.searchResults.exactConjugation.length
+      const displayed = this.displayedExactInfinitive.length + 
+                        this.displayedExactConjugation.length
+      return totalExact > displayed
+    },
+    
+    // 剩余精确匹配结果数量
+    remainingExactCount() {
+      const totalExact = this.searchResults.exactInfinitive.length + 
+                         this.searchResults.exactConjugation.length
+      const displayed = this.displayedExactInfinitive.length + 
+                        this.displayedExactConjugation.length
+      return Math.max(0, totalExact - displayed)
+    },
+    
+    // 是否有更多模糊匹配结果
+    hasMoreFuzzyResults() {
+      const totalFuzzy = this.searchResults.fuzzyInfinitive.length + 
+                         this.searchResults.fuzzyConjugation.length
+      const displayed = this.displayedFuzzyInfinitive.length + 
+                        this.displayedFuzzyConjugation.length
+      return totalFuzzy > displayed
+    },
+    
+    // 剩余模糊匹配结果数量
+    remainingFuzzyCount() {
+      const totalFuzzy = this.searchResults.fuzzyInfinitive.length + 
+                         this.searchResults.fuzzyConjugation.length
+      const displayed = this.displayedFuzzyInfinitive.length + 
+                        this.displayedFuzzyConjugation.length
+      return Math.max(0, totalFuzzy - displayed)
     }
   },
 
@@ -142,12 +265,18 @@ export default {
         return
       }
 
+      // 重置显示数量
+      this.exactDisplayCount = 10
+      this.fuzzyDisplayCount = 5
+
       try {
         const res = await api.searchVerbs(keyword)
         if (res.success) {
           this.searchResults = {
-            exactMatches: res.exactMatches || [],
-            fuzzyMatches: res.fuzzyMatches || []
+            exactInfinitive: res.exactInfinitive || [],
+            exactConjugation: res.exactConjugation || [],
+            fuzzyInfinitive: res.fuzzyInfinitive || [],
+            fuzzyConjugation: res.fuzzyConjugation || []
           }
           this.showSearchResults = true
         }
@@ -157,14 +286,28 @@ export default {
       }
     },
 
+    // 显示更多精确匹配结果
+    showMoreExact() {
+      this.exactDisplayCount += 10
+    },
+    
+    // 显示更多模糊匹配结果
+    showMoreFuzzy() {
+      this.fuzzyDisplayCount += 5
+    },
+
     // 清空搜索
     clearSearch() {
       this.searchKeyword = ''
       this.showSearchResults = false
       this.searchResults = {
-        exactMatches: [],
-        fuzzyMatches: []
+        exactInfinitive: [],
+        exactConjugation: [],
+        fuzzyInfinitive: [],
+        fuzzyConjugation: []
       }
+      this.exactDisplayCount = 10
+      this.fuzzyDisplayCount = 5
     },
 
     // 查看动词详情
@@ -250,6 +393,11 @@ export default {
   box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
 }
 
+.fuzzy-section {
+  margin-top: 40rpx;
+  border-top: 4rpx dashed #e0e0e0;
+}
+
 .section-title {
   font-size: 28rpx;
   font-weight: 600;
@@ -258,6 +406,7 @@ export default {
   padding-bottom: 15rpx;
   border-bottom: 2rpx solid #f0f0f0;
 }
+
 
 .result-item {
   padding: 30rpx 20rpx;
@@ -323,14 +472,8 @@ export default {
   font-size: 26rpx;
   color: #667eea;
   font-weight: 600;
-  margin-right: 20rpx;
 }
 
-.original-verb-label {
-  font-size: 24rpx;
-  color: #666;
-  font-style: italic;
-}
 
 .verb-meta {
   display: flex;
@@ -349,6 +492,25 @@ export default {
 
 .fuzzy-item {
   opacity: 0.9;
+}
+
+/* 显示更多按钮 */
+.show-more-btn {
+  margin-top: 30rpx;
+  padding: 20rpx 40rpx;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  font-size: 28rpx;
+  font-weight: 600;
+  text-align: center;
+  border-radius: 50rpx;
+  box-shadow: 0 4rpx 15rpx rgba(102, 126, 234, 0.3);
+  transition: all 0.3s;
+}
+
+.show-more-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 2rpx 10rpx rgba(102, 126, 234, 0.3);
 }
 
 /* 无结果 */
