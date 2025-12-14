@@ -14,7 +14,6 @@
         />
         <text v-if="searchKeyword" class="clear-btn" @click="clearSearch">✕</text>
       </view>
-      <text class="cancel-btn" @click="goBack">取消</text>
     </view>
 
     <!-- 搜索结果 -->
@@ -138,6 +137,10 @@
       <view class="tip-item">
         <text class="tip-icon">💡</text>
         <text class="tip-text">支持模糊搜索和拼写容错</text>
+      </view>
+            <view class="tip-item">
+        <text class="tip-icon">💡</text>
+        <text class="tip-text">暂时只收录了《现代西班牙语第一册》的194个动词</text>
       </view>
     </view>
   </view>
@@ -315,11 +318,6 @@ export default {
       uni.navigateTo({
         url: `/pages/conjugation-detail/conjugation-detail?verbId=${verbId}`
       })
-    },
-
-    // 返回
-    goBack() {
-      uni.navigateBack()
     }
   }
 }
@@ -347,7 +345,6 @@ export default {
   background: #f5f7fa;
   border-radius: 50rpx;
   padding: 20rpx 30rpx;
-  margin-right: 20rpx;
   transition: all 0.3s;
 }
 
@@ -372,12 +369,6 @@ export default {
   color: #999;
   font-size: 32rpx;
   font-weight: bold;
-}
-
-.cancel-btn {
-  font-size: 28rpx;
-  color: #667eea;
-  padding: 10rpx 20rpx;
 }
 
 /* 搜索结果 */

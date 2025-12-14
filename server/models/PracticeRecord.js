@@ -27,10 +27,10 @@ class PracticeRecord {
         practice_count = practice_count + 1,
         correct_count = correct_count + ?,
         mastery_level = CASE 
-          WHEN (correct_count + ?) * 1.0 / (practice_count + 1) >= 0.9 AND practice_count + 1 >= 10 THEN 5
-          WHEN (correct_count + ?) * 1.0 / (practice_count + 1) >= 0.8 AND practice_count + 1 >= 8 THEN 4
-          WHEN (correct_count + ?) * 1.0 / (practice_count + 1) >= 0.7 AND practice_count + 1 >= 5 THEN 3
-          WHEN (correct_count + ?) * 1.0 / (practice_count + 1) >= 0.6 THEN 2
+          WHEN (correct_count + ?) * 1.0 / (practice_count + 1) >= 0.8 AND practice_count + 1 >= 5 THEN 5
+          WHEN (correct_count + ?) * 1.0 / (practice_count + 1) >= 0.7 AND practice_count + 1 >= 4 THEN 4
+          WHEN (correct_count + ?) * 1.0 / (practice_count + 1) >= 0.6 AND practice_count + 1 >= 3 THEN 3
+          WHEN (correct_count + ?) * 1.0 / (practice_count + 1) >= 0.5 THEN 2
           ELSE 1
         END,
         last_practiced_at = datetime('now', 'localtime')

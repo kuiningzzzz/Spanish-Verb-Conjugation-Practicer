@@ -211,10 +211,10 @@ export default {
           color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
         },
         {
-          key: 'correct',
-          icon: '✅',
-          label: '答对题数',
-          value: this.totalStats.correct_exercises || 0,
+          key: 'mastered',
+          icon: '🎯',
+          label: '掌握动词',
+          value: this.masteredVerbs.length || 0,
           color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
         },
         {
