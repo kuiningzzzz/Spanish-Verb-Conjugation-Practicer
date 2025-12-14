@@ -464,6 +464,8 @@ export default {
       lessonTitle: '',      // 课程标题
       lessonVocabulary: [], // 课程单词列表
       lessonConfig: null,   // 课程配置（时态、变位类型等）
+      defaultCourseCount: 20,  // 开始学习默认题量
+      defaultReviewCount: 30,  // 滚动复习默认题量
       
       // 专项练习设置
       tenseOptions: [
@@ -580,6 +582,7 @@ export default {
       this.isCourseMode = true
       this.lessonId = options.lessonId
       this.lessonTitle = decodeURIComponent(options.lessonTitle || '课程练习')
+      this.exerciseCount = this.defaultCourseCount  // 开始学习使用默认题量20
       this.loadLessonConfig()
     } else if (options.mode === 'rollingReview' && options.lessonId) {
       // 滚动复习模式
@@ -588,6 +591,7 @@ export default {
       this.lessonId = options.lessonId
       this.lessonNumber = parseInt(options.lessonNumber || 1)
       this.lessonTitle = `滚动复习：第1-${this.lessonNumber}课`
+      this.exerciseCount = this.defaultReviewCount  // 滚动复习使用默认题量30
       this.loadRollingReviewConfig()
     } else if (options.mode) {
       // 其他练习模式：favorite: 收藏练习, wrong: 错题练习

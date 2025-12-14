@@ -4,6 +4,7 @@ const Verb = require('../models/Verb')
 const Conjugation = require('../models/Conjugation')
 const PracticeRecord = require('../models/PracticeRecord')
 const Question = require('../models/Question')
+const CheckIn = require('../models/CheckIn')
 const ExerciseGeneratorService = require('../services/exerciseGenerator')
 const { authMiddleware } = require('../middleware/auth')
 
@@ -284,6 +285,14 @@ router.post('/submit', authMiddleware, (req, res) => {
       mood,
       person
     })
+
+    // 更新今日打卡统计（练习数+1，如果答对则正确数+1）
+    try {
+      CheckIn.updateStats(userId, 1, isCorrect ? 1 : 0)
+    } catch (error) {
+      console.error('更新打卡统计失败:', error)
+      // 不影响主流程
+    }
 
     // 如果是题库题目，记录用户练习情况
     if (questionId && questionSource) {

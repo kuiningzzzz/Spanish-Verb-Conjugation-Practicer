@@ -10,7 +10,7 @@
     <!-- 页面标题 -->
     <view class="page-header">
       <text class="page-title">排行榜</text>
-      <text class="page-subtitle">看看谁在学习路上领先</text>
+      <text class="page-subtitle">还有这些同学在一起努力：</text>
     </view>
 
     <!-- Tab切换 -->
@@ -77,7 +77,6 @@
 
           <view class="user-avatar">
             <text class="avatar-text">{{ getAvatarText(user.username) }}</text>
-            <view class="online-indicator" v-if="user.isOnline"></view>
           </view>
 
           <view class="user-info">
@@ -85,9 +84,6 @@
               <text class="username">{{ user.username }}</text>
               <view class="user-badges">
                 <view class="badge" v-if="user.isCurrentUser">我</view>
-                <view class="badge streak" v-if="user.streakDays > 7">
-                  🔥 {{ user.streakDays }}
-                </view>
               </view>
             </view>
             <text class="school" v-if="user.school">{{ user.school }}</text>
@@ -103,11 +99,6 @@
               <text class="stat-value">{{ user.total_exercises }}题</text>
             </view>
           </view>
-
-          <!-- 趋势指示器 -->
-          <view class="trend-indicator" :class="user.trend">
-            <text class="trend-icon">{{ user.trend === 'up' ? '📈' : user.trend === 'down' ? '📉' : '➡️' }}</text>
-          </view>
         </view>
 
         <!-- 空状态 -->
@@ -116,17 +107,6 @@
           <text class="empty-title">暂无排行数据</text>
           <text class="empty-desc">开始练习，登上排行榜吧！</text>
           <button class="empty-action" @click="startPractice">开始练习</button>
-        </view>
-      </view>
-    </view>
-
-    <!-- 浮动提示 -->
-    <view class="floating-tips">
-      <view class="tip-card">
-        <text class="tip-icon">💡</text>
-        <view class="tip-content">
-          <text class="tip-title">上榜小技巧</text>
-          <text class="tip-desc">每天坚持练习和打卡，可以快速提升排名哦！</text>
         </view>
       </view>
     </view>
@@ -183,8 +163,7 @@ export default {
           // 标记当前用户
           this.leaderboard = (res.leaderboard || []).map(user => ({
             ...user,
-            isCurrentUser: user.id === this.currentUser?.id,
-            trend: this.getRandomTrend() // 模拟趋势，实际应从接口获取
+            isCurrentUser: user.id === this.currentUser?.id
           }))
         }
       } catch (error) {
@@ -201,10 +180,6 @@ export default {
     },
     getAvatarText(username) {
       return username ? username.charAt(0).toUpperCase() : '?'
-    },
-    getRandomTrend() {
-      const trends = ['up', 'down', 'same']
-      return trends[Math.floor(Math.random() * trends.length)]
     },
     startPractice() {
       uni.navigateTo({
@@ -513,18 +488,6 @@ export default {
   font-size: 28rpx;
   font-weight: bold;
   color: #fff;
-  position: relative;
-}
-
-.online-indicator {
-  position: absolute;
-  bottom: 5rpx;
-  right: 5rpx;
-  width: 16rpx;
-  height: 16rpx;
-  background: #4caf50;
-  border: 2rpx solid #fff;
-  border-radius: 50%;
 }
 
 .user-info {
@@ -558,10 +521,6 @@ export default {
   font-weight: bold;
 }
 
-.badge.streak {
-  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
-}
-
 .school {
   font-size: 24rpx;
   color: #666;
@@ -587,31 +546,6 @@ export default {
 .stat-value {
   font-size: 22rpx;
   color: #666;
-}
-
-.trend-indicator {
-  width: 50rpx;
-  height: 50rpx;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24rpx;
-}
-
-.trend-indicator.up {
-  background: rgba(76, 175, 80, 0.1);
-  color: #4caf50;
-}
-
-.trend-indicator.down {
-  background: rgba(244, 67, 54, 0.1);
-  color: #f44336;
-}
-
-.trend-indicator.same {
-  background: rgba(158, 158, 158, 0.1);
-  color: #9e9e9e;
 }
 
 /* 空状态 */
@@ -650,63 +584,6 @@ export default {
   padding: 20rpx 40rpx;
   font-size: 28rpx;
   font-weight: bold;
-}
-
-/* 浮动提示 */
-.floating-tips {
-  position: fixed;
-  bottom: 120rpx;
-  left: 40rpx;
-  right: 40rpx;
-  z-index: 10;
-}
-
-.tip-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 20rpx;
-  padding: 25rpx;
-  display: flex;
-  align-items: flex-start;
-  gap: 15rpx;
-  box-shadow: 0 15rpx 30rpx rgba(0, 0, 0, 0.15);
-  border: 1rpx solid rgba(255, 255, 255, 0.2);
-  animation: slideUpIn 0.5s ease-out;
-}
-
-@keyframes slideUpIn {
-  from {
-    opacity: 0;
-    transform: translateY(50rpx);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.tip-icon {
-  font-size: 36rpx;
-  margin-top: 5rpx;
-}
-
-.tip-content {
-  flex: 1;
-}
-
-.tip-title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 8rpx;
-}
-
-.tip-desc {
-  display: block;
-  font-size: 24rpx;
-  color: #666;
-  line-height: 1.4;
 }
 
 /* 刷新按钮 */

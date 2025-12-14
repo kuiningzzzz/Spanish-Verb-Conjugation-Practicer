@@ -99,10 +99,10 @@ class CheckIn {
     
     switch(type) {
       case 'week':
-        dateFilter = "AND check_in_date >= DATE('now', '-7 days')"
+        dateFilter = "AND check_in_date >= DATE('now', 'localtime', '-7 days')"
         break
       case 'month':
-        dateFilter = "AND check_in_date >= DATE('now', '-30 days')"
+        dateFilter = "AND check_in_date >= DATE('now', 'localtime', '-30 days')"
         break
       case 'all':
         dateFilter = ''
