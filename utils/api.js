@@ -1,13 +1,13 @@
 // API基础配置
 // 开发环境：使用 cpolar 内网穿透地址
 // 生产环境：替换为实际服务器地址
-const BASE_URL = 'http://53ad7210.r39.cpolar.top/api'
+const BASE_URL = process.env.VUE_APP_BASE_URL || 'http://53ad7210.r39.cpolar.top/api'
 
 // 请求封装
 const request = (options) => {
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync('token')
-    
+
     // 调试信息
     console.log('API请求:', {
       url: BASE_URL + options.url,
@@ -15,7 +15,7 @@ const request = (options) => {
       hasToken: !!token,
       data: options.data
     })
-    
+
     uni.request({
       url: BASE_URL + options.url,
       method: options.method || 'GET',
@@ -29,7 +29,7 @@ const request = (options) => {
           statusCode: res.statusCode,
           data: res.data
         })
-        
+
         if (res.statusCode === 200) {
           resolve(res.data)
         } else if (res.statusCode === 401) {
@@ -66,53 +66,53 @@ export default {
   getUserInfo: () => request({ url: '/user/info' }),
   updateProfile: (data) => request({ url: '/user/profile', method: 'PUT', data }),
   uploadAvatar: (data) => request({ url: '/user/avatar', method: 'POST', data }),
-  
+
   // 动词相关
   getVerbList: (params) => request({ url: '/verb/list', data: params }),
   getVerbDetail: (id) => request({ url: `/verb/${id}` }),
   getVerbConjugations: (id) => request({ url: `/verb/${id}` }),  // 获取动词完整变位
-  
+
   // 练习相关
   getExercise: (data) => request({ url: '/exercise/generate', method: 'POST', data }),
   getOneExercise: (data) => request({ url: '/exercise/generate-one', method: 'POST', data }),
   getBatchExercises: (data) => request({ url: '/exercise/generate-batch', method: 'POST', data }),
   generateSingleAI: (data) => request({ url: '/exercise/generate-single-ai', method: 'POST', data }),
   submitAnswer: (data) => request({ url: '/exercise/submit', method: 'POST', data }),
-  
+
   // 学习记录
   getStudyRecords: (params) => request({ url: '/record/list', data: params }),
   getStatistics: () => request({ url: '/record/statistics' }),
-  
+
   // 打卡
   checkIn: () => request({ url: '/checkin', method: 'POST' }),
   getCheckInHistory: () => request({ url: '/checkin/history' }),
   getUserRank: () => request({ url: '/checkin/rank' }),
-  
+
   // 排行榜
   getLeaderboard: (type) => request({ url: `/leaderboard/${type}` }),
-  
+
   // 单词本相关
   getVocabularyStats: () => request({ url: '/vocabulary/stats' }),
   searchVerbs: (keyword) => request({ url: `/verb/search/${keyword}` }),
-  
+
   // 收藏
   addFavorite: (data) => request({ url: '/vocabulary/favorite/add', method: 'POST', data }),
   removeFavorite: (data) => request({ url: '/vocabulary/favorite/remove', method: 'POST', data }),
   checkFavorite: (verbId) => request({ url: `/vocabulary/favorite/check/${verbId}` }),
   getFavoriteList: () => request({ url: '/vocabulary/favorite/list' }),
-  
+
   // 错题
   addWrongVerb: (data) => request({ url: '/vocabulary/wrong/add', method: 'POST', data }),
   removeWrongVerb: (data) => request({ url: '/vocabulary/wrong/remove', method: 'POST', data }),
   getWrongList: () => request({ url: '/vocabulary/wrong/list' }),
-  
+
   // 题库相关
   favoriteQuestion: (data) => request({ url: '/question/favorite', method: 'POST', data }),
   unfavoriteQuestion: (data) => request({ url: '/question/unfavorite', method: 'POST', data }),
   getMyQuestions: (params) => request({ url: '/question/my-questions', data: params }),
   getQuestionStats: () => request({ url: '/question/stats' }),
   rateQuestion: (data) => request({ url: '/question/rate', method: 'POST', data }),
-  
+
   // 课程相关
   getTextbooks: () => request({ url: '/course/textbooks' }),
   getAvailableTextbooks: () => request({ url: '/course/textbooks/available' }),
