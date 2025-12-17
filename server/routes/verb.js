@@ -52,7 +52,10 @@ router.get('/search/:keyword', authMiddleware, (req, res) => {
         v.meaning, 
         v.conjugation_type, 
         v.is_irregular,
-        v.is_reflexive
+        v.is_reflexive,
+        v.gerund,
+        v.participle,
+        v.participle_forms
       FROM verbs v
       WHERE LOWER(v.infinitive) LIKE ?
       ORDER BY 
@@ -83,6 +86,9 @@ router.get('/search/:keyword', authMiddleware, (req, res) => {
         v.conjugation_type, 
         v.is_irregular,
         v.is_reflexive,
+        v.gerund,
+        v.participle,
+        v.participle_forms,
         (SELECT c2.conjugated_form 
          FROM conjugations c2 
          WHERE c2.verb_id = v.id 
@@ -112,7 +118,11 @@ router.get('/search/:keyword', authMiddleware, (req, res) => {
         v.infinitive, 
         v.meaning, 
         v.conjugation_type, 
-        v.is_irregular
+        v.is_irregular,
+        v.is_reflexive,
+        v.gerund,
+        v.participle,
+        v.participle_forms
       FROM verbs v
       WHERE v.id NOT IN (${allExactVerbIds.length > 0 ? allExactVerbIds.join(',') : '0'})
     `
@@ -154,6 +164,9 @@ router.get('/search/:keyword', authMiddleware, (req, res) => {
         v.conjugation_type, 
         v.is_irregular,
         v.is_reflexive,
+        v.gerund,
+        v.participle,
+        v.participle_forms,
         GROUP_CONCAT(c.conjugated_form, '|') as all_forms
       FROM verbs v
       LEFT JOIN conjugations c ON v.id = c.verb_id
@@ -213,6 +226,9 @@ router.get('/search/:keyword', authMiddleware, (req, res) => {
       conjugationType: conjugationTypeMap[verb.conjugation_type] || '未知',
       isIrregular: verb.is_irregular === 1,
       isReflexive: verb.is_reflexive === 1,
+      gerund: verb.gerund || null,
+      participle: verb.participle || null,
+      participleForms: verb.participle_forms ? verb.participle_forms.split(' | ') : [],
       matchedForm: verb.matched_form || null
     })
 
@@ -280,7 +296,10 @@ router.get('/:id', authMiddleware, (req, res) => {
       meaning: verb.meaning,
       conjugationType: conjugationTypeMap[verb.conjugation_type] || '未知',
       isIrregular: verb.is_irregular === 1,
-      isReflexive: verb.is_reflexive === 1
+      isReflexive: verb.is_reflexive === 1,
+      gerund: verb.gerund || null,
+      participle: verb.participle || null,
+      participleForms: verb.participle_forms ? verb.participle_forms.split(' | ') : []
     }
 
     res.json({

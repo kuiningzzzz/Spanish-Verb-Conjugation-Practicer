@@ -4,7 +4,7 @@
     <view class="verb-info-card card">
       <view class="verb-header">
         <view class="verb-left">
-          <text class="verb-infinitive">{{ verbInfo.infinitive }}</text>
+          <text class="verb-infinitive">{{ verbInfo.infinitive }}{{ verbInfo.isReflexive ? ' (se)' : '' }}</text>
           <view class="verb-badges">
             <view class="badge badge-type">{{ verbInfo.conjugationType }}</view>
             <view v-if="verbInfo.isIrregular" class="badge badge-irregular">不规则</view>
@@ -16,6 +16,18 @@
         </view>
       </view>
       <text class="verb-meaning">{{ verbInfo.meaning }}</text>
+      
+      <!-- 动词形式 -->
+      <view class="verb-forms">
+        <view v-if="verbInfo.gerund" class="verb-form-item">
+          <text class="form-label">副动词 (Gerundio):</text>
+          <text class="form-value">{{ verbInfo.gerund }}</text>
+        </view>
+        <view v-if="verbInfo.participle" class="verb-form-item">
+          <text class="form-label">过去分词 (Participio):</text>
+          <text class="form-value">{{ getParticipleForms() }}</text>
+        </view>
+      </view>
     </view>
 
     <!-- 变位表格 -->
@@ -127,7 +139,10 @@ export default {
         meaning: '',
         conjugationType: '',
         isIrregular: false,
-        isReflexive: false
+        isReflexive: false,
+        gerund: '',
+        participle: '',
+        participleForms: []
       },
       conjugations: [],
       groupedConjugations: {},
@@ -343,6 +358,14 @@ export default {
       return person === 'vos'
     },
 
+    // 获取所有过去分词形式
+    getParticipleForms() {
+      if (this.verbInfo.participleForms && this.verbInfo.participleForms.length > 0) {
+        return this.verbInfo.participleForms.join(' / ')
+      }
+      return this.verbInfo.participle || ''
+    },
+
     // 切换反身代词表格展开/折叠
     toggleReflexivePronouns() {
       this.showReflexivePronouns = !this.showReflexivePronouns
@@ -503,6 +526,34 @@ export default {
 .verb-meaning {
   font-size: 32rpx;
   color: #666;
+  margin-bottom: 25rpx;
+}
+
+.verb-forms {
+  display: flex;
+  flex-direction: column;
+  gap: 15rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.verb-form-item {
+  display: flex;
+  align-items: center;
+  gap: 15rpx;
+}
+
+.form-label {
+  font-size: 26rpx;
+  color: #999;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.form-value {
+  font-size: 28rpx;
+  color: #2c3e50;
+  font-weight: 600;
 }
 
 /* 变位部分 */

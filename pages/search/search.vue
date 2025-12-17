@@ -29,7 +29,10 @@
         >
           <view class="result-header">
             <text class="verb-infinitive">{{ verb.infinitive }}</text>
-            <text v-if="verb.isIrregular" class="irregular-badge">不规则</text>
+            <view class="verb-badges">
+              <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
+              <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
+            </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
           <view class="verb-meta">
@@ -46,7 +49,10 @@
         >
           <view class="result-header">
             <text class="verb-infinitive">{{ verb.infinitive }}</text>
-            <text v-if="verb.isIrregular" class="irregular-badge">不规则</text>
+            <view class="verb-badges">
+              <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
+              <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
+            </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
           <!-- 显示匹配的变位 -->
@@ -80,7 +86,10 @@
         >
           <view class="result-header">
             <text class="verb-infinitive">{{ verb.infinitive }}</text>
-            <text v-if="verb.isIrregular" class="irregular-badge">不规则</text>
+            <view class="verb-badges">
+              <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
+              <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
+            </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
           <view class="verb-meta">
@@ -97,7 +106,10 @@
         >
           <view class="result-header">
             <text class="verb-infinitive">{{ verb.infinitive }}</text>
-            <text v-if="verb.isIrregular" class="irregular-badge">不规则</text>
+            <view class="verb-badges">
+              <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
+              <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
+            </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
           <!-- 显示匹配的变位 -->
@@ -419,6 +431,7 @@ export default {
 .result-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 15rpx;
 }
 
@@ -427,6 +440,28 @@ export default {
   font-weight: 600;
   color: #333;
   margin-right: 15rpx;
+}
+
+.verb-badges {
+  display: flex;
+  gap: 10rpx;
+}
+
+.badge {
+  font-size: 20rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 30rpx;
+  white-space: nowrap;
+}
+
+.badge.reflexive {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+  color: white;
+}
+
+.badge.irregular {
+  background: linear-gradient(135deg, #ff8c00, #ffa500);
+  color: white;
 }
 
 .irregular-badge {

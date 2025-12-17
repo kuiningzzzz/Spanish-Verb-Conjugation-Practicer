@@ -83,13 +83,16 @@
             <text class="word-meaning">{{ item.meaning }}</text>
           </view>
           <view class="word-actions">
-            <view class="word-tag">{{ item.conjugationType }}</view>
+            <view class="word-badges">
+              <view class="word-tag">{{ item.conjugationType }}</view>
+              <view v-if="item.isReflexive" class="word-tag reflexive">反身</view>
+              <view v-if="item.isIrregular" class="word-tag irregular">不规则</view>
+            </view>
             <text class="detail-btn" @click="viewConjugations(item.verb_id)">查看全变位</text>
             <text class="remove-btn" @click="removeFavorite(item.verb_id)">删除</text>
           </view>
         </view>
         <view class="word-meta">
-          <text class="meta-item">{{ item.isIrregular ? '不规则' : '规则' }}</text>
           <text class="meta-item">收藏于 {{ formatDate(item.created_at) }}</text>
         </view>
       </view>
@@ -114,14 +117,17 @@
             <text class="word-meaning">{{ item.meaning }}</text>
           </view>
           <view class="word-actions">
-            <view class="word-tag">{{ item.conjugationType }}</view>
+            <view class="word-badges">
+              <view class="word-tag">{{ item.conjugationType }}</view>
+              <view v-if="item.isReflexive" class="word-tag reflexive">反身</view>
+              <view v-if="item.isIrregular" class="word-tag irregular">不规则</view>
+            </view>
             <view class="wrong-count">错 {{ item.wrong_count }} 次</view>
             <text class="detail-btn" @click="viewConjugations(item.verb_id)">查看全变位</text>
             <text class="remove-btn" @click="removeWrong(item.verb_id)">删除</text>
           </view>
         </view>
         <view class="word-meta">
-          <text class="meta-item">{{ item.isIrregular ? '不规则' : '规则' }}</text>
           <text class="meta-item">最近错误: {{ formatDate(item.last_wrong_at) }}</text>
         </view>
       </view>
@@ -437,12 +443,28 @@ export default {
   flex-wrap: wrap;
 }
 
+.word-badges {
+  display: flex;
+  gap: 10rpx;
+  flex-wrap: wrap;
+}
+
 .word-tag {
   background: #f0f0f0;
   padding: 8rpx 16rpx;
   border-radius: 8rpx;
   font-size: 22rpx;
   color: #666;
+}
+
+.word-tag.reflexive {
+  background: #ffe0e0;
+  color: #ff6b6b;
+}
+
+.word-tag.irregular {
+  background: #fff4e6;
+  color: #ff8c00;
 }
 
 .wrong-count {

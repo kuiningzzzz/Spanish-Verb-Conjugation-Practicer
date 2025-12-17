@@ -3,14 +3,42 @@ const { vocabularyDb: db } = require('../database/db')
 class Verb {
   // 创建动词
   static create(verbData) {
-    const { infinitive, meaning, conjugationType, isIrregular, lessonNumber, textbookVolume, frequencyLevel } = verbData
+    const { 
+      infinitive, 
+      meaning, 
+      conjugationType, 
+      isIrregular, 
+      isReflexive,
+      gerund,
+      participle,
+      participleForms,
+      lessonNumber, 
+      textbookVolume, 
+      frequencyLevel 
+    } = verbData
     
     const stmt = db.prepare(`
-      INSERT INTO verbs (infinitive, meaning, conjugation_type, is_irregular, lesson_number, textbook_volume, frequency_level)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO verbs (
+        infinitive, meaning, conjugation_type, is_irregular, is_reflexive, 
+        gerund, participle, participle_forms, 
+        lesson_number, textbook_volume, frequency_level
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     
-    const result = stmt.run(infinitive, meaning, conjugationType, isIrregular || 0, lessonNumber, textbookVolume || 1, frequencyLevel || 1)
+    const result = stmt.run(
+      infinitive, 
+      meaning, 
+      conjugationType, 
+      isIrregular || 0,
+      isReflexive || 0,
+      gerund || null,
+      participle || null,
+      participleForms || null,
+      lessonNumber, 
+      textbookVolume || 1, 
+      frequencyLevel || 1
+    )
     return result.lastInsertRowid
   }
 

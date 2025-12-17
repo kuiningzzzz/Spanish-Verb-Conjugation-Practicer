@@ -47,7 +47,7 @@ class FavoriteVerb {
       const verbIds = favorites.map(f => f.verb_id)
       const placeholders = verbIds.map(() => '?').join(',')
       const verbStmt = vocabularyDb.prepare(`
-        SELECT id, infinitive, meaning, conjugation_type, is_irregular 
+        SELECT id, infinitive, meaning, conjugation_type, is_irregular, is_reflexive, gerund, participle, participle_forms
         FROM verbs WHERE id IN (${placeholders})
       `)
       const verbs = verbStmt.all(...verbIds)
@@ -62,6 +62,10 @@ class FavoriteVerb {
           f.meaning = verb.meaning
           f.conjugation_type = verb.conjugation_type
           f.is_irregular = verb.is_irregular
+          f.is_reflexive = verb.is_reflexive
+          f.gerund = verb.gerund
+          f.participle = verb.participle
+          f.participle_forms = verb.participle_forms
         }
       })
     }

@@ -222,12 +222,14 @@ function importFromVerbsJson(filePath) {
     subjunctive: 0,
     imperative: 0,
     compoundIndicative: 0,
-    compoundSubjunctive: 0
+    compoundSubjunctive: 0,
+    multipleParticiples: 0,
+    multipleConjugations: 0
   }
 
   const insertVerb = db.prepare(`
-    INSERT INTO verbs (infinitive, meaning, conjugation_type, is_irregular, is_reflexive, gerund, participle, frequency_level, textbook_volume)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+    INSERT INTO verbs (infinitive, meaning, conjugation_type, is_irregular, is_reflexive, gerund, participle, participle_forms, frequency_level, textbook_volume)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
   `)
 
   const insertConjugation = db.prepare(`
@@ -263,10 +265,25 @@ function importFromVerbsJson(filePath) {
       // 副动词（gerund）
       const gerund = verbData.gerund || null
       
-      // 过去分词（participle）- 可能有多个形式，取第一个
-      const participle = Array.isArray(verbData.participle) && verbData.participle.length > 0 
-        ? verbData.participle[0] 
-        : (verbData.participle || null)
+      // 过去分词（participle）- 保存所有形式
+      let participle = null
+      let participleForms = null
+      
+      if (verbData.participle) {
+        if (Array.isArray(verbData.participle)) {
+          const validParticiples = verbData.participle.filter(p => p && p.length > 0)
+          if (validParticiples.length > 0) {
+            participle = validParticiples[0]  // 主要形式
+            participleForms = validParticiples.join(' | ')  // 所有形式
+            if (validParticiples.length > 1) {
+              stats.multipleParticiples++
+            }
+          }
+        } else {
+          participle = verbData.participle
+          participleForms = verbData.participle
+        }
+      }
       
       const frequency = highFrequencyVerbs.includes(infinitive) || highFrequencyVerbs.includes(baseInfinitive) ? 1 : 2
 
@@ -278,7 +295,8 @@ function importFromVerbsJson(filePath) {
         isIrregular, 
         isReflexive, 
         gerund, 
-        participle, 
+        participle,
+        participleForms,
         frequency
       )
       const verbId = result.lastInsertRowid
@@ -306,6 +324,9 @@ function importFromVerbsJson(filePath) {
                 insertConjugation.run(verbId, tenseName, '陈述式', personName, mergedForm, isIrregularTense)
                 stats.totalConjugations++
                 stats.indicative++
+                if (validForms.length > 1) {
+                  stats.multipleConjugations++
+                }
               }
             }
           }
@@ -334,6 +355,9 @@ function importFromVerbsJson(filePath) {
                 insertConjugation.run(verbId, tenseName, '虚拟式', personName, mergedForm, isIrregularTense)
                 stats.totalConjugations++
                 stats.subjunctive++
+                if (validForms.length > 1) {
+                  stats.multipleConjugations++
+                }
               }
             }
           }
@@ -356,6 +380,9 @@ function importFromVerbsJson(filePath) {
                 insertConjugation.run(verbId, '肯定命令式', '命令式', personName, mergedForm, isIrregularTense)
                 stats.totalConjugations++
                 stats.imperative++
+                if (validForms.length > 1) {
+                  stats.multipleConjugations++
+                }
               }
             }
           }
@@ -375,6 +402,9 @@ function importFromVerbsJson(filePath) {
                 insertConjugation.run(verbId, '否定命令式', '命令式', personName, mergedForm, isIrregularTense)
                 stats.totalConjugations++
                 stats.imperative++
+                if (validForms.length > 1) {
+                  stats.multipleConjugations++
+                }
               }
             }
           }
@@ -402,6 +432,9 @@ function importFromVerbsJson(filePath) {
                 insertConjugation.run(verbId, tenseName, '复合陈述式', personName, mergedForm, isIrregularTense)
                 stats.totalConjugations++
                 stats.compoundIndicative++
+                if (validForms.length > 1) {
+                  stats.multipleConjugations++
+                }
               }
             }
           }
@@ -429,6 +462,9 @@ function importFromVerbsJson(filePath) {
                 insertConjugation.run(verbId, tenseName, '复合虚拟式', personName, mergedForm, isIrregularTense)
                 stats.totalConjugations++
                 stats.compoundSubjunctive++
+                if (validForms.length > 1) {
+                  stats.multipleConjugations++
+                }
               }
             }
           }
@@ -447,7 +483,9 @@ function importFromVerbsJson(filePath) {
   console.log(`      • 虚拟式: \x1b[36m${stats.subjunctive}\x1b[0m 个`)
   console.log(`      • 命令式: \x1b[36m${stats.imperative}\x1b[0m 个`)
   console.log(`      • 复合陈述式: \x1b[36m${stats.compoundIndicative}\x1b[0m 个`)
-  console.log(`      • 复合虚拟式: \x1b[36m${stats.compoundSubjunctive}\x1b[0m 个\n`)
+  console.log(`      • 复合虚拟式: \x1b[36m${stats.compoundSubjunctive}\x1b[0m 个`)
+  console.log(`      • 多个过去分词形式: \x1b[35m${stats.multipleParticiples}\x1b[0m 个`)
+  console.log(`      • 多个变位形式: \x1b[35m${stats.multipleConjugations}\x1b[0m 个\n`)
 }
 
 module.exports = {

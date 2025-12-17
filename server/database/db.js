@@ -229,6 +229,7 @@ function initVocabularyDatabase() {
       is_reflexive INTEGER DEFAULT 0,
       gerund TEXT,
       participle TEXT,
+      participle_forms TEXT,
       lesson_number INTEGER,
       textbook_volume INTEGER DEFAULT 1,
       frequency_level INTEGER DEFAULT 1,

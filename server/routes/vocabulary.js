@@ -107,7 +107,9 @@ router.get('/favorite/list', authMiddleware, async (req, res) => {
     const formattedFavorites = favorites.map(fav => ({
       ...fav,
       conjugationType: conjugationTypeMap[fav.conjugation_type] || '未知',
-      isIrregular: fav.is_irregular === 1
+      isIrregular: fav.is_irregular === 1,
+      isReflexive: fav.is_reflexive === 1,
+      participleForms: fav.participle_forms ? fav.participle_forms.split(' | ') : []
     }))
     
     res.json({
@@ -185,7 +187,9 @@ router.get('/wrong/list', authMiddleware, async (req, res) => {
     const formattedWrongs = wrongs.map(wrong => ({
       ...wrong,
       conjugationType: conjugationTypeMap[wrong.conjugation_type] || '未知',
-      isIrregular: wrong.is_irregular === 1
+      isIrregular: wrong.is_irregular === 1,
+      isReflexive: wrong.is_reflexive === 1,
+      participleForms: wrong.participle_forms ? wrong.participle_forms.split(' | ') : []
     }))
     
     res.json({

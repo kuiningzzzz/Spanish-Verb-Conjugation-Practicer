@@ -90,10 +90,13 @@
               >
                 <view class="vocab-word">
                   <text class="vocab-spanish">{{ word.infinitive }}</text>
-                  <text class="vocab-chinese">{{ word.chinese }}</text>
+                  <text class="vocab-chinese">{{ word.meaning }}</text>
                 </view>
                 <view class="vocab-actions">
-                  <text class="vocab-type">{{ word.type || '动词' }}</text>
+                  <view class="vocab-badges">
+                    <text v-if="word.is_reflexive" class="vocab-badge reflexive">反身</text>
+                    <text v-if="word.is_irregular" class="vocab-badge irregular">不规则</text>
+                  </view>
                   <text class="vocab-detail-btn" @click="viewConjugations(word.id)">查看全变位</text>
                 </view>
               </view>
@@ -623,6 +626,28 @@ export default {
   display: flex;
   align-items: center;
   gap: 12rpx;
+}
+
+.vocab-badges {
+  display: flex;
+  gap: 8rpx;
+}
+
+.vocab-badge {
+  font-size: 20rpx;
+  padding: 4rpx 10rpx;
+  border-radius: 6rpx;
+  white-space: nowrap;
+}
+
+.vocab-badge.reflexive {
+  color: #ff6b6b;
+  background: #ffe0e0;
+}
+
+.vocab-badge.irregular {
+  color: #ff8c00;
+  background: #fff4e6;
 }
 
 .vocab-type {
