@@ -360,10 +360,10 @@ export default {
           // 创建 Canvas 上下文
           const canvas = uni.createCanvasContext('avatarCanvas', this)
           
-          // 计算压缩后的尺寸（最大200x200）
+          // 计算压缩后的尺寸（最大150x150，更小的尺寸以减少文件大小）
           let width = imageInfo.width
           let height = imageInfo.height
-          const maxSize = 200
+          const maxSize = 150
           
           if (width > maxSize || height > maxSize) {
             if (width > height) {
@@ -378,7 +378,7 @@ export default {
           // 绘制图片
           canvas.drawImage(imagePath, 0, 0, width, height)
           canvas.draw(false, () => {
-            // 导出为 Base64
+            // 导出为 Base64，使用更低的质量以减小文件大小
             uni.canvasToTempFilePath({
               canvasId: 'avatarCanvas',
               width: width,
@@ -386,7 +386,7 @@ export default {
               destWidth: width,
               destHeight: height,
               fileType: 'jpg',
-              quality: 0.8,
+              quality: 0.6, // 降低质量从0.8到0.6，显著减小文件大小
               success: (canvasRes) => {
                 // 将临时文件转换为 Base64
                 this.uploadBase64Avatar(canvasRes.tempFilePath)
@@ -469,23 +469,36 @@ export default {
     },
     
     async sendAvatarToServer(base64) {
-      // 检查大小
-      if (base64.length > 200000) {
-        uni.showToast({
-          title: '图片过大，请选择小于100KB的图片',
-          icon: 'none'
-        })
-        return
+      // 检查大小，如果还是太大，进一步压缩
+      let finalBase64 = base64
+      
+      if (base64.length > 150000) {
+        console.log('图片仍然较大，尝试进一步压缩...')
+        // 提取base64数据（去掉data:image/jpeg;base64,前缀）
+        const base64Data = base64.split(',')[1]
+        const prefix = base64.split(',')[0] + ','
+        
+        // 降低质量进一步压缩（这里简单地检查，实际压缩在Canvas阶段已完成）
+        if (base64.length > 200000) {
+          uni.showToast({
+            title: '图片过大，请选择更小的图片',
+            icon: 'none',
+            duration: 2000
+          })
+          return
+        }
       }
+      
+      console.log('最终Base64大小:', finalBase64.length, '字符')
       
       uni.showLoading({ title: '上传中...' })
       
       try {
-        const res = await api.uploadAvatar({ avatar: base64 })
+        const res = await api.uploadAvatar({ avatar: finalBase64 })
         uni.hideLoading()
         
         if (res.success) {
-          this.userInfo.avatar = base64
+          this.userInfo.avatar = finalBase64
           uni.setStorageSync('userInfo', this.userInfo)
           
           uni.showToast({

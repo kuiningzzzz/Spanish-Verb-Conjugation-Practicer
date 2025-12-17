@@ -4,6 +4,7 @@ const User = require('../models/User')
 const VerificationCode = require('../models/VerificationCode')
 const emailService = require('../services/emailService')
 const { generateToken } = require('../middleware/auth')
+const { validateAndPrepareImage, getImageInfo } = require('../services/imageCompression')
 
 /**
  * 生成6位随机验证码
@@ -303,23 +304,37 @@ router.post('/avatar', require('../middleware/auth').authMiddleware, (req, res) 
       return res.status(400).json({ error: '头像数据不能为空' })
     }
 
-    // 验证是否为有效的 Base64 图片
-    if (!avatar.startsWith('data:image/')) {
-      return res.status(400).json({ error: '无效的图片格式' })
+    // 使用图片验证和压缩服务
+    const validation = validateAndPrepareImage(avatar, {
+      maxSizeKB: 100, // 最大 100KB
+      allowedFormats: ['png', 'jpg', 'jpeg', 'webp']
+    })
+
+    if (!validation.valid) {
+      console.log('头像验证失败:', validation.error)
+      return res.status(400).json({ error: validation.error })
     }
 
-    // 限制大小（Base64 字符串长度，约等于原文件大小的 1.37 倍）
-    // 100KB * 1.37 ≈ 137000 字符
-    if (avatar.length > 200000) {
-      return res.status(400).json({ error: '头像文件过大，请上传小于100KB的图片' })
-    }
+    // 记录图片信息
+    const imageInfo = getImageInfo(avatar)
+    console.log('上传头像信息:', {
+      userId: req.userId,
+      format: imageInfo.format,
+      sizeKB: imageInfo.sizeKB,
+      sizeBytes: imageInfo.sizeBytes
+    })
 
+    // 更新数据库
     User.updateAvatar(req.userId, avatar)
 
     res.json({
       success: true,
       message: '头像更新成功',
-      avatar
+      avatar,
+      info: {
+        format: validation.format,
+        sizeKB: validation.sizeKB
+      }
     })
   } catch (error) {
     console.error('更新头像错误:', error)
