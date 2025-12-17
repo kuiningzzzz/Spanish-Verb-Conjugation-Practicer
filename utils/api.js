@@ -1,8 +1,8 @@
 // API基础配置
 // 开发环境：使用 cpolar 内网穿透地址
 // 生产环境：替换为实际服务器地址
-// const BASE_URL = 'http://192.144.253.40:3000/api'
-const BASE_URL = 'http://3c31348e.r39.cpolar.top/api'
+const BASE_URL = process.env.BASE_URL || 'http://192.144.253.40:3000/api'
+//const BASE_URL = 'http://3c31348e.r39.cpolar.top/api'
 
 // 请求封装
 const request = (options) => {
@@ -65,6 +65,7 @@ export default {
   register: (data) => request({ url: '/user/register', method: 'POST', data }),
   login: (data) => request({ url: '/user/login', method: 'POST', data }),
   getUserInfo: () => request({ url: '/user/info' }),
+  checkUsername: (data) => request({ url: '/user/check-username', method: 'POST', data }),
   updateProfile: (data) => request({ url: '/user/profile', method: 'PUT', data }),
   uploadAvatar: (data) => request({ url: '/user/avatar', method: 'POST', data }),
 

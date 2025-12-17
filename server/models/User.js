@@ -58,14 +58,48 @@ class User {
     const minute = String(now.getMinutes()).padStart(2, '0')
     const second = String(now.getSeconds()).padStart(2, '0')
     const updatedAt = `${year}-${month}-${day} ${hour}:${minute}:${second}`
-    
-    const { email, school, enrollmentYear } = userData
+
+    const fields = []
+    const params = []
+
+    if (userData.username !== undefined) {
+      fields.push('username = ?')
+      params.push(userData.username)
+    }
+
+    if (userData.password !== undefined) {
+      const hashedPassword = bcrypt.hashSync(userData.password, 10)
+      fields.push('password = ?')
+      params.push(hashedPassword)
+    }
+
+    if (userData.email !== undefined) {
+      fields.push('email = ?')
+      params.push(userData.email)
+    }
+
+    if (userData.school !== undefined) {
+      fields.push('school = ?')
+      params.push(userData.school)
+    }
+
+    if (userData.enrollmentYear !== undefined) {
+      fields.push('enrollment_year = ?')
+      params.push(userData.enrollmentYear)
+    }
+
+    fields.push('updated_at = ?')
+    params.push(updatedAt)
+
+    params.push(id)
+
     const stmt = db.prepare(`
-      UPDATE users 
-      SET email = ?, school = ?, enrollment_year = ?, updated_at = ?
+      UPDATE users
+      SET ${fields.join(', ')}
       WHERE id = ?
     `)
-    return stmt.run(email, school, enrollmentYear, updatedAt, id)
+
+    return stmt.run(...params)
   }
 
   // 更新订阅
