@@ -17,13 +17,24 @@
 
       <view class="form-container">
         <view class="form-item">
-          <text class="label">用户名</text>
-          <input class="input" v-model="formData.username" placeholder="请输入用户名" />
+          <text class="label">{{ isLogin ? '用户名/邮箱' : '用户名' }}</text>
+          <input
+            :class="['input', inputStatus('username')]"
+            v-model="formData.username"
+            :placeholder="isLogin ? '请输入用户名或邮箱' : '请输入用户名'"
+          />
+          <text v-if="fieldErrors.username" class="error-text">{{ fieldErrors.username }}</text>
         </view>
 
         <view class="form-item">
           <text class="label">密码</text>
-          <input class="input" type="password" v-model="formData.password" placeholder="请输入密码" />
+          <input
+            :class="['input', inputStatus('password')]"
+            type="password"
+            v-model="formData.password"
+            placeholder="请输入密码"
+          />
+          <text v-if="fieldErrors.password" class="error-text">{{ fieldErrors.password }}</text>
         </view>
 
         <view v-if="!isLogin">
@@ -37,26 +48,28 @@
                 :disabled="codeCountdown > 0"
               />
               <button 
-                class="code-button" 
-                @click="sendCode" 
-                :disabled="codeCountdown > 0 || !isValidEmail"
+                class="code-button"
+                @click="sendCode"
+                :disabled="codeCountdown > 0 || !isValidEmail || hasCredentialError"
               >
                 {{ codeButtonText }}
               </button>
             </view>
             <text class="hint-text">学生身份需要edu.cn邮箱认证</text>
+            <text v-if="fieldErrors.email" class="error-text">{{ fieldErrors.email }}</text>
           </view>
 
           <view class="form-item" v-if="formData.userType === 'student'">
             <text class="label required">邮箱验证码</text>
-            <input 
-              class="input" 
-              type="number" 
+            <input
+              class="input"
+              type="number"
               maxlength="6"
-              v-model="formData.verificationCode" 
-              placeholder="请输入6位验证码" 
+              v-model="formData.verificationCode"
+              placeholder="请输入6位验证码"
             />
             <text class="hint-text">验证码有效期2分钟</text>
+            <text v-if="fieldErrors.verificationCode" class="error-text">{{ fieldErrors.verificationCode }}</text>
           </view>
 
           <view class="form-item" v-if="formData.userType === 'public'">
@@ -114,6 +127,12 @@ export default {
         userType: 'student',
         verificationCode: ''
       },
+      fieldErrors: {
+        username: '',
+        password: '',
+        email: '',
+        verificationCode: ''
+      },
       userTypes: [
         { value: 'student', label: '学生' },
         { value: 'public', label: '社会人士' }
@@ -124,6 +143,10 @@ export default {
     }
   },
   computed: {
+    hasCredentialError() {
+      if (this.isLogin) return false
+      return Boolean(this.fieldErrors.username || this.fieldErrors.password)
+    },
     isValidEmail() {
       const email = this.formData.email
       return email && email.trim().toLowerCase().endsWith('edu.cn')
@@ -133,6 +156,28 @@ export default {
         return `${this.codeCountdown}秒后重试`
       }
       return '发送验证码'
+    }
+  },
+  watch: {
+    'formData.username'(val) {
+      if (!this.isLogin) {
+        this.validateUsername(val)
+      } else {
+        this.fieldErrors.username = ''
+      }
+    },
+    'formData.password'(val) {
+      if (!this.isLogin) {
+        this.validatePassword(val)
+      } else {
+        this.fieldErrors.password = ''
+      }
+    },
+    isLogin(newVal) {
+      if (newVal) {
+        this.fieldErrors.username = ''
+        this.fieldErrors.password = ''
+      }
     }
   },
   beforeDestroy() {
@@ -152,10 +197,64 @@ export default {
         userType: 'student',
         verificationCode: ''
       }
+      this.fieldErrors = {
+        username: '',
+        password: '',
+        email: '',
+        verificationCode: ''
+      }
       this.codeCountdown = 0
       if (this.countdownTimer) {
         clearInterval(this.countdownTimer)
       }
+    },
+    isUsernameValid(value = this.formData.username) {
+      const usernamePattern = /^[A-Za-z0-9]{8,20}$/
+      const trimmed = value.trim()
+      return Boolean(trimmed && usernamePattern.test(trimmed))
+    },
+    validateUsername(value = this.formData.username) {
+      if (this.isLogin) return true
+
+      if (!this.isUsernameValid(value)) {
+        this.fieldErrors.username = '用户名需为8-20位字母或数字组合'
+        return false
+      }
+
+      this.fieldErrors.username = ''
+      return true
+    },
+    isPasswordValid(value = this.formData.password) {
+      const passwordPattern = /^[A-Za-z0-9!@#$%^&*()_+\-.]{8,20}$/
+      const trimmed = value.trim()
+      const hasLetter = /[A-Za-z]/.test(trimmed)
+      const hasNumber = /\d/.test(trimmed)
+      const hasSymbol = /[!@#$%^&*()_+\-.]/.test(trimmed)
+      const categoryCount = [hasLetter, hasNumber, hasSymbol].filter(Boolean).length
+      return Boolean(trimmed && passwordPattern.test(trimmed) && categoryCount >= 2)
+    },
+    validatePassword(value = this.formData.password) {
+      if (this.isLogin) return true
+
+      if (!this.isPasswordValid(value)) {
+        this.fieldErrors.password = '密码需为8-20位，包含字母、数字、特殊符号中的至少两种'
+        return false
+      }
+
+      this.fieldErrors.password = ''
+      return true
+    },
+    inputStatus(field) {
+      if (this.isLogin) return ''
+
+      const error = this.fieldErrors[field]
+      if (error) return 'input-error'
+
+      const value = this.formData[field]
+      if (field === 'username' && value && this.isUsernameValid(value)) return 'input-success'
+      if (field === 'password' && value && this.isPasswordValid(value)) return 'input-success'
+
+      return ''
     },
     onUserTypeChange(e) {
       this.userTypeIndex = e.detail.value
@@ -170,6 +269,14 @@ export default {
       }
     },
     async sendCode() {
+      this.validateUsername()
+      this.validatePassword()
+
+      if (this.hasCredentialError) {
+        showToast('请先修正用户名和密码')
+        return
+      }
+
       if (!this.isValidEmail) {
         showToast('请输入edu.cn结尾的学生邮箱')
         return
@@ -182,8 +289,10 @@ export default {
       showLoading('发送中...')
 
       try {
-        const res = await api.sendVerificationCode({ 
-          email: this.formData.email.trim() 
+        const res = await api.sendVerificationCode({
+          email: this.formData.email.trim(),
+          username: this.formData.username.trim(),
+          password: this.formData.password
         })
 
         hideLoading()
@@ -201,7 +310,7 @@ export default {
             }
           }, 1000)
         } else {
-          showToast(res.error || '发送失败')
+          this.handleFieldError(res.error)
         }
       } catch (error) {
         hideLoading()
@@ -209,31 +318,64 @@ export default {
         if (error.waitTime) {
           showToast(`请${error.waitTime}秒后再试`)
         } else {
-          showToast(error.error || '发送失败，请稍后重试')
+          this.handleFieldError(error.error)
         }
       }
     },
+    handleFieldError(message) {
+      if (!message) {
+        showToast('操作失败')
+        return
+      }
+
+      if (message.includes('用户名')) {
+        this.fieldErrors.username = message
+      } else if (message.includes('密码')) {
+        this.fieldErrors.password = message
+      } else if (message.includes('邮箱')) {
+        this.fieldErrors.email = message
+      } else if (message.includes('验证码')) {
+        this.fieldErrors.verificationCode = message
+      } else {
+        showToast(message)
+      }
+    },
     async handleSubmit() {
+      this.fieldErrors = {
+        username: '',
+        password: '',
+        email: '',
+        verificationCode: ''
+      }
+
       if (!this.formData.username || !this.formData.password) {
-        showToast('请填写用户名和密码')
+        const baseError = '请填写用户名和密码'
+        this.fieldErrors.username = baseError
+        this.fieldErrors.password = baseError
+        showToast(baseError)
         return
       }
 
       // 注册时的额外验证
       if (!this.isLogin) {
+        const usernameValid = this.validateUsername()
+        const passwordValid = this.validatePassword()
+
         if (this.formData.userType === 'student') {
           if (!this.isValidEmail) {
-            showToast('学生身份需要edu.cn结尾的邮箱')
-            return
+            this.fieldErrors.email = '学生身份需要edu.cn结尾的邮箱'
           }
           if (!this.formData.verificationCode) {
-            showToast('请输入邮箱验证码')
-            return
+            this.fieldErrors.verificationCode = '请输入邮箱验证码'
+          } else if (this.formData.verificationCode.length !== 6) {
+            this.fieldErrors.verificationCode = '验证码应为6位数字'
           }
-          if (this.formData.verificationCode.length !== 6) {
-            showToast('验证码应为6位数字')
-            return
-          }
+        }
+
+        const hasError = Object.values(this.fieldErrors).some((v) => v)
+        if (hasError || !usernameValid || !passwordValid) {
+          showToast('请修正标红提示后再提交')
+          return
         }
       }
 
@@ -241,7 +383,12 @@ export default {
 
       try {
         const apiMethod = this.isLogin ? api.login : api.register
-        const res = await apiMethod(this.formData)
+        const payload = {
+          ...this.formData,
+          username: this.formData.username.trim(),
+          email: this.formData.email ? this.formData.email.trim() : ''
+        }
+        const res = await apiMethod(payload)
 
         hideLoading()
 
@@ -258,11 +405,15 @@ export default {
             })
           }, 1000)
         } else {
-          showToast(res.error || '操作失败')
+          this.handleFieldError(res.error)
         }
       } catch (error) {
         hideLoading()
-        showToast(error.error || '网络错误')
+        if (!this.isLogin) {
+          this.handleFieldError(error.error)
+        } else {
+          showToast(error.error || '网络错误')
+        }
       }
     }
   }
@@ -361,9 +512,20 @@ export default {
   width: 100%;
   height: 80rpx;
   background: #f5f5f5;
+  border: 2rpx solid transparent;
   border-radius: 12rpx;
   padding: 0 20rpx;
   font-size: 28rpx;
+}
+
+.input-success {
+  border-color: #52c41a;
+  background: #f6ffed;
+}
+
+.input-error {
+  border-color: #ff4d4f;
+  background: #fff2f0;
 }
 
 .code-button {
@@ -376,6 +538,9 @@ export default {
   font-size: 24rpx;
   white-space: nowrap;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .code-button[disabled] {
@@ -406,5 +571,12 @@ export default {
 .tip-text {
   font-size: 24rpx;
   color: #999;
+}
+
+.error-text {
+  display: block;
+  font-size: 24rpx;
+  color: #ff4d4f;
+  margin-top: 8rpx;
 }
 </style>

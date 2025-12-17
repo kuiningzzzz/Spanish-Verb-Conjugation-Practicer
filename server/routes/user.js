@@ -18,7 +18,7 @@ function generateVerificationCode() {
  */
 router.post('/send-verification-code', async (req, res) => {
   try {
-    const { email } = req.body
+    const { email, username, password } = req.body
 
     // 验证邮箱格式
     if (!email || !email.trim()) {
@@ -36,6 +36,37 @@ router.post('/send-verification-code', async (req, res) => {
     const existingUser = User.findByEmail(trimmedEmail)
     if (existingUser) {
       return res.status(400).json({ error: '该邮箱已被注册' })
+    }
+
+    // 如果提供了用户名和密码，先在发送验证码前校验
+    if (!username || !password) {
+      return res.status(400).json({ error: '请填写用户名和密码后再获取验证码' })
+    }
+
+    const trimmedUsername = username.trim()
+    const trimmedPassword = password.trim()
+
+    // 用户名规则：8-20位，字母数字组合
+    const usernamePattern = /^[A-Za-z0-9]{8,20}$/
+    if (!usernamePattern.test(trimmedUsername)) {
+      return res.status(400).json({ error: '用户名需为8-20位字母或数字组合' })
+    }
+
+    // 检查用户名是否已存在
+    const existingUsername = User.findByUsername(trimmedUsername)
+    if (existingUsername) {
+      return res.status(400).json({ error: '用户名已存在' })
+    }
+
+    // 密码规则：8-20位，字母/数字/特殊符号(!@#$%^&*()_+-.)至少两种
+    const passwordPattern = /^[A-Za-z0-9!@#$%^&*()_+\-.]{8,20}$/
+    const hasLetter = /[A-Za-z]/.test(trimmedPassword)
+    const hasNumber = /\d/.test(trimmedPassword)
+    const hasSymbol = /[!@#$%^&*()_+\-.]/.test(trimmedPassword)
+    const categoryCount = [hasLetter, hasNumber, hasSymbol].filter(Boolean).length
+
+    if (!passwordPattern.test(trimmedPassword) || categoryCount < 2) {
+      return res.status(400).json({ error: '密码需为8-20位，包含字母、数字、特殊符号中的至少两种' })
     }
 
     // 检查是否可以发送（防止频繁发送）
@@ -94,6 +125,26 @@ router.post('/register', (req, res) => {
       return res.status(400).json({ error: '用户名和密码不能为空' })
     }
 
+    const trimmedUsername = username.trim()
+    const trimmedPassword = password.trim()
+
+    // 用户名规则：8-20位，字母数字组合
+    const usernamePattern = /^[A-Za-z0-9]{8,20}$/
+    if (!usernamePattern.test(trimmedUsername)) {
+      return res.status(400).json({ error: '用户名需为8-20位字母或数字组合' })
+    }
+
+    // 密码规则：8-20位，字母/数字/特殊符号(!@#$%^&*()_+-.)至少两种
+    const passwordPattern = /^[A-Za-z0-9!@#$%^&*()_+\-.]{8,20}$/
+    const hasLetter = /[A-Za-z]/.test(trimmedPassword)
+    const hasNumber = /\d/.test(trimmedPassword)
+    const hasSymbol = /[!@#$%^&*()_+\-.]/.test(trimmedPassword)
+    const categoryCount = [hasLetter, hasNumber, hasSymbol].filter(Boolean).length
+
+    if (!passwordPattern.test(trimmedPassword) || categoryCount < 2) {
+      return res.status(400).json({ error: '密码需为8-20位，包含字母、数字、特殊符号中的至少两种' })
+    }
+
     // 学生身份需要邮箱认证
     if (userType === 'student') {
       if (!email || !email.trim()) {
@@ -119,14 +170,15 @@ router.post('/register', (req, res) => {
     }
 
     // 检查用户名是否已存在
-    const existingUser = User.findByUsername(username)
+    const existingUser = User.findByUsername(trimmedUsername)
     if (existingUser) {
       return res.status(400).json({ error: '用户名已存在' })
     }
 
     // 如果提供了邮箱，检查邮箱是否已存在
     if (email && email.trim()) {
-      const existingEmail = User.findByEmail(email.trim())
+      const normalizedEmail = email.trim().toLowerCase()
+      const existingEmail = User.findByEmail(normalizedEmail)
       if (existingEmail) {
         return res.status(400).json({ error: '该邮箱已被注册' })
       }
@@ -134,8 +186,8 @@ router.post('/register', (req, res) => {
 
     // 创建用户
     const userId = User.create({
-      username,
-      password,
+      username: trimmedUsername,
+      password: trimmedPassword,
       email: email ? email.trim().toLowerCase() : null,
       school,
       enrollmentYear,
@@ -178,8 +230,11 @@ router.post('/login', (req, res) => {
       return res.status(400).json({ error: '用户名和密码不能为空' })
     }
 
-    // 查找用户
-    const user = User.findByUsername(username)
+    const identifier = username.trim()
+    const normalizedIdentifier = identifier.includes('@') ? identifier.toLowerCase() : identifier
+
+    // 查找用户（支持用户名或邮箱）
+    const user = User.findByIdentifier(normalizedIdentifier)
     if (!user) {
       return res.status(401).json({ error: '用户名或密码错误' })
     }

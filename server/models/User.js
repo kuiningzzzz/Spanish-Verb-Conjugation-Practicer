@@ -25,6 +25,12 @@ class User {
     return stmt.get(username)
   }
 
+  // 根据用户名或邮箱查找用户
+  static findByIdentifier(identifier) {
+    const stmt = db.prepare('SELECT * FROM users WHERE username = ? OR email = ?')
+    return stmt.get(identifier, identifier)
+  }
+
   // 根据邮箱查找用户
   static findByEmail(email) {
     const stmt = db.prepare('SELECT * FROM users WHERE email = ?')
