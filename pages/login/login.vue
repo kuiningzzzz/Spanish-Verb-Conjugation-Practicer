@@ -16,39 +16,113 @@
       </view>
 
       <view class="form-container">
-        <view class="form-item">
-          <text class="label">{{ isLogin ? '用户名/邮箱' : '用户名' }}</text>
-          <input
-            :class="['input', inputStatus('username')]"
-            v-model="formData.username"
-            :placeholder="isLogin ? '请输入用户名或邮箱' : '请输入用户名'"
-          />
-          <text v-if="fieldErrors.username" class="error-text">{{ fieldErrors.username }}</text>
-        </view>
+        <template v-if="isLogin">
+          <view class="login-mode-toggle">
+            <view
+              :class="['mode-item', loginMethod === 'password' ? 'active' : '']"
+              @click="switchLoginMethod('password')"
+            >
+              账号密码登录
+            </view>
+            <view
+              :class="['mode-item', loginMethod === 'emailCode' ? 'active' : '']"
+              @click="switchLoginMethod('emailCode')"
+            >
+              邮箱验证码登录
+            </view>
+          </view>
 
-        <view class="form-item">
-          <text class="label">密码</text>
-          <input
-            :class="['input', inputStatus('password')]"
-            type="password"
-            v-model="formData.password"
-            placeholder="请输入密码"
-          />
-          <text v-if="fieldErrors.password" class="error-text">{{ fieldErrors.password }}</text>
-        </view>
+          <template v-if="loginMethod === 'password'">
+            <view class="form-item">
+              <text class="label">用户名/邮箱</text>
+              <input
+                class="input"
+                v-model="formData.username"
+                placeholder="请输入用户名或邮箱"
+              />
+              <text v-if="fieldErrors.username" class="error-text">{{ fieldErrors.username }}</text>
+            </view>
 
-        <view class="form-item" v-if="!isLogin">
-          <text class="label">确认密码</text>
-          <input
-            :class="['input', inputStatus('confirmPassword')]"
-            type="password"
-            v-model="formData.confirmPassword"
-            placeholder="请再次输入密码"
-          />
-          <text v-if="fieldErrors.confirmPassword" class="error-text">{{ fieldErrors.confirmPassword }}</text>
-        </view>
+            <view class="form-item">
+              <text class="label">密码</text>
+              <input
+                class="input"
+                type="password"
+                v-model="formData.password"
+                placeholder="请输入密码"
+              />
+              <text v-if="fieldErrors.password" class="error-text">{{ fieldErrors.password }}</text>
+            </view>
+          </template>
 
-        <view v-if="!isLogin">
+          <template v-else>
+            <view class="form-item">
+              <text class="label">邮箱</text>
+              <view class="input-with-button">
+                <input
+                  class="input flex-input"
+                  v-model="formData.loginEmail"
+                  placeholder="请输入注册邮箱"
+                  :disabled="codeCountdown > 0"
+                />
+                <button
+                  class="code-button"
+                  @click="sendLoginCode"
+                  :disabled="codeCountdown > 0 || !loginEmailValid"
+                >
+                  {{ codeButtonText }}
+                </button>
+              </view>
+              <text v-if="fieldErrors.loginEmail" class="error-text">{{ fieldErrors.loginEmail }}</text>
+            </view>
+
+            <view class="form-item">
+              <text class="label">邮箱验证码</text>
+              <input
+                class="input"
+                type="number"
+                maxlength="6"
+                v-model="formData.loginVerificationCode"
+                placeholder="请输入6位验证码"
+              />
+              <text v-if="fieldErrors.loginVerificationCode" class="error-text">{{ fieldErrors.loginVerificationCode }}</text>
+            </view>
+          </template>
+        </template>
+
+        <view v-else>
+          <view class="form-item">
+            <text class="label">用户名</text>
+            <input
+              :class="['input', inputStatus('username')]"
+              v-model="formData.username"
+              placeholder="请输入用户名"
+            />
+            <text v-if="fieldErrors.username" class="error-text">{{ fieldErrors.username }}</text>
+          </view>
+
+          <view class="form-item">
+            <text class="label">密码</text>
+            <input
+              :class="['input', inputStatus('password')]"
+              type="password"
+              v-model="formData.password"
+              placeholder="请输入密码"
+            />
+            <text v-if="fieldErrors.password" class="error-text">{{ fieldErrors.password }}</text>
+          </view>
+
+          <view class="form-item">
+            <text class="label">确认密码</text>
+            <input
+              :class="['input', inputStatus('confirmPassword')]"
+              type="password"
+              v-model="formData.confirmPassword"
+              placeholder="请再次输入密码"
+            />
+            <text v-if="fieldErrors.confirmPassword" class="error-text">{{ fieldErrors.confirmPassword }}</text>
+          </view>
+
           <view class="form-item" v-if="formData.userType === 'student'">
             <text class="label required">认证邮箱（必填）</text>
             <view class="input-with-button">
@@ -129,6 +203,7 @@ export default {
   data() {
     return {
       isLogin: true,
+      loginMethod: 'password',
       formData: {
         username: '',
         password: '',
@@ -137,14 +212,18 @@ export default {
         school: '',
         enrollmentYear: '',
         userType: 'student',
-        verificationCode: ''
+        verificationCode: '',
+        loginEmail: '',
+        loginVerificationCode: ''
       },
       fieldErrors: {
         username: '',
         password: '',
         confirmPassword: '',
         email: '',
-        verificationCode: ''
+        verificationCode: '',
+        loginEmail: '',
+        loginVerificationCode: ''
       },
       userTypes: [
         { value: 'student', label: '学生' },
@@ -163,6 +242,11 @@ export default {
     isValidEmail() {
       const email = this.formData.email
       return email && email.trim().toLowerCase().endsWith('edu.cn')
+    },
+    loginEmailValid() {
+      const email = this.formData.loginEmail
+      const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      return Boolean(email && pattern.test(email.trim()))
     },
     codeButtonText() {
       if (this.codeCountdown > 0) {
@@ -209,6 +293,7 @@ export default {
   methods: {
     switchTab(isLogin) {
       this.isLogin = isLogin
+      this.loginMethod = 'password'
       this.formData = {
         username: '',
         password: '',
@@ -217,15 +302,28 @@ export default {
         school: '',
         enrollmentYear: '',
         userType: 'student',
-        verificationCode: ''
+        verificationCode: '',
+        loginEmail: '',
+        loginVerificationCode: ''
       }
       this.fieldErrors = {
         username: '',
         password: '',
         confirmPassword: '',
         email: '',
-        verificationCode: ''
+        verificationCode: '',
+        loginEmail: '',
+        loginVerificationCode: ''
       }
+      this.codeCountdown = 0
+      if (this.countdownTimer) {
+        clearInterval(this.countdownTimer)
+      }
+    },
+    switchLoginMethod(method) {
+      this.loginMethod = method
+      this.fieldErrors.loginEmail = ''
+      this.fieldErrors.loginVerificationCode = ''
       this.codeCountdown = 0
       if (this.countdownTimer) {
         clearInterval(this.countdownTimer)
@@ -380,10 +478,58 @@ export default {
         this.fieldErrors.password = message
       } else if (message.includes('邮箱')) {
         this.fieldErrors.email = message
+        this.fieldErrors.loginEmail = message
       } else if (message.includes('验证码')) {
         this.fieldErrors.verificationCode = message
+        this.fieldErrors.loginVerificationCode = message
       } else {
         showToast(message)
+      }
+    },
+    async sendLoginCode() {
+      this.fieldErrors.loginEmail = ''
+
+      if (!this.loginEmailValid) {
+        this.fieldErrors.loginEmail = '请输入有效的邮箱地址'
+        showToast('请输入有效的邮箱地址')
+        return
+      }
+
+      if (this.codeCountdown > 0) {
+        return
+      }
+
+      showLoading('发送中...')
+
+      try {
+        const res = await api.sendLoginCode({
+          email: this.formData.loginEmail.trim()
+        })
+
+        hideLoading()
+
+        if (res.success) {
+          showToast('验证码已发送', 'success')
+
+          this.codeCountdown = 60
+          this.countdownTimer = setInterval(() => {
+            this.codeCountdown--
+            if (this.codeCountdown <= 0) {
+              clearInterval(this.countdownTimer)
+              this.countdownTimer = null
+            }
+          }, 1000)
+        } else {
+          this.handleFieldError(res.error)
+        }
+      } catch (error) {
+        hideLoading()
+        console.error('发送登录验证码错误:', error)
+        if (error.waitTime) {
+          showToast(`请${error.waitTime}秒后再试`)
+        } else {
+          this.handleFieldError(error.error)
+        }
       }
     },
     async handleSubmit() {
@@ -392,7 +538,100 @@ export default {
         password: '',
         confirmPassword: '',
         email: '',
-        verificationCode: ''
+        verificationCode: '',
+        loginEmail: '',
+        loginVerificationCode: ''
+      }
+
+      if (this.isLogin) {
+        if (this.loginMethod === 'password') {
+          if (!this.formData.username || !this.formData.password) {
+            const baseError = '请填写用户名和密码'
+            this.fieldErrors.username = baseError
+            this.fieldErrors.password = baseError
+            showToast(baseError)
+            return
+          }
+
+          showLoading('登录中...')
+
+          try {
+            const payload = {
+              username: this.formData.username.trim(),
+              password: this.formData.password
+            }
+            const res = await api.login(payload)
+
+            hideLoading()
+
+            if (res.success) {
+              uni.setStorageSync('token', res.token)
+              uni.setStorageSync('userInfo', res.user)
+
+              showToast('登录成功', 'success')
+
+              setTimeout(() => {
+                uni.switchTab({
+                  url: '/pages/index/index'
+                })
+              }, 1000)
+            } else {
+              this.handleFieldError(res.error)
+            }
+          } catch (error) {
+            hideLoading()
+            showToast(error.error || '网络错误')
+          }
+        } else {
+          if (!this.loginEmailValid) {
+            this.fieldErrors.loginEmail = '请输入有效的邮箱地址'
+            showToast('请输入有效的邮箱地址')
+            return
+          }
+
+          if (!this.formData.loginVerificationCode) {
+            this.fieldErrors.loginVerificationCode = '请输入邮箱验证码'
+            showToast('请输入邮箱验证码')
+            return
+          }
+
+          if (this.formData.loginVerificationCode.length !== 6) {
+            this.fieldErrors.loginVerificationCode = '验证码应为6位数字'
+            showToast('验证码应为6位数字')
+            return
+          }
+
+          showLoading('登录中...')
+
+          try {
+            const res = await api.loginWithEmailCode({
+              email: this.formData.loginEmail.trim(),
+              verificationCode: this.formData.loginVerificationCode
+            })
+
+            hideLoading()
+
+            if (res.success) {
+              uni.setStorageSync('token', res.token)
+              uni.setStorageSync('userInfo', res.user)
+
+              showToast('登录成功', 'success')
+
+              setTimeout(() => {
+                uni.switchTab({
+                  url: '/pages/index/index'
+                })
+              }, 1000)
+            } else {
+              this.handleFieldError(res.error)
+            }
+          } catch (error) {
+            hideLoading()
+            showToast(error.error || '网络错误')
+          }
+        }
+
+        return
       }
 
       if (!this.formData.username || !this.formData.password) {
@@ -403,49 +642,44 @@ export default {
         return
       }
 
-      // 注册时的额外验证
-      if (!this.isLogin) {
-        const usernameValid = this.validateUsername()
-        const passwordValid = this.validatePassword()
-        const confirmValid = this.validateConfirmPassword()
+      const usernameValid = this.validateUsername()
+      const passwordValid = this.validatePassword()
+      const confirmValid = this.validateConfirmPassword()
 
-        if (this.formData.userType === 'student') {
-          if (!this.isValidEmail) {
-            this.fieldErrors.email = '学生身份需要edu.cn结尾的邮箱'
-          }
-          if (!this.formData.verificationCode) {
-            this.fieldErrors.verificationCode = '请输入邮箱验证码'
-          } else if (this.formData.verificationCode.length !== 6) {
-            this.fieldErrors.verificationCode = '验证码应为6位数字'
-          }
+      if (this.formData.userType === 'student') {
+        if (!this.isValidEmail) {
+          this.fieldErrors.email = '学生身份需要edu.cn结尾的邮箱'
         }
-
-        const hasError = Object.values(this.fieldErrors).some((v) => v)
-        if (hasError || !usernameValid || !passwordValid || !confirmValid) {
-          showToast('请修正标红提示后再提交')
-          return
+        if (!this.formData.verificationCode) {
+          this.fieldErrors.verificationCode = '请输入邮箱验证码'
+        } else if (this.formData.verificationCode.length !== 6) {
+          this.fieldErrors.verificationCode = '验证码应为6位数字'
         }
       }
 
-      showLoading(this.isLogin ? '登录中...' : '注册中...')
+      const hasError = Object.values(this.fieldErrors).some((v) => v)
+      if (hasError || !usernameValid || !passwordValid || !confirmValid) {
+        showToast('请修正标红提示后再提交')
+        return
+      }
+
+      showLoading('注册中...')
 
       try {
-        const apiMethod = this.isLogin ? api.login : api.register
         const payload = {
           ...this.formData,
           username: this.formData.username.trim(),
           email: this.formData.email ? this.formData.email.trim() : ''
         }
-        const res = await apiMethod(payload)
+        const res = await api.register(payload)
 
         hideLoading()
 
         if (res.success) {
-          // 保存token和用户信息
           uni.setStorageSync('token', res.token)
           uni.setStorageSync('userInfo', res.user)
 
-          showToast(this.isLogin ? '登录成功' : '注册成功', 'success')
+          showToast('注册成功', 'success')
 
           setTimeout(() => {
             uni.switchTab({
@@ -457,11 +691,7 @@ export default {
         }
       } catch (error) {
         hideLoading()
-        if (!this.isLogin) {
-          this.handleFieldError(error.error)
-        } else {
-          showToast(error.error || '网络错误')
-        }
+        this.handleFieldError(error.error)
       }
     }
   }
@@ -528,6 +758,31 @@ export default {
 
 .form-container {
   padding: 30rpx;
+}
+
+.login-mode-toggle {
+  display: flex;
+  background: #f7f7f7;
+  border-radius: 12rpx;
+  padding: 8rpx;
+  margin-bottom: 20rpx;
+  gap: 12rpx;
+}
+
+.mode-item {
+  flex: 1;
+  text-align: center;
+  padding: 18rpx 0;
+  border-radius: 10rpx;
+  font-size: 28rpx;
+  color: #666;
+  background: #fff;
+}
+
+.mode-item.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  font-weight: bold;
 }
 
 .form-item {
