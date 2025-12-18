@@ -63,6 +63,7 @@ export default {
   register: (data) => request({ url: '/user/register', method: 'POST', data }),
   login: (data) => request({ url: '/user/login', method: 'POST', data }),
   getUserInfo: () => request({ url: '/user/info' }),
+  checkUsername: (data) => request({ url: '/user/check-username', method: 'POST', data }),
   updateProfile: (data) => request({ url: '/user/profile', method: 'PUT', data }),
   uploadAvatar: (data) => request({ url: '/user/avatar', method: 'POST', data }),
 

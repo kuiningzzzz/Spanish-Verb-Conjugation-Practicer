@@ -6,12 +6,44 @@ const emailService = require('../services/emailService')
 const { generateToken } = require('../middleware/auth')
 const { validateAndPrepareImage, getImageInfo } = require('../services/imageCompression')
 
+// 用户名校验规则
+const USERNAME_PATTERN = /^[A-Za-z0-9]{8,20}$/
+// 密码校验规则：8-20位，字母/数字/特殊符号(!@#$%^&*()_+-.)至少两种
+const PASSWORD_PATTERN = /^[A-Za-z0-9!@#$%^&*()_+\-.]{8,20}$/
+
 /**
  * 生成6位随机验证码
  */
 function generateVerificationCode() {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
+
+// 用户名查重
+router.post('/check-username', (req, res) => {
+  try {
+    const { username } = req.body
+
+    if (!username || !username.trim()) {
+      return res.status(400).json({ error: '请输入用户名' })
+    }
+
+    const trimmedUsername = username.trim()
+
+    if (!USERNAME_PATTERN.test(trimmedUsername)) {
+      return res.status(400).json({ error: '用户名需为8-20位字母或数字组合' })
+    }
+
+    const existingUser = User.findByUsername(trimmedUsername)
+
+    res.json({
+      success: true,
+      available: !existingUser
+    })
+  } catch (error) {
+    console.error('检查用户名错误:', error)
+    res.status(500).json({ error: '检查用户名失败' })
+  }
+})
 
 /**
  * 发送验证码
@@ -47,8 +79,7 @@ router.post('/send-verification-code', async (req, res) => {
     const trimmedPassword = password.trim()
 
     // 用户名规则：8-20位，字母数字组合
-    const usernamePattern = /^[A-Za-z0-9]{8,20}$/
-    if (!usernamePattern.test(trimmedUsername)) {
+    if (!USERNAME_PATTERN.test(trimmedUsername)) {
       return res.status(400).json({ error: '用户名需为8-20位字母或数字组合' })
     }
 
@@ -59,13 +90,12 @@ router.post('/send-verification-code', async (req, res) => {
     }
 
     // 密码规则：8-20位，字母/数字/特殊符号(!@#$%^&*()_+-.)至少两种
-    const passwordPattern = /^[A-Za-z0-9!@#$%^&*()_+\-.]{8,20}$/
     const hasLetter = /[A-Za-z]/.test(trimmedPassword)
     const hasNumber = /\d/.test(trimmedPassword)
     const hasSymbol = /[!@#$%^&*()_+\-.]/.test(trimmedPassword)
     const categoryCount = [hasLetter, hasNumber, hasSymbol].filter(Boolean).length
 
-    if (!passwordPattern.test(trimmedPassword) || categoryCount < 2) {
+    if (!PASSWORD_PATTERN.test(trimmedPassword) || categoryCount < 2) {
       return res.status(400).json({ error: '密码需为8-20位，包含字母、数字、特殊符号中的至少两种' })
     }
 
@@ -129,19 +159,17 @@ router.post('/register', (req, res) => {
     const trimmedPassword = password.trim()
 
     // 用户名规则：8-20位，字母数字组合
-    const usernamePattern = /^[A-Za-z0-9]{8,20}$/
-    if (!usernamePattern.test(trimmedUsername)) {
+    if (!USERNAME_PATTERN.test(trimmedUsername)) {
       return res.status(400).json({ error: '用户名需为8-20位字母或数字组合' })
     }
 
     // 密码规则：8-20位，字母/数字/特殊符号(!@#$%^&*()_+-.)至少两种
-    const passwordPattern = /^[A-Za-z0-9!@#$%^&*()_+\-.]{8,20}$/
     const hasLetter = /[A-Za-z]/.test(trimmedPassword)
     const hasNumber = /\d/.test(trimmedPassword)
     const hasSymbol = /[!@#$%^&*()_+\-.]/.test(trimmedPassword)
     const categoryCount = [hasLetter, hasNumber, hasSymbol].filter(Boolean).length
 
-    if (!passwordPattern.test(trimmedPassword) || categoryCount < 2) {
+    if (!PASSWORD_PATTERN.test(trimmedPassword) || categoryCount < 2) {
       return res.status(400).json({ error: '密码需为8-20位，包含字母、数字、特殊符号中的至少两种' })
     }
 
@@ -345,9 +373,50 @@ router.post('/avatar', require('../middleware/auth').authMiddleware, (req, res) 
 // 更新用户信息
 router.put('/profile', require('../middleware/auth').authMiddleware, (req, res) => {
   try {
-    const { email, school, enrollmentYear } = req.body
+    const { username, password, email, school, enrollmentYear } = req.body
 
-    User.update(req.userId, { email, school, enrollmentYear })
+    if (!username || !username.trim()) {
+      return res.status(400).json({ error: '请输入用户名' })
+    }
+
+    const trimmedUsername = username.trim()
+
+    if (!USERNAME_PATTERN.test(trimmedUsername)) {
+      return res.status(400).json({ error: '用户名需为8-20位字母或数字组合' })
+    }
+
+    const existingUser = User.findByUsername(trimmedUsername)
+    if (existingUser && existingUser.id !== req.userId) {
+      return res.status(400).json({ error: '用户名已存在' })
+    }
+
+    let passwordToUpdate
+    if (password !== undefined) {
+      const trimmedPassword = password.trim()
+
+      if (!trimmedPassword) {
+        return res.status(400).json({ error: '密码不能为空' })
+      }
+
+      const hasLetter = /[A-Za-z]/.test(trimmedPassword)
+      const hasNumber = /\d/.test(trimmedPassword)
+      const hasSymbol = /[!@#$%^&*()_+\-.]/.test(trimmedPassword)
+      const categoryCount = [hasLetter, hasNumber, hasSymbol].filter(Boolean).length
+
+      if (!PASSWORD_PATTERN.test(trimmedPassword) || categoryCount < 2) {
+        return res.status(400).json({ error: '密码需为8-20位，包含字母、数字、特殊符号中的至少两种' })
+      }
+
+      passwordToUpdate = trimmedPassword
+    }
+
+    User.update(req.userId, {
+      username: trimmedUsername,
+      password: passwordToUpdate,
+      email,
+      school,
+      enrollmentYear
+    })
 
     const user = User.findById(req.userId)
     res.json({

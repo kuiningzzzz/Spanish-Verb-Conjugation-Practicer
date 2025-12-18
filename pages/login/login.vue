@@ -37,6 +37,17 @@
           <text v-if="fieldErrors.password" class="error-text">{{ fieldErrors.password }}</text>
         </view>
 
+        <view class="form-item" v-if="!isLogin">
+          <text class="label">确认密码</text>
+          <input
+            :class="['input', inputStatus('confirmPassword')]"
+            type="password"
+            v-model="formData.confirmPassword"
+            placeholder="请再次输入密码"
+          />
+          <text v-if="fieldErrors.confirmPassword" class="error-text">{{ fieldErrors.confirmPassword }}</text>
+        </view>
+
         <view v-if="!isLogin">
           <view class="form-item" v-if="formData.userType === 'student'">
             <text class="label required">认证邮箱（必填）</text>
@@ -121,6 +132,7 @@ export default {
       formData: {
         username: '',
         password: '',
+        confirmPassword: '',
         email: '',
         school: '',
         enrollmentYear: '',
@@ -130,6 +142,7 @@ export default {
       fieldErrors: {
         username: '',
         password: '',
+        confirmPassword: '',
         email: '',
         verificationCode: ''
       },
@@ -145,7 +158,7 @@ export default {
   computed: {
     hasCredentialError() {
       if (this.isLogin) return false
-      return Boolean(this.fieldErrors.username || this.fieldErrors.password)
+      return Boolean(this.fieldErrors.username || this.fieldErrors.password || this.fieldErrors.confirmPassword)
     },
     isValidEmail() {
       const email = this.formData.email
@@ -173,10 +186,18 @@ export default {
         this.fieldErrors.password = ''
       }
     },
+    'formData.confirmPassword'() {
+      if (!this.isLogin) {
+        this.validateConfirmPassword()
+      } else {
+        this.fieldErrors.confirmPassword = ''
+      }
+    },
     isLogin(newVal) {
       if (newVal) {
         this.fieldErrors.username = ''
         this.fieldErrors.password = ''
+        this.fieldErrors.confirmPassword = ''
       }
     }
   },
@@ -191,6 +212,7 @@ export default {
       this.formData = {
         username: '',
         password: '',
+        confirmPassword: '',
         email: '',
         school: '',
         enrollmentYear: '',
@@ -200,6 +222,7 @@ export default {
       this.fieldErrors = {
         username: '',
         password: '',
+        confirmPassword: '',
         email: '',
         verificationCode: ''
       }
@@ -244,6 +267,22 @@ export default {
       this.fieldErrors.password = ''
       return true
     },
+    validateConfirmPassword() {
+      if (this.isLogin) return true
+
+      if (!this.formData.confirmPassword) {
+        this.fieldErrors.confirmPassword = '请再次输入密码'
+        return false
+      }
+
+      if (this.formData.password !== this.formData.confirmPassword) {
+        this.fieldErrors.confirmPassword = '两次输入的密码不一致'
+        return false
+      }
+
+      this.fieldErrors.confirmPassword = ''
+      return true
+    },
     inputStatus(field) {
       if (this.isLogin) return ''
 
@@ -253,6 +292,7 @@ export default {
       const value = this.formData[field]
       if (field === 'username' && value && this.isUsernameValid(value)) return 'input-success'
       if (field === 'password' && value && this.isPasswordValid(value)) return 'input-success'
+      if (field === 'confirmPassword' && value && this.validateConfirmPassword()) return 'input-success'
 
       return ''
     },
@@ -271,9 +311,15 @@ export default {
     async sendCode() {
       this.validateUsername()
       this.validatePassword()
+      this.validateConfirmPassword()
 
       if (this.hasCredentialError) {
         showToast('请先修正用户名和密码')
+        return
+      }
+
+      if (this.fieldErrors.confirmPassword) {
+        showToast('请确认两次输入的密码一致')
         return
       }
 
@@ -344,6 +390,7 @@ export default {
       this.fieldErrors = {
         username: '',
         password: '',
+        confirmPassword: '',
         email: '',
         verificationCode: ''
       }
@@ -360,6 +407,7 @@ export default {
       if (!this.isLogin) {
         const usernameValid = this.validateUsername()
         const passwordValid = this.validatePassword()
+        const confirmValid = this.validateConfirmPassword()
 
         if (this.formData.userType === 'student') {
           if (!this.isValidEmail) {
@@ -373,7 +421,7 @@ export default {
         }
 
         const hasError = Object.values(this.fieldErrors).some((v) => v)
-        if (hasError || !usernameValid || !passwordValid) {
+        if (hasError || !usernameValid || !passwordValid || !confirmValid) {
           showToast('请修正标红提示后再提交')
           return
         }

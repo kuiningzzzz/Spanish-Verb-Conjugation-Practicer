@@ -191,8 +191,46 @@
         
         <view class="modal-body">
           <view class="form-item">
+            <text class="form-label">用户名</text>
+            <input
+              class="form-input"
+              v-model="editForm.username"
+              placeholder="请输入8-20位字母或数字"
+              maxlength="20"
+              @blur="ensureUsernameAvailability"
+            />
+            <text v-if="editErrors.username" class="form-error">{{ editErrors.username }}</text>
+          </view>
+
+          <view class="form-item">
+            <text class="form-label">新密码</text>
+            <input
+              class="form-input"
+              type="password"
+              v-model="editForm.password"
+              placeholder="留空则不修改，8-20位需包含至少两类字符"
+              maxlength="20"
+              @blur="validateEditPassword"
+            />
+            <text v-if="editErrors.password" class="form-error">{{ editErrors.password }}</text>
+          </view>
+
+          <view class="form-item">
+            <text class="form-label">确认新密码</text>
+            <input
+              class="form-input"
+              type="password"
+              v-model="editForm.confirmPassword"
+              placeholder="请再次输入新密码"
+              maxlength="20"
+              @blur="validateConfirmPassword"
+            />
+            <text v-if="editErrors.confirmPassword" class="form-error">{{ editErrors.confirmPassword }}</text>
+          </view>
+
+          <view class="form-item">
             <text class="form-label">学校</text>
-            <input 
+            <input
               class="form-input" 
               v-model="editForm.school" 
               placeholder="请输入学校名称"
@@ -216,10 +254,10 @@
               </view>
             </picker>
           </view>
-          
+
           <view class="form-note">
             <text class="note-icon">ℹ️</text>
-            <text class="note-text">邮箱和注册时间不可修改</text>
+            <text class="note-text">邮箱和注册时间不可修改，用户名需唯一，密码为空则不修改</text>
           </view>
         </view>
         
@@ -247,8 +285,16 @@ export default {
       rank: 0,
       showEditModal: false,
       editForm: {
+        username: '',
+        password: '',
+        confirmPassword: '',
         school: '',
         enrollmentYear: ''
+      },
+      editErrors: {
+        username: '',
+        password: '',
+        confirmPassword: ''
       }
     }
   },
@@ -515,12 +561,20 @@ export default {
         })
       }
     },
-    
+
     showEditProfile() {
       // 初始化编辑表单
       this.editForm = {
+        username: this.userInfo.username || '',
+        password: '',
+        confirmPassword: '',
         school: this.userInfo.school || '',
         enrollmentYear: this.userInfo.enrollmentYear || ''
+      }
+      this.editErrors = {
+        username: '',
+        password: '',
+        confirmPassword: ''
       }
       this.showEditModal = true
     },
@@ -532,47 +586,74 @@ export default {
     onYearChange(e) {
       this.editForm.enrollmentYear = e.detail.value
     },
-    
+
     async saveProfile() {
       // 验证
-      if (!this.editForm.school || !this.editForm.school.trim()) {
+      const usernameValid = this.validateEditUsername()
+      const passwordValid = this.validateEditPassword()
+      const confirmValid = this.validateConfirmPassword()
+
+      if (!usernameValid || !passwordValid || !confirmValid) {
         uni.showToast({
-          title: '请输入学校名称',
+          title: '请修正标红提示后再保存',
           icon: 'none'
         })
         return
       }
-      
-      if (!this.editForm.enrollmentYear) {
+
+      const usernameAvailable = await this.ensureUsernameAvailability()
+      if (!usernameAvailable) {
         uni.showToast({
-          title: '请选择入学年份',
+          title: '用户名不可用，请修改',
           icon: 'none'
         })
         return
       }
-      
+
       uni.showLoading({ title: '保存中...' })
-      
+
       try {
+        const trimmedUsername = this.editForm.username.trim()
+        const trimmedSchool = this.editForm.school ? this.editForm.school.trim() : ''
+        const enrollmentYearValue = this.editForm.enrollmentYear
+          ? parseInt(this.editForm.enrollmentYear)
+          : undefined
         const res = await api.updateProfile({
+          username: trimmedUsername,
+          password: this.editForm.password ? this.editForm.password : undefined,
           email: this.userInfo.email,
-          school: this.editForm.school.trim(),
-          enrollmentYear: parseInt(this.editForm.enrollmentYear)
+          school: trimmedSchool,
+          enrollmentYear: enrollmentYearValue
         })
-        
+
         uni.hideLoading()
-        
+
         if (res.success) {
           // 更新本地用户信息
-          this.userInfo.school = this.editForm.school.trim()
-          this.userInfo.enrollmentYear = parseInt(this.editForm.enrollmentYear)
+          this.userInfo.username = trimmedUsername
+          this.userInfo.school = trimmedSchool
+          if (enrollmentYearValue !== undefined) {
+            this.userInfo.enrollmentYear = enrollmentYearValue
+          }
           uni.setStorageSync('userInfo', this.userInfo)
-          
+
           this.showEditModal = false
-          
+
+          // 清理密码字段
+          this.editForm.password = ''
+          this.editForm.confirmPassword = ''
+
           uni.showToast({
             title: '保存成功',
             icon: 'success'
+          })
+        } else {
+          if (res.error && res.error.includes('用户名')) {
+            this.editErrors.username = res.error
+          }
+          uni.showToast({
+            title: res.error || '保存失败',
+            icon: 'none'
           })
         }
       } catch (error) {
@@ -584,7 +665,84 @@ export default {
         })
       }
     },
-    
+
+    isUsernameValid(value = this.editForm.username) {
+      const usernamePattern = /^[A-Za-z0-9]{8,20}$/
+      const trimmed = value.trim()
+      return Boolean(trimmed && usernamePattern.test(trimmed))
+    },
+    validateEditUsername(value = this.editForm.username) {
+      if (!value || !value.trim()) {
+        this.editErrors.username = '请输入用户名'
+        return false
+      }
+
+      if (!this.isUsernameValid(value)) {
+        this.editErrors.username = '用户名需为8-20位字母或数字组合'
+        return false
+      }
+
+      this.editErrors.username = ''
+      return true
+    },
+    isPasswordValid(value = this.editForm.password) {
+      const passwordPattern = /^[A-Za-z0-9!@#$%^&*()_+\-.]{8,20}$/
+      const trimmed = value.trim()
+      const hasLetter = /[A-Za-z]/.test(trimmed)
+      const hasNumber = /\d/.test(trimmed)
+      const hasSymbol = /[!@#$%^&*()_+\-.]/.test(trimmed)
+      const categoryCount = [hasLetter, hasNumber, hasSymbol].filter(Boolean).length
+      return Boolean(trimmed && passwordPattern.test(trimmed) && categoryCount >= 2)
+    },
+    validateEditPassword(value = this.editForm.password) {
+      if (!value) {
+        this.editErrors.password = ''
+        return true
+      }
+
+      if (!this.isPasswordValid(value)) {
+        this.editErrors.password = '密码需为8-20位，包含字母、数字、特殊符号中的至少两种'
+        return false
+      }
+
+      this.editErrors.password = ''
+      return true
+    },
+    validateConfirmPassword() {
+      if (this.editForm.password && this.editForm.password !== this.editForm.confirmPassword) {
+        this.editErrors.confirmPassword = '两次输入的密码不一致'
+        return false
+      }
+
+      this.editErrors.confirmPassword = ''
+      return true
+    },
+    async ensureUsernameAvailability() {
+      if (!this.validateEditUsername()) return false
+
+      const trimmed = this.editForm.username.trim()
+      if (trimmed === this.userInfo.username) {
+        this.editErrors.username = ''
+        return true
+      }
+
+      try {
+        const res = await api.checkUsername({ username: trimmed })
+        if (res.success && (res.available === undefined || res.available === true || res.isAvailable === true)) {
+          this.editErrors.username = ''
+          return true
+        }
+
+        const unavailable = res.available === false || res.isAvailable === false
+        this.editErrors.username = unavailable ? '用户名已存在，请更换' : (res.error || '用户名不可用')
+        return false
+      } catch (error) {
+        console.error('用户名查重失败:', error)
+        this.editErrors.username = error.error || '无法校验用户名，请稍后再试'
+        return false
+      }
+    },
+
     renewSubscription() {
       uni.showModal({
         title: '续费订阅',
@@ -1193,6 +1351,12 @@ export default {
   color: #333;
   border: 1rpx solid #e0e0e0;
   box-sizing: border-box;
+}
+
+.form-error {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #e74c3c;
 }
 
 .picker-input {
