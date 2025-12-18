@@ -11,12 +11,14 @@ const { authMiddleware } = require('../middleware/auth')
 // 批量生成练习题（新版：题库+AI混合模式，带题目池管理）
 router.post('/generate-batch', authMiddleware, async (req, res) => {
   try {
-    const { 
-      exerciseType, 
+    const {
+      exerciseType,
       count = 10,
       tenses = [],
       conjugationTypes = [],
       includeRegular = true,
+      includeVos = false,
+      includeVosotros = true,
       practiceMode = 'normal'
     } = req.body
 
@@ -30,6 +32,8 @@ router.post('/generate-batch', authMiddleware, async (req, res) => {
       tenses,
       conjugationTypes,
       includeRegular,
+      includeVos,
+      includeVosotros,
       practiceMode
     }
 
@@ -73,11 +77,13 @@ router.post('/generate-batch', authMiddleware, async (req, res) => {
 // 生成单个练习题（保留向后兼容）
 router.post('/generate-one', authMiddleware, async (req, res) => {
   try {
-    const { 
-      exerciseType, 
+    const {
+      exerciseType,
       tenses = [],
       conjugationTypes = [],
       includeRegular = true,
+      includeVos = false,
+      includeVosotros = true,
       practiceMode = 'normal'
     } = req.body
 
@@ -90,6 +96,8 @@ router.post('/generate-one', authMiddleware, async (req, res) => {
       tenses,
       conjugationTypes,
       includeRegular,
+      includeVos,
+      includeVosotros,
       practiceMode
     }
 
