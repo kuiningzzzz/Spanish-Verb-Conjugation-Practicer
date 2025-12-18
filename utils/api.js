@@ -60,8 +60,10 @@ const request = (options) => {
 export default {
   // 用户相关
   sendVerificationCode: (data) => request({ url: '/user/send-verification-code', method: 'POST', data }),
+  sendLoginCode: (data) => request({ url: '/user/send-login-code', method: 'POST', data }),
   register: (data) => request({ url: '/user/register', method: 'POST', data }),
   login: (data) => request({ url: '/user/login', method: 'POST', data }),
+  loginWithEmailCode: (data) => request({ url: '/user/login/email-code', method: 'POST', data }),
   getUserInfo: () => request({ url: '/user/info' }),
   checkUsername: (data) => request({ url: '/user/check-username', method: 'POST', data }),
   updateProfile: (data) => request({ url: '/user/profile', method: 'PUT', data }),

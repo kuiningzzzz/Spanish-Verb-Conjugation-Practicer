@@ -51,7 +51,7 @@ class EmailService {
   }
 
   /**
-   * 发送验证码邮件
+   * 发送注册验证码邮件
    * @param {string} email - 收件人邮箱
    * @param {string} code - 验证码
    * @returns {Promise}
@@ -65,7 +65,7 @@ class EmailService {
     const mailOptions = {
       from: `"西语动词变位练习" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: '【西语动词变位】学生身份认证验证码',
+      subject: '【西语动词变位】注册验证码',
       html: `
         <!DOCTYPE html>
         <html>
@@ -130,6 +130,88 @@ class EmailService {
         errorMessage = 'SMTP服务器连接失败，请检查服务器地址和端口'
       }
       
+      throw new Error(errorMessage)
+    }
+  }
+
+  /**
+   * 发送登录验证码邮件
+   * @param {string} email - 收件人邮箱
+   * @param {string} code - 验证码
+   * @returns {Promise}
+   */
+  async sendLoginVerificationCode(email, code) {
+    if (!this.isConfigured) {
+      throw new Error('邮箱服务未配置，请先配置 .env 文件中的邮箱信息')
+    }
+
+    const mailOptions = {
+      from: `"西语动词变位练习" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: '【西语动词变位】登录验证码',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                     color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+            .code-box { background: white; border: 2px dashed #667eea; padding: 20px;
+                       text-align: center; font-size: 32px; font-weight: bold;
+                       letter-spacing: 8px; color: #667eea; margin: 20px 0; }
+            .tips { background: #fff3cd; border-left: 4px solid #ffc107;
+                   padding: 15px; margin: 20px 0; }
+            .warning { color: #d32f2f; font-weight: bold; }
+            .footer { text-align: center; color: #999; font-size: 12px; margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h2>登录验证码</h2>
+            </div>
+            <div class="content">
+              <p>您好！</p>
+              <p>您正在登录西语动词变位练习，请使用以下验证码完成登录：</p>
+
+              <div class="code-box">${code}</div>
+
+              <div class="tips">
+                <p><span class="warning">验证码有效期为2分钟</span>，请尽快完成验证。</p>
+                <p>如果这不是您本人的操作，请忽略此邮件。</p>
+              </div>
+            </div>
+            <div class="footer">
+              <p>此邮件由系统自动发送，请勿回复</p>
+              <p>西语动词变位练习 © 2025</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    }
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions)
+      console.log('邮件发送成功:', info.messageId)
+      return { success: true, messageId: info.messageId }
+    } catch (error) {
+      console.error('邮件发送失败:', error.message)
+
+      let errorMessage = '邮件发送失败'
+
+      if (error.code === 'EAUTH') {
+        errorMessage = '邮箱认证失败，请检查邮箱授权码是否正确'
+      } else if (error.code === 'ESOCKET') {
+        errorMessage = '网络连接失败，请检查网络设置或SMTP服务器地址'
+      } else if (error.code === 'ECONNECTION') {
+        errorMessage = 'SMTP服务器连接失败，请检查服务器地址和端口'
+      }
+
       throw new Error(errorMessage)
     }
   }
