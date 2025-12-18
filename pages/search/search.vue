@@ -28,7 +28,7 @@
           @click="viewVerbDetail(verb)"
         >
           <view class="result-header">
-            <text class="verb-infinitive">{{ verb.infinitive }}</text>
+            <text class="verb-infinitive">{{ formatInfinitive(verb) }}</text>
             <view class="verb-badges">
               <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
               <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
@@ -48,7 +48,7 @@
           @click="viewVerbDetail(verb)"
         >
           <view class="result-header">
-            <text class="verb-infinitive">{{ verb.infinitive }}</text>
+            <text class="verb-infinitive">{{ formatInfinitive(verb) }}</text>
             <view class="verb-badges">
               <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
               <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
@@ -85,7 +85,7 @@
           @click="viewVerbDetail(verb)"
         >
           <view class="result-header">
-            <text class="verb-infinitive">{{ verb.infinitive }}</text>
+            <text class="verb-infinitive">{{ formatInfinitive(verb) }}</text>
             <view class="verb-badges">
               <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
               <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
@@ -105,7 +105,7 @@
           @click="viewVerbDetail(verb)"
         >
           <view class="result-header">
-            <text class="verb-infinitive">{{ verb.infinitive }}</text>
+            <text class="verb-infinitive">{{ formatInfinitive(verb) }}</text>
             <view class="verb-badges">
               <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
               <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
@@ -149,7 +149,7 @@
           @click="viewHistoryDetail(verb)"
         >
           <view class="result-header">
-            <text class="verb-infinitive">{{ verb.infinitive }}</text>
+            <text class="verb-infinitive">{{ formatInfinitive(verb) }}</text>
             <view class="verb-badges">
               <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
               <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
@@ -295,6 +295,11 @@ export default {
   },
 
   methods: {
+    formatInfinitive(verb) {
+      if (!verb) return ''
+      return verb.isReflexive ? `${verb.infinitive}(se)` : verb.infinitive
+    },
+
     // 搜索输入处理（带防抖）
     onSearchInput() {
       if (this.searchTimer) {

@@ -79,7 +79,7 @@
       >
         <view class="word-header">
           <view class="word-main">
-            <text class="word-infinitive">{{ item.infinitive }}</text>
+            <text class="word-infinitive">{{ formatInfinitive(item) }}</text>
             <text class="word-meaning">{{ item.meaning }}</text>
             <view class="word-badges">
               <view class="word-tag">{{ item.conjugationType }}</view>
@@ -113,7 +113,7 @@
       >
         <view class="word-header">
           <view class="word-main">
-            <text class="word-infinitive">{{ item.infinitive }}</text>
+            <text class="word-infinitive">{{ formatInfinitive(item) }}</text>
             <text class="word-meaning">{{ item.meaning }}</text>
             <view class="word-badges">
               <view class="word-tag">{{ item.conjugationType }}</view>
@@ -310,6 +310,11 @@ export default {
       const month = date.getMonth() + 1
       const day = date.getDate()
       return `${month}月${day}日`
+    },
+
+    formatInfinitive(verb) {
+      if (!verb) return ''
+      return verb.isReflexive ? `${verb.infinitive}(se)` : verb.infinitive
     }
   }
 }
