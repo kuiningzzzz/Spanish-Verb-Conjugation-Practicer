@@ -126,13 +126,13 @@ class DeepSeekService {
 要求:
 1. 句子必须使用 ${conjugation.mood} ${conjugation.tense} 的 ${conjugation.person} 形式
 2. 正确答案是: ${conjugation.conjugated_form}${answerNote}
-3. 句子的语境要确保只有这个变位形式是唯一正确的（通过时间状语、语境等明确时态、语气和人称），不能有其他变位形式也符合句意
-4. 句子要自然、地道，符合日常使用场景
+3. 句子的语境要确保只有这个变位形式是唯一正确的（通过时间状语、语境、人称主体等明确“时态、语气、人称”），不能有其他变位形式也符合句意
+4. 句子要自然、地道
 5. 难度适中，适合初学者
 
 请严格按照以下JSON格式返回（不要包含任何markdown标记或额外说明）:
 {
-  "sentence": "完整的西班牙语句子，用 _____ 表示要填空的位置",
+  "sentence": "完整的西班牙语句子，用 __?__ 表示要填空的位置",
   "answer": "${conjugation.conjugated_form}",
   "translation": "句子的中文翻译",
   "hint": "简短的提示（如陈述式现在时、虚拟式过去时等，可包含人称但不直接暴露答案）"
