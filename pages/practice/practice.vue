@@ -271,19 +271,31 @@
         </view>
       </view>
       
-      <text class="title">练习设置</text>
-      
-      <view class="form-item">
-        <text class="label">练习类型</text>
-        <picker 
-          @change="onExerciseTypeChange" 
-          :value="exerciseTypeIndex" 
-          :range="exerciseTypes" 
-          range-key="label"
-          :disabled="isCourseMode"
+      <!-- 练习类型导航栏 -->
+      <view class="exercise-type-navbar" :class="{ 'disabled': isCourseMode }">
+        <view 
+          v-for="(type, index) in exerciseTypes" 
+          :key="type.value"
+          class="navbar-item" 
+          :class="{ 'active': exerciseTypeIndex === index, 'disabled': isCourseMode }"
+          @click="!isCourseMode && selectExerciseType(index)"
         >
-          <view class="picker" :class="{ 'disabled': isCourseMode }">{{ exerciseTypes[exerciseTypeIndex].label }}</view>
-        </picker>
+          <text class="navbar-item-text">{{ type.label }}</text>
+        </view>
+      </view>
+      
+      <!-- 大圆形开始按钮 -->
+      <view class="start-button-container">
+        <view class="big-circle-button" @click="startPractice">
+          <text class="button-type">{{ exerciseTypes[exerciseTypeIndex].label }}</text>
+          <text class="button-action">开始练习</text>
+        </view>
+      </view>
+      
+      <!-- 题型说明框 -->
+      <view class="exercise-description-box">
+        <text class="description-title">📝 {{ exerciseTypes[exerciseTypeIndex].label }}</text>
+        <text class="description-text">{{ getExerciseDescription() }}</text>
       </view>
 
       <view class="form-item">
@@ -432,8 +444,6 @@
         </view>
         <!-- 结束 theme-details -->
       </view>
-
-      <button class="btn-primary mt-20" @click="startPractice">开始练习</button>
     </view>
   </view>
 </template>
@@ -645,6 +655,22 @@ export default {
         })
       }
     },
+    // 选择练习类型（新方法）
+    selectExerciseType(index) {
+      this.exerciseTypeIndex = index
+      this.exerciseType = this.exerciseTypes[index].value
+    },
+    
+    // 获取题型说明（新方法）
+    getExerciseDescription() {
+      const descriptions = {
+        'sentence': '在真实语境的例句中填入正确的动词变位形式，通过上下文理解和运用动词变位，提升实战能力。',
+        'quick-fill': '给出一个已知动词，要求快速变换到另一个指定的时态、语气和人称，锻炼变位形式之间的快速转换能力。',
+        'combo-fill': '一次性完成同一个动词的六个不同时态、语气和人称的变位填空，全面考查对动词变位体系的掌握程度。'
+      }
+      return descriptions[this.exerciseType] || ''
+    },
+    
     onExerciseTypeChange(e) {
       this.exerciseTypeIndex = e.detail.value
       this.exerciseType = this.exerciseTypes[e.detail.value].value
@@ -2349,6 +2375,139 @@ export default {
 
 .settings-card {
   margin-top: 20rpx;
+}
+
+/* 练习类型导航栏样式 */
+.exercise-type-navbar {
+  display: flex;
+  background: #f8f9fa;
+  border-radius: 16rpx;
+  padding: 8rpx;
+  margin-bottom: 40rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+  gap: 8rpx;
+}
+
+.exercise-type-navbar.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.navbar-item {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 15rpx;
+  border-radius: 12rpx;
+  background: transparent;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.navbar-item.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+}
+
+.navbar-item:not(.active):active {
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.navbar-item-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #666;
+  transition: all 0.3s ease;
+}
+
+.navbar-item.active .navbar-item-text {
+  color: #fff;
+}
+
+.navbar-item.disabled {
+  cursor: not-allowed;
+}
+
+/* 大圆形开始按钮容器 */
+.start-button-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 30rpx 0;
+  margin-bottom: 30rpx;
+}
+
+/* 大圆形按钮 */
+.big-circle-button {
+  width: 320rpx;
+  height: 320rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 8rpx 24rpx rgba(102, 126, 234, 0.4);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.big-circle-button::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  animation: rotate 10s linear infinite;
+}
+
+.big-circle-button:active {
+  transform: scale(0.95);
+  box-shadow: 0 4rpx 16rpx rgba(102, 126, 234, 0.3);
+}
+
+.button-type {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 12rpx;
+  z-index: 1;
+}
+
+.button-action {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  z-index: 1;
+}
+
+/* 题型说明框 */
+.exercise-description-box {
+  background: linear-gradient(135deg, #f0f4ff 0%, #f8f0ff 100%);
+  border: 2rpx solid #e0e7ff;
+  border-radius: 16rpx;
+  padding: 25rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.08);
+}
+
+.description-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #667eea;
+  margin-bottom: 12rpx;
+}
+
+.description-text {
+  display: block;
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.8;
+  text-align: justify;
 }
 
 /* 课程模式提示 */

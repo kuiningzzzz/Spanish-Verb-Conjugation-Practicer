@@ -69,16 +69,17 @@
     }
   ],
   "globalStyle": {
-    "navigationBarTextStyle": "black",
+    "navigationBarTextStyle": "white",
     "navigationBarTitleText": "西语动词变位",
-    "navigationBarBackgroundColor": "#F8F8F8",
-    "backgroundColor": "#F8F8F8"
+    "navigationBarBackgroundColor": "#667eea",
+    "backgroundColor": "#f5f5f5"
   },
   "tabBar": {
-    "color": "#7A7E83",
-    "selectedColor": "#3cc51f",
-    "borderStyle": "black",
+    "color": "#999999",
+    "selectedColor": "#667eea",
+    "borderStyle": "white",
     "backgroundColor": "#ffffff",
+    "fontSize": "14px",
     "list": [
       {
         "pagePath": "pages/index/index",
@@ -90,7 +91,7 @@
       },
       {
         "pagePath": "pages/search/search",
-        "text": "搜索"
+        "text": "变位查询"
       },
       {
         "pagePath": "pages/profile/profile",
