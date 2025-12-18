@@ -11,7 +11,7 @@
         <view class="navbar-right" v-if="hasStarted">
           <view class="report-btn" @click="showReportModal = true">
             <text class="report-icon">⚠️</text>
-            <text class="report-text">此题有误</text>
+            <text class="report-text">反馈错误</text>
           </view>
         </view>
         <view class="navbar-placeholder" v-else></view>
