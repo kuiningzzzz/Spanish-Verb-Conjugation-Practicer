@@ -145,6 +145,70 @@ router.post('/send-verification-code', async (req, res) => {
   }
 })
 
+/**
+ * 发送登录验证码（仅限已注册邮箱）
+ */
+router.post('/send-login-code', async (req, res) => {
+  try {
+    const { email } = req.body
+
+    if (!email || !email.trim()) {
+      return res.status(400).json({ error: '请输入邮箱地址' })
+    }
+
+    const trimmedEmail = email.trim().toLowerCase()
+
+    // 检查邮箱是否已被注册
+    const existingUser = User.findByEmail(trimmedEmail)
+    if (!existingUser) {
+      return res.status(400).json({ error: '邮箱未注册' })
+    }
+
+    // 检查是否可以发送（防止频繁发送）
+    const { canSend, waitTime } = VerificationCode.canSend(trimmedEmail, 60)
+    if (!canSend) {
+      return res.status(429).json({
+        error: `请${waitTime}秒后再试`,
+        waitTime
+      })
+    }
+
+    // 生成验证码
+    const code = generateVerificationCode()
+
+    // 保存验证码到数据库（有效期2分钟）
+    VerificationCode.create(trimmedEmail, code, 2)
+
+    // 发送邮件
+    try {
+      await emailService.sendLoginVerificationCode(trimmedEmail, code)
+
+      res.json({
+        success: true,
+        message: '验证码已发送，请查收邮件',
+        expiresIn: 120 // 2分钟
+      })
+    } catch (emailError) {
+      console.error('邮件发送失败:', emailError.message)
+
+      let errorMsg = emailError.message
+
+      if (errorMsg.includes('未配置')) {
+        errorMsg = '邮箱服务未配置，请联系管理员'
+      } else if (errorMsg.includes('认证失败')) {
+        errorMsg = '邮箱服务配置错误，请联系管理员'
+      }
+
+      return res.status(500).json({
+        error: errorMsg
+      })
+    }
+  } catch (error) {
+    console.error('发送登录验证码错误:', error)
+    res.status(500).json({ error: '发送验证码失败，请稍后重试' })
+  }
+})
+
 // 用户注册
 router.post('/register', (req, res) => {
   try {
@@ -291,6 +355,48 @@ router.post('/login', (req, res) => {
     })
   } catch (error) {
     console.error('登录错误:', error)
+    res.status(500).json({ error: '登录失败' })
+  }
+})
+
+// 邮箱验证码登录
+router.post('/login/email-code', (req, res) => {
+  try {
+    const { email, verificationCode } = req.body
+
+    if (!email || !verificationCode) {
+      return res.status(400).json({ error: '请输入邮箱和验证码' })
+    }
+
+    const trimmedEmail = email.trim().toLowerCase()
+
+    const user = User.findByEmail(trimmedEmail)
+    if (!user) {
+      return res.status(401).json({ error: '邮箱未注册' })
+    }
+
+    const verification = VerificationCode.verify(trimmedEmail, verificationCode)
+    if (!verification.valid) {
+      return res.status(400).json({ error: verification.message })
+    }
+
+    const token = generateToken(user.id)
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        school: user.school,
+        enrollmentYear: user.enrollment_year,
+        userType: user.user_type,
+        created_at: user.created_at
+      }
+    })
+  } catch (error) {
+    console.error('邮箱验证码登录错误:', error)
     res.status(500).json({ error: '登录失败' })
   }
 })
