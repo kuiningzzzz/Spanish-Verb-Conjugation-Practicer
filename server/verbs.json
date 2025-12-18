@@ -457,7 +457,12 @@
           "huberen sido"
         ]
       }
-    }
+    },
+    "translation": [
+      "是",
+      "成为",
+      "存在"
+    ]
   },
   {
     "infinitive": "llamar",
@@ -917,7 +922,13 @@
           "huberen llamado"
         ]
       }
-    }
+    },
+    "translation": [
+      "打电话,呼叫",
+      "命名,称呼",
+      "吸引,引起",
+      "拜访,访问"
+    ]
   },
   {
     "infinitive": "conocer",
@@ -1377,7 +1388,12 @@
           "huberen conocido"
         ]
       }
-    }
+    },
+    "translation": [
+      "认识,了解",
+      "知道,熟悉",
+      "遇见,结识"
+    ]
   },
   {
     "infinitive": "presentar",
@@ -1837,7 +1853,12 @@
           "huberen presentado"
         ]
       }
-    }
+    },
+    "translation": [
+      "提出,提交",
+      "呈现,展示",
+      "介绍,引见"
+    ]
   },
   {
     "infinitive": "enseñar",
@@ -2297,7 +2318,11 @@
           "huberen enseñado"
         ]
       }
-    }
+    },
+    "translation": [
+      "教,教导",
+      "展示,显示"
+    ]
   },
   {
     "infinitive": "estudiar",
@@ -2757,7 +2782,11 @@
           "huberen estudiado"
         ]
       }
-    }
+    },
+    "translation": [
+      "学习",
+      "研究"
+    ]
   },
   {
     "infinitive": "preguntar",
@@ -3217,7 +3246,11 @@
           "huberen preguntado"
         ]
       }
-    }
+    },
+    "translation": [
+      "问，询问",
+      "要求"
+    ]
   },
   {
     "infinitive": "trabajar",
@@ -3677,7 +3710,13 @@
           "huberen trabajado"
         ]
       }
-    }
+    },
+    "translation": [
+      "工作",
+      "劳动",
+      "做工",
+      "干活"
+    ]
   },
   {
     "infinitive": "estar",
@@ -4137,7 +4176,13 @@
           "huberen estado"
         ]
       }
-    }
+    },
+    "translation": [
+      "在, 位于",
+      "是, 处于",
+      "待, 停留",
+      "花费"
+    ]
   },
   {
     "infinitive": "tener",
@@ -4597,7 +4642,12 @@
           "huberen tenido"
         ]
       }
-    }
+    },
+    "translation": [
+      "有，拥有",
+      "吃，喝",
+      "患（病）"
+    ]
   },
   {
     "infinitive": "encargar",
@@ -5057,7 +5107,12 @@
           "huberen encargado"
         ]
       }
-    }
+    },
+    "translation": [
+      "委托,托付",
+      "订购,订制",
+      "负责,承担"
+    ]
   },
   {
     "infinitive": "vivir",
@@ -5517,7 +5572,13 @@
           "huberen vivido"
         ]
       }
-    }
+    },
+    "translation": [
+      "生活",
+      "居住",
+      "活着",
+      "度过"
+    ]
   },
   {
     "infinitive": "ir",
@@ -5977,7 +6038,13 @@
           "huberen ido"
         ]
       }
-    }
+    },
+    "translation": [
+      "去",
+      "走",
+      "前往",
+      "进行"
+    ]
   },
   {
     "infinitive": "levantar",
@@ -6437,7 +6504,13 @@
           "huberen levantado"
         ]
       }
-    }
+    },
+    "translation": [
+      "起床",
+      "举起，抬起",
+      "建造，建立",
+      "挑起，引发"
+    ]
   },
   {
     "infinitive": "bañar",
@@ -6897,7 +6970,11 @@
           "huberen bañado"
         ]
       }
-    }
+    },
+    "translation": [
+      "洗澡,沐浴",
+      "给...洗澡"
+    ]
   },
   {
     "infinitive": "cepillar",
@@ -7357,7 +7434,11 @@
           "huberen cepillado"
         ]
       }
-    }
+    },
+    "translation": [
+      "刷,梳理",
+      "擦,抹"
+    ]
   },
   {
     "infinitive": "peinar",
@@ -7817,7 +7898,11 @@
           "huberen peinado"
         ]
       }
-    }
+    },
+    "translation": [
+      "梳理,梳头",
+      "整理,打扮"
+    ]
   },
   {
     "infinitive": "desayunar",
@@ -8277,7 +8362,10 @@
           "huberen desayunado"
         ]
       }
-    }
+    },
+    "translation": [
+      "吃早餐"
+    ]
   },
   {
     "infinitive": "llevar",
@@ -8737,7 +8825,13 @@
           "huberen llevado"
         ]
       }
-    }
+    },
+    "translation": [
+      "带，携带",
+      "穿，戴",
+      "引导",
+      "持续"
+    ]
   },
   {
     "infinitive": "tomar",
@@ -9197,7 +9291,13 @@
           "huberen tomado"
         ]
       }
-    }
+    },
+    "translation": [
+      "喝，服用",
+      "采取，采纳",
+      "占据，占领",
+      "拍照"
+    ]
   },
   {
     "infinitive": "regresar",
@@ -9657,7 +9757,11 @@
           "huberen regresado"
         ]
       }
-    }
+    },
+    "translation": [
+      "返回",
+      "回归"
+    ]
   },
   {
     "infinitive": "parecer",
@@ -10117,7 +10221,12 @@
           "huberen parecido"
         ]
       }
-    }
+    },
+    "translation": [
+      "似乎，好像",
+      "显得，看起来",
+      "认为，觉得"
+    ]
   },
   {
     "infinitive": "suponer",
@@ -10577,7 +10686,11 @@
           "huberen supuesto"
         ]
       }
-    }
+    },
+    "translation": [
+      "假设，假定",
+      "认为，猜想"
+    ]
   },
   {
     "infinitive": "hablar",
@@ -11037,7 +11150,12 @@
           "huberen hablado"
         ]
       }
-    }
+    },
+    "translation": [
+      "说话,讲话",
+      "交谈,聊天",
+      "发言,演讲"
+    ]
   },
   {
     "infinitive": "respirar",
@@ -11497,7 +11615,10 @@
           "huberen respirado"
         ]
       }
-    }
+    },
+    "translation": [
+      "呼吸"
+    ]
   },
   {
     "infinitive": "organizar",
@@ -11957,7 +12078,12 @@
           "huberen organizado"
         ]
       }
-    }
+    },
+    "translation": [
+      "组织",
+      "安排",
+      "策划"
+    ]
   },
   {
     "infinitive": "descansar",
@@ -12417,7 +12543,12 @@
           "huberen descansado"
         ]
       }
-    }
+    },
+    "translation": [
+      "休息",
+      "放松",
+      "休养"
+    ]
   },
   {
     "infinitive": "terminar",
@@ -12877,7 +13008,12 @@
           "huberen terminado"
         ]
       }
-    }
+    },
+    "translation": [
+      "结束",
+      "完成",
+      "终止"
+    ]
   },
   {
     "infinitive": "comenzar",
@@ -13337,7 +13473,12 @@
           "huberen comenzado"
         ]
       }
-    }
+    },
+    "translation": [
+      "开始",
+      "着手",
+      "启动"
+    ]
   },
   {
     "infinitive": "decir",
@@ -13797,7 +13938,13 @@
           "huberen dicho"
         ]
       }
-    }
+    },
+    "translation": [
+      "说,讲",
+      "告诉",
+      "表明,表达",
+      "声称"
+    ]
   },
   {
     "infinitive": "hacer",
@@ -14257,7 +14404,13 @@
           "huberen hecho"
         ]
       }
-    }
+    },
+    "translation": [
+      "做",
+      "制作",
+      "使，让",
+      "干"
+    ]
   },
   {
     "infinitive": "salir",
@@ -14717,7 +14870,13 @@
           "huberen salido"
         ]
       }
-    }
+    },
+    "translation": [
+      "出去",
+      "离开",
+      "出现",
+      "出发"
+    ]
   },
   {
     "infinitive": "venir",
@@ -15177,7 +15336,12 @@
           "huberen venido"
         ]
       }
-    }
+    },
+    "translation": [
+      "来",
+      "到来",
+      "来临"
+    ]
   },
   {
     "infinitive": "volver",
@@ -15637,7 +15801,12 @@
           "huberen vuelto"
         ]
       }
-    }
+    },
+    "translation": [
+      "返回，回来",
+      "恢复",
+      "变成"
+    ]
   },
   {
     "infinitive": "almorzar",
@@ -16097,7 +16266,10 @@
           "huberen almorzado"
         ]
       }
-    }
+    },
+    "translation": [
+      "吃午饭"
+    ]
   },
   {
     "infinitive": "preparar",
@@ -16557,7 +16729,13 @@
           "huberen preparado"
         ]
       }
-    }
+    },
+    "translation": [
+      "准备",
+      "制作",
+      "筹备",
+      "预备"
+    ]
   },
   {
     "infinitive": "quedar",
@@ -17017,7 +17195,13 @@
           "huberen quedado"
         ]
       }
-    }
+    },
+    "translation": [
+      "剩下, 剩余",
+      "留下, 留存",
+      "约定, 定下",
+      "变得, 变为"
+    ]
   },
   {
     "infinitive": "acostar",
@@ -17477,7 +17661,11 @@
           "huberen acostado"
         ]
       }
-    }
+    },
+    "translation": [
+      "上床睡觉",
+      "安顿,安置"
+    ]
   },
   {
     "infinitive": "invitar",
@@ -17937,7 +18125,11 @@
           "huberen invitado"
         ]
       }
-    }
+    },
+    "translation": [
+      "邀请",
+      "请客"
+    ]
   },
   {
     "infinitive": "cenar",
@@ -18397,7 +18589,11 @@
           "huberen cenado"
         ]
       }
-    }
+    },
+    "translation": [
+      "吃晚饭",
+      "用餐"
+    ]
   },
   {
     "infinitive": "comprar",
@@ -18857,7 +19053,11 @@
           "huberen comprado"
         ]
       }
-    }
+    },
+    "translation": [
+      "购买",
+      "采购"
+    ]
   },
   {
     "infinitive": "temer",
@@ -19317,7 +19517,11 @@
           "huberen temido"
         ]
       }
-    }
+    },
+    "translation": [
+      "害怕,恐惧",
+      "担心,忧虑"
+    ]
   },
   {
     "infinitive": "llegar",
@@ -19777,7 +19981,12 @@
           "huberen llegado"
         ]
       }
-    }
+    },
+    "translation": [
+      "到达，抵达",
+      "来，到来",
+      "达到，实现"
+    ]
   },
   {
     "infinitive": "cerrar",
@@ -20237,7 +20446,13 @@
           "huberen cerrado"
         ]
       }
-    }
+    },
+    "translation": [
+      "关闭",
+      "结束",
+      "封闭",
+      "闭合"
+    ]
   },
   {
     "infinitive": "poder",
@@ -20697,7 +20912,11 @@
           "huberen podido"
         ]
       }
-    }
+    },
+    "translation": [
+      "能够，可以",
+      "有权，有力量"
+    ]
   },
   {
     "infinitive": "querer",
@@ -21157,7 +21376,11 @@
           "huberen querido"
         ]
       }
-    }
+    },
+    "translation": [
+      "想要, 想",
+      "爱, 喜欢"
+    ]
   },
   {
     "infinitive": "alegrar",
@@ -21617,7 +21840,11 @@
           "huberen alegrado"
         ]
       }
-    }
+    },
+    "translation": [
+      "使高兴, 使快乐",
+      "庆祝"
+    ]
   },
   {
     "infinitive": "celebrar",
@@ -22077,7 +22304,12 @@
           "huberen celebrado"
         ]
       }
-    }
+    },
+    "translation": [
+      "庆祝",
+      "举行",
+      "赞美"
+    ]
   },
   {
     "infinitive": "entrar",
@@ -22537,7 +22769,12 @@
           "huberen entrado"
         ]
       }
-    }
+    },
+    "translation": [
+      "进入",
+      "加入",
+      "参加"
+    ]
   },
   {
     "infinitive": "sentar",
@@ -22997,7 +23234,12 @@
           "huberen sentado"
         ]
       }
-    }
+    },
+    "translation": [
+      "坐下,就坐",
+      "使坐下,安置",
+      "适合,合适"
+    ]
   },
   {
     "infinitive": "recomendar",
@@ -23457,7 +23699,12 @@
           "huberen recomendado"
         ]
       }
-    }
+    },
+    "translation": [
+      "推荐",
+      "建议",
+      "劝告"
+    ]
   },
   {
     "infinitive": "pedir",
@@ -23917,7 +24164,12 @@
           "huberen pedido"
         ]
       }
-    }
+    },
+    "translation": [
+      "请求，要求",
+      "点餐",
+      "订货"
+    ]
   },
   {
     "infinitive": "beber",
@@ -24377,7 +24629,11 @@
           "huberen bebido"
         ]
       }
-    }
+    },
+    "translation": [
+      "喝",
+      "饮用"
+    ]
   },
   {
     "infinitive": "cumplir",
@@ -24837,7 +25093,12 @@
           "huberen cumplido"
         ]
       }
-    }
+    },
+    "translation": [
+      "履行,遵守",
+      "完成,达到",
+      "庆祝生日"
+    ]
   },
   {
     "infinitive": "empezar",
@@ -25297,7 +25558,12 @@
           "huberen empezado"
         ]
       }
-    }
+    },
+    "translation": [
+      "开始",
+      "着手",
+      "起始"
+    ]
   },
   {
     "infinitive": "ayudar",
@@ -25757,7 +26023,12 @@
           "huberen ayudado"
         ]
       }
-    }
+    },
+    "translation": [
+      "帮助",
+      "援助",
+      "协助"
+    ]
   },
   {
     "infinitive": "recibir",
@@ -26217,7 +26488,12 @@
           "huberen recibido"
         ]
       }
-    }
+    },
+    "translation": [
+      "接收,收到",
+      "接纳,接受",
+      "接待,迎接"
+    ]
   },
   {
     "infinitive": "felicitar",
@@ -26677,7 +26953,11 @@
           "huberen felicitado"
         ]
       }
-    }
+    },
+    "translation": [
+      "祝贺,恭喜",
+      "表扬,称赞"
+    ]
   },
   {
     "infinitive": "charlar",
@@ -27137,7 +27417,11 @@
           "huberen charlado"
         ]
       }
-    }
+    },
+    "translation": [
+      "聊天,闲聊",
+      "交谈"
+    ]
   },
   {
     "infinitive": "brindar",
@@ -27597,7 +27881,12 @@
           "huberen brindado"
         ]
       }
-    }
+    },
+    "translation": [
+      "提供, 供给",
+      "敬酒, 祝酒",
+      "给予, 赠送"
+    ]
   },
   {
     "infinitive": "comer",
@@ -28057,7 +28346,10 @@
           "huberen comido"
         ]
       }
-    }
+    },
+    "translation": [
+      "吃"
+    ]
   },
   {
     "infinitive": "gustar",
@@ -28517,7 +28809,12 @@
           "huberen gustado"
         ]
       }
-    }
+    },
+    "translation": [
+      "喜欢",
+      "喜爱",
+      "对...感兴趣"
+    ]
   },
   {
     "infinitive": "encantar",
@@ -28977,7 +29274,11 @@
           "huberen encantado"
         ]
       }
-    }
+    },
+    "translation": [
+      "使着迷，吸引",
+      "喜欢"
+    ]
   },
   {
     "infinitive": "mirar",
@@ -29437,7 +29738,12 @@
           "huberen mirado"
         ]
       }
-    }
+    },
+    "translation": [
+      "看",
+      "注视,凝视",
+      "检查,查看"
+    ]
   },
   {
     "infinitive": "meter",
@@ -29897,7 +30203,11 @@
           "huberen metido"
         ]
       }
-    }
+    },
+    "translation": [
+      "放入，塞入",
+      "涉足，参与"
+    ]
   },
   {
     "infinitive": "acabar",
@@ -30357,7 +30667,11 @@
           "huberen acabado"
         ]
       }
-    }
+    },
+    "translation": [
+      "结束，完成",
+      "用完，耗尽"
+    ]
   },
   {
     "infinitive": "retirar",
@@ -30817,7 +31131,12 @@
           "huberen retirado"
         ]
       }
-    }
+    },
+    "translation": [
+      "取走,拿走",
+      "撤退,撤离",
+      "退休,离休"
+    ]
   },
   {
     "infinitive": "lavar",
@@ -31277,7 +31596,11 @@
           "huberen lavado"
         ]
       }
-    }
+    },
+    "translation": [
+      "洗",
+      "清洗"
+    ]
   },
   {
     "infinitive": "barrer",
@@ -31737,7 +32060,11 @@
           "huberen barrido"
         ]
       }
-    }
+    },
+    "translation": [
+      "扫地",
+      "清扫"
+    ]
   },
   {
     "infinitive": "sacar",
@@ -32197,7 +32524,13 @@
           "huberen sacado"
         ]
       }
-    }
+    },
+    "translation": [
+      "取出，拿出",
+      "拍摄，拍照",
+      "获得，取得",
+      "提取"
+    ]
   },
   {
     "infinitive": "pasar",
@@ -32657,7 +32990,13 @@
           "huberen pasado"
         ]
       }
-    }
+    },
+    "translation": [
+      "经过，通过",
+      "发生，出现",
+      "度过，消磨",
+      "传递，传送"
+    ]
   },
   {
     "infinitive": "recoger",
@@ -33117,7 +33456,13 @@
           "huberen recogido"
         ]
       }
-    }
+    },
+    "translation": [
+      "收集,收取",
+      "接,接送",
+      "收获,采摘",
+      "拾起,捡起"
+    ]
   },
   {
     "infinitive": "coger",
@@ -33577,7 +33922,12 @@
           "huberen cogido"
         ]
       }
-    }
+    },
+    "translation": [
+      "拿，取",
+      "接，搭（车）",
+      "抓，捉"
+    ]
   },
   {
     "infinitive": "poner",
@@ -34037,7 +34387,13 @@
           "huberen puesto"
         ]
       }
-    }
+    },
+    "translation": [
+      "放置，摆放",
+      "穿上，戴上",
+      "设定，设置",
+      "提出"
+    ]
   },
   {
     "infinitive": "fregar",
@@ -34497,7 +34853,11 @@
           "huberen fregado"
         ]
       }
-    }
+    },
+    "translation": [
+      "擦洗, 擦拭",
+      "惹恼, 使生气"
+    ]
   },
   {
     "infinitive": "encontrar",
@@ -34957,7 +35317,13 @@
           "huberen encontrado"
         ]
       }
-    }
+    },
+    "translation": [
+      "找到",
+      "遇见",
+      "发现",
+      "遭遇"
+    ]
   },
   {
     "infinitive": "ver",
@@ -35417,7 +35783,13 @@
           "huberen visto"
         ]
       }
-    }
+    },
+    "translation": [
+      "看,看见",
+      "观察",
+      "访问,拜访",
+      "认为,看待"
+    ]
   },
   {
     "infinitive": "sentir",
@@ -35877,7 +36249,12 @@
           "huberen sentido"
         ]
       }
-    }
+    },
+    "translation": [
+      "感到,感觉",
+      "同情,怜悯",
+      "体验,经历"
+    ]
   },
   {
     "infinitive": "despedir",
@@ -36337,7 +36714,12 @@
           "huberen despedido"
         ]
       }
-    }
+    },
+    "translation": [
+      "解雇,辞退",
+      "告别,送别",
+      "发射,发出"
+    ]
   },
   {
     "infinitive": "molestar",
@@ -36797,7 +37179,11 @@
           "huberen molestado"
         ]
       }
-    }
+    },
+    "translation": [
+      "打扰，烦扰",
+      "骚扰"
+    ]
   },
   {
     "infinitive": "pensar",
@@ -37257,7 +37643,12 @@
           "huberen pensado"
         ]
       }
-    }
+    },
+    "translation": [
+      "想,思考",
+      "认为,觉得",
+      "打算,计划"
+    ]
   },
   {
     "infinitive": "prestar",
@@ -37717,7 +38108,12 @@
           "huberen prestado"
         ]
       }
-    }
+    },
+    "translation": [
+      "借出",
+      "提供",
+      "给予帮助"
+    ]
   },
   {
     "infinitive": "escribir",
@@ -38177,7 +38573,12 @@
           "huberen escrito"
         ]
       }
-    }
+    },
+    "translation": [
+      "写",
+      "书写",
+      "写作"
+    ]
   },
   {
     "infinitive": "necesitar",
@@ -38637,7 +39038,11 @@
           "huberen necesitado"
         ]
       }
-    }
+    },
+    "translation": [
+      "需要",
+      "缺少"
+    ]
   },
   {
     "infinitive": "ganar",
@@ -39097,7 +39502,12 @@
           "huberen ganado"
         ]
       }
-    }
+    },
+    "translation": [
+      "赢得,获胜",
+      "赚取,挣钱",
+      "获得,得到"
+    ]
   },
   {
     "infinitive": "traer",
@@ -39557,7 +39967,12 @@
           "huberen traído"
         ]
       }
-    }
+    },
+    "translation": [
+      "带来",
+      "取来",
+      "招致"
+    ]
   },
   {
     "infinitive": "esperar",
@@ -40017,7 +40432,12 @@
           "huberen esperado"
         ]
       }
-    }
+    },
+    "translation": [
+      "等待",
+      "期望,希望",
+      "迎接"
+    ]
   },
   {
     "infinitive": "pagar",
@@ -40477,7 +40897,12 @@
           "huberen pagado"
         ]
       }
-    }
+    },
+    "translation": [
+      "支付",
+      "付款",
+      "偿还"
+    ]
   },
   {
     "infinitive": "resistir",
@@ -40937,7 +41362,11 @@
           "huberen resistido"
         ]
       }
-    }
+    },
+    "translation": [
+      "抵抗, 抵御",
+      "忍耐, 忍受"
+    ]
   },
   {
     "infinitive": "usar",
@@ -41397,7 +41826,12 @@
           "huberen usado"
         ]
       }
-    }
+    },
+    "translation": [
+      "使用",
+      "利用",
+      "穿，戴"
+    ]
   },
   {
     "infinitive": "estafar",
@@ -41857,7 +42291,12 @@
           "huberen estafado"
         ]
       }
-    }
+    },
+    "translation": [
+      "诈骗",
+      "欺骗",
+      "欺诈"
+    ]
   },
   {
     "infinitive": "ofrecer",
@@ -42317,7 +42756,13 @@
           "huberen ofrecido"
         ]
       }
-    }
+    },
+    "translation": [
+      "提供",
+      "提议,建议",
+      "出价,报价",
+      "呈现,展现"
+    ]
   },
   {
     "infinitive": "servir",
@@ -42784,7 +43229,13 @@
           "huberen servido"
         ]
       }
-    }
+    },
+    "translation": [
+      "服务,侍候",
+      "有用,起作用",
+      "提供,供应",
+      "适合,够用"
+    ]
   },
   {
     "infinitive": "adquirir",
@@ -43244,7 +43695,13 @@
           "huberen adquirido"
         ]
       }
-    }
+    },
+    "translation": [
+      "获得，取得",
+      "购买",
+      "习得",
+      "收购"
+    ]
   },
   {
     "infinitive": "teclear",
@@ -43704,7 +44161,11 @@
           "huberen tecleado"
         ]
       }
-    }
+    },
+    "translation": [
+      "打字",
+      "按键"
+    ]
   },
   {
     "infinitive": "soler",
@@ -44164,7 +44625,11 @@
           "huberen sólido"
         ]
       }
-    }
+    },
+    "translation": [
+      "习惯于",
+      "常常"
+    ]
   },
   {
     "infinitive": "devolver",
@@ -44624,7 +45089,11 @@
           "huberen devuelto"
         ]
       }
-    }
+    },
+    "translation": [
+      "归还,退还",
+      "反弹,反射"
+    ]
   },
   {
     "infinitive": "perder",
@@ -45091,7 +45560,13 @@
           "huberen perdido"
         ]
       }
-    }
+    },
+    "translation": [
+      "丢失,遗失",
+      "错过,失去",
+      "浪费,耗费",
+      "迷路"
+    ]
   },
   {
     "infinitive": "entregar",
@@ -45551,7 +46026,12 @@
           "huberen entregado"
         ]
       }
-    }
+    },
+    "translation": [
+      "交付,递交",
+      "上交",
+      "投降"
+    ]
   },
   {
     "infinitive": "subir",
@@ -46011,7 +46491,13 @@
           "huberen subido"
         ]
       }
-    }
+    },
+    "translation": [
+      "上升,升高",
+      "攀登,爬升",
+      "提高,增加",
+      "上传"
+    ]
   },
   {
     "infinitive": "gritar",
@@ -46471,7 +46957,11 @@
           "huberen gritado"
         ]
       }
-    }
+    },
+    "translation": [
+      "大喊，叫喊",
+      "尖叫"
+    ]
   },
   {
     "infinitive": "besar",
@@ -46931,7 +47421,10 @@
           "huberen besado"
         ]
       }
-    }
+    },
+    "translation": [
+      "亲吻"
+    ]
   },
   {
     "infinitive": "abrir",
@@ -47391,7 +47884,13 @@
           "huberen abierto"
         ]
       }
-    }
+    },
+    "translation": [
+      "打开",
+      "开启",
+      "开放",
+      "开办"
+    ]
   },
   {
     "infinitive": "romper",
@@ -47851,7 +48350,13 @@
           "huberen roto"
         ]
       }
-    }
+    },
+    "translation": [
+      "打破,打碎",
+      "破裂,断开",
+      "违反,违背",
+      "中断,打断"
+    ]
   },
   {
     "infinitive": "bajar",
@@ -48311,7 +48816,12 @@
           "huberen bajado"
         ]
       }
-    }
+    },
+    "translation": [
+      "下降,下楼",
+      "降低,减少",
+      "下载"
+    ]
   },
   {
     "infinitive": "oír",
@@ -48771,7 +49281,11 @@
           "huberen oído"
         ]
       }
-    }
+    },
+    "translation": [
+      "听见,听到",
+      "听"
+    ]
   },
   {
     "infinitive": "dar",
@@ -49231,7 +49745,12 @@
           "huberen dado"
         ]
       }
-    }
+    },
+    "translation": [
+      "给，给予",
+      "提供",
+      "出，发出"
+    ]
   },
   {
     "infinitive": "saber",
@@ -49691,7 +50210,12 @@
           "huberen sabido"
         ]
       }
-    }
+    },
+    "translation": [
+      "知道,了解",
+      "会,能够",
+      "得知,获悉"
+    ]
   },
   {
     "infinitive": "indicar",
@@ -50151,7 +50675,13 @@
           "huberen indicado"
         ]
       }
-    }
+    },
+    "translation": [
+      "指示，指出",
+      "表明，显示",
+      "建议",
+      "象征"
+    ]
   },
   {
     "infinitive": "dejar",
@@ -50611,7 +51141,13 @@
           "huberen dejado"
         ]
       }
-    }
+    },
+    "translation": [
+      "离开，放弃",
+      "允许，让",
+      "放置，摆放",
+      "出租"
+    ]
   },
   {
     "infinitive": "encender",
@@ -51071,7 +51607,12 @@
           "huberen encendido"
         ]
       }
-    }
+    },
+    "translation": [
+      "点燃",
+      "开启",
+      "唤醒"
+    ]
   },
   {
     "infinitive": "apagar",
@@ -51531,7 +52072,12 @@
           "huberen apagado"
         ]
       }
-    }
+    },
+    "translation": [
+      "熄灭,关闭",
+      "扑灭",
+      "消除"
+    ]
   },
   {
     "infinitive": "correr",
@@ -51991,7 +52537,13 @@
           "huberen corrido"
         ]
       }
-    }
+    },
+    "translation": [
+      "跑",
+      "流动",
+      "操作，运行",
+      "追赶"
+    ]
   },
   {
     "infinitive": "alcanzar",
@@ -52451,7 +53003,12 @@
           "huberen alcanzado"
         ]
       }
-    }
+    },
+    "translation": [
+      "达到，实现",
+      "赶上，追上",
+      "够到，触及"
+    ]
   },
   {
     "infinitive": "apear",
@@ -52911,7 +53468,11 @@
           "huberen apeado"
         ]
       }
-    }
+    },
+    "translation": [
+      "下马，下车",
+      "卸货"
+    ]
   },
   {
     "infinitive": "creer",
@@ -53371,7 +53932,11 @@
           "huberen creído"
         ]
       }
-    }
+    },
+    "translation": [
+      "相信,信任",
+      "认为,觉得"
+    ]
   },
   {
     "infinitive": "descuidar",
@@ -53831,7 +54396,12 @@
           "huberen descuidado"
         ]
       }
-    }
+    },
+    "translation": [
+      "疏忽,忽略",
+      "照料不周",
+      "粗心大意"
+    ]
   },
   {
     "infinitive": "avanzar",
@@ -54291,7 +54861,12 @@
           "huberen avanzado"
         ]
       }
-    }
+    },
+    "translation": [
+      "前进",
+      "进展",
+      "推进"
+    ]
   },
   {
     "infinitive": "seguir",
@@ -54751,7 +55326,13 @@
           "huberen seguido"
         ]
       }
-    }
+    },
+    "translation": [
+      "跟随",
+      "继续",
+      "追随",
+      "接着"
+    ]
   },
   {
     "infinitive": "utilizar",
@@ -55211,7 +55792,11 @@
           "huberen utilizado"
         ]
       }
-    }
+    },
+    "translation": [
+      "使用",
+      "利用"
+    ]
   },
   {
     "infinitive": "limpiar",
@@ -55671,7 +56256,11 @@
           "huberen limpiado"
         ]
       }
-    }
+    },
+    "translation": [
+      "打扫,清洁",
+      "清洗,洗涤"
+    ]
   },
   {
     "infinitive": "deber",
@@ -56131,7 +56720,11 @@
           "huberen debido"
         ]
       }
-    }
+    },
+    "translation": [
+      "应该，应当",
+      "欠，负债"
+    ]
   },
   {
     "infinitive": "apuntar",
@@ -56591,7 +57184,12 @@
           "huberen apuntado"
         ]
       }
-    }
+    },
+    "translation": [
+      "指向，瞄准",
+      "记录，记下",
+      "报名，注册"
+    ]
   },
   {
     "infinitive": "mostrar",
@@ -57051,7 +57649,11 @@
           "huberen mostrado"
         ]
       }
-    }
+    },
+    "translation": [
+      "展示，显示",
+      "表明，证明"
+    ]
   },
   {
     "infinitive": "elegir",
@@ -57518,7 +58120,12 @@
           "huberen elegido"
         ]
       }
-    }
+    },
+    "translation": [
+      "选择",
+      "挑选",
+      "选定"
+    ]
   },
   {
     "infinitive": "sonar",
@@ -57978,7 +58585,11 @@
           "huberen sonado"
         ]
       }
-    }
+    },
+    "translation": [
+      "响，发出声音",
+      "听起来"
+    ]
   },
   {
     "infinitive": "recordar",
@@ -58438,7 +59049,12 @@
           "huberen recordado"
         ]
       }
-    }
+    },
+    "translation": [
+      "记住,记起",
+      "提醒",
+      "记忆"
+    ]
   },
   {
     "infinitive": "abrigar",
@@ -58898,7 +59514,12 @@
           "huberen abrigado"
         ]
       }
-    }
+    },
+    "translation": [
+      "遮蔽,庇护",
+      "怀有,抱有(希望等)",
+      "穿着(衣服)"
+    ]
   },
   {
     "infinitive": "probar",
@@ -59358,7 +59979,12 @@
           "huberen probado"
         ]
       }
-    }
+    },
+    "translation": [
+      "尝试，试用",
+      "证明，证实",
+      "品尝"
+    ]
   },
   {
     "infinitive": "precipitar",
@@ -59818,7 +60444,12 @@
           "huberen precipitado"
         ]
       }
-    }
+    },
+    "translation": [
+      "加速, 促使",
+      "仓促行事, 急躁",
+      "沉淀, 沉降"
+    ]
   },
   {
     "infinitive": "interesar",
@@ -60278,7 +60909,10 @@
           "huberen interesado"
         ]
       }
-    }
+    },
+    "translation": [
+      "使感兴趣,引起兴趣"
+    ]
   },
   {
     "infinitive": "mejorar",
@@ -60738,7 +61372,11 @@
           "huberen mejorado"
         ]
       }
-    }
+    },
+    "translation": [
+      "改善,改进",
+      "好转,恢复"
+    ]
   },
   {
     "infinitive": "comprender",
@@ -61198,7 +61836,11 @@
           "huberen comprendido"
         ]
       }
-    }
+    },
+    "translation": [
+      "理解,明白",
+      "包含,包括"
+    ]
   },
   {
     "infinitive": "entender",
@@ -61658,7 +62300,13 @@
           "huberen entendido"
         ]
       }
-    }
+    },
+    "translation": [
+      "理解,明白",
+      "懂得",
+      "了解",
+      "听见"
+    ]
   },
   {
     "infinitive": "pronunciar",
@@ -62118,7 +62766,12 @@
           "huberen pronunciado"
         ]
       }
-    }
+    },
+    "translation": [
+      "发音",
+      "宣读",
+      "发表"
+    ]
   },
   {
     "infinitive": "significar",
@@ -62578,7 +63231,12 @@
           "huberen significado"
         ]
       }
-    }
+    },
+    "translation": [
+      "意味着，表示",
+      "象征",
+      "意味深长"
+    ]
   },
   {
     "infinitive": "confundir",
@@ -63038,7 +63696,12 @@
           "huberen confundido"
         ]
       }
-    }
+    },
+    "translation": [
+      "混淆",
+      "迷惑",
+      "使困惑"
+    ]
   },
   {
     "infinitive": "catar",
@@ -63498,7 +64161,10 @@
           "huberen catado"
         ]
       }
-    }
+    },
+    "translation": [
+      "品尝, 试饮"
+    ]
   },
   {
     "infinitive": "dotar",
@@ -63958,7 +64624,12 @@
           "huberen dotado"
         ]
       }
-    }
+    },
+    "translation": [
+      "配备",
+      "赋予",
+      "提供"
+    ]
   },
   {
     "infinitive": "causar",
@@ -64418,7 +65089,12 @@
           "huberen causado"
         ]
       }
-    }
+    },
+    "translation": [
+      "引起，导致",
+      "造成",
+      "招致"
+    ]
   },
   {
     "infinitive": "buscar",
@@ -64878,7 +65554,12 @@
           "huberen buscado"
         ]
       }
-    }
+    },
+    "translation": [
+      "寻找",
+      "搜索",
+      "寻求"
+    ]
   },
   {
     "infinitive": "contar",
@@ -65338,7 +66019,12 @@
           "huberen contado"
         ]
       }
-    }
+    },
+    "translation": [
+      "讲述，叙述",
+      "计算",
+      "依赖，依靠"
+    ]
   },
   {
     "infinitive": "jugar",
@@ -65798,7 +66484,12 @@
           "huberen jugado"
         ]
       }
-    }
+    },
+    "translation": [
+      "玩,玩耍",
+      "比赛,竞赛",
+      "扮演,饰演"
+    ]
   },
   {
     "infinitive": "regar",
@@ -66258,7 +66949,11 @@
           "huberen regado"
         ]
       }
-    }
+    },
+    "translation": [
+      "浇水",
+      "灌溉"
+    ]
   },
   {
     "infinitive": "ensuciar",
@@ -66718,7 +67413,10 @@
           "huberen ensuciado"
         ]
       }
-    }
+    },
+    "translation": [
+      "弄脏,玷污"
+    ]
   },
   {
     "infinitive": "estorbar",
@@ -67178,7 +67876,12 @@
           "huberen estorbado"
         ]
       }
-    }
+    },
+    "translation": [
+      "妨碍",
+      "阻碍",
+      "打扰"
+    ]
   },
   {
     "infinitive": "leer",
@@ -67638,7 +68341,11 @@
           "huberen leído"
         ]
       }
-    }
+    },
+    "translation": [
+      "阅读",
+      "念, 读"
+    ]
   },
   {
     "infinitive": "vestir",
@@ -68098,7 +68805,12 @@
           "huberen vestido"
         ]
       }
-    }
+    },
+    "translation": [
+      "穿，着装",
+      "打扮",
+      "覆盖"
+    ]
   },
   {
     "infinitive": "variar",
@@ -68558,7 +69270,11 @@
           "huberen variado"
         ]
       }
-    }
+    },
+    "translation": [
+      "变化,改变",
+      "变异,变动"
+    ]
   },
   {
     "infinitive": "considerar",
@@ -69018,7 +69734,13 @@
           "huberen considerado"
         ]
       }
-    }
+    },
+    "translation": [
+      "考虑",
+      "认为",
+      "视为",
+      "尊敬"
+    ]
   },
   {
     "infinitive": "resultar",
@@ -69478,7 +70200,11 @@
           "huberen resultado"
         ]
       }
-    }
+    },
+    "translation": [
+      "结果是,证明是",
+      "变得,成为"
+    ]
   },
   {
     "infinitive": "casar",
@@ -69938,7 +70664,10 @@
           "huberen casado"
         ]
       }
-    }
+    },
+    "translation": [
+      "结婚"
+    ]
   },
   {
     "infinitive": "telefonear",
@@ -70398,7 +71127,10 @@
           "huberen telefoneado"
         ]
       }
-    }
+    },
+    "translation": [
+      "打电话"
+    ]
   },
   {
     "infinitive": "elogiar",
@@ -70858,7 +71590,12 @@
           "huberen elogiado"
         ]
       }
-    }
+    },
+    "translation": [
+      "赞扬,表扬",
+      "赞美",
+      "称赞"
+    ]
   },
   {
     "infinitive": "olvidar",
@@ -71318,7 +72055,11 @@
           "huberen olvidado"
         ]
       }
-    }
+    },
+    "translation": [
+      "忘记",
+      "遗忘"
+    ]
   },
   {
     "infinitive": "evitar",
@@ -71778,7 +72519,12 @@
           "huberen evitado"
         ]
       }
-    }
+    },
+    "translation": [
+      "避免",
+      "防止",
+      "避开"
+    ]
   },
   {
     "infinitive": "asustar",
@@ -72238,7 +72984,12 @@
           "huberen asustado"
         ]
       }
-    }
+    },
+    "translation": [
+      "吓唬",
+      "惊吓",
+      "使害怕"
+    ]
   },
   {
     "infinitive": "amenazar",
@@ -72698,7 +73449,11 @@
           "huberen amenazado"
         ]
       }
-    }
+    },
+    "translation": [
+      "威胁",
+      "恐吓"
+    ]
   },
   {
     "infinitive": "proteger",
@@ -73158,7 +73913,12 @@
           "huberen protegido"
         ]
       }
-    }
+    },
+    "translation": [
+      "保护",
+      "防护",
+      "庇护"
+    ]
   },
   {
     "infinitive": "arrojar",
@@ -73618,7 +74378,13 @@
           "huberen arrojado"
         ]
       }
-    }
+    },
+    "translation": [
+      "投掷，扔",
+      "发射",
+      "倾倒",
+      "抛出"
+    ]
   },
   {
     "infinitive": "observar",
@@ -74078,7 +74844,13 @@
           "huberen observado"
         ]
       }
-    }
+    },
+    "translation": [
+      "观察",
+      "注意到",
+      "遵守",
+      "评论"
+    ]
   },
   {
     "infinitive": "agradecer",
@@ -74538,7 +75310,11 @@
           "huberen agradecido"
         ]
       }
-    }
+    },
+    "translation": [
+      "感谢,感激",
+      "赏识,赞赏"
+    ]
   },
   {
     "infinitive": "atravesar",
@@ -74998,7 +75774,12 @@
           "huberen atravesado"
         ]
       }
-    }
+    },
+    "translation": [
+      "穿过，穿越",
+      "横跨",
+      "贯穿"
+    ]
   },
   {
     "infinitive": "enfurecer",
@@ -75458,7 +76239,12 @@
           "huberen enfurecido"
         ]
       }
-    }
+    },
+    "translation": [
+      "激怒",
+      "愤怒",
+      "发怒"
+    ]
   },
   {
     "infinitive": "limitar",
@@ -75918,7 +76704,11 @@
           "huberen limitado"
         ]
       }
-    }
+    },
+    "translation": [
+      "限制, 限定",
+      "约束, 管制"
+    ]
   },
   {
     "infinitive": "acercar",
@@ -76378,7 +77168,11 @@
           "huberen acercado"
         ]
       }
-    }
+    },
+    "translation": [
+      "靠近,接近",
+      "使接近,拉近"
+    ]
   },
   {
     "infinitive": "asomar",
@@ -76838,7 +77632,11 @@
           "huberen asomado"
         ]
       }
-    }
+    },
+    "translation": [
+      "露出, 显露",
+      "探出, 伸出"
+    ]
   },
   {
     "infinitive": "detener",
@@ -77298,7 +78096,12 @@
           "huberen detenido"
         ]
       }
-    }
+    },
+    "translation": [
+      "停止",
+      "阻止",
+      "逮捕"
+    ]
   },
   {
     "infinitive": "pertenecer",
@@ -77758,7 +78561,11 @@
           "huberen pertenecido"
         ]
       }
-    }
+    },
+    "translation": [
+      "属于",
+      "归属"
+    ]
   },
   {
     "infinitive": "incluir",
@@ -78218,7 +79025,12 @@
           "huberen incluido"
         ]
       }
-    }
+    },
+    "translation": [
+      "包括",
+      "包含",
+      "收录"
+    ]
   },
   {
     "infinitive": "caracterizar",
@@ -78685,7 +79497,11 @@
           "huberen caracterizado"
         ]
       }
-    }
+    },
+    "translation": [
+      "刻画，描绘",
+      "表现, 体现"
+    ]
   },
   {
     "infinitive": "añadir",
@@ -79145,7 +79961,12 @@
           "huberen añadido"
         ]
       }
-    }
+    },
+    "translation": [
+      "添加",
+      "增加",
+      "加入"
+    ]
   },
   {
     "infinitive": "sobrepasar",
@@ -79605,7 +80426,12 @@
           "huberen sobrepasado"
         ]
       }
-    }
+    },
+    "translation": [
+      "超过",
+      "越过",
+      "超出"
+    ]
   },
   {
     "infinitive": "cuidar",
@@ -80065,7 +80891,13 @@
           "huberen cuidado"
         ]
       }
-    }
+    },
+    "translation": [
+      "照顾",
+      "照料",
+      "护理",
+      "关心"
+    ]
   },
   {
     "infinitive": "informar",
@@ -80525,7 +81357,13 @@
           "huberen informado"
         ]
       }
-    }
+    },
+    "translation": [
+      "通知,告知",
+      "报告,汇报",
+      "提供信息",
+      "举报"
+    ]
   },
   {
     "infinitive": "visitar",
@@ -80985,7 +81823,11 @@
           "huberen visitado"
         ]
       }
-    }
+    },
+    "translation": [
+      "访问,拜访",
+      "参观"
+    ]
   },
   {
     "infinitive": "conversar",
@@ -81445,7 +82287,11 @@
           "hubieren conversado"
         ]
       }
-    }
+    },
+    "translation": [
+      "交谈,聊天",
+      "谈话"
+    ]
   },
   {
     "infinitive": "salvar",
@@ -81905,7 +82751,12 @@
           "huberen salvado"
         ]
       }
-    }
+    },
+    "translation": [
+      "拯救",
+      "挽救",
+      "救援"
+    ]
   },
   {
     "infinitive": "tratar",
@@ -82365,7 +83216,12 @@
           "huberen tratado"
         ]
       }
-    }
+    },
+    "translation": [
+      "处理，对待",
+      "尝试，试图",
+      "治疗"
+    ]
   },
   {
     "infinitive": "disponer",
@@ -82825,7 +83681,12 @@
           "huberen dispuesto"
         ]
       }
-    }
+    },
+    "translation": [
+      "安排,布置",
+      "处理,解决",
+      "准备,备好"
+    ]
   },
   {
     "infinitive": "acompañar",
@@ -83285,7 +84146,13 @@
           "huberen acompañado"
         ]
       }
-    }
+    },
+    "translation": [
+      "陪伴",
+      "陪同",
+      "伴随",
+      "为...伴奏"
+    ]
   },
   {
     "infinitive": "saludar",
@@ -83745,7 +84612,11 @@
           "huberen saludado"
         ]
       }
-    }
+    },
+    "translation": [
+      "打招呼,问候",
+      "致敬"
+    ]
   },
   {
     "infinitive": "escuchar",
@@ -84205,7 +85076,11 @@
           "huberen escuchado"
         ]
       }
-    }
+    },
+    "translation": [
+      "听,聆听",
+      "听取"
+    ]
   },
   {
     "infinitive": "graduar",
@@ -84665,7 +85540,11 @@
           "huberen graduado"
         ]
       }
-    }
+    },
+    "translation": [
+      "毕业",
+      "授予学位"
+    ]
   },
   {
     "infinitive": "envidiar",
@@ -85125,7 +86004,10 @@
           "huberen envidiado"
         ]
       }
-    }
+    },
+    "translation": [
+      "嫉妒，羡慕"
+    ]
   },
   {
     "infinitive": "iniciar",
@@ -85585,7 +86467,12 @@
           "huberen iniciado"
         ]
       }
-    }
+    },
+    "translation": [
+      "开始",
+      "启动",
+      "发起"
+    ]
   },
   {
     "infinitive": "animar",
@@ -86045,7 +86932,12 @@
           "huberen animado"
         ]
       }
-    }
+    },
+    "translation": [
+      "鼓舞,激励",
+      "使活跃,使有生气",
+      "给...配音"
+    ]
   },
   {
     "infinitive": "prometer",
@@ -86505,7 +87397,11 @@
           "huberen prometido"
         ]
       }
-    }
+    },
+    "translation": [
+      "承诺,许诺",
+      "保证"
+    ]
   },
   {
     "infinitive": "mandar",
@@ -86965,7 +87861,12 @@
           "huberen mandado"
         ]
       }
-    }
+    },
+    "translation": [
+      "命令，吩咐",
+      "派遣，调遣",
+      "寄送，发送"
+    ]
   },
   {
     "infinitive": "anunciar",
@@ -87425,7 +88326,12 @@
           "huberen anunciado"
         ]
       }
-    }
+    },
+    "translation": [
+      "宣布,宣告",
+      "预告,预报",
+      "通知,通告"
+    ]
   },
   {
     "infinitive": "prolongar",
@@ -87885,7 +88791,11 @@
           "huberen prolongado"
         ]
       }
-    }
+    },
+    "translation": [
+      "延长，拉长",
+      "拖延"
+    ]
   },
   {
     "infinitive": "preocupar",
@@ -88345,7 +89255,12 @@
           "huberen preocupado"
         ]
       }
-    }
+    },
+    "translation": [
+      "担心,担忧",
+      "挂念",
+      "使烦恼"
+    ]
   },
   {
     "infinitive": "instalar",
@@ -88805,7 +89720,12 @@
           "huberen instalado"
         ]
       }
-    }
+    },
+    "translation": [
+      "安装",
+      "设置",
+      "安置"
+    ]
   },
   {
     "infinitive": "tocar",
@@ -89265,6 +90185,12 @@
           "huberen tocado"
         ]
       }
-    }
+    },
+    "translation": [
+      "触摸，碰触",
+      "演奏，弹奏",
+      "涉及，谈及",
+      "敲门"
+    ]
   }
 ]
