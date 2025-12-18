@@ -72,28 +72,28 @@
         <text class="empty-hint">在练习时点击星标收藏</text>
       </view>
 
-      <view 
-        v-for="item in favoriteList" 
-        :key="item.id" 
+      <view
+        v-for="item in favoriteList"
+        :key="item.id"
         class="word-item card"
       >
         <view class="word-header">
           <view class="word-main">
             <text class="word-infinitive">{{ item.infinitive }}</text>
             <text class="word-meaning">{{ item.meaning }}</text>
-          </view>
-          <view class="word-actions">
             <view class="word-badges">
               <view class="word-tag">{{ item.conjugationType }}</view>
               <view v-if="item.isReflexive" class="word-tag reflexive">反身</view>
               <view v-if="item.isIrregular" class="word-tag irregular">不规则</view>
             </view>
-            <text class="detail-btn" @click="viewConjugations(item.verb_id)">查看全变位</text>
-            <text class="remove-btn" @click="removeFavorite(item.verb_id)">删除</text>
           </view>
         </view>
         <view class="word-meta">
           <text class="meta-item">收藏于 {{ formatDate(item.created_at) }}</text>
+          <view class="word-actions">
+            <text class="detail-btn" @click="viewConjugations(item.verb_id)">查看全变位</text>
+            <text class="remove-btn" @click="removeFavorite(item.verb_id)">删除</text>
+          </view>
         </view>
       </view>
     </view>
@@ -115,20 +115,22 @@
           <view class="word-main">
             <text class="word-infinitive">{{ item.infinitive }}</text>
             <text class="word-meaning">{{ item.meaning }}</text>
-          </view>
-          <view class="word-actions">
             <view class="word-badges">
               <view class="word-tag">{{ item.conjugationType }}</view>
               <view v-if="item.isReflexive" class="word-tag reflexive">反身</view>
               <view v-if="item.isIrregular" class="word-tag irregular">不规则</view>
             </view>
+          </view>
+          <view class="word-header-extra">
             <view class="wrong-count">错 {{ item.wrong_count }} 次</view>
-            <text class="detail-btn" @click="viewConjugations(item.verb_id)">查看全变位</text>
-            <text class="remove-btn" @click="removeWrong(item.verb_id)">删除</text>
           </view>
         </view>
         <view class="word-meta">
           <text class="meta-item">最近错误: {{ formatDate(item.last_wrong_at) }}</text>
+          <view class="word-actions">
+            <text class="detail-btn" @click="viewConjugations(item.verb_id)">查看全变位</text>
+            <text class="remove-btn" @click="removeWrong(item.verb_id)">删除</text>
+          </view>
         </view>
       </view>
     </view>
@@ -219,6 +221,12 @@ export default {
 
     async removeFavorite(verbId) {
       try {
+        const { confirm } = await uni.showModal({
+          title: '提示',
+          content: '确定要删除该收藏单词吗？'
+        })
+        if (!confirm) return
+
         const res = await api.removeFavorite({ verbId })
         if (res.success) {
           showToast('已取消收藏', 'success')
@@ -232,6 +240,12 @@ export default {
 
     async removeWrong(verbId) {
       try {
+        const { confirm } = await uni.showModal({
+          title: '提示',
+          content: '确定要删除该错题单词吗？'
+        })
+        if (!confirm) return
+
         const res = await api.removeWrongVerb({ verbId })
         if (res.success) {
           showToast('已删除', 'success')
@@ -407,6 +421,7 @@ export default {
 }
 
 .word-item {
+  position: relative;
   margin-bottom: 20rpx;
   padding: 30rpx;
 }
@@ -416,6 +431,7 @@ export default {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 20rpx;
+  gap: 20rpx;
 }
 
 .word-main {
@@ -436,11 +452,19 @@ export default {
   color: #666;
 }
 
+
 .word-actions {
   display: flex;
   align-items: center;
   gap: 15rpx;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+}
+
+.word-header-extra {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  min-width: 160rpx;
 }
 
 .word-badges {
@@ -492,6 +516,8 @@ export default {
 
 .word-meta {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: 30rpx;
 }
 
