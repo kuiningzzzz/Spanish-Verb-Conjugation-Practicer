@@ -54,6 +54,7 @@ app.use('/api/vocabulary', require('./routes/vocabulary'))
 app.use('/api/question', require('./routes/question'))  // 题库管理路由
 app.use('/api/course', require('./routes/course'))  // 课程路由
 app.use('/api/feedback', require('./routes/feedback'))  // 用户反馈路由
+app.use('/api/question-feedback', require('./routes/questionFeedback'))  // 题目反馈路由
 
 // 健康检查
 app.get('/api/health', (req, res) => {

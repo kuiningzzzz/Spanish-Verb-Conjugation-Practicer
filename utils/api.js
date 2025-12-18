@@ -131,5 +131,10 @@ export default {
   // 用户反馈相关
   submitFeedback: (data) => request({ url: '/feedback/submit', method: 'POST', data }),
   getFeedbackHistory: () => request({ url: '/feedback/history' }),
-  getFeedbackStatistics: () => request({ url: '/feedback/statistics' })
+  getFeedbackStatistics: () => request({ url: '/feedback/statistics' }),
+
+  // 题目反馈相关
+  submitQuestionFeedback: (data) => request({ url: '/question-feedback/submit', method: 'POST', data }),
+  getQuestionFeedbackHistory: () => request({ url: '/question-feedback/history' }),
+  getQuestionFeedbackStatistics: () => request({ url: '/question-feedback/statistics' })
 }

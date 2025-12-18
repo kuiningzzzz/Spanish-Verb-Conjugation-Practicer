@@ -8,7 +8,13 @@
           <text class="back-text">返回</text>
         </view>
         <view class="navbar-title">开始练习</view>
-        <view class="navbar-placeholder"></view>
+        <view class="navbar-right" v-if="hasStarted">
+          <view class="report-btn" @click="showReportModal = true">
+            <text class="report-icon">⚠️</text>
+            <text class="report-text">此题有误</text>
+          </view>
+        </view>
+        <view class="navbar-placeholder" v-else></view>
       </view>
     </view>
     
@@ -246,6 +252,45 @@
             <text class="btn-icon">✓</text>
             <text>{{ wrongExercises.length > 0 ? '跳过' : '完成' }}</text>
           </button>
+        </view>
+      </view>
+    </view>
+
+    <!-- 题目反馈弹窗 -->
+    <view class="modal" v-if="showReportModal" @click="showReportModal = false">
+      <view class="modal-content report-modal" @click.stop>
+        <text class="report-title">📝 反馈题目错误</text>
+        <text class="report-subtitle">帮助我们改进题目质量</text>
+        
+        <view class="report-info">
+          <view class="info-row">
+            <text class="info-label">题型：</text>
+            <text class="info-value">{{ exerciseTypeText }}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">动词：</text>
+            <text class="info-value">{{ currentExercise ? currentExercise.infinitive : '' }}</text>
+          </view>
+          <view class="info-row" v-if="currentExercise && exerciseType !== 'combo-fill'">
+            <text class="info-label">答案：</text>
+            <text class="info-value">{{ currentExercise.correctAnswer }}</text>
+          </view>
+        </view>
+        
+        <view class="report-input-section">
+          <text class="input-label">问题描述（选填）</text>
+          <textarea
+            class="report-textarea"
+            v-model="reportComment"
+            placeholder="请描述题目存在的问题，如：答案错误、题目不清晰、语法错误等（选填，可直接提交）"
+            :maxlength="500"
+          />
+          <text class="char-count">{{ reportComment.length }}/500</text>
+        </view>
+        
+        <view class="report-actions">
+          <button class="btn-secondary" @click="showReportModal = false">取消</button>
+          <button class="btn-primary" @click="submitReport">提交反馈</button>
         </view>
       </view>
     </view>
@@ -596,7 +641,11 @@ export default {
       },
 
       // 返回控制
-      allowNavigateBack: false
+      allowNavigateBack: false,
+      
+      // 题目反馈相关
+      showReportModal: false,  // 显示反馈弹窗
+      reportComment: ''        // 反馈内容
     }
   },
   onLoad(options) {
@@ -1901,6 +1950,71 @@ export default {
       this.questionStates = this.exercises.map(ex => this.createStateForExercise(ex))
       if (this.exercises.length > 0) {
         this.goToExercise(0, true)
+      }
+    },
+    
+    // 提交题目反馈
+    async submitReport() {
+      if (!this.currentExercise) {
+        showToast('当前没有题目', 'none')
+        return
+      }
+      
+      try {
+        showLoading('提交中...')
+        
+        // 准备反馈数据
+        const feedbackData = {
+          exerciseType: this.exerciseType,
+          verbId: this.currentExercise.verbId,
+          infinitive: this.currentExercise.infinitive,
+          feedbackText: this.reportComment.trim()
+        }
+        
+        // 根据题型添加不同的字段
+        if (this.exerciseType === 'combo-fill') {
+          // 组合填空：提交6个答案，用英文逗号分割
+          const answers = this.currentExercise.comboItems.map(item => item.correctAnswer)
+          feedbackData.answers = answers.join(',')
+        } else if (this.exerciseType === 'sentence') {
+          // 例句填空：提交题目ID（如果有）
+          if (this.currentExercise.questionId) {
+            feedbackData.questionId = this.currentExercise.questionId
+          } else {
+            // 如果没有题目ID，提交答案
+            feedbackData.answer = this.currentExercise.correctAnswer
+          }
+        } else {
+          // 其他题型：提交答案
+          feedbackData.answer = this.currentExercise.correctAnswer
+        }
+        
+        // 如果有时态、语气、人称信息，也一并提交（用于组合填空外的题型）
+        if (this.currentExercise.tense) {
+          feedbackData.tense = this.currentExercise.tense
+        }
+        if (this.currentExercise.mood) {
+          feedbackData.mood = this.currentExercise.mood
+        }
+        if (this.currentExercise.person) {
+          feedbackData.person = this.currentExercise.person
+        }
+        
+        const res = await api.submitQuestionFeedback(feedbackData)
+        
+        hideLoading()
+        
+        if (res.success) {
+          showToast('感谢您的反馈！', 'success')
+          this.showReportModal = false
+          this.reportComment = ''
+        } else {
+          showToast(res.message || '提交失败', 'none')
+        }
+      } catch (error) {
+        hideLoading()
+        console.error('提交反馈失败:', error)
+        showToast('提交失败，请重试', 'none')
       }
     }
   }
@@ -3518,5 +3632,174 @@ slider {
   font-size: 28rpx;
   color: #856404;
   font-weight: bold;
+}
+
+/* 导航栏右侧按钮 */
+.navbar-right {
+  display: flex;
+  align-items: center;
+  min-width: 120rpx;
+  justify-content: flex-end;
+}
+
+.report-btn {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 8rpx 16rpx;
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+  border-radius: 20rpx;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2rpx 8rpx rgba(255, 152, 0, 0.3);
+}
+
+.report-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 1rpx 4rpx rgba(255, 152, 0, 0.3);
+}
+
+.report-icon {
+  font-size: 24rpx;
+  line-height: 1;
+}
+
+.report-text {
+  font-size: 22rpx;
+  color: #fff;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* 题目反馈弹窗样式 */
+.modal-content.report-modal {
+  max-width: 650rpx;
+  padding: 50rpx 40rpx;
+}
+
+.report-title {
+  display: block;
+  text-align: center;
+  font-size: 38rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 12rpx;
+}
+
+.report-subtitle {
+  display: block;
+  text-align: center;
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 35rpx;
+}
+
+.report-info {
+  background: linear-gradient(135deg, #f8f9ff 0%, #fff5fb 100%);
+  border: 2rpx solid #e0e7ff;
+  border-radius: 12rpx;
+  padding: 20rpx 25rpx;
+  margin-bottom: 30rpx;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid rgba(0, 0, 0, 0.05);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-size: 26rpx;
+  color: #666;
+  min-width: 100rpx;
+  font-weight: 500;
+}
+
+.info-value {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 600;
+  flex: 1;
+}
+
+.report-input-section {
+  margin-bottom: 30rpx;
+}
+
+.input-label {
+  display: block;
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 12rpx;
+  font-weight: 500;
+}
+
+.report-textarea {
+  width: 100%;
+  min-height: 200rpx;
+  background: #f8f9fa;
+  border: 2rpx solid #e9ecef;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.6;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+}
+
+.report-textarea:focus {
+  border-color: #667eea;
+  background: #fff;
+  box-shadow: 0 0 0 4rpx rgba(102, 126, 234, 0.1);
+}
+
+.char-count {
+  display: block;
+  text-align: right;
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+.report-actions {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 10rpx;
+}
+
+.report-actions button {
+  flex: 1;
+  padding: 25rpx;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.report-actions .btn-secondary {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.report-actions .btn-secondary:active {
+  background: #e0e0e0;
+}
+
+.report-actions .btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+}
+
+.report-actions .btn-primary:active {
+  transform: translateY(2rpx);
+  box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.3);
 }
 </style>
