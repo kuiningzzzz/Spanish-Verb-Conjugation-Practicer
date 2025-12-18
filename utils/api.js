@@ -126,5 +126,10 @@ export default {
   resetLessonProgress: (lessonId) => request({ url: `/course/lessons/${lessonId}/progress`, method: 'DELETE' }),
   createTextbook: (data) => request({ url: '/course/textbooks', method: 'POST', data }),
   createLesson: (data) => request({ url: '/course/lessons', method: 'POST', data }),
-  addVerbsToLesson: (lessonId, data) => request({ url: `/course/lessons/${lessonId}/verbs`, method: 'POST', data })
+  addVerbsToLesson: (lessonId, data) => request({ url: `/course/lessons/${lessonId}/verbs`, method: 'POST', data }),
+
+  // 用户反馈相关
+  submitFeedback: (data) => request({ url: '/feedback/submit', method: 'POST', data }),
+  getFeedbackHistory: () => request({ url: '/feedback/history' }),
+  getFeedbackStatistics: () => request({ url: '/feedback/statistics' })
 }

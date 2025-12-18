@@ -66,6 +66,12 @@
       "style": {
         "navigationBarTitleText": "个人中心"
       }
+    },
+    {
+      "path": "pages/feedback/feedback",
+      "style": {
+        "navigationBarTitleText": "用户反馈"
+      }
     }
   ],
   "globalStyle": {

@@ -787,7 +787,7 @@ export default {
     },
     startPractice() {
       uni.navigateTo({
-        url: '/pages/practice/practice'
+        url: '/pages/feedback/feedback'
       })
     },
     async logout() {
