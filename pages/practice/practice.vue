@@ -579,7 +579,10 @@ export default {
         correct: 0,
         wrong: 0,
         accuracy: 0
-      }
+      },
+
+      // 返回控制
+      allowNavigateBack: false
     }
   },
   onLoad(options) {
@@ -610,6 +613,16 @@ export default {
       // 其他练习模式：favorite: 收藏练习, wrong: 错题练习
       this.practiceMode = options.mode
     }
+  },
+  onBackPress() {
+    if (this.allowNavigateBack) {
+      return false
+    }
+    if (this.hasStarted) {
+      this.goBack()
+      return true
+    }
+    return false
   },
   computed: {
     containerPaddingTop() {
@@ -646,6 +659,7 @@ export default {
           content: '练习尚未完成，确定要返回吗？',
           success: (res) => {
             if (res.confirm) {
+              this.allowNavigateBack = true
               uni.navigateBack({
                 delta: 1
               })
