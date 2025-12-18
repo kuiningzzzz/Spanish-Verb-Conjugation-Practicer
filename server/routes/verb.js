@@ -247,28 +247,53 @@ router.get('/search/:keyword', authMiddleware, (req, res) => {
 
 // 计算匹配分数的辅助函数
 function calculateMatchScore(text, keyword) {
+  const normalizedText = text.toLowerCase()
+  const normalizedKeyword = keyword.toLowerCase()
+
+  // 计算公共前缀长度，确保模糊匹配以用户输入为前缀
+  const prefixLength = getCommonPrefixLength(normalizedText, normalizedKeyword)
+  const prefixScore = prefixLength / normalizedKeyword.length
+
+  // 对于较短的关键词适当放宽，但必须至少匹配前缀
+  const minPrefixScore = normalizedKeyword.length <= 3 ? 0.5 : 0.6
+  if (prefixScore < minPrefixScore) {
+    return 0
+  }
+
   // 方法1：顺序匹配
   let keywordIndex = 0
-  for (let i = 0; i < text.length && keywordIndex < keyword.length; i++) {
-    if (text[i] === keyword[keywordIndex]) {
+  for (let i = 0; i < normalizedText.length && keywordIndex < normalizedKeyword.length; i++) {
+    if (normalizedText[i] === normalizedKeyword[keywordIndex]) {
       keywordIndex++
     }
   }
-  const sequentialScore = keywordIndex / keyword.length
-  
+  const sequentialScore = keywordIndex / normalizedKeyword.length
+
   // 方法2：字符存在匹配
-  const keywordChars = keyword.split('')
-  const textChars = text.split('')
+  const keywordChars = normalizedKeyword.split('')
+  const textChars = normalizedText.split('')
   let matchCount = 0
   keywordChars.forEach(char => {
     if (textChars.includes(char)) {
       matchCount++
     }
   })
-  const charScore = matchCount / keyword.length
-  
-  // 返回较高的分数
-  return Math.max(sequentialScore, charScore)
+  const charScore = matchCount / normalizedKeyword.length
+
+  // 返回考虑前缀的最高分
+  return Math.max(prefixScore, sequentialScore, charScore)
+}
+
+// 获取两个字符串的公共前缀长度
+function getCommonPrefixLength(text, keyword) {
+  const minLength = Math.min(text.length, keyword.length)
+  let length = 0
+
+  while (length < minLength && text[length] === keyword[length]) {
+    length++
+  }
+
+  return length
 }
 
 // 获取动词详情和完整变位

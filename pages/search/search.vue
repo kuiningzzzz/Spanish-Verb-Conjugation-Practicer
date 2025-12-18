@@ -21,11 +21,11 @@
       <!-- 精确匹配结果 -->
       <view v-if="hasExactResults" class="results-section">
         <!-- 原型精确匹配 -->
-        <view 
-          v-for="(verb, index) in displayedExactInfinitive" 
+        <view
+          v-for="(verb, index) in displayedExactInfinitive"
           :key="'exact-inf-' + verb.id"
           class="result-item"
-          @click="viewVerbDetail(verb.id)"
+          @click="viewVerbDetail(verb)"
         >
           <view class="result-header">
             <text class="verb-infinitive">{{ verb.infinitive }}</text>
@@ -41,11 +41,11 @@
         </view>
 
         <!-- 变位精确匹配 -->
-        <view 
-          v-for="(verb, index) in displayedExactConjugation" 
+        <view
+          v-for="(verb, index) in displayedExactConjugation"
           :key="'exact-conj-' + verb.id"
           class="result-item"
-          @click="viewVerbDetail(verb.id)"
+          @click="viewVerbDetail(verb)"
         >
           <view class="result-header">
             <text class="verb-infinitive">{{ verb.infinitive }}</text>
@@ -78,11 +78,11 @@
         </view>
 
         <!-- 原型模糊匹配 -->
-        <view 
-          v-for="(verb, index) in displayedFuzzyInfinitive" 
+        <view
+          v-for="(verb, index) in displayedFuzzyInfinitive"
           :key="'fuzzy-inf-' + verb.id"
           class="result-item fuzzy-item"
-          @click="viewVerbDetail(verb.id)"
+          @click="viewVerbDetail(verb)"
         >
           <view class="result-header">
             <text class="verb-infinitive">{{ verb.infinitive }}</text>
@@ -98,11 +98,11 @@
         </view>
 
         <!-- 变位模糊匹配 -->
-        <view 
-          v-for="(verb, index) in displayedFuzzyConjugation" 
+        <view
+          v-for="(verb, index) in displayedFuzzyConjugation"
           :key="'fuzzy-conj-' + verb.id"
           class="result-item fuzzy-item"
-          @click="viewVerbDetail(verb.id)"
+          @click="viewVerbDetail(verb)"
         >
           <view class="result-header">
             <text class="verb-infinitive">{{ verb.infinitive }}</text>
@@ -136,23 +136,53 @@
       </view>
     </view>
 
-    <!-- 搜索提示 -->
-    <view v-if="!showSearchResults && !searchKeyword" class="search-tips">
-      <view class="tip-item">
-        <text class="tip-icon">💡</text>
-        <text class="tip-text">输入动词原型，如 "hablar"</text>
+    <!-- 搜索提示 / 历史 -->
+    <view v-if="!showSearchResults && !searchKeyword">
+      <view v-if="hasSearchHistory" class="history-section">
+        <view class="section-title">
+          <text>最近搜索</text>
+        </view>
+        <view
+          v-for="(verb, index) in searchHistory"
+          :key="'history-' + verb.id"
+          class="result-item history-item"
+          @click="viewHistoryDetail(verb)"
+        >
+          <view class="result-header">
+            <text class="verb-infinitive">{{ verb.infinitive }}</text>
+            <view class="verb-badges">
+              <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
+              <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
+            </view>
+          </view>
+          <text class="verb-meaning">{{ verb.meaning }}</text>
+          <view v-if="verb.matchedForm" class="matched-form-info">
+            <text class="matched-form-label">匹配变位：</text>
+            <text class="matched-form-text">{{ verb.matchedForm }}</text>
+          </view>
+          <view class="verb-meta">
+            <text class="meta-item">{{ verb.conjugationType }}</text>
+          </view>
+          <view class="history-delete" @click.stop="deleteHistory(index)">删除</view>
+        </view>
       </view>
-      <view class="tip-item">
-        <text class="tip-icon">💡</text>
-        <text class="tip-text">输入变位形式，如 "hablé"</text>
-      </view>
-      <view class="tip-item">
-        <text class="tip-icon">💡</text>
-        <text class="tip-text">支持模糊搜索和拼写容错</text>
-      </view>
+      <view v-else class="search-tips">
+        <view class="tip-item">
+          <text class="tip-icon">💡</text>
+          <text class="tip-text">输入动词原型，如 "hablar"</text>
+        </view>
+        <view class="tip-item">
+          <text class="tip-icon">💡</text>
+          <text class="tip-text">输入变位形式，如 "hablé"</text>
+        </view>
+        <view class="tip-item">
+          <text class="tip-icon">💡</text>
+          <text class="tip-text">支持模糊搜索和拼写容错</text>
+        </view>
             <view class="tip-item">
-        <text class="tip-icon">💡</text>
-        <text class="tip-text">暂时只收录了《现代西班牙语第一册》的194个动词</text>
+          <text class="tip-icon">💡</text>
+          <text class="tip-text">暂时只收录了《现代西班牙语第一册》的194个动词</text>
+        </view>
       </view>
     </view>
   </view>
@@ -176,7 +206,8 @@ export default {
       searchTimer: null,
       // 分页控制
       exactDisplayCount: 10, // 精确匹配默认显示10条
-      fuzzyDisplayCount: 5   // 模糊匹配默认显示5条
+      fuzzyDisplayCount: 5,  // 模糊匹配默认显示5条
+      searchHistory: []
     }
   },
 
@@ -246,12 +277,21 @@ export default {
     
     // 剩余模糊匹配结果数量
     remainingFuzzyCount() {
-      const totalFuzzy = this.searchResults.fuzzyInfinitive.length + 
+      const totalFuzzy = this.searchResults.fuzzyInfinitive.length +
                          this.searchResults.fuzzyConjugation.length
-      const displayed = this.displayedFuzzyInfinitive.length + 
+      const displayed = this.displayedFuzzyInfinitive.length +
                         this.displayedFuzzyConjugation.length
       return Math.max(0, totalFuzzy - displayed)
+    },
+
+    // 是否有搜索历史
+    hasSearchHistory() {
+      return this.searchHistory.length > 0
     }
+  },
+
+  onShow() {
+    this.loadSearchHistory()
   },
 
   methods: {
@@ -326,10 +366,56 @@ export default {
     },
 
     // 查看动词详情
-    viewVerbDetail(verbId) {
+    viewVerbDetail(verb) {
+      this.addToSearchHistory(verb)
       uni.navigateTo({
-        url: `/pages/conjugation-detail/conjugation-detail?verbId=${verbId}`
+        url: `/pages/conjugation-detail/conjugation-detail?verbId=${verb.id}`
       })
+    },
+
+    // 查看历史动词详情
+    viewHistoryDetail(verb) {
+      this.addToSearchHistory(verb)
+      uni.navigateTo({
+        url: `/pages/conjugation-detail/conjugation-detail?verbId=${verb.id}`
+      })
+    },
+
+    // 载入搜索历史
+    loadSearchHistory() {
+      try {
+        const history = uni.getStorageSync('verbSearchHistory') || []
+        this.searchHistory = Array.isArray(history) ? history : []
+      } catch (error) {
+        console.error('加载搜索历史失败:', error)
+        this.searchHistory = []
+      }
+    },
+
+    // 保存搜索历史
+    saveSearchHistory() {
+      uni.setStorageSync('verbSearchHistory', this.searchHistory)
+    },
+
+    // 添加到搜索历史
+    addToSearchHistory(verb) {
+      if (!verb || !verb.id) return
+
+      const existingIndex = this.searchHistory.findIndex(item => item.id === verb.id)
+      if (existingIndex !== -1) {
+        this.searchHistory.splice(existingIndex, 1)
+      }
+
+      const historyItem = { ...verb, timestamp: Date.now() }
+      this.searchHistory.unshift(historyItem)
+      this.searchHistory = this.searchHistory.slice(0, 20)
+      this.saveSearchHistory()
+    },
+
+    // 删除单条历史
+    deleteHistory(index) {
+      this.searchHistory.splice(index, 1)
+      this.saveSearchHistory()
     }
   }
 }
@@ -568,6 +654,27 @@ export default {
 /* 搜索提示 */
 .search-tips {
   padding: 60rpx 50rpx;
+}
+
+.history-section {
+  padding: 40rpx 30rpx 80rpx;
+}
+
+.history-item {
+  position: relative;
+  padding-bottom: 60rpx;
+}
+
+.history-delete {
+  position: absolute;
+  right: 30rpx;
+  bottom: 20rpx;
+  font-size: 26rpx;
+  color: #ff6b6b;
+  padding: 12rpx 20rpx;
+  background: #ffecec;
+  border-radius: 30rpx;
+  box-shadow: 0 2rpx 8rpx rgba(255, 107, 107, 0.2);
 }
 
 .tip-item {

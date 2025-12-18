@@ -375,14 +375,25 @@
 
       <view class="form-item">
         <text class="label">题目数量</text>
-        <slider 
-          @change="onCountChange" 
-          :value="exerciseCount" 
-          min="5" 
-          max="30" 
-          show-value 
-          :disabled="isCourseMode"
-        />
+        <view :class="['count-selector', { disabled: isCourseMode }]">
+          <button
+            class="count-btn"
+            :disabled="isCourseMode || exerciseCount <= minExerciseCount"
+            @click="changeExerciseCount(-exerciseCountStep)"
+          >
+            -
+          </button>
+          <view class="count-display">
+            <text class="count-value">{{ exerciseCount }}</text>
+          </view>
+          <button
+            class="count-btn"
+            :disabled="isCourseMode || exerciseCount >= maxExerciseCount"
+            @click="changeExerciseCount(exerciseCountStep)"
+          >
+            +
+          </button>
+        </view>
       </view>
 
       <!-- 专项练习设置 -->
@@ -540,6 +551,9 @@ export default {
       exerciseTypeIndex: 0,
       exerciseType: 'sentence',
       exerciseCount: 10,
+      minExerciseCount: 5,
+      maxExerciseCount: 50,
+      exerciseCountStep: 5,
       
       // 课程模式相关
       isCourseMode: false,  // 是否为课程模式
@@ -684,7 +698,7 @@ export default {
       this.isCourseMode = true
       this.lessonId = options.lessonId
       this.lessonTitle = decodeURIComponent(options.lessonTitle || '课程练习')
-      this.exerciseCount = this.defaultCourseCount  // 开始学习使用默认题量20
+      this.setExerciseCount(this.defaultCourseCount)  // 开始学习使用默认题量20
       this.loadLessonConfig()
     } else if (options.mode === 'rollingReview' && options.lessonId) {
       // 滚动复习模式
@@ -693,12 +707,13 @@ export default {
       this.lessonId = options.lessonId
       this.lessonNumber = parseInt(options.lessonNumber || 1)
       this.lessonTitle = `滚动复习：第1-${this.lessonNumber}课`
-      this.exerciseCount = this.defaultReviewCount  // 滚动复习使用默认题量30
+      this.setExerciseCount(this.defaultReviewCount)  // 滚动复习使用默认题量30
       this.loadRollingReviewConfig()
     } else if (options.mode) {
       // 其他练习模式：favorite: 收藏练习, wrong: 错题练习
       this.practiceMode = options.mode
     }
+    this.setExerciseCount(this.exerciseCount)
   },
   onBackPress() {
     if (this.allowNavigateBack) {
@@ -876,8 +891,18 @@ export default {
       this.exerciseTypeIndex = e.detail.value
       this.exerciseType = this.exerciseTypes[e.detail.value].value
     },
-    onCountChange(e) {
-      this.exerciseCount = e.detail.value
+    changeExerciseCount(delta) {
+      if (this.isCourseMode) return
+      const nextCount = this.normalizeExerciseCount(this.exerciseCount + delta)
+      this.exerciseCount = nextCount
+    },
+    setExerciseCount(count) {
+      this.exerciseCount = this.normalizeExerciseCount(count)
+    },
+    normalizeExerciseCount(count) {
+      const clamped = Math.min(this.maxExerciseCount, Math.max(this.minExerciseCount, count))
+      const rounded = Math.round(clamped / this.exerciseCountStep) * this.exerciseCountStep
+      return Math.min(this.maxExerciseCount, Math.max(this.minExerciseCount, rounded))
     },
     
     // 专项练习设置方法
@@ -1904,7 +1929,7 @@ export default {
       // 清空错题队列
       this.wrongExercises = []
       // 更新总题数
-      this.exerciseCount = this.exercises.length
+      this.setExerciseCount(this.exercises.length)
       // 继续下一题
       this.goToExercise(this.currentIndex + 1, true)
     },
@@ -2994,6 +3019,64 @@ export default {
 
 slider {
   margin-top: 10rpx;
+}
+
+.count-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20rpx;
+  margin-top: 10rpx;
+}
+
+.count-btn {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 16rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  font-size: 40rpx;
+  font-weight: bold;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6rpx 16rpx rgba(102, 126, 234, 0.25);
+}
+
+.count-btn::after {
+  border: none;
+}
+
+.count-btn:disabled {
+  background: #e8e8e8;
+  color: #b0b0b0;
+  box-shadow: none;
+}
+
+.count-display {
+  min-width: 140rpx;
+  height: 80rpx;
+  border-radius: 16rpx;
+  border: 2rpx solid #e0e7ff;
+  background: #f8f9ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 2rpx 6rpx rgba(0, 0, 0, 0.04);
+}
+
+.count-value {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.count-selector.disabled .count-display {
+  background: #f5f5f5;
+  border-color: #ebebeb;
+  color: #b0b0b0;
+  box-shadow: none;
 }
 
 /* 专项练习样式 */
