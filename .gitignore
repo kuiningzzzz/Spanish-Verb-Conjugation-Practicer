@@ -17,6 +17,9 @@ yarn-error.log*
 .env.local
 .env.*.local
 
+# API配置文件（包含敏感信息）
+utils/base_url.js
+
 # 编辑器
 .vscode/
 .idea/

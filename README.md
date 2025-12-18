@@ -65,7 +65,7 @@ Docker Compose 配置会自动挂载以下数据库文件到宿主机：
 
 ### 三、前端配置与运行
 
-在utils目录下的api.js文件，将第四行（除了注释以外的第一行代码）的地址修改为`后端提供的地址端口/api`即可，比如`http://localhost:3000/api`
+在utils目录下复制example文件为base_url.js，地址修改为`后端提供的地址端口/api`即可，比如`http://localhost:3000/api`
 
 前端运行使用uni-app开发工具HbuildX自带的运行功能即可，这里不做过多介绍。
 

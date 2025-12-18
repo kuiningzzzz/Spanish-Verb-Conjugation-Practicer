@@ -1,0 +1,12 @@
+// API基础配置示例文件
+// 请复制此文件为 base_url.js 并填入你的实际API地址
+
+// 开发环境：使用 cpolar 内网穿透地址或本地地址
+// 生产环境：替换为实际服务器地址
+
+export const BASE_URL = 'http://your-api-address.com/api'
+
+// 示例：
+// export const BASE_URL = 'http://192.144.253.40:3000/api'  // 生产服务器
+// export const BASE_URL = 'http://3c31348e.r39.cpolar.top/api'  // cpolar内网穿透
+// export const BASE_URL = 'http://localhost:3000/api'  // 本地开发

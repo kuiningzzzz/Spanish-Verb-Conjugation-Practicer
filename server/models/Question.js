@@ -44,7 +44,7 @@ class Question {
    * @returns {Array} 返回排序后的前limit个题目（供题目池使用）
    */
   static getSmartFromPublic(userId, filters = {}, limit = 1) {
-    const { questionType, tenses = [] } = filters
+    const { questionType, tenses = [], verbIds = null } = filters
 
     // 时态名称映射：前端英文 -> 数据库中文
     const tenseMap = {
@@ -74,6 +74,13 @@ class Question {
       }
     }
 
+    // 添加verbIds筛选（用于收藏专练和错题专练）
+    if (verbIds && verbIds.length > 0) {
+      const placeholders = verbIds.map(() => '?').join(',')
+      query += ` AND verb_id IN (${placeholders})`
+      params.push(...verbIds)
+    }
+
     query += ` ORDER BY RANDOM() LIMIT ?`
     params.push(limit * 3)
 
@@ -95,6 +102,7 @@ class Question {
       userId,
       questionType,
       limit,
+      verbIdsFilter: verbIds?.length || 0,
       totalCandidates: allCandidates.length,
       uniqueCandidates: candidates.length,
       candidateIds: candidates.map(c => c.id)

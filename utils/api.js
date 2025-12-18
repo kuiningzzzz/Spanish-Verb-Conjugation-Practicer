@@ -1,8 +1,6 @@
-// API基础配置
-// 开发环境：使用 cpolar 内网穿透地址
-// 生产环境：替换为实际服务器地址
-const BASE_URL = 'http://192.144.253.40:3000/api'
-// const BASE_URL = 'http://3c31348e.r39.cpolar.top/api'
+// 从配置文件导入BASE_URL
+// 如需修改API地址，请编辑 utils/base_url.js 文件
+import { BASE_URL } from './base_url.js'
 
 // 请求封装
 const request = (options) => {

@@ -252,7 +252,12 @@ export default {
 
     startFavoritePractice() {
       if (this.favoriteCount === 0) {
-        showToast('还没有收藏单词', 'none')
+        uni.showModal({
+          title: '提示',
+          content: '你还没有收藏任何单词哦~\n\n在练习过程中点击星标⭐即可收藏单词，收藏后可以专门练习这些单词。',
+          showCancel: false,
+          confirmText: '知道了'
+        })
         return
       }
       uni.navigateTo({
@@ -262,7 +267,12 @@ export default {
 
     startWrongPractice() {
       if (this.wrongCount === 0) {
-        showToast('还没有错题记录', 'none')
+        uni.showModal({
+          title: '提示',
+          content: '你还没有错题记录~太棒了！\n\n在练习中答错的单词会自动加入错题本，之后可以专门练习错过的单词。',
+          showCancel: false,
+          confirmText: '知道了'
+        })
         return
       }
       uni.navigateTo({

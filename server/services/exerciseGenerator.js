@@ -90,13 +90,14 @@ class ExerciseGeneratorService {
 
       // 从题库获取题目池（一次性获取所需数量）
       if (bankCount > 0 && userId) {
-        console.log(`批量生成 - 准备从题库获取:`, { bankCount, exerciseType })
+        console.log(`批量生成 - 准备从题库获取:`, { bankCount, exerciseType, practiceMode, verbIds: verbIds?.length })
         
         const smartQuestions = Question.getSmartFromPublic(userId, {
           questionType: exerciseType,
           tenses,
           conjugationTypes,
-          includeRegular
+          includeRegular,
+          verbIds  // 添加verbIds筛选，用于收藏/错题专练
         }, bankCount)
 
         actualBankCount = smartQuestions.length
@@ -139,7 +140,8 @@ class ExerciseGeneratorService {
           userId,
           conjugationTypes,
           includeRegular,
-          verbIds
+          verbIds,  // 传递verbIds用于收藏/错题专练
+          moods: options.moods  // 传递moods参数
         }
         
         if (actualBankCount > 0) {
