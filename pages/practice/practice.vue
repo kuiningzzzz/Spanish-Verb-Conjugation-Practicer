@@ -277,12 +277,28 @@
           </view>
         </view>
         
+        <view class="issue-types-section">
+          <text class="section-label">问题类型（可多选）</text>
+          <view class="issue-types-grid">
+            <view 
+              v-for="(issue, index) in issueTypeOptions" 
+              :key="index"
+              class="issue-type-item"
+              :class="{ 'selected': selectedIssueTypes.includes(issue.value) }"
+              @click="toggleIssueType(issue.value)"
+            >
+              <text class="issue-checkbox">{{ selectedIssueTypes.includes(issue.value) ? '☑' : '☐' }}</text>
+              <text class="issue-label">{{ issue.label }}</text>
+            </view>
+          </view>
+        </view>
+        
         <view class="report-input-section">
-          <text class="input-label">问题描述（选填）</text>
+          <text class="input-label">问题描述{{ selectedIssueTypes.includes('other') ? '（必填）' : '（选填）' }}</text>
           <textarea
             class="report-textarea"
             v-model="reportComment"
-            placeholder="请描述题目存在的问题，如：答案错误、题目不清晰、语法错误等（选填，可直接提交）"
+            placeholder="请详细描述遇到的问题..."
             :maxlength="500"
           />
           <text class="char-count">{{ reportComment.length }}/500</text>
@@ -645,7 +661,14 @@ export default {
       
       // 题目反馈相关
       showReportModal: false,  // 显示反馈弹窗
-      reportComment: ''        // 反馈内容
+      reportComment: '',       // 反馈内容
+      issueTypeOptions: [      // 问题类型选项
+        { value: 'wrong_answer', label: '答案有误' },
+        { value: 'multiple_solutions', label: '一题多解' },
+        { value: 'inappropriate', label: '内容不适' },
+        { value: 'other', label: '其他问题' }
+      ],
+      selectedIssueTypes: []   // 选中的问题类型
     }
   },
   onLoad(options) {
@@ -1953,10 +1976,32 @@ export default {
       }
     },
     
+    // 切换问题类型选择
+    toggleIssueType(issueValue) {
+      const index = this.selectedIssueTypes.indexOf(issueValue)
+      if (index > -1) {
+        this.selectedIssueTypes.splice(index, 1)
+      } else {
+        this.selectedIssueTypes.push(issueValue)
+      }
+    },
+    
     // 提交题目反馈
     async submitReport() {
       if (!this.currentExercise) {
         showToast('当前没有题目', 'none')
+        return
+      }
+      
+      // 验证必须选择至少一个问题类型
+      if (this.selectedIssueTypes.length === 0) {
+        showToast('请至少选择一个问题类型', 'none')
+        return
+      }
+      
+      // 如果选择了"其他问题"，必须填写描述
+      if (this.selectedIssueTypes.includes('other') && !this.reportComment.trim()) {
+        showToast('选择"其他问题"时，请填写问题描述', 'none')
         return
       }
       
@@ -1968,6 +2013,7 @@ export default {
           exerciseType: this.exerciseType,
           verbId: this.currentExercise.verbId,
           infinitive: this.currentExercise.infinitive,
+          issueTypes: this.selectedIssueTypes,  // 新增：问题类型数组
           feedbackText: this.reportComment.trim()
         }
         
@@ -2008,6 +2054,7 @@ export default {
           showToast('感谢您的反馈！', 'success')
           this.showReportModal = false
           this.reportComment = ''
+          this.selectedIssueTypes = []  // 清空选中的问题类型
         } else {
           showToast(res.message || '提交失败', 'none')
         }
@@ -3801,5 +3848,67 @@ slider {
 .report-actions .btn-primary:active {
   transform: translateY(2rpx);
   box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.3);
+}
+
+/* 问题类型选择区域 */
+.issue-types-section {
+  margin-bottom: 30rpx;
+}
+
+.section-label {
+  display: block;
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 15rpx;
+  font-weight: 500;
+}
+
+.issue-types-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15rpx;
+}
+
+.issue-type-item {
+  background: #f8f9fa;
+  border: 2rpx solid #e9ecef;
+  border-radius: 12rpx;
+  padding: 20rpx 15rpx;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.issue-type-item:active {
+  transform: scale(0.98);
+}
+
+.issue-type-item.selected {
+  background: linear-gradient(135deg, #e7f0ff 0%, #f0e7ff 100%);
+  border-color: #667eea;
+  box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.15);
+}
+
+.issue-checkbox {
+  font-size: 32rpx;
+  color: #999;
+  transition: all 0.3s ease;
+}
+
+.issue-type-item.selected .issue-checkbox {
+  color: #667eea;
+}
+
+.issue-label {
+  font-size: 26rpx;
+  color: #333;
+  font-weight: 500;
+  flex: 1;
+}
+
+.issue-type-item.selected .issue-label {
+  color: #667eea;
 }
 </style>

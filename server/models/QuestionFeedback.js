@@ -17,6 +17,7 @@ const initQuestionFeedbackTable = () => {
       verb_id INTEGER,
       question_id TEXT,
       question_answer TEXT,
+      issue_types TEXT,
       user_comment TEXT,
       mood TEXT,
       tense TEXT,
@@ -25,6 +26,20 @@ const initQuestionFeedbackTable = () => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `)
+  
+  // 检查是否需要添加 issue_types 字段（兼容旧数据库）
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(question_feedback)").all()
+    const hasIssueTypes = tableInfo.some(col => col.name === 'issue_types')
+    
+    if (!hasIssueTypes) {
+      db.exec(`ALTER TABLE question_feedback ADD COLUMN issue_types TEXT`)
+      console.log('   ✓ 已添加 issue_types 字段到题目反馈表')
+    }
+  } catch (error) {
+    console.log('   ⚠ 检查 issue_types 字段失败:', error.message)
+  }
+  
   console.log('   ✓ 题目反馈数据库表初始化成功')
 }
 
@@ -41,7 +56,8 @@ class QuestionFeedback {
       verbInfinitive,
       verbId,
       questionId,
-      questionAnswer, 
+      questionAnswer,
+      issueTypes,
       userComment,
       mood,
       tense,
@@ -57,14 +73,15 @@ class QuestionFeedback {
         verb_infinitive,
         verb_id,
         question_id,
-        question_answer, 
+        question_answer,
+        issue_types,
         user_comment,
         mood,
         tense,
         person,
         question_source
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     
     const result = stmt.run(
@@ -74,7 +91,8 @@ class QuestionFeedback {
       verbInfinitive,
       verbId || null,
       questionId || null,
-      questionAnswer || null, 
+      questionAnswer || null,
+      issueTypes || null,
       userComment || null,
       mood || null,
       tense || null,
