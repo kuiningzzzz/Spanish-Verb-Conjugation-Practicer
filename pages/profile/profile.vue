@@ -614,7 +614,9 @@ export default {
 
       try {
         const trimmedUsername = this.editForm.username.trim()
-        const trimmedSchool = this.editForm.school ? this.editForm.school.trim() : ''
+        const trimmedSchool = this.editForm.school && typeof this.editForm.school === 'string' 
+          ? this.editForm.school.trim() 
+          : ''
         const enrollmentYearValue = this.editForm.enrollmentYear
           ? parseInt(this.editForm.enrollmentYear)
           : undefined
@@ -667,12 +669,13 @@ export default {
     },
 
     isUsernameValid(value = this.editForm.username) {
+      if (!value || typeof value !== 'string') return false
       const usernamePattern = /^[A-Za-z0-9]{8,20}$/
       const trimmed = value.trim()
       return Boolean(trimmed && usernamePattern.test(trimmed))
     },
     validateEditUsername(value = this.editForm.username) {
-      if (!value || !value.trim()) {
+      if (!value || typeof value !== 'string' || !value.trim()) {
         this.editErrors.username = '请输入用户名'
         return false
       }
@@ -686,6 +689,7 @@ export default {
       return true
     },
     isPasswordValid(value = this.editForm.password) {
+      if (!value || typeof value !== 'string') return false
       const passwordPattern = /^[A-Za-z0-9!@#$%^&*()_+\-.]{8,20}$/
       const trimmed = value.trim()
       const hasLetter = /[A-Za-z]/.test(trimmed)
@@ -720,6 +724,8 @@ export default {
     async ensureUsernameAvailability() {
       if (!this.validateEditUsername()) return false
 
+      if (!this.editForm.username || typeof this.editForm.username !== 'string') return false
+      
       const trimmed = this.editForm.username.trim()
       if (trimmed === this.userInfo.username) {
         this.editErrors.username = ''
