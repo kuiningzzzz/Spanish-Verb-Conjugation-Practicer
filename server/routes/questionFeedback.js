@@ -14,6 +14,7 @@ router.post('/submit', authMiddleware, async (req, res) => {
       questionId,
       answer,            // 前端使用 answer
       answers,           // 前端使用 answers（组合填空）
+      issueTypes,        // 问题类型数组
       feedbackText,      // 前端使用 feedbackText
       mood,
       tense,
@@ -41,6 +42,14 @@ router.post('/submit', authMiddleware, async (req, res) => {
       })
     }
 
+    // 验证问题类型
+    if (!issueTypes || !Array.isArray(issueTypes) || issueTypes.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: '请至少选择一个问题类型'
+      })
+    }
+
     // 根据题型确定questionAnswer
     let questionAnswer = null
     if (exerciseType === 'combo-fill' && answers) {
@@ -51,6 +60,9 @@ router.post('/submit', authMiddleware, async (req, res) => {
       questionAnswer = answer
     }
 
+    // 将问题类型数组转换为逗号分隔的字符串
+    const issueTypesString = issueTypes.join(',')
+
     // 创建题目反馈
     const feedbackId = QuestionFeedback.create({
       userId,
@@ -60,6 +72,7 @@ router.post('/submit', authMiddleware, async (req, res) => {
       verbId,
       questionId,
       questionAnswer,
+      issueTypes: issueTypesString,
       userComment: feedbackText ? feedbackText.trim() : null,
       mood,
       tense,
