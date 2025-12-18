@@ -28,34 +28,29 @@
       >
         <!-- 题目头部 -->
         <view class="question-header">
-          <view class="question-number">#{{ index + 1 }}</view>
-          <view class="question-meta">
-            <text class="meta-tag">{{ item.tense || '一般现在时' }}</text>
-            <text class="meta-tag" v-if="item.mood">{{ item.mood }}</text>
-            <text class="meta-tag" v-if="item.person">{{ item.person }}</text>
+          <view class="header-left">
+            <view class="question-number">#{{ index + 1 }}</view>
+            <!-- 动词原型 -->
+            <view v-if="item.infinitive" class="verb-infinitive">
+              <text class="verb-text">{{ item.infinitive }}</text>
+              <text v-if="item.meaning" class="verb-meaning">（{{ item.meaning }}）</text>
+            </view>
           </view>
           <view class="delete-btn" @click.stop="deleteQuestion(item.id)">
             <text>🗑️</text>
           </view>
         </view>
 
-        <!-- 动词原型 -->
-        <view v-if="item.infinitive" class="verb-infinitive">
-          <text class="verb-icon">📖</text>
-          <text class="verb-label">动词原型：</text>
-          <text class="verb-text">{{ item.infinitive }}</text>
-          <text v-if="item.meaning" class="verb-meaning">（{{ item.meaning }}）</text>
+        <!-- 时态信息 -->
+        <view class="question-meta">
+          <text class="meta-tag">{{ item.tense || '一般现在时' }}</text>
+          <text class="meta-tag" v-if="item.mood">{{ item.mood }}</text>
+          <text class="meta-tag" v-if="item.person">{{ item.person }}</text>
         </view>
 
         <!-- 题目内容 -->
         <view class="question-content">
           <text class="question-text">{{ item.question_text }}</text>
-        </view>
-
-        <!-- 例句（如果有） -->
-        <view v-if="item.example_sentence" class="example-section">
-          <text class="example-label">例句：</text>
-          <text class="example-text">{{ item.example_sentence }}</text>
         </view>
 
         <!-- 答案区域 -->
@@ -74,15 +69,9 @@
           <text class="translation-text">{{ item.translation }}</text>
         </view>
 
-        <!-- 提示（如果有） -->
-        <view v-if="item.hint" class="hint-section">
-          <text class="hint-icon">💡</text>
-          <text class="hint-text">{{ item.hint }}</text>
-        </view>
-
         <!-- 题目信息 -->
         <view class="question-footer">
-          <text class="footer-info">📅 收藏于 {{ formatDate(item.created_at) }}</text>
+          <text class="footer-info"> 收藏于 {{ formatDate(item.created_at) }}</text>
         </view>
       </view>
     </view>
@@ -240,9 +229,17 @@ export default {
 .question-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 20rpx;
   padding-bottom: 20rpx;
   border-bottom: 2rpx solid #f0f0f0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  flex: 1;
 }
 
 .question-number {
@@ -252,25 +249,8 @@ export default {
   border-radius: 24rpx;
   font-size: 26rpx;
   font-weight: bold;
-  margin-right: 20rpx;
   box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
-}
-
-.question-meta {
-  flex: 1;
-  display: flex;
-  gap: 12rpx;
-  flex-wrap: wrap;
-}
-
-.meta-tag {
-  background: linear-gradient(135deg, #f5f7ff 0%, #e8ecff 100%);
-  padding: 8rpx 18rpx;
-  border-radius: 12rpx;
-  font-size: 24rpx;
-  color: #667eea;
-  font-weight: 500;
-  border: 1rpx solid #d9e1ff;
+  flex-shrink: 0;
 }
 
 .delete-btn {
@@ -284,6 +264,7 @@ export default {
   cursor: pointer;
   transition: all 0.3s;
   box-shadow: 0 2rpx 8rpx rgba(255, 77, 79, 0.15);
+  flex-shrink: 0;
 }
 
 .delete-btn:active {
@@ -292,42 +273,40 @@ export default {
   transform: scale(0.95);
 }
 
-/* 动词原型 */
+/* 动词原型（在header内） */
 .verb-infinitive {
   display: flex;
   align-items: center;
-  padding: 18rpx 24rpx;
-  background: linear-gradient(135deg, #f0f4ff 0%, #e6f0ff 100%);
-  border-radius: 12rpx;
-  margin-bottom: 20rpx;
-  border-left: 6rpx solid #667eea;
-  box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.1);
-}
-
-.verb-icon {
-  font-size: 28rpx;
-  margin-right: 10rpx;
-}
-
-.verb-label {
-  font-size: 26rpx;
-  color: #667eea;
-  font-weight: 600;
-  margin-right: 10rpx;
 }
 
 .verb-text {
-  font-size: 28rpx;
+  font-size: 32rpx;
   color: #333;
   font-weight: bold;
-  font-style: italic;
 }
 
 .verb-meaning {
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: #888;
-  margin-left: 8rpx;
-  font-style: normal;
+  margin-left: 10rpx;
+}
+
+/* 时态信息 */
+.question-meta {
+  display: flex;
+  gap: 12rpx;
+  flex-wrap: wrap;
+  margin-bottom: 20rpx;
+}
+
+.meta-tag {
+  background: linear-gradient(135deg, #f5f7ff 0%, #e8ecff 100%);
+  padding: 8rpx 18rpx;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  color: #667eea;
+  font-weight: 500;
+  border: 1rpx solid #d9e1ff;
 }
 
 /* 题目内容 */
@@ -342,31 +321,6 @@ export default {
   line-height: 1.8;
   font-weight: 500;
   padding: 10rpx 0;
-}
-
-/* 例句 */
-.example-section {
-  background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
-  padding: 24rpx;
-  border-radius: 12rpx;
-  margin-bottom: 25rpx;
-  border: 1rpx solid #e8ecff;
-  box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.08);
-}
-
-.example-label {
-  display: block;
-  font-size: 24rpx;
-  color: #667eea;
-  margin-bottom: 12rpx;
-  font-weight: bold;
-}
-
-.example-text {
-  display: block;
-  font-size: 28rpx;
-  color: #1a1a1a;
-  line-height: 1.6;
 }
 
 /* 答案区域 */
@@ -418,31 +372,6 @@ export default {
 }
 
 .translation-text {
-  flex: 1;
-  font-size: 26rpx;
-  color: #555;
-  line-height: 1.6;
-}
-
-/* 提示 */
-.hint-section {
-  display: flex;
-  align-items: flex-start;
-  padding: 24rpx;
-  background: linear-gradient(135deg, #fff3e0 0%, #ffe8cc 100%);
-  border-radius: 12rpx;
-  margin-bottom: 20rpx;
-  border: 1rpx solid #ffd9a3;
-  box-shadow: 0 2rpx 8rpx rgba(255, 152, 0, 0.1);
-}
-
-.hint-icon {
-  font-size: 32rpx;
-  margin-right: 12rpx;
-  line-height: 1.5;
-}
-
-.hint-text {
   flex: 1;
   font-size: 26rpx;
   color: #555;
