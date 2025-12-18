@@ -7,7 +7,7 @@ const { generateToken } = require('../middleware/auth')
 const { validateAndPrepareImage, getImageInfo } = require('../services/imageCompression')
 
 // 用户名校验规则
-const USERNAME_PATTERN = /^[A-Za-z0-9]{8,20}$/
+const USERNAME_PATTERN = /^[A-Za-z0-9]{6,15}$/
 // 密码校验规则：8-20位，字母/数字/特殊符号(!@#$%^&*()_+-.)至少两种
 const PASSWORD_PATTERN = /^[A-Za-z0-9!@#$%^&*()_+\-.]{8,20}$/
 
@@ -30,7 +30,7 @@ router.post('/check-username', (req, res) => {
     const trimmedUsername = username.trim()
 
     if (!USERNAME_PATTERN.test(trimmedUsername)) {
-      return res.status(400).json({ error: '用户名需为8-20位字母或数字组合' })
+      return res.status(400).json({ error: '用户名需为6-15位字母或数字组合' })
     }
 
     const existingUser = User.findByUsername(trimmedUsername)
@@ -78,9 +78,9 @@ router.post('/send-verification-code', async (req, res) => {
     const trimmedUsername = username.trim()
     const trimmedPassword = password.trim()
 
-    // 用户名规则：8-20位，字母数字组合
+    // 用户名规则：6-15位，字母数字组合
     if (!USERNAME_PATTERN.test(trimmedUsername)) {
-      return res.status(400).json({ error: '用户名需为8-20位字母或数字组合' })
+      return res.status(400).json({ error: '用户名需为6-15位字母或数字组合' })
     }
 
     // 检查用户名是否已存在
@@ -222,9 +222,9 @@ router.post('/register', (req, res) => {
     const trimmedUsername = username.trim()
     const trimmedPassword = password.trim()
 
-    // 用户名规则：8-20位，字母数字组合
+    // 用户名规则：6-15位，字母数字组合
     if (!USERNAME_PATTERN.test(trimmedUsername)) {
-      return res.status(400).json({ error: '用户名需为8-20位字母或数字组合' })
+      return res.status(400).json({ error: '用户名需为6-15位字母或数字组合' })
     }
 
     // 密码规则：8-20位，字母/数字/特殊符号(!@#$%^&*()_+-.)至少两种
@@ -488,7 +488,7 @@ router.put('/profile', require('../middleware/auth').authMiddleware, (req, res) 
     const trimmedUsername = username.trim()
 
     if (!USERNAME_PATTERN.test(trimmedUsername)) {
-      return res.status(400).json({ error: '用户名需为8-20位字母或数字组合' })
+      return res.status(400).json({ error: '用户名需为6-15位字母或数字组合' })
     }
 
     const existingUser = User.findByUsername(trimmedUsername)

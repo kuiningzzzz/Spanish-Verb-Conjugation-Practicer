@@ -96,7 +96,8 @@
             <input
               :class="['input', inputStatus('username')]"
               v-model="formData.username"
-              placeholder="请输入用户名"
+              placeholder="请输入6-15位字母或数字"
+              maxlength="15"
             />
             <text v-if="fieldErrors.username" class="error-text">{{ fieldErrors.username }}</text>
           </view>
@@ -330,7 +331,7 @@ export default {
       }
     },
     isUsernameValid(value = this.formData.username) {
-      const usernamePattern = /^[A-Za-z0-9]{8,20}$/
+      const usernamePattern = /^[A-Za-z0-9]{6,15}$/
       const trimmed = value.trim()
       return Boolean(trimmed && usernamePattern.test(trimmed))
     },
@@ -338,7 +339,7 @@ export default {
       if (this.isLogin) return true
 
       if (!this.isUsernameValid(value)) {
-        this.fieldErrors.username = '用户名需为8-20位字母或数字组合'
+        this.fieldErrors.username = '用户名需为6-15位字母或数字组合'
         return false
       }
 

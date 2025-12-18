@@ -180,8 +180,8 @@
             <input
               class="form-input"
               v-model="editForm.username"
-              placeholder="请输入8-20位字母或数字"
-              maxlength="20"
+              placeholder="请输入6-15位字母或数字"
+              maxlength="15"
               @blur="ensureUsernameAvailability"
             />
             <text v-if="editErrors.username" class="form-error">{{ editErrors.username }}</text>
@@ -655,7 +655,7 @@ export default {
 
     isUsernameValid(value = this.editForm.username) {
       if (!value || typeof value !== 'string') return false
-      const usernamePattern = /^[A-Za-z0-9]{8,20}$/
+      const usernamePattern = /^[A-Za-z0-9]{6,15}$/
       const trimmed = value.trim()
       return Boolean(trimmed && usernamePattern.test(trimmed))
     },
@@ -666,7 +666,7 @@ export default {
       }
 
       if (!this.isUsernameValid(value)) {
-        this.editErrors.username = '用户名需为8-20位字母或数字组合'
+        this.editErrors.username = '用户名需为6-15位字母或数字组合'
         return false
       }
 
