@@ -29,6 +29,7 @@ class ExerciseGeneratorService {
       exerciseType,
       count = 10,
       tenses = [],
+      moods = [],
       conjugationTypes = [],
       includeRegular = true,
       includeVos = false,
@@ -91,10 +92,11 @@ class ExerciseGeneratorService {
       // 从题库获取题目池（一次性获取所需数量）
       if (bankCount > 0 && userId) {
         console.log(`批量生成 - 准备从题库获取:`, { bankCount, exerciseType, practiceMode, verbIds: verbIds?.length })
-        
+
         const smartQuestions = Question.getSmartFromPublic(userId, {
           questionType: exerciseType,
           tenses,
+          moods,
           conjugationTypes,
           includeRegular,
           includeVos,
@@ -177,7 +179,7 @@ class ExerciseGeneratorService {
    * 从题库获取题目（使用智能推荐算法）
    */
   static async getFromQuestionBank(options) {
-    const { userId, exerciseType, tenses, conjugationTypes, includeRegular } = options
+    const { userId, exerciseType, tenses, moods, conjugationTypes, includeRegular, includeVos, includeVosotros } = options
 
     try {
       // 使用智能推荐算法从公共题库获取
@@ -185,6 +187,7 @@ class ExerciseGeneratorService {
         const smartQuestions = Question.getSmartFromPublic(userId, {
           questionType: exerciseType,
           tenses,
+          moods,
           conjugationTypes,
           includeRegular,
           includeVos,
@@ -199,6 +202,7 @@ class ExerciseGeneratorService {
         const publicQuestion = Question.getRandomFromPublic({
           questionType: exerciseType,
           tenses,
+          moods,
           conjugationTypes,
           includeRegular,
           includeVos,
@@ -778,6 +782,7 @@ class ExerciseGeneratorService {
         const aiExercise = await this.generateWithAIForVerb(verb, {
           exerciseType,
           tenses,
+          moods,
           userId
         })
         
@@ -796,6 +801,7 @@ class ExerciseGeneratorService {
       const supplementQuestions = Question.getSmartFromPublic(userId, {
         questionType: exerciseType,
         tenses,
+        moods,
         conjugationTypes,
         includeRegular,
         includeVos: options.includeVos,

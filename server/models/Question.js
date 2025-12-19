@@ -61,6 +61,7 @@ class Question {
     const {
       questionType,
       tenses = [],
+      moods = [],
       verbIds = null,
       includeVos = false,
       includeVosotros = true
@@ -73,6 +74,14 @@ class Question {
       'futuro': '将来时',
       'imperfecto': '过去未完成时',
       'condicional': '条件式'
+    }
+
+    const moodMap = {
+      'indicativo': '陈述式',
+      'subjuntivo': '虚拟式',
+      'imperativo': '命令式',
+      'indicativo_compuesto': '复合陈述式',
+      'subjuntivo_compuesto': '复合虚拟式'
     }
 
     // 第一步：从题库中随机选出3倍数量的候选题目
@@ -91,6 +100,15 @@ class Question {
         const placeholders = chineseTenses.map(() => '?').join(',')
         query += ` AND tense IN (${placeholders})`
         params.push(...chineseTenses)
+      }
+    }
+
+    if (moods.length > 0) {
+      const chineseMoods = moods.map(m => moodMap[m]).filter(Boolean)
+      if (chineseMoods.length > 0) {
+        const placeholders = chineseMoods.map(() => '?').join(',')
+        query += ` AND mood IN (${placeholders})`
+        params.push(...chineseMoods)
       }
     }
 
