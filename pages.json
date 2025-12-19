@@ -80,6 +80,12 @@
       }
     },
     {
+      "path": "pages/update-log/update-log",
+      "style": {
+        "navigationBarTitleText": "更新日志"
+      }
+    },
+    {
       "path": "pages/update/update",
       "style": {
         "navigationBarTitleText": "版本更新",
