@@ -782,7 +782,7 @@ class ExerciseGeneratorService {
         const aiExercise = await this.generateWithAIForVerb(verb, {
           exerciseType,
           tenses,
-          moods,
+          moods: options.moods,  // 修复：使用 options.moods 而不是未定义的 moods
           userId
         })
         
@@ -801,7 +801,7 @@ class ExerciseGeneratorService {
       const supplementQuestions = Question.getSmartFromPublic(userId, {
         questionType: exerciseType,
         tenses,
-        moods,
+        moods: options.moods,  // 修复：使用 options.moods
         conjugationTypes,
         includeRegular,
         includeVos: options.includeVos,
