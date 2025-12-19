@@ -2,7 +2,7 @@ const Database = require('better-sqlite3')
 const path = require('path')
 
 // 创建三个独立的数据库连接
-const userDb = new Database(path.join(__dirname, '../user_data.db'))      // 用户数据库
+const userDb = new Database(path.join(__dirname, '../data/user_data.db'))      // 用户数据库
 const vocabularyDb = new Database(path.join(__dirname, '../data/vocabulary.db')) // 词库数据库
 const questionDb = new Database(path.join(__dirname, '../data/questions.db'))   // 题库数据库
 
