@@ -93,16 +93,18 @@ export default {
     this.loadUpdateInfo()
   },
   onLoad() {
-    // 检查是否已跳过此版本
-    if (this.hasSkippedCurrentVersion()) {
-      // 如果已跳过且不是强制更新，返回首页
-      uni.switchTab({
-        url: '/pages/index/index'
-      })
-    }
+    // 延迟检查，等待数据加载完成
+    setTimeout(() => {
+      if (this.hasSkippedCurrentVersion()) {
+        // 如果已跳过且不是强制更新，返回首页
+        uni.switchTab({
+          url: '/pages/index/index'
+        })
+      }
+    }, 100)
   },
   methods: {
-    loadUpdateInfo() {
+    async loadUpdateInfo() {
       const info = uni.getStorageSync('pendingUpdate')
       if (info && info.packageUrl) {
         this.updateInfo = info
@@ -111,7 +113,7 @@ export default {
           this.disableBack()
         }
       } else {
-        this.fetchLatestVersion()
+        await this.fetchLatestVersion()
       }
     },
     async fetchLatestVersion() {

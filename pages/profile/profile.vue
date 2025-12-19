@@ -140,6 +140,11 @@
           <text class="menu-label">设置</text>
           <text class="menu-arrow">→</text>
         </view>
+        <view class="menu-item" @click="checkUpdate">
+          <view class="menu-icon">🔄</view>
+          <view class="menu-label">检查更新&更新日志</view>
+          <view class="menu-arrow">→</view>
+        </view>
         <view class="menu-item" @click="aboutApp">
           <view class="menu-icon">ℹ️</view>
           <text class="menu-label">关于应用</text>
@@ -744,6 +749,19 @@ export default {
     settings() {
       uni.navigateTo({
         url: '/pages/profile/settings/settings'
+      })
+    },
+    checkUpdate() {
+      console.log('checkUpdate invoked, navigating to update-log')
+      uni.navigateTo({
+        url: '/pages/update-log/update-log',
+        success: () => {
+          console.log('navigateTo success: update-log')
+        },
+        fail: (err) => {
+          console.error('navigateTo failed:', err)
+          uni.showToast({ title: '无法打开更新日志页面，请重启应用', icon: 'none' })
+        }
       })
     },
     aboutApp() {

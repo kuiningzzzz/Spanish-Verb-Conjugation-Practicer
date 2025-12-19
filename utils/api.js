@@ -145,5 +145,9 @@ export default {
     url: '/version/check',
     method: 'GET',
     data: { versionCode }
+  }),
+  getAllVersions: () => request({
+    url: '/version/all',
+    method: 'GET'
   })
 }

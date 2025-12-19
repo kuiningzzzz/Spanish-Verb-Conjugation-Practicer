@@ -1421,31 +1421,168 @@ Authorization: Bearer <token>
 **需要认证**: 否
 
 **查询参数**:
-- `versionCode`: 当前应用版本号
+- `versionCode`: 当前应用版本号（必需）
 
-**响应**:
+**向后兼容性**:
+- 客户端版本号 < 1000：返回旧版本兼容格式（简化格式）
+- 客户端版本号 >= 1000：返回新版本完整格式
+
+**响应（旧版本客户端，versionCode < 1000）**:
 ```json
 {
-  "success": true,
-  "hasUpdate": true,
+  "versionCode": 1485,
+  "versionName": "1.0.1",
+  "releaseNotes": "修复首个版本的关键问题，提升用户体验和系统稳定性\n\n新增功能：\n• 添加版本更新日志展示页面\n• 支持查看历史版本更新记录\n...",
+  "packageFileName": "app-release-1.0.1.apk",
+  "downloadUrl": "http://localhost:3000/api/version/download",
+  "forceUpdate": false
+}
+```
+
+**响应（新版本客户端，versionCode >= 1000）**:
+```json
+{
+  "isLatest": false,
+  "updateRequired": true,
   "latestVersion": {
-    "versionCode": 2,
-    "versionName": "1.1.0",
-    "description": "修复了一些bug，新增了新功能",
-    "downloadUrl": "https://example.com/app.apk",
-    "forceUpdate": false,
-    "releaseDate": "2024-01-15"
+    "versionCode": 1485,
+    "versionName": "1.0.1",
+    "releaseDate": "2025-12-20",
+    "description": "修复首个版本的关键问题，提升用户体验和系统稳定性",
+    "releaseNotes": "【版本描述】\n修复首个版本的关键问题...\n\n【新增功能】\n• 添加版本更新日志展示页面\n...",
+    "newFeatures": [
+      "添加版本更新日志展示页面",
+      "支持查看历史版本更新记录",
+      "新增版本信息API接口"
+    ],
+    "improvements": [
+      "优化版本检查逻辑，提升响应速度",
+      "改进更新日志界面设计，信息展示更清晰"
+    ],
+    "bugFixes": [
+      "修复版本检查接口返回数据格式问题",
+      "修复更新页面UI显示异常"
+    ],
+    "packageFileName": "app-release-1.0.1.apk",
+    "packageUrl": "http://localhost:3000/api/version/download",
+    "packageSize": 12345678,
+    "packageAvailable": true,
+    "forceUpdate": false
   }
 }
 ```
 
-或（无更新）:
+或（已是最新版本）:
 ```json
 {
-  "success": true,
-  "hasUpdate": false,
-  "message": "当前已是最新版本"
+  "isLatest": true,
+  "updateRequired": false,
+  "latestVersion": {
+    "versionCode": 1484,
+    "versionName": "1.0.0",
+    ...
+  }
 }
+```
+
+**错误响应**:
+```json
+{
+  "error": "缺少 versionCode 参数"
+}
+```
+
+### 57. 获取所有版本信息
+
+**接口**: `GET /version/all`
+
+**需要认证**: 否
+
+**描述**: 获取所有历史版本的完整信息，用于版本更新日志页面展示
+
+**响应**:
+```json
+{
+  "versions": [
+    {
+      "versionCode": 1485,
+      "versionName": "1.0.1",
+      "releaseDate": "2025-12-20",
+      "description": "修复首个版本的关键问题，提升用户体验和系统稳定性",
+      "newFeatures": [
+        "添加版本更新日志展示页面",
+        "支持查看历史版本更新记录",
+        "新增版本信息API接口"
+      ],
+      "improvements": [
+        "优化版本检查逻辑，提升响应速度",
+        "改进更新日志界面设计，信息展示更清晰",
+        "增强版本信息结构化展示"
+      ],
+      "bugFixes": [
+        "修复版本检查接口返回数据格式问题",
+        "修复更新页面UI显示异常",
+        "修复版本比较逻辑错误"
+      ]
+    },
+    {
+      "versionCode": 1484,
+      "versionName": "1.0.0",
+      "releaseDate": "2025-12-19",
+      "description": "西班牙语动词变位练习应用首次正式发布",
+      "newFeatures": [
+        "动词变位练习功能，支持多种时态和人称",
+        "课程系统，结构化学习路径",
+        "词汇表功能，管理个人学习词汇"
+      ],
+      "improvements": [
+        "优雅的界面设计，提升用户体验",
+        "流畅的动画效果"
+      ],
+      "bugFixes": [
+        "修复首次发布前的测试问题"
+      ]
+    }
+  ],
+  "latestVersion": {
+    "versionCode": 1485,
+    "versionName": "1.0.1",
+    ...
+  }
+}
+```
+
+**空响应（无版本信息）**:
+```json
+{
+  "versions": []
+}
+```
+
+### 58. 下载最新版本安装包
+
+**接口**: `GET /version/download`
+
+**需要认证**: 否
+
+**描述**: 下载最新版本的APK安装包
+
+**响应**: 
+- 成功时返回APK文件流（Content-Type: application/vnd.android.package-archive）
+- 失败时返回JSON错误信息
+
+**错误响应**:
+```json
+{
+  "error": "安装包不存在，请联系管理员"
+}
+```
+
+**响应头**:
+```
+Content-Type: application/vnd.android.package-archive
+Content-Disposition: attachment; filename="app-release-1.0.1.apk"
+Content-Length: 12345678
 ```
 
 ---
