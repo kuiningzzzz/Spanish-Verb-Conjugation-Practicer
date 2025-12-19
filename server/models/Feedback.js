@@ -2,7 +2,7 @@ const Database = require('better-sqlite3')
 const path = require('path')
 
 // 创建或打开 feedback.db 数据库
-const feedbackDbPath = path.join(__dirname, '../feedback.db')
+const feedbackDbPath = path.join(__dirname, '../data/feedback.db')
 const db = new Database(feedbackDbPath)
 
 // 初始化反馈表
