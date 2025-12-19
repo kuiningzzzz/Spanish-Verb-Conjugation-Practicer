@@ -112,17 +112,6 @@
       </view>
     </view>
 
-    <!-- 底部操作按钮 -->
-    <view class="action-bar">
-      <view class="action-btn" @click="copyAll">
-        <text class="btn-icon">📋</text>
-        <text>复制全部</text>
-      </view>
-      <view class="action-btn primary" @click="startPractice">
-        <text class="btn-icon">✏️</text>
-        <text>开始练习</text>
-      </view>
-    </view>
   </view>
 </template>
 
@@ -371,42 +360,6 @@ export default {
       this.showReflexivePronouns = !this.showReflexivePronouns
     },
 
-    // 复制所有变位
-    copyAll() {
-      let text = `${this.verbInfo.infinitive} - ${this.verbInfo.meaning}\n\n`
-      
-      Object.keys(this.groupedConjugations).forEach(moodKey => {
-        const group = this.groupedConjugations[moodKey]
-        text += `【${this.getMoodName(moodKey)}】\n`
-        
-        group.tenses.forEach(tense => {
-          text += `\n${tense.tenseName}\n`
-          tense.conjugations.forEach(conj => {
-            text += `  ${this.getPersonLabel(conj.person)}: ${conj.conjugated_form}\n`
-          })
-        })
-        text += '\n'
-      })
-      
-      // 在uni-app中复制到剪贴板
-      uni.setClipboardData({
-        data: text,
-        success: () => {
-          showToast('已复制到剪贴板', 'success')
-        },
-        fail: () => {
-          showToast('复制失败', 'none')
-        }
-      })
-    },
-
-    // 开始练习这个动词
-    startPractice() {
-      uni.navigateTo({
-        url: `/pages/practice/practice?verbIds=${this.verbId}&practiceMode=custom`
-      })
-    },
-
     // 检查收藏状态
     async checkFavoriteStatus() {
       try {
@@ -447,12 +400,11 @@ export default {
 </script>
 
 <style scoped>
-.container {
-  min-height: 100vh;
-  background-color: #f5f7fa;
-  padding: 20rpx;
-  padding-bottom: 140rpx;
-}
+  .container {
+    min-height: 100vh;
+    background-color: #f5f7fa;
+    padding: 20rpx;
+  }
 
 /* 动词信息卡片 */
 .verb-info-card {
@@ -720,42 +672,6 @@ export default {
   font-size: 30rpx;
   font-weight: 500;
   color: #2c3e50;
-}
-
-/* 底部操作栏 */
-.action-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  background-color: #fff;
-  padding: 20rpx;
-  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.1);
-  z-index: 100;
-}
-
-.action-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 25rpx;
-  margin: 0 10rpx;
-  background-color: #f8f9fa;
-  border-radius: 20rpx;
-  font-size: 28rpx;
-  color: #495057;
-}
-
-.action-btn.primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-}
-
-.btn-icon {
-  margin-right: 10rpx;
-  font-size: 32rpx;
 }
 
 /* 卡片样式 */
