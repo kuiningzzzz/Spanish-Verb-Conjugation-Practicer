@@ -15,7 +15,7 @@
       "conjugationTypes": ["ar", "er", "ir"],
       "verbs": [
         "ser",
-        "llamarse",
+        "llamar",
         "conocer"
       ]
     },
@@ -35,7 +35,7 @@
         "trabajar",
         "estar",
         "tener",
-        "encargarse"
+        "encargar"
       ]
     },
     {
@@ -48,14 +48,14 @@
       "conjugationTypes": ["ar", "er", "ir"],
       "verbs": [
         "vivir",
-        "irse",
-        "levantarse",
-        "bañarse",
-        "cepillarse",
-        "peinarse",
+        "ir",
+        "levantar",
+        "bañar",
+        "cepillar",
+        "peinar",
         "desayunar",
-        "llevarse",
-        "tomarse",
+        "llevar",
+        "tomar",
         "regresar",
         "parecer",
         "suponer"
@@ -82,9 +82,9 @@
         "venir",
         "volver",
         "almorzar",
-        "prepararse",
-        "quedarse",
-        "acostarse"
+        "preparar",
+        "quedar",
+        "acostar"
       ]
     },
     {
@@ -104,20 +104,20 @@
         "cerrar",
         "poder",
         "querer",
-        "alegrarse",
+        "alegrar",
         "celebrar",
         "entrar",
-        "sentarse",
+        "sentar",
         "parecer",
         "recomendar",
         "pedir",
         "beber",
         "cumplir",
         "empezar",
-        "ayudarse",
+        "ayudar",
         "recibir",
         "felicitar",
-        "ponerse",
+        "poner",
         "charlar",
         "brindar"
       ]
@@ -144,12 +144,12 @@
         "pasar",
         "recoger",
         "coger",
-        "ponerse",
+        "poner",
         "fregar",
-        "encontrarse",
+        "encontrar",
         "ver",
-        "sentirse",
-        "despedirse"
+        "sentir",
+        "despedir"
       ]
     },
     {
@@ -168,11 +168,11 @@
         "necesitar",
         "ganar",
         "traer",
-        "encargarse",
+        "encargar",
         "esperar",
         "pagar",
         "hacer",
-        "resistirse",
+        "resistir",
         "usar",
         "estafar",
         "ofrecer",
@@ -181,7 +181,7 @@
         "teclear",
         "soler",
         "devolver",
-        "perderse"
+        "perder"
       ]
     },
     {
@@ -216,32 +216,32 @@
       "conjugationTypes": ["ar", "er", "ir"],
       "verbs": [
         "indicar",
-        "quedarse",
+        "quedar",
         "dejar",
         "encender",
         "apagar",
         "correr",
         "alcanzar",
-        "apearse",
+        "apear",
         "creer",
-        "perderse",
+        "perder",
         "descuidar",
         "avanzar",
-        "sentirse",
+        "sentir",
         "seguir",
         "utilizar",
         "decir",
         "hacer",
-        "irse",
-        "ponerse",
+        "ir",
+        "poner",
         "salir",
         "tener",
         "venir",
-        "encontrarse",
+        "encontrar",
         "pedir",
         "pensar",
         "llegar",
-        "limpiarse"
+        "limpiar"
       ]
     },
     {
@@ -260,15 +260,15 @@
         "elegir",
         "sonar",
         "recordar",
-        "abrigarse",
-        "probarse",
+        "abrigar",
+        "probar",
         "saber",
         "ser",
         "traer",
         "ver",
-        "acostarse",
-        "ponerse",
-        "levantarse",
+        "acostar",
+        "poner",
+        "levantar",
         "estudiar",
         "comer",
         "vivir",
@@ -284,7 +284,7 @@
       "tenses": ["imperativo_negativo"],
       "conjugationTypes": ["ar", "er", "ir"],
       "verbs": [
-        "precipitarse",
+        "precipitar",
         "interesar",
         "mejorar",
         "comprender",
@@ -297,15 +297,15 @@
         "causar",
         "buscar",
         "contar",
-        "encontrarse",
+        "encontrar",
         "jugar",
         "regar",
-        "ensuciarse",
+        "ensuciar",
         "estorbar",
         "trabajar",
         "comer",
         "vivir",
-        "irse",
+        "ir",
         "leer",
         "traer",
         "pedir",
@@ -317,7 +317,7 @@
         "escribir",
         "decir",
         "oír",
-        "ponerse",
+        "poner",
         "tener",
         "pensar",
         "empezar",
@@ -355,10 +355,10 @@
         "atravesar",
         "enfurecer",
         "conocer",
-        "limitarse",
-        "acercarse",
-        "asomarse",
-        "detenerse"
+        "limitar",
+        "acercar",
+        "asomar",
+        "detener"
       ]
     },
     {
@@ -372,7 +372,7 @@
       "verbs": [
         "pertenecer",
         "incluir",
-        "caracterizarse",
+        "caracterizar",
         "añadir",
         "sobrepasar",
         "cuidar",
@@ -381,7 +381,7 @@
         "conversar",
         "salvar",
         "tratar",
-        "disponerse",
+        "disponer",
         "acompañar",
         "saludar",
         "escuchar"
@@ -396,15 +396,15 @@
       "tenses": ["presente"],
       "conjugationTypes": ["ar", "er", "ir"],
       "verbs": [
-        "graduarse",
+        "graduar",
         "envidiar",
         "iniciar",
-        "animarse",
+        "animar",
         "prometer",
         "mandar",
         "anunciar",
-        "prolongarse",
-        "preocuparse",
+        "prolongar",
+        "preocupar",
         "instalar",
         "tocar"
       ]

@@ -4,8 +4,8 @@ const path = require('path')
 
 const router = express.Router()
 
-const VERSION_FILE = path.join(__dirname, '..', 'data', 'version.json')
-const UPDATE_DIR = path.join(__dirname, '..', 'updates')
+const VERSION_FILE = path.join(__dirname, '..', 'src', 'version.json')
+const UPDATE_DIR = path.join(__dirname, '..', 'src', 'updates')
 
 const loadVersionInfo = () => {
   const fileContent = fs.readFileSync(VERSION_FILE, 'utf-8')
