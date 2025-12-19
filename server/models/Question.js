@@ -1,5 +1,19 @@
 const { userDb, questionDb, vocabularyDb } = require('../database/db')
 
+function isPersonAllowed(person, includeVos = false, includeVosotros = true) {
+  if (!person) return true
+
+  if (!includeVos && person === 'vos') {
+    return false
+  }
+
+  if (!includeVosotros && (person === 'vosotros' || person === 'vosotras' || person === 'vosotros/vosotras')) {
+    return false
+  }
+
+  return true
+}
+
 class Question {
   // ==================== 公共题库操作 ====================
   
@@ -44,7 +58,13 @@ class Question {
    * @returns {Array} 返回排序后的前limit个题目（供题目池使用）
    */
   static getSmartFromPublic(userId, filters = {}, limit = 1) {
-    const { questionType, tenses = [], verbIds = null } = filters
+    const {
+      questionType,
+      tenses = [],
+      verbIds = null,
+      includeVos = false,
+      includeVosotros = true
+    } = filters
 
     // 时态名称映射：前端英文 -> 数据库中文
     const tenseMap = {
@@ -95,7 +115,7 @@ class Question {
         return false
       }
       seenIds.add(q.id)
-      return true
+      return isPersonAllowed(q.person, includeVos, includeVosotros)
     })
     
     console.log(`智能推荐 - 获取候选题目:`, {
@@ -205,7 +225,15 @@ class Question {
    * 从公共题库随机获取题目（旧方法，保留兼容性）
    */
   static getRandomFromPublic(filters = {}) {
-    const { questionType, tenses = [], conjugationTypes = [], includeRegular = true, limit = 1 } = filters
+    const {
+      questionType,
+      tenses = [],
+      conjugationTypes = [],
+      includeRegular = true,
+      includeVos = false,
+      includeVosotros = true,
+      limit = 1
+    } = filters
 
     let query = `SELECT * FROM public_questions WHERE 1=1`
     const params = []
@@ -225,7 +253,8 @@ class Question {
     params.push(limit)
 
     const stmt = questionDb.prepare(query)
-    const questions = limit === 1 ? [stmt.get(...params)].filter(Boolean) : stmt.all(...params)
+    const rawQuestions = limit === 1 ? [stmt.get(...params)].filter(Boolean) : stmt.all(...params)
+    const questions = rawQuestions.filter(q => isPersonAllowed(q?.person, includeVos, includeVosotros))
     
     // 如果需要动词信息，从词库数据库获取
     if (questions.length > 0) {

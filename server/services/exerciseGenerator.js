@@ -97,6 +97,8 @@ class ExerciseGeneratorService {
           tenses,
           conjugationTypes,
           includeRegular,
+          includeVos,
+          includeVosotros,
           verbIds  // 添加verbIds筛选，用于收藏/错题专练
         }, bankCount)
 
@@ -140,6 +142,8 @@ class ExerciseGeneratorService {
           userId,
           conjugationTypes,
           includeRegular,
+          includeVos,
+          includeVosotros,
           verbIds,  // 传递verbIds用于收藏/错题专练
           moods: options.moods  // 传递moods参数
         }
@@ -182,7 +186,9 @@ class ExerciseGeneratorService {
           questionType: exerciseType,
           tenses,
           conjugationTypes,
-          includeRegular
+          includeRegular,
+          includeVos,
+          includeVosotros
         }, 1)
 
         if (smartQuestions.length > 0) {
@@ -195,6 +201,8 @@ class ExerciseGeneratorService {
           tenses,
           conjugationTypes,
           includeRegular,
+          includeVos,
+          includeVosotros,
           limit: 1
         })
 
@@ -727,7 +735,17 @@ class ExerciseGeneratorService {
    * 单个AI题目异步生成（供前端调用）
    */
   static async generateSingleAI(options) {
-    const { exerciseType, tenses, userId, conjugationTypes, includeRegular, verbIds, excludeVerbIds = [] } = options
+    const {
+      exerciseType,
+      tenses,
+      userId,
+      conjugationTypes,
+      includeRegular,
+      includeVos,
+      includeVosotros,
+      verbIds,
+      excludeVerbIds = []
+    } = options
 
     // 准备动词查询选项
     const queryOptions = {}
@@ -779,7 +797,9 @@ class ExerciseGeneratorService {
         questionType: exerciseType,
         tenses,
         conjugationTypes,
-        includeRegular
+        includeRegular,
+        includeVos: options.includeVos,
+        includeVosotros: options.includeVosotros
       }, 1)
 
       if (supplementQuestions.length > 0) {
