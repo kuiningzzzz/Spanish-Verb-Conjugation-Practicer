@@ -19,8 +19,8 @@ services:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - DEEPSEEK_API_URL=${DEEPSEEK_API_URL:-https://api.deepseek.com/v1/chat/completions}
     volumes:
-      # 直接挂载本地目录，方便开发和数据访问
-      - ./:/app/server
+      # 挂载data文件夹以持久化数据库和用户数据
+      - ../data:/app/server/data
     networks:
       - spanish-verb-network
     healthcheck:
