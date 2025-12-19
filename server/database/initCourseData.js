@@ -1,13 +1,13 @@
 const path = require('path');
 const fs = require('fs');
-const { vocabularyDb } = require('../database/db');
+const { vocabularyDb } = require('./db');
 const Textbook = require('../models/Textbook');
 const Lesson = require('../models/Lesson');
 const LessonVerb = require('../models/LessonVerb');
 
 // 从JSON文件加载教材数据
 function loadTextbookData(filename) {
-  const filePath = path.join(__dirname, '../textbookWord', filename);
+  const filePath = path.join(__dirname, '../src/textbookWord', filename);
   if (!fs.existsSync(filePath)) {
     throw new Error(`教材文件不存在: ${filePath}`);
   }

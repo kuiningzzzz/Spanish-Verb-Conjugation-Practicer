@@ -1,4 +1,4 @@
-const { vocabularyDb: db } = require('../database/db')
+const { vocabularyDb: db } = require('./db')
 const fs = require('fs')
 const path = require('path')
 
@@ -16,7 +16,7 @@ function initSampleData() {
   console.log('\n📚 开始初始化词库数据...')
   
   // 从 verbs.json 导入完整词库
-  const verbsJsonPath = path.join(__dirname, '../verbs.json')
+  const verbsJsonPath = path.join(__dirname, '../src/verbs.json')
   if (!fs.existsSync(verbsJsonPath)) {
     console.error('\x1b[31m   ✗ 找不到 verbs.json 文件\x1b[0m')
     return

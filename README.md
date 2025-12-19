@@ -269,7 +269,7 @@ Spanish-Verb-Conjugation-Practicer/
 │   │   └── initCourseData.js       # 课程数据初始化
 │   ├── textbookWord/               # 教材词汇数据
 │   │   └── textbook1.json          # 教材1词汇
-│   ├── updates/                    # 版本更新文件
+│   ├── src/updates/                # 版本更新文件
 │   ├── logs/                       # 日志文件目录
 │   ├── .env.example                # 环境变量示例
 │   ├── Dockerfile                  # Docker构建文件

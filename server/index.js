@@ -3,7 +3,7 @@ const cors = require('cors')
 const path = require('path')
 require('dotenv').config({ path: path.join(__dirname, '.env') })
 const { initDatabase } = require('./database/db')
-const { initSampleData } = require('./data/initData')
+const { initSampleData } = require('./database/initData')
 const apiLogger = require('./middleware/logger')
 
 const app = express()
@@ -29,7 +29,7 @@ try {
 
 // 初始化课程示例数据
 try {
-  const { initSampleCourseData } = require('./data/initCourseData')
+  const { initSampleCourseData } = require('./database/initCourseData')
   initSampleCourseData()
 } catch (error) {
   console.log('\x1b[33m   ⚠ 课程数据初始化失败:\x1b[0m', error.message)
