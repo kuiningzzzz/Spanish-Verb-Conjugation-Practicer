@@ -8,6 +8,9 @@ function ensureColumn(dbInstance, table, column, definition) {
   const columns = dbInstance.prepare(`PRAGMA table_info(${table})`).all()
   const exists = columns.some((col) => col.name === column)
   if (!exists) {
+    // SQLite 的 ALTER TABLE ADD COLUMN 不支持非常量默认值
+    // 如 DEFAULT CURRENT_TIMESTAMP 或 DEFAULT (datetime('now'))
+    // 需要使用常量默认值或 NULL
     dbInstance.exec(`ALTER TABLE ${table} ADD COLUMN ${definition}`)
   }
 }
@@ -65,7 +68,9 @@ function runAdminMigrations() {
 
   ensureColumn(feedbackDb, 'feedback', 'status', "status TEXT DEFAULT 'open'")
   ensureColumn(feedbackDb, 'feedback', 'admin_note', 'admin_note TEXT')
-  ensureColumn(feedbackDb, 'feedback', 'updated_at', "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+  // SQLite 的 ALTER TABLE ADD COLUMN 不支持 DEFAULT CURRENT_TIMESTAMP
+  // 使用 NULL 作为默认值，在插入时由应用层设置时间
+  ensureColumn(feedbackDb, 'feedback', 'updated_at', "updated_at TEXT")
   feedbackDb.exec('CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status)')
   feedbackDb.exec('CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback(created_at)')
 }

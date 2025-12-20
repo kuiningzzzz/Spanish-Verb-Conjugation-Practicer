@@ -32,8 +32,8 @@ class Feedback {
     const { userId, username, satisfaction, comment } = feedbackData
     
     const stmt = db.prepare(`
-      INSERT INTO feedback (user_id, username, satisfaction, comment)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO feedback (user_id, username, satisfaction, comment, created_at, updated_at)
+      VALUES (?, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
     `)
 
     const result = stmt.run(userId, username, satisfaction, comment || null)
@@ -98,7 +98,7 @@ class Feedback {
 
   static updateStatus(id, status, adminNote = null) {
     const stmt = db.prepare(
-      'UPDATE feedback SET status = ?, admin_note = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      "UPDATE feedback SET status = ?, admin_note = ?, updated_at = datetime('now', 'localtime') WHERE id = ?"
     )
     return stmt.run(status, adminNote, id)
   }
