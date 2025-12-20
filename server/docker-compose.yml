@@ -28,6 +28,8 @@ services:
     volumes:
       # 挂载data文件夹以持久化数据库和用户数据
       - ./data:/app/server/data
+      # 挂载动词词库，修改后无需重新构建镜像即可生效
+      - ./src/verbs.json:/app/server/src/verbs.json:ro
     networks:
       - spanish-verb-network
     healthcheck:
