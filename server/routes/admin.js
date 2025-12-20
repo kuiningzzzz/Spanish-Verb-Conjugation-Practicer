@@ -13,7 +13,7 @@ const {
   createUser,
   updateUser,
   deleteUser
-} = require('../src/admin/userService')
+} = require('../admin/userService')
 const LexiconItem = require('../models/LexiconItem')
 const QuestionBank = require('../models/QuestionBank')
 const Feedback = require('../models/Feedback')

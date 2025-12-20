@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs')
-const { userDb } = require('../../database/db')
+const { userDb } = require('../database/db')
 
 function ensureInitialAdmin() {
   const email = process.env.INITIAL_ADMIN_EMAIL
@@ -25,7 +25,7 @@ function ensureInitialAdmin() {
 
   if (existingInitial && reset) {
     userDb
-      .prepare('UPDATE users SET username = ?, email = ?, password = ?, role = ?, updated_at = datetime(''now'', ''localtime'') WHERE id = ?')
+      .prepare("UPDATE users SET username = ?, email = ?, password = ?, role = ?, updated_at = datetime('now', 'localtime') WHERE id = ?")
       .run(username, email, hashedPassword, 'admin', existingInitial.id)
     console.log('   ✓ 已重置初始管理员信息')
     return

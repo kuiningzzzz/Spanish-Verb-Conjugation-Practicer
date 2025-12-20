@@ -12,7 +12,7 @@ if (fs.existsSync(envPath)) {
 const { initDatabase } = require('./database/db')
 const { initSampleData } = require('./database/initData')
 const apiLogger = require('./middleware/logger')
-const { bootstrapAdmin } = require('./src/admin/bootstrap')
+const { bootstrapAdmin } = require('./admin/bootstrap')
 
 const app = express()
 const PORT = process.env.PORT || 3000
