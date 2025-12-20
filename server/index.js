@@ -1,10 +1,18 @@
 const express = require('express')
 const cors = require('cors')
 const path = require('path')
-require('dotenv').config({ path: path.join(__dirname, '.env') })
+const fs = require('fs')
+
+const envPath = path.join(__dirname, '.env')
+if (fs.existsSync(envPath)) {
+  require('dotenv').config({ path: envPath })
+} else {
+  require('dotenv').config()
+}
 const { initDatabase } = require('./database/db')
 const { initSampleData } = require('./database/initData')
 const apiLogger = require('./middleware/logger')
+const { bootstrapAdmin } = require('./src/admin/bootstrap')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -56,6 +64,7 @@ app.use('/api/course', require('./routes/course'))  // 课程路由
 app.use('/api/feedback', require('./routes/feedback'))  // 用户反馈路由
 app.use('/api/question-feedback', require('./routes/questionFeedback'))  // 题目反馈路由
 app.use('/api/version', require('./routes/version'))  // 版本更新路由
+app.use('/admin', require('./routes/admin'))
 
 // 健康检查
 app.get('/api/health', (req, res) => {
@@ -75,6 +84,8 @@ app.use((req, res) => {
 
 // 启动服务器
 const startServer = async () => {
+  await bootstrapAdmin()
+
   app.listen(PORT, async () => {
     console.log('\n' + '='.repeat(60))
     console.log('  🚀 \x1b[32m西班牙语动词变位练习系统\x1b[0m')

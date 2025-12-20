@@ -4,6 +4,8 @@ FROM node:22.14.0-alpine
 # 设置工作目录
 WORKDIR /app
 
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+
 # 安装better-sqlite3所需的构建依赖
 RUN apk add --no-cache python3 make g++
 

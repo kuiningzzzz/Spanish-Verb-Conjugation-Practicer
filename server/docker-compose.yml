@@ -7,10 +7,12 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
       - TZ=Asia/Shanghai
       - NODE_ENV=production
-      - PORT=3000
+      - PORT=${PORT:-3000}
       - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
       - EMAIL_HOST=${EMAIL_HOST:-smtp.qq.com}
       - EMAIL_PORT=${EMAIL_PORT:-587}
@@ -18,6 +20,11 @@ services:
       - EMAIL_PASS=${EMAIL_PASS}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - DEEPSEEK_API_URL=${DEEPSEEK_API_URL:-https://api.deepseek.com/v1/chat/completions}
+      - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET:-change-admin-secret}
+      - ADMIN_JWT_EXPIRES_IN=${ADMIN_JWT_EXPIRES_IN:-1d}
+      - INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL}
+      - INITIAL_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD}
+      - INITIAL_ADMIN_USERNAME=${INITIAL_ADMIN_USERNAME:-initial_admin}
     volumes:
       # 挂载data文件夹以持久化数据库和用户数据
       - ./data:/app/server/data
@@ -31,6 +38,21 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+
+  admin-web:
+    build:
+      context: ../admin-web
+      dockerfile: Dockerfile
+      args:
+        - VUE_APP_ADMIN_API_BASE_URL=${ADMIN_API_BASE_URL:-http://localhost:3000}
+    env_file:
+      - .env
+    ports:
+      - "3001:80"
+    environment:
+      - VUE_APP_ADMIN_API_BASE_URL=${ADMIN_API_BASE_URL:-http://localhost:3000}
+    networks:
+      - spanish-verb-network
 
 networks:
   spanish-verb-network:

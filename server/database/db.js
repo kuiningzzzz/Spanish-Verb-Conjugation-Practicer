@@ -11,18 +11,26 @@ userDb.pragma('foreign_keys = ON')
 vocabularyDb.pragma('foreign_keys = ON')
 questionDb.pragma('foreign_keys = ON')
 
+function ensureColumn(dbInstance, table, column, definition) {
+  const tableInfo = dbInstance.prepare(`PRAGMA table_info(${table})`).all()
+  const hasColumn = tableInfo.some((col) => col.name === column)
+  if (!hasColumn) {
+    dbInstance.exec(`ALTER TABLE ${table} ADD COLUMN ${definition}`)
+  }
+}
+
 // 初始化数据库表
 function initDatabase() {
   console.log('\n💾 数据库初始化...')
   console.log('   • 用户数据库: user_data.db')
   initUserDatabase()
-  
+
   console.log('   • 词库数据库: vocabulary.db')
   initVocabularyDatabase()
-  
+
   console.log('   • 题库数据库: questions.db')
   initQuestionDatabase()
-  
+
   console.log('\x1b[32m   ✓ 数据库初始化完成\x1b[0m')
 }
 
@@ -38,12 +46,18 @@ function initUserDatabase() {
       school TEXT,
       enrollment_year INTEGER,
       user_type TEXT DEFAULT 'student',
+      role TEXT DEFAULT 'user',
+      is_initial_admin INTEGER DEFAULT 0,
       subscription_end_date TEXT,
       avatar TEXT,
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
       updated_at TEXT DEFAULT (datetime('now', 'localtime'))
     )
   `)
+
+  // 兼容旧数据库，补充列
+  ensureColumn(userDb, 'users', 'role', "role TEXT DEFAULT 'user'")
+  ensureColumn(userDb, 'users', 'is_initial_admin', 'is_initial_admin INTEGER DEFAULT 0')
   
   // 为非空邮箱创建唯一索引
   userDb.exec(`
@@ -208,12 +222,24 @@ function initUserDatabase() {
     )
   `)
 
+  // 管理日志表
+  userDb.exec(`
+    CREATE TABLE IF NOT EXISTS admin_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      level TEXT NOT NULL,
+      message TEXT NOT NULL,
+      meta TEXT,
+      created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    )
+  `)
+
   // 创建索引
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_practice_records_user ON practice_records(user_id)`)
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_private_questions_user ON private_questions(user_id)`)
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_user_question_records ON user_question_records(user_id, question_id, question_type)`)
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_user_textbooks ON user_textbooks(user_id)`)
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_user_lesson_progress ON user_lesson_progress(user_id, lesson_id)`)
+  userDb.exec(`CREATE INDEX IF NOT EXISTS idx_admin_logs_created ON admin_logs(created_at)`)
 }
 
 // 初始化词库数据库
@@ -301,6 +327,17 @@ function initVocabularyDatabase() {
   vocabularyDb.exec(`CREATE INDEX IF NOT EXISTS idx_lessons_textbook ON lessons(textbook_id)`)
   vocabularyDb.exec(`CREATE INDEX IF NOT EXISTS idx_lesson_verbs_lesson ON lesson_verbs(lesson_id)`)
   vocabularyDb.exec(`CREATE INDEX IF NOT EXISTS idx_lesson_verbs_verb ON lesson_verbs(verb_id)`)
+
+  vocabularyDb.exec(`
+    CREATE TABLE IF NOT EXISTS lexicon_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT,
+      payload TEXT,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      updated_at TEXT DEFAULT (datetime('now', 'localtime'))
+    )
+  `)
 }
 
 // 初始化题库数据库
@@ -329,6 +366,16 @@ function initQuestionDatabase() {
   questionDb.exec(`CREATE INDEX IF NOT EXISTS idx_public_questions_type ON public_questions(question_type)`)
   questionDb.exec(`CREATE INDEX IF NOT EXISTS idx_public_questions_created ON public_questions(created_at)`)
   questionDb.exec(`CREATE INDEX IF NOT EXISTS idx_public_questions_confidence ON public_questions(confidence_score)`)
+
+  questionDb.exec(`
+    CREATE TABLE IF NOT EXISTS question_bank (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      payload TEXT,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      updated_at TEXT DEFAULT (datetime('now', 'localtime'))
+    )
+  `)
 }
 
 // 导出数据库实例和初始化函数

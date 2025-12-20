@@ -14,7 +14,10 @@ const initFeedbackTable = () => {
       username TEXT NOT NULL,
       satisfaction INTEGER NOT NULL CHECK(satisfaction >= 1 AND satisfaction <= 4),
       comment TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      status TEXT DEFAULT 'open',
+      admin_note TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `)
   console.log('   ✓ 反馈数据库表初始化成功')
@@ -32,7 +35,7 @@ class Feedback {
       INSERT INTO feedback (user_id, username, satisfaction, comment)
       VALUES (?, ?, ?, ?)
     `)
-    
+
     const result = stmt.run(userId, username, satisfaction, comment || null)
     return result.lastInsertRowid
   }
@@ -49,13 +52,17 @@ class Feedback {
   }
 
   // 获取所有反馈（管理员功能，可选）
-  static findAll(limit = 100) {
+  static findAll(limit = 100, offset = 0) {
     const stmt = db.prepare(`
-      SELECT * FROM feedback 
-      ORDER BY created_at DESC 
-      LIMIT ?
+      SELECT * FROM feedback
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
     `)
-    return stmt.all(limit)
+    return stmt.all(limit, offset)
+  }
+
+  static countAll() {
+    return db.prepare('SELECT COUNT(*) as total FROM feedback').get().total
   }
 
   // 根据ID获取反馈
@@ -70,7 +77,7 @@ class Feedback {
     const total = totalStmt.get().total
 
     const satisfactionStmt = db.prepare(`
-      SELECT 
+      SELECT
         satisfaction,
         COUNT(*) as count
       FROM feedback
@@ -89,7 +96,13 @@ class Feedback {
     }
   }
 
-  // 删除反馈（可选功能）
+  static updateStatus(id, status, adminNote = null) {
+    const stmt = db.prepare(
+      'UPDATE feedback SET status = ?, admin_note = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    )
+    return stmt.run(status, adminNote, id)
+  }
+
   static delete(id) {
     const stmt = db.prepare('DELETE FROM feedback WHERE id = ?')
     return stmt.run(id)

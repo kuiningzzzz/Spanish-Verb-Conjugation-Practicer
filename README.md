@@ -165,8 +165,10 @@ cp .env.example .env
 
 4. 启动服务：
 ```bash
-docker-compose up -d
+docker compose up -d --build
 ```
+
+Compose 会启动 API（默认 3000）和 Admin Web（默认 3001）。确保在 `server/.env` 中填写 `INITIAL_ADMIN_EMAIL`、`INITIAL_ADMIN_PASSWORD` 等变量，初始管理员会在容器启动时自动注入，幂等执行。
 
 5. 查看服务状态：
 ```bash
@@ -177,6 +179,20 @@ docker-compose logs -f
 6. 停止服务：
 ```bash
 docker-compose down
+```
+
+### Admin 管理端
+
+- API 基础地址：`http://localhost:3000/admin`
+- Web 入口：`http://localhost:3001`
+- 管理员登录仅限 `role=admin` 用户，且只有初始管理员可以删除其他管理员账号。
+
+如需本地开发 Admin Web：
+
+```bash
+cd admin-web
+npm install
+VUE_APP_ADMIN_API_BASE_URL=http://localhost:3000 npm run serve
 ```
 
 ### 传统方式部署
