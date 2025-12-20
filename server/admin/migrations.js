@@ -1,8 +1,8 @@
 const path = require('path')
 const Database = require('better-sqlite3')
-const { userDb, vocabularyDb, questionDb } = require('../../database/db')
+const { userDb, vocabularyDb, questionDb } = require('../database/db')
 
-const feedbackDb = new Database(path.join(__dirname, '../../data/feedback.db'))
+const feedbackDb = new Database(path.join(__dirname, '../data/feedback.db'))
 
 function ensureColumn(dbInstance, table, column, definition) {
   const columns = dbInstance.prepare(`PRAGMA table_info(${table})`).all()

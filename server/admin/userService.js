@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs')
-const { userDb } = require('../../database/db')
-const AdminLog = require('../../models/AdminLog')
+const { userDb } = require('../database/db')
+const AdminLog = require('../models/AdminLog')
 
 function maskUser(user) {
   if (!user) return null

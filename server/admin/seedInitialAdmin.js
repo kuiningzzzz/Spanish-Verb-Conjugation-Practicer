@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs')
-const { userDb } = require('../../database/db')
+const { userDb } = require('../database/db')
 
 function ensureInitialAdmin() {
   const email = process.env.INITIAL_ADMIN_EMAIL
