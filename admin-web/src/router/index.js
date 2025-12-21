@@ -19,14 +19,14 @@ const routes = [
   {
     path: '/',
     component: AppLayout,
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true, requiresPrivileged: true },
     children: [
       { path: '', name: 'Dashboard', component: Dashboard },
       { path: 'users', name: 'Users', component: Users },
       { path: 'lexicon', name: 'Lexicon', component: Lexicon },
       { path: 'questions', name: 'QuestionBank', component: QuestionBank },
-      { path: 'logs', name: 'Logs', component: Logs },
-      { path: 'feedback', name: 'Feedback', component: Feedback }
+      { path: 'logs', name: 'Logs', component: Logs, meta: { requiresDev: true } },
+      { path: 'feedback', name: 'Feedback', component: Feedback, meta: { requiresDev: true } }
     ]
   }
 ];
@@ -37,7 +37,7 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, from, next) => {
-  const { isAuthenticated, isAdmin, fetchMe, state } = useAuth();
+  const { isAuthenticated, isAdmin, isDev, isPrivileged, fetchMe, state } = useAuth();
 
   if (!state.user && state.token) {
     await fetchMe();
@@ -57,8 +57,12 @@ router.beforeEach(async (to, from, next) => {
     return;
   }
 
-  if (to.meta.requiresAdmin && !isAdmin.value) {
-    next({ name: 'Login' });
+  if (to.meta.requiresPrivileged && !isPrivileged.value) {
+    next({ name: 'Login', query: { error: 'forbidden' } });
+    return;
+  }
+  if (to.meta.requiresDev && !isDev.value) {
+    next({ name: 'Dashboard' });
     return;
   }
 
