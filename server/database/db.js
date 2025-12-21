@@ -48,6 +48,7 @@ function initUserDatabase() {
       user_type TEXT DEFAULT 'student',
       role TEXT DEFAULT 'user',
       is_initial_admin INTEGER DEFAULT 0,
+      is_initial_dev INTEGER DEFAULT 0,
       subscription_end_date TEXT,
       avatar TEXT,
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
@@ -58,6 +59,7 @@ function initUserDatabase() {
   // 兼容旧数据库，补充列
   ensureColumn(userDb, 'users', 'role', "role TEXT DEFAULT 'user'")
   ensureColumn(userDb, 'users', 'is_initial_admin', 'is_initial_admin INTEGER DEFAULT 0')
+  ensureColumn(userDb, 'users', 'is_initial_dev', 'is_initial_dev INTEGER DEFAULT 0')
   
   // 为非空邮箱创建唯一索引
   userDb.exec(`

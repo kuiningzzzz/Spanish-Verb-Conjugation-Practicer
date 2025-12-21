@@ -1,6 +1,6 @@
 import { reactive, computed } from 'vue';
 
-const API_BASE = process.env.VUE_APP_ADMIN_API_BASE_URL || 'http://localhost:3000';
+const API_BASE = process.env.VUE_APP_ADMIN_API_BASE_URL || '/admin';
 const TOKEN_KEY = 'admin_token';
 
 const state = reactive({
@@ -14,14 +14,21 @@ async function login(credentials) {
   state.loading = true;
   state.error = '';
   try {
-    const res = await fetch(`${API_BASE}/admin/auth/login`, {
+    const identifier = credentials.identifier || credentials.email || credentials.username;
+    if (!identifier || !credentials.password) {
+      throw new Error('请输入账号和密码');
+    }
+    const payload = { identifier, password: credentials.password };
+    const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(credentials)
+      body: JSON.stringify(payload)
     });
 
     if (!res.ok) {
-      throw new Error('登录失败，请检查账号或密码');
+      const text = await res.json().catch(() => ({}));
+      const message = text?.error || (res.status === 403 ? '无权限访问后台' : '登录失败，请检查账号或密码');
+      throw new Error(message);
     }
     const data = await res.json();
     state.token = data.token;
@@ -42,13 +49,14 @@ async function fetchMe() {
     return null;
   }
   try {
-    const res = await fetch(`${API_BASE}/admin/auth/me`, {
+    const res = await fetch(`${API_BASE}/auth/me`, {
       headers: { Authorization: `Bearer ${state.token}` }
     });
     if (!res.ok) {
       throw new Error('鉴权失败');
     }
-    state.user = await res.json();
+    const data = await res.json();
+    state.user = data.user;
     return state.user;
   } catch (err) {
     logout();
@@ -57,13 +65,22 @@ async function fetchMe() {
 }
 
 function logout() {
+  const token = state.token;
   state.token = '';
   state.user = null;
   localStorage.removeItem(TOKEN_KEY);
+  if (token) {
+    fetch(`${API_BASE}/auth/logout`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` }
+    }).catch(() => {});
+  }
 }
 
 const isAuthenticated = computed(() => Boolean(state.token && state.user));
 const isAdmin = computed(() => state.user?.role === 'admin');
+const isDev = computed(() => state.user?.role === 'dev');
+const isPrivileged = computed(() => ['admin', 'dev'].includes(state.user?.role));
 
 export function useAuth() {
   return {
@@ -72,6 +89,8 @@ export function useAuth() {
     logout,
     fetchMe,
     isAuthenticated,
-    isAdmin
+    isAdmin,
+    isDev,
+    isPrivileged
   };
 }

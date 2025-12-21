@@ -32,6 +32,9 @@ const { login, state } = useAuth();
 
 const email = ref('');
 const password = ref('');
+if (route.query.error === 'forbidden') {
+  state.error = '无权限访问后台';
+}
 
 async function handleSubmit() {
   const ok = await login({ email: email.value, password: password.value });

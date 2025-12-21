@@ -1,14 +1,10 @@
 const express = require('express')
 const router = express.Router()
-const {
-  requireAdmin,
-  requireInitialAdmin,
-  signAdminToken,
-  ADMIN_JWT_EXPIRES_IN
-} = require('../middleware/adminAuth')
+const { requireAdmin, signAdminToken, ADMIN_JWT_EXPIRES_IN } = require('../middleware/adminAuth')
 const {
   verifyCredentials,
   listUsers,
+  listAllUsers,
   findUser,
   createUser,
   updateUser,
@@ -41,23 +37,29 @@ function recordAttempt(key, success) {
 }
 
 router.post('/auth/login', (req, res) => {
-  const { identifier, password } = req.body
-  const attemptKey = req.ip + (identifier || '')
+  const { identifier, email, username, password } = req.body
+  const loginIdentifier = identifier || email || username
+  const attemptKey = req.ip + (loginIdentifier || '')
   const now = Date.now()
   const status = loginAttempts.get(attemptKey)
   if (status && status.blockedUntil && status.blockedUntil > now) {
     return res.status(429).json({ error: '请稍后再试' })
   }
 
-  if (!identifier || !password) {
+  if (!loginIdentifier || !password) {
     recordAttempt(attemptKey, false)
     return res.status(400).json({ error: '用户名或密码错误' })
   }
 
-  const user = verifyCredentials(identifier, password)
+  const user = verifyCredentials(loginIdentifier, password)
   if (!user) {
     recordAttempt(attemptKey, false)
     return res.status(401).json({ error: '用户名或密码错误' })
+  }
+
+  if (!['admin', 'dev'].includes(user.role)) {
+    recordAttempt(attemptKey, false)
+    return res.status(403).json({ error: '无权访问后台' })
   }
 
   recordAttempt(attemptKey, true)
@@ -71,7 +73,8 @@ router.post('/auth/login', (req, res) => {
       username: user.username,
       email: user.email,
       role: user.role,
-      isInitialAdmin: !!user.is_initial_admin
+      isInitialAdmin: !!user.is_initial_admin,
+      isInitialDev: !!user.is_initial_dev
     }
   })
 })
@@ -80,43 +83,92 @@ router.get('/auth/me', requireAdmin, (req, res) => {
   res.json({ user: req.admin })
 })
 
+router.post('/auth/logout', requireAdmin, (req, res) => {
+  AdminLog.create('info', 'admin logout', { userId: req.admin.id })
+  res.json({ success: true })
+})
+
+function isDev(req) {
+  return req.admin?.role === 'dev'
+}
+
+function forbid(res, message = '无权限') {
+  return res.status(403).json({ error: message })
+}
+
 router.get('/users', requireAdmin, (req, res) => {
   const limit = Number(req.query.limit || 50)
   const offset = Number(req.query.offset || 0)
-  const result = listUsers('user', { limit, offset })
+  const role = req.query.role
+  const result = role ? listUsers(role, { limit, offset }) : listAllUsers({ limit, offset })
   res.json(result)
 })
 
 router.post('/users', requireAdmin, (req, res) => {
-  const { username, email, password } = req.body
+  if (!isDev(req)) {
+    return forbid(res, '仅 dev 可以创建用户')
+  }
+  const { username, email, password, role = 'user' } = req.body
   if (!username || !password) {
     return res.status(400).json({ error: '缺少必要字段' })
   }
-  const id = createUser({ username, email, password, role: 'user' })
+  if (!['user', 'admin', 'dev'].includes(role)) {
+    return res.status(400).json({ error: '非法角色' })
+  }
+  const id = createUser({ username, email, password, role })
   res.status(201).json({ id })
 })
 
 router.get('/users/:id', requireAdmin, (req, res) => {
   const user = findUser(req.params.id)
-  if (!user || user.role !== 'user') {
+  if (!user) {
     return res.status(404).json({ error: '用户不存在' })
   }
   res.json(user)
 })
 
 router.put('/users/:id', requireAdmin, (req, res) => {
-  const user = findUser(req.params.id)
-  if (!user || user.role !== 'user') {
+  const target = findUser(req.params.id)
+  if (!target) {
     return res.status(404).json({ error: '用户不存在' })
   }
+
+  if (target.is_initial_dev && req.body.role && req.body.role !== 'dev') {
+    return forbid(res, '初始 dev 角色不可变更')
+  }
+
+  if (target.role === 'dev' && !isDev(req)) {
+    return forbid(res, '管理员不能修改 dev 用户')
+  }
+
+  if (target.role === 'admin' && !isDev(req) && req.body.role && req.body.role !== 'admin') {
+    return forbid(res, '不能取消管理员权限')
+  }
+
+  if (!isDev(req) && req.body.role === 'dev') {
+    return forbid(res, '管理员不可创建或提升 dev')
+  }
+
   updateUser(req.params.id, req.body)
   res.json({ success: true })
 })
 
 router.delete('/users/:id', requireAdmin, (req, res) => {
-  const user = findUser(req.params.id)
-  if (!user || user.role !== 'user') {
+  const target = findUser(req.params.id)
+  if (!target) {
     return res.status(404).json({ error: '用户不存在' })
+  }
+  if (target.is_initial_dev) {
+    return forbid(res, '不可删除初始 dev 用户')
+  }
+  if (req.admin.id === target.id) {
+    return forbid(res, '不能删除自己')
+  }
+  if (target.role === 'dev' && !isDev(req)) {
+    return forbid(res, '管理员不能删除 dev 用户')
+  }
+  if (!isDev(req) && ['admin', 'dev'].includes(target.role)) {
+    return forbid(res, '无权删除该用户')
   }
   deleteUser(req.params.id)
   res.json({ success: true })
@@ -130,6 +182,9 @@ router.get('/admins', requireAdmin, (req, res) => {
 })
 
 router.post('/admins', requireAdmin, (req, res) => {
+  if (!isDev(req)) {
+    return forbid(res, '仅 dev 可以创建管理员')
+  }
   const { username, email, password } = req.body
   if (!username || !password) {
     return res.status(400).json({ error: '缺少必要字段' })
@@ -138,13 +193,16 @@ router.post('/admins', requireAdmin, (req, res) => {
   res.status(201).json({ id })
 })
 
-router.delete('/admins/:id', requireAdmin, requireInitialAdmin, (req, res) => {
+router.delete('/admins/:id', requireAdmin, (req, res) => {
   const user = findUser(req.params.id)
   if (!user || user.role !== 'admin') {
     return res.status(404).json({ error: '管理员不存在' })
   }
   if (user.is_initial_admin) {
     return res.status(403).json({ error: '不可删除初始管理员' })
+  }
+  if (!isDev(req) && !req.admin.isInitialAdmin) {
+    return forbid(res, '仅初始管理员可删除管理员')
   }
   deleteUser(req.params.id)
   res.json({ success: true })
@@ -215,6 +273,7 @@ router.delete('/question-bank/:id', requireAdmin, (req, res) => {
 })
 
 router.get('/logs', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可查看日志')
   const { keyword, start, end } = req.query
   const limit = Number(req.query.limit || 50)
   const offset = Number(req.query.offset || 0)
@@ -223,6 +282,7 @@ router.get('/logs', requireAdmin, (req, res) => {
 })
 
 router.get('/feedback', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可查看反馈')
   const limit = Number(req.query.limit || 100)
   const offset = Number(req.query.offset || 0)
   const items = Feedback.findAll(limit, offset)
@@ -231,12 +291,14 @@ router.get('/feedback', requireAdmin, (req, res) => {
 })
 
 router.get('/feedback/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可查看反馈')
   const item = Feedback.findById(req.params.id)
   if (!item) return res.status(404).json({ error: '记录不存在' })
   res.json(item)
 })
 
 router.patch('/feedback/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可处理反馈')
   const { status, admin_note } = req.body
   const item = Feedback.findById(req.params.id)
   if (!item) return res.status(404).json({ error: '记录不存在' })
@@ -245,6 +307,7 @@ router.patch('/feedback/:id', requireAdmin, (req, res) => {
 })
 
 router.delete('/feedback/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可删除反馈')
   Feedback.delete(req.params.id)
   res.json({ success: true })
 })
