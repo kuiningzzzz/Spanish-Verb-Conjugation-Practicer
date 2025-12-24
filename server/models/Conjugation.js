@@ -61,6 +61,25 @@ class Conjugation {
     const stmt = db.prepare('SELECT DISTINCT tense, mood FROM conjugations ORDER BY mood, tense')
     return stmt.all()
   }
+
+  static getOptions() {
+    const moodRows = db.prepare('SELECT DISTINCT mood FROM conjugations ORDER BY mood').all()
+    const tenseRows = db.prepare('SELECT DISTINCT tense FROM conjugations ORDER BY tense').all()
+    const personRows = db.prepare('SELECT DISTINCT person FROM conjugations ORDER BY person').all()
+    const tenseMoodRows = db.prepare('SELECT DISTINCT tense, mood FROM conjugations').all()
+    const tenseMoodMap = tenseMoodRows.reduce((acc, row) => {
+      if (!acc[row.tense]) {
+        acc[row.tense] = row.mood
+      }
+      return acc
+    }, {})
+    return {
+      moods: moodRows.map((row) => row.mood),
+      tenses: tenseRows.map((row) => row.tense),
+      persons: personRows.map((row) => row.person),
+      tenseMoodMap
+    }
+  }
 }
 
 module.exports = Conjugation
