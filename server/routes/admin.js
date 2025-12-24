@@ -11,6 +11,9 @@ const {
   deleteUser
 } = require('../admin/userService')
 const LexiconItem = require('../models/LexiconItem')
+const Question = require('../models/Question')
+const Verb = require('../models/Verb')
+const Conjugation = require('../models/Conjugation')
 const QuestionBank = require('../models/QuestionBank')
 const Feedback = require('../models/Feedback')
 const QuestionFeedback = require('../models/QuestionFeedback')
@@ -385,7 +388,94 @@ router.delete('/lexicon/:id', requireAdmin, (req, res) => {
 router.get('/question-bank', requireAdmin, (req, res) => {
   const limit = Number(req.query.limit || 50)
   const offset = Number(req.query.offset || 0)
-  res.json(QuestionBank.list(limit, offset))
+  const keyword = req.query.keyword ? String(req.query.keyword).trim() : ''
+  res.json(QuestionBank.list(limit, offset, keyword))
+})
+
+router.get('/questions', requireAdmin, (req, res) => {
+  const limit = Number(req.query.limit || 50)
+  const offset = Number(req.query.offset || 0)
+  const keyword = req.query.keyword ? String(req.query.keyword).trim() : ''
+  const sortBy = req.query.sortBy ? String(req.query.sortBy).trim() : 'created_at'
+  const sortOrder = req.query.sortOrder ? String(req.query.sortOrder).trim() : 'desc'
+  res.json(Question.listPublic({ limit, offset, keyword, sortBy, sortOrder }))
+})
+
+router.get('/questions/:id', requireAdmin, (req, res) => {
+  const item = Question.findPublicById(req.params.id)
+  if (!item) return res.status(404).json({ error: '记录不存在' })
+  res.json(item)
+})
+
+router.get('/verbs/:id', requireAdmin, (req, res) => {
+  const verbId = Number(req.params.id)
+  if (!verbId || Number.isNaN(verbId)) {
+    return res.status(400).json({ error: '动词ID不合法' })
+  }
+  const verb = Verb.findById(verbId)
+  if (!verb) {
+    return res.status(404).json({ error: '动词不存在' })
+  }
+  res.json({
+    verb: {
+      id: verb.id,
+      infinitive: verb.infinitive
+    }
+  })
+})
+
+router.get('/conjugations/options', requireAdmin, (req, res) => {
+  res.json(Conjugation.getOptions())
+})
+
+router.put('/questions/:id', requireAdmin, (req, res) => {
+  const item = Question.findPublicById(req.params.id)
+  if (!item) return res.status(404).json({ error: '记录不存在' })
+
+  const payload = {
+    verb_id: Number(req.body.verb_id ?? item.verb_id),
+    question_type: req.body.question_type ?? item.question_type,
+    question_text: req.body.question_text ?? item.question_text,
+    correct_answer: req.body.correct_answer ?? item.correct_answer,
+    example_sentence: req.body.example_sentence ?? item.example_sentence,
+    translation: req.body.translation ?? item.translation,
+    hint: req.body.hint ?? item.hint,
+    tense: req.body.tense ?? item.tense,
+    mood: req.body.mood ?? item.mood,
+    person: req.body.person ?? item.person,
+    confidence_score: Number.isFinite(Number(req.body.confidence_score))
+      ? Number(req.body.confidence_score)
+      : item.confidence_score
+  }
+
+  if (!payload.verb_id || Number.isNaN(payload.verb_id)) {
+    return res.status(400).json({ error: '缺少动词ID', errors: { verb_id: '动词ID不能为空' } })
+  }
+
+  const verb = Verb.findById(payload.verb_id)
+  if (!verb) {
+    return res.status(400).json({ error: '动词ID不存在', errors: { verb_id: '动词ID不存在' } })
+  }
+  if (!['fill', 'sentence'].includes(payload.question_type)) {
+    return res.status(400).json({ error: '题目类型需为 fill 或 sentence' })
+  }
+  if (!payload.question_text || !payload.correct_answer) {
+    return res.status(400).json({ error: '题干和答案不能为空' })
+  }
+  if (!payload.tense || !payload.mood || !payload.person) {
+    return res.status(400).json({ error: '时态/语气/人称不能为空' })
+  }
+  if (payload.confidence_score < 0 || payload.confidence_score > 100) {
+    return res.status(400).json({ error: '置信度需在 0-100 之间' })
+  }
+
+  Question.updatePublic(req.params.id, payload)
+  res.json({ success: true })
+})
+
+router.delete('/questions/:id', requireAdmin, (req, res) => {
+  Question.deletePublic(req.params.id)
+  res.json({ success: true })
 })
 
 router.post('/question-bank', requireAdmin, (req, res) => {

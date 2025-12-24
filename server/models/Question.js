@@ -14,6 +14,56 @@ function isPersonAllowed(person, includeVos = false, includeVosotros = true) {
   return true
 }
 
+function attachVerbInfinitives(rows) {
+  if (!rows.length) return rows
+  const verbIds = [...new Set(rows.map(row => row.verb_id).filter(Boolean))]
+  if (!verbIds.length) {
+    return rows.map(row => ({ ...row, infinitive: null }))
+  }
+
+  const placeholders = verbIds.map(() => '?').join(',')
+  const verbs = vocabularyDb.prepare(`
+    SELECT id, infinitive FROM verbs WHERE id IN (${placeholders})
+  `).all(...verbIds)
+
+  const verbMap = {}
+  verbs.forEach(verb => {
+    verbMap[verb.id] = verb.infinitive
+  })
+
+  return rows.map(row => ({
+    ...row,
+    infinitive: verbMap[row.verb_id] || null
+  }))
+}
+
+function sortRows(rows, sortBy, sortOrder) {
+  const direction = sortOrder === 'asc' ? 1 : -1
+  const numericFields = new Set(['id', 'verb_id', 'confidence_score'])
+  const dateFields = new Set(['created_at'])
+
+  return rows.sort((a, b) => {
+    let valueA = sortBy === 'infinitive' ? a.infinitive : a[sortBy]
+    let valueB = sortBy === 'infinitive' ? b.infinitive : b[sortBy]
+
+    if (numericFields.has(sortBy)) {
+      valueA = Number(valueA || 0)
+      valueB = Number(valueB || 0)
+      return (valueA - valueB) * direction
+    }
+
+    if (dateFields.has(sortBy)) {
+      const dateA = valueA ? new Date(String(valueA).replace(' ', 'T')).getTime() : 0
+      const dateB = valueB ? new Date(String(valueB).replace(' ', 'T')).getTime() : 0
+      return (dateA - dateB) * direction
+    }
+
+    const textA = valueA ? String(valueA) : ''
+    const textB = valueB ? String(valueB) : ''
+    return textA.localeCompare(textB, 'es', { sensitivity: 'base' }) * direction
+  })
+}
+
 class Question {
   // ==================== 公共题库操作 ====================
   
@@ -297,6 +347,116 @@ class Question {
     }
 
     return limit === 1 ? questions[0] : questions
+  }
+
+  /**
+   * 管理后台：分页获取公共题库列表
+   */
+  static listPublic({ limit = 50, offset = 0, keyword = '', sortBy = 'created_at', sortOrder = 'desc' } = {}) {
+    let query = `SELECT * FROM public_questions WHERE 1=1`
+    const params = []
+
+    if (keyword) {
+      const like = `%${keyword}%`
+      const conditions = [
+        `question_text LIKE ?`,
+        `correct_answer LIKE ?`,
+        `example_sentence LIKE ?`,
+        `translation LIKE ?`,
+        `hint LIKE ?`,
+        `tense LIKE ?`,
+        `mood LIKE ?`,
+        `person LIKE ?`,
+        `question_type LIKE ?`,
+        `CAST(id AS TEXT) LIKE ?`
+      ]
+
+      params.push(like, like, like, like, like, like, like, like, like, like)
+
+      const verbMatches = vocabularyDb.prepare(`
+        SELECT id FROM verbs WHERE infinitive LIKE ?
+      `).all(like)
+      const verbIds = verbMatches.map(match => match.id)
+
+      if (verbIds.length > 0) {
+        const placeholders = verbIds.map(() => '?').join(',')
+        conditions.push(`verb_id IN (${placeholders})`)
+        params.push(...verbIds)
+      }
+
+      query += ` AND (${conditions.join(' OR ')})`
+    }
+
+    const allowedSort = new Set([
+      'id',
+      'verb_id',
+      'infinitive',
+      'question_text',
+      'translation',
+      'tense',
+      'mood',
+      'person',
+      'confidence_score',
+      'created_at'
+    ])
+    const safeSortBy = allowedSort.has(sortBy) ? sortBy : 'created_at'
+    const safeOrder = sortOrder === 'asc' ? 'asc' : 'desc'
+
+    let rows = questionDb.prepare(query).all(...params)
+    rows = attachVerbInfinitives(rows)
+    rows = sortRows(rows, safeSortBy, safeOrder)
+
+    const total = rows.length
+    const pagedRows = rows.slice(offset, offset + limit)
+
+    return { rows: pagedRows, total }
+  }
+
+  /**
+   * 管理后台：获取公共题库详情
+   */
+  static findPublicById(id) {
+    const question = questionDb.prepare('SELECT * FROM public_questions WHERE id = ?').get(id)
+    if (!question) return null
+    const verb = vocabularyDb.prepare('SELECT id, infinitive FROM verbs WHERE id = ?').get(question.verb_id)
+    return {
+      ...question,
+      infinitive: verb?.infinitive || null
+    }
+  }
+
+  /**
+   * 管理后台：更新公共题库题目
+   */
+  static updatePublic(id, data) {
+    const stmt = questionDb.prepare(`
+      UPDATE public_questions
+      SET verb_id = ?, question_type = ?, question_text = ?, correct_answer = ?,
+          example_sentence = ?, translation = ?, hint = ?, tense = ?, mood = ?, person = ?,
+          confidence_score = ?
+      WHERE id = ?
+    `)
+    return stmt.run(
+      data.verb_id,
+      data.question_type,
+      data.question_text,
+      data.correct_answer,
+      data.example_sentence || null,
+      data.translation || null,
+      data.hint || null,
+      data.tense,
+      data.mood,
+      data.person,
+      data.confidence_score ?? 50,
+      id
+    )
+  }
+
+  /**
+   * 管理后台：删除公共题库题目
+   */
+  static deletePublic(id) {
+    return questionDb.prepare('DELETE FROM public_questions WHERE id = ?').run(id)
   }
 
   /**

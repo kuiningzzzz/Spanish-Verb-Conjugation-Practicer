@@ -1,12 +1,25 @@
 const { questionDb } = require('../database/db')
 
 class QuestionBank {
-  static list(limit = 50, offset = 0) {
-    const stmt = questionDb.prepare(
-      'SELECT * FROM question_bank ORDER BY created_at DESC LIMIT ? OFFSET ?'
-    )
-    const rows = stmt.all(limit, offset)
-    const total = questionDb.prepare('SELECT COUNT(*) as total FROM question_bank').get().total
+  static list(limit = 50, offset = 0, keyword = '') {
+    let query = 'SELECT * FROM question_bank WHERE 1=1'
+    let countQuery = 'SELECT COUNT(*) as total FROM question_bank WHERE 1=1'
+    const params = []
+    const countParams = []
+
+    if (keyword) {
+      const like = `%${keyword}%`
+      query += ' AND (title LIKE ? OR payload LIKE ? OR CAST(id AS TEXT) LIKE ?)'
+      countQuery += ' AND (title LIKE ? OR payload LIKE ? OR CAST(id AS TEXT) LIKE ?)'
+      params.push(like, like, like)
+      countParams.push(like, like, like)
+    }
+
+    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?'
+    params.push(limit, offset)
+
+    const rows = questionDb.prepare(query).all(...params)
+    const total = questionDb.prepare(countQuery).get(...countParams).total
     return { rows, total }
   }
 

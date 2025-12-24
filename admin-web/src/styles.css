@@ -185,11 +185,17 @@ label {
   color: var(--text);
 }
 
-input {
+input,
+textarea,
+select {
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: #f8fafc;
+}
+
+textarea {
+  resize: vertical;
 }
 
 .error {
@@ -228,6 +234,19 @@ input {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+  width: 100%;
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.toolbar-right {
+  margin-left: auto;
 }
 
 .toolbar input,
@@ -256,6 +275,27 @@ input {
   font-weight: 600;
   text-transform: uppercase;
   font-size: 12px;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sort-indicator {
+  margin-left: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.ellipsis {
+  display: inline-block;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
 }
 
 .actions {
@@ -315,6 +355,15 @@ input {
   margin-top: 16px;
 }
 
+.inline-pagination {
+  margin-top: 0;
+  justify-content: flex-end;
+}
+
+.page-jump-input {
+  width: 96px;
+}
+
 .overlay {
   position: fixed;
   inset: 0;
@@ -345,6 +394,17 @@ input {
 
 .drawer form {
   gap: 12px;
+}
+
+.inline-fields {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.inline-fields label {
+  flex: 1;
+  min-width: 140px;
 }
 
 .field-error {
