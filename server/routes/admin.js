@@ -13,6 +13,7 @@ const {
 const LexiconItem = require('../models/LexiconItem')
 const QuestionBank = require('../models/QuestionBank')
 const Feedback = require('../models/Feedback')
+const QuestionFeedback = require('../models/QuestionFeedback')
 const AdminLog = require('../models/AdminLog')
 
 const loginAttempts = new Map()
@@ -309,6 +310,29 @@ router.patch('/feedback/:id', requireAdmin, (req, res) => {
 router.delete('/feedback/:id', requireAdmin, (req, res) => {
   if (!isDev(req)) return forbid(res, '仅 dev 可删除反馈')
   Feedback.delete(req.params.id)
+  res.json({ success: true })
+})
+
+// 题目反馈（管理员查看/删除）
+router.get('/question-feedback', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可查看题目反馈')
+  const limit = Number(req.query.limit || 100)
+  const offset = Number(req.query.offset || 0)
+  const items = QuestionFeedback.findAll(limit, offset)
+  const total = items ? items.length : 0
+  res.json({ feedbackList: items, total })
+})
+
+router.get('/question-feedback/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可查看题目反馈')
+  const item = QuestionFeedback.findById(req.params.id)
+  if (!item) return res.status(404).json({ error: '记录不存在' })
+  res.json(item)
+})
+
+router.delete('/question-feedback/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可删除题目反馈')
+  QuestionFeedback.delete(req.params.id)
   res.json({ success: true })
 })
 
