@@ -15,6 +15,8 @@ const QuestionBank = require('../models/QuestionBank')
 const Feedback = require('../models/Feedback')
 const QuestionFeedback = require('../models/QuestionFeedback')
 const AdminLog = require('../models/AdminLog')
+const Verb = require('../models/Verb')
+const { vocabularyDb } = require('../database/db')
 
 const loginAttempts = new Map()
 const MAX_ATTEMPTS = 5
@@ -213,6 +215,145 @@ router.get('/lexicon', requireAdmin, (req, res) => {
   const limit = Number(req.query.limit || 50)
   const offset = Number(req.query.offset || 0)
   res.json(LexiconItem.list(limit, offset))
+})
+
+// 动词管理：列表、查询、创建、更新、删除
+router.get('/verbs', requireAdmin, (req, res) => {
+  const limit = Number(req.query.limit || 50)
+  const offset = Number(req.query.offset || 0)
+  const q = (req.query.q || '').toString().trim()
+  if (q) {
+    const qLower = q.toLowerCase()
+    const like = `%${qLower}%`
+    const rows = vocabularyDb.prepare(`
+      SELECT *,
+        (CASE WHEN lower(infinitive) = ? THEN 200 WHEN lower(infinitive) LIKE ? THEN 100 ELSE 0 END)
+        + (CASE WHEN lower(meaning) LIKE ? THEN 20 ELSE 0 END) AS score
+      FROM verbs
+      WHERE lower(infinitive) LIKE ? OR lower(meaning) LIKE ?
+      ORDER BY score DESC, lesson_number, id
+      LIMIT ? OFFSET ?
+    `).all(qLower, like, like, like, like, limit, offset)
+
+    const total = vocabularyDb.prepare('SELECT COUNT(*) as total FROM verbs WHERE lower(infinitive) LIKE ? OR lower(meaning) LIKE ?').get(like, like).total
+    res.json({ rows, total })
+    return
+  }
+
+  const rows = vocabularyDb.prepare('SELECT * FROM verbs ORDER BY lesson_number, id LIMIT ? OFFSET ?').all(limit, offset)
+  const total = vocabularyDb.prepare('SELECT COUNT(*) as total FROM verbs').get().total
+  res.json({ rows, total })
+})
+
+router.get('/verbs/:id', requireAdmin, (req, res) => {
+  const item = Verb.findById(req.params.id)
+  if (!item) return res.status(404).json({ error: '记录不存在' })
+  res.json(item)
+})
+
+// 获取某个动词的所有变位
+router.get('/verbs/:id/conjugations', requireAdmin, (req, res) => {
+  const verbId = req.params.id
+  const rows = vocabularyDb.prepare('SELECT * FROM conjugations WHERE verb_id = ? ORDER BY id').all(verbId)
+  res.json({ rows })
+})
+
+// 创建某个动词的变位
+router.post('/verbs/:id/conjugations', requireAdmin, (req, res) => {
+  const verbId = req.params.id
+  const { tense, mood, person, conjugated_form, is_irregular } = req.body || {}
+  if (!tense || !mood || !person || !conjugated_form) {
+    return res.status(400).json({ error: '缺少必填字段' })
+  }
+  const stmt = vocabularyDb.prepare('INSERT INTO conjugations (verb_id, tense, mood, person, conjugated_form, is_irregular) VALUES (?, ?, ?, ?, ?, ?)')
+  const result = stmt.run(verbId, tense, mood, person, conjugated_form, is_irregular ? 1 : 0)
+  res.status(201).json({ id: result.lastInsertRowid })
+})
+
+// 获取单个变位记录
+router.get('/conjugations/:id', requireAdmin, (req, res) => {
+  const item = vocabularyDb.prepare('SELECT * FROM conjugations WHERE id = ?').get(req.params.id)
+  if (!item) return res.status(404).json({ error: '记录不存在' })
+  res.json(item)
+})
+
+// 更新变位
+router.put('/conjugations/:id', requireAdmin, (req, res) => {
+  const id = req.params.id
+  const existing = vocabularyDb.prepare('SELECT * FROM conjugations WHERE id = ?').get(id)
+  if (!existing) return res.status(404).json({ error: '记录不存在' })
+  const { tense, mood, person, conjugated_form, is_irregular } = req.body || {}
+  const stmt = vocabularyDb.prepare('UPDATE conjugations SET tense = ?, mood = ?, person = ?, conjugated_form = ?, is_irregular = ? WHERE id = ?')
+  stmt.run(tense || existing.tense, mood || existing.mood, person || existing.person, conjugated_form || existing.conjugated_form, is_irregular ?? existing.is_irregular, id)
+  res.json({ success: true })
+})
+
+// 删除变位
+router.delete('/conjugations/:id', requireAdmin, (req, res) => {
+  vocabularyDb.prepare('DELETE FROM conjugations WHERE id = ?').run(req.params.id)
+  res.json({ success: true })
+})
+
+router.post('/verbs', requireAdmin, (req, res) => {
+  const data = req.body || {}
+  if (!data.infinitive) return res.status(400).json({ error: '缺少动词原形 (infinitive)' })
+  const id = Verb.create({
+    infinitive: data.infinitive,
+    meaning: data.meaning || null,
+    conjugationType: data.conjugation_type || data.conjugationType || 1,
+    isIrregular: data.is_irregular || data.isIrregular || 0,
+    isReflexive: data.is_reflexive || data.isReflexive || 0,
+    gerund: data.gerund || null,
+    participle: data.participle || null,
+    participleForms: data.participle_forms || null,
+    lessonNumber: data.lesson_number || null,
+    textbookVolume: data.textbook_volume || 1,
+    frequencyLevel: data.frequency_level || 1
+  })
+  res.status(201).json({ id })
+})
+
+router.put('/verbs/:id', requireAdmin, (req, res) => {
+  const id = req.params.id
+  const data = req.body || {}
+  const existing = Verb.findById(id)
+  if (!existing) return res.status(404).json({ error: '记录不存在' })
+  const stmt = vocabularyDb.prepare(`
+    UPDATE verbs SET
+      infinitive = ?,
+      meaning = ?,
+      conjugation_type = ?,
+      is_irregular = ?,
+      is_reflexive = ?,
+      gerund = ?,
+      participle = ?,
+      participle_forms = ?,
+      lesson_number = ?,
+      textbook_volume = ?,
+      frequency_level = ?,
+      created_at = created_at
+    WHERE id = ?
+  `)
+  stmt.run(
+    data.infinitive || existing.infinitive,
+    data.meaning || existing.meaning,
+    data.conjugation_type ?? data.conjugationType ?? existing.conjugation_type,
+    data.is_irregular ?? data.isIrregular ?? existing.is_irregular,
+    data.is_reflexive ?? data.isReflexive ?? existing.is_reflexive,
+    data.gerund ?? existing.gerund,
+    data.participle ?? existing.participle,
+    data.participle_forms ?? existing.participle_forms,
+    data.lesson_number ?? existing.lesson_number,
+    data.textbook_volume ?? existing.textbook_volume,
+    data.frequency_level ?? existing.frequency_level,
+    id
+  )
+  res.json({ success: true })
+})
+
+router.delete('/verbs/:id', requireAdmin, (req, res) => {
+  vocabularyDb.prepare('DELETE FROM verbs WHERE id = ?').run(req.params.id)
+  res.json({ success: true })
 })
 
 router.post('/lexicon', requireAdmin, (req, res) => {
