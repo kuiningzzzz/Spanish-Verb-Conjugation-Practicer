@@ -15,6 +15,7 @@ function buildUserFromRow(row) {
     email: row.email,
     role: row.role,
     is_initial_admin: !!row.is_initial_admin,
+    is_initial_dev: !!row.is_initial_dev,
     created_at: row.created_at,
     updated_at: row.updated_at
   }
@@ -23,7 +24,7 @@ function buildUserFromRow(row) {
 function verifyCredentials(identifier, password) {
   const stmt = userDb.prepare('SELECT * FROM users WHERE username = ? OR email = ?')
   const user = stmt.get(identifier, identifier)
-  if (!user || user.role !== 'admin') {
+  if (!user || !['admin', 'dev'].includes(user.role)) {
     return null
   }
   const match = bcrypt.compareSync(password, user.password)
@@ -32,16 +33,26 @@ function verifyCredentials(identifier, password) {
 
 function listUsers(role = 'user', { limit = 50, offset = 0 } = {}) {
   const stmt = userDb.prepare(
-    'SELECT id, username, email, role, is_initial_admin, created_at, updated_at FROM users WHERE role = ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
+    'SELECT id, username, email, role, is_initial_admin, is_initial_dev, created_at, updated_at FROM users WHERE role = ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
   )
   const rows = stmt.all(role, limit, offset)
   const total = userDb.prepare('SELECT COUNT(*) as total FROM users WHERE role = ?').get(role).total
   return { rows: rows.map(buildUserFromRow), total }
 }
 
+function listAllUsers({ limit = 50, offset = 0 } = {}) {
+  const rows = userDb
+    .prepare(
+      'SELECT id, username, email, role, is_initial_admin, is_initial_dev, created_at, updated_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?'
+    )
+    .all(limit, offset)
+  const total = userDb.prepare('SELECT COUNT(*) as total FROM users').get().total
+  return { rows: rows.map(buildUserFromRow), total }
+}
+
 function findUser(id) {
   const stmt = userDb.prepare(
-    'SELECT id, username, email, role, is_initial_admin, created_at, updated_at FROM users WHERE id = ?'
+    'SELECT id, username, email, role, is_initial_admin, is_initial_dev, created_at, updated_at FROM users WHERE id = ?'
   )
   return stmt.get(id)
 }
@@ -93,6 +104,7 @@ module.exports = {
   maskUser,
   verifyCredentials,
   listUsers,
+  listAllUsers,
   findUser,
   createUser,
   updateUser,

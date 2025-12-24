@@ -18,6 +18,7 @@ function ensureColumn(dbInstance, table, column, definition) {
 function runAdminMigrations() {
   ensureColumn(userDb, 'users', 'role', "role TEXT DEFAULT 'user'")
   ensureColumn(userDb, 'users', 'is_initial_admin', 'is_initial_admin INTEGER DEFAULT 0')
+  ensureColumn(userDb, 'users', 'is_initial_dev', 'is_initial_dev INTEGER DEFAULT 0')
 
   userDb.exec(`
     CREATE TABLE IF NOT EXISTS admin_logs (

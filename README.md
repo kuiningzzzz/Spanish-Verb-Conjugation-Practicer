@@ -345,3 +345,19 @@ Spanish-Verb-Conjugation-Practicer/
 ## 联系方式
 
 如有问题或建议，欢迎通过应用内的用户反馈功能进行反馈，我们会及时处理并不断改进系统功能。
+
+### Admin 后台（dev/admin 专用）
+- 后端 .env 需配置初始账号：
+  - `INITIAL_ADMIN_EMAIL/INITIAL_ADMIN_PASSWORD/INITIAL_ADMIN_USERNAME`
+  - `DEV_USER_EMAIL/DEV_USER_PASSWORD/DEV_USER_NAME`
+- 本地启动：
+  - `cd server && npm run dev`
+  - `cd admin-web && npm install && npm run serve`
+  - 开发时默认通过 `vue.config.js` 将 `/admin/*` 代理到 `http://localhost:3000`，浏览器无需访问 Docker 内部域名。
+- 管理端鉴权接口：`POST /admin/auth/login`（identifier/email/username + password）、`GET /admin/auth/me`、`POST /admin/auth/logout`
+- 前端可选环境变量：`VUE_APP_ADMIN_API_BASE_URL`（默认 `/admin`，建议保持相对路径以避免 CORS）、`VUE_APP_ADMIN_PROXY_TARGET`（开发代理目标）。
+
+### 角色与权限概要
+- **DEV**：全量 CRUD（含日志、反馈、词库、题库、用户），但不能删除自己或初始 dev，初始 dev 角色不可变更。
+- **ADMIN**：可管理词库/题库；可查看所有用户并修改/删除非 admin、非 dev 用户；可将非 dev 用户升级为 admin；不可创建用户；不可访问日志反馈；不可降级任何 admin。
+- **USER**：无法登录 admin 后台，对后台接口返回 403。
