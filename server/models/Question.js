@@ -708,6 +708,28 @@ class Question {
     return result.count
   }
 
+  /**
+   * 根据题目ID与来源获取正确答案
+   */
+  static findAnswerById(questionId, source, userId) {
+    if (!questionId) return null
+    if (source === 'private') {
+      const stmt = userDb.prepare(`
+        SELECT correct_answer FROM private_questions
+        WHERE id = ? AND user_id = ?
+      `)
+      const question = stmt.get(questionId, userId)
+      return question ? question.correct_answer : null
+    }
+
+    const stmt = questionDb.prepare(`
+      SELECT correct_answer FROM public_questions
+      WHERE id = ?
+    `)
+    const question = stmt.get(questionId)
+    return question ? question.correct_answer : null
+  }
+
   // ==================== 用户答题记录操作 ====================
 
   /**

@@ -51,7 +51,7 @@
             <tr v-else>
               <th>ID</th>
               <th>用户ID</th>
-              <th>用户名</th>
+              <th>题目ID</th>
               <th>题目类型</th>
               <th>动词</th>
               <th>题目答案</th>
@@ -67,8 +67,8 @@
             <tr v-for="item in (tab === 'general' ? filteredGeneral : filteredQuestion)" :key="(tab==='general'? 'g-'+item.id : 'q-'+item.id)">
               <td>{{ item.id }}</td>
               <td>{{ item.user_id }}</td>
-              <td>{{ item.username || '-' }}</td>
               <template v-if="tab==='general'">
+                <td>{{ item.username || '-' }}</td>
                 <td>{{ item.satisfaction }}</td>
                 <td>{{ (item.comment || '-').slice(0, 60) }}</td>
                 <td>{{ item.status || '-' }}</td>
@@ -79,6 +79,7 @@
                 </td>
               </template>
               <template v-else>
+                <td>{{ formatQuestionId(item.question_id) }}</td>
                 <td>{{ item.question_type }}</td>
                 <td>{{ item.verb_infinitive || '-' }}</td>
                 <td>{{ item.question_answer || '-' }}</td>
@@ -108,35 +109,90 @@
           <button class="ghost" @click="closeDrawer">关闭</button>
         </header>
         <form @submit.prevent="submitDetail">
-          <div v-if="drawerType==='general'">
-            <label>用户ID：<strong>{{ detail.user_id }}</strong></label>
-            <label>用户名：<strong>{{ detail.username }}</strong></label>
-            <label>满意度：<strong>{{ detail.satisfaction }}</strong></label>
-            <label>评论</label>
-            <p class="muted">{{ detail.comment || '-' }}</p>
-            <label>
-              状态
+          <div v-if="drawerType==='general'" class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-label">用户ID</span>
+              <span class="detail-value">{{ detail.user_id }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">用户名</span>
+              <span class="detail-value">{{ detail.username }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">满意度</span>
+              <span class="detail-value">{{ detail.satisfaction }}</span>
+            </div>
+            <div class="detail-item detail-span">
+              <span class="detail-label">评论</span>
+              <span class="detail-value muted">{{ detail.comment || '-' }}</span>
+            </div>
+            <label class="detail-item">
+              <span class="detail-label">状态</span>
               <select v-model="detail.status">
                 <option value="open">open</option>
                 <option value="handled">handled</option>
                 <option value="closed">closed</option>
               </select>
             </label>
-            <label>
-              管理员备注
+            <label class="detail-item detail-span">
+              <span class="detail-label">管理员备注</span>
               <textarea v-model="detail.admin_note" rows="4"></textarea>
             </label>
           </div>
 
-          <div v-else>
-            <label>题目类型：<strong>{{ detail.question_type }}</strong></label>
-            <label>动词：<strong>{{ detail.verb_infinitive }}</strong></label>
-            <label>题目答案：<strong>{{ detail.question_answer }}</strong></label>
-            <label>用户说明</label>
-            <p class="muted">{{ detail.user_comment || '-' }}</p>
-            <label>报告类型：<strong>{{ detail.issue_types || '-' }}</strong></label>
-            <label>其他字段</label>
-            <pre class="muted">{{ detail }}</pre>
+          <div v-else class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-label">用户ID</span>
+              <span class="detail-value">{{ detail.user_id || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">用户名</span>
+              <span class="detail-value">{{ detail.username || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">题目ID</span>
+              <span class="detail-value">{{ formatQuestionId(detail.question_id) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">题目类型</span>
+              <span class="detail-value">{{ detail.question_type }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">动词</span>
+              <span class="detail-value">{{ detail.verb_infinitive || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">题目来源</span>
+              <span class="detail-value">{{ detail.question_source || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">题目答案</span>
+              <span class="detail-value">{{ detail.question_answer || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">时态</span>
+              <span class="detail-value">{{ detail.tense || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">语气</span>
+              <span class="detail-value">{{ detail.mood || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">人称</span>
+              <span class="detail-value">{{ detail.person || '-' }}</span>
+            </div>
+            <div class="detail-item detail-span">
+              <span class="detail-label">用户说明</span>
+              <span class="detail-value muted">{{ detail.user_comment || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">报告类型</span>
+              <span class="detail-value">{{ detail.issue_types || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">创建时间</span>
+              <span class="detail-value">{{ formatDate(detail.created_at) }}</span>
+            </div>
           </div>
 
           <div class="drawer-actions">
@@ -300,6 +356,12 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
+function formatQuestionId(value) {
+  if (value === null || value === undefined || value === '') return '-';
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) ? value : parsed;
+}
+
 async function openGeneralDetail(item) {
   drawerType.value = 'general';
   try {
@@ -382,3 +444,36 @@ watch([page, pageSize, tab], () => {
 
 fetchGeneral();
 </script>
+
+<style scoped>
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  margin-bottom: 16px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-span {
+  grid-column: 1 / -1;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.detail-value {
+  color: #111827;
+}
+
+.detail-grid select,
+.detail-grid textarea {
+  width: 100%;
+}
+</style>

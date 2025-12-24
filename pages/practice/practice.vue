@@ -2114,6 +2114,7 @@ export default {
           exerciseType: this.exerciseType,
           verbId: this.currentExercise.verbId,
           infinitive: this.currentExercise.infinitive,
+          questionSource: this.currentExercise.questionSource,
           issueTypes: this.selectedIssueTypes,  // 新增：问题类型数组
           feedbackText: this.reportComment.trim()
         }

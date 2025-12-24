@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const QuestionFeedback = require('../models/QuestionFeedback')
+const Question = require('../models/Question')
 const User = require('../models/User')
 const { authMiddleware } = require('../middleware/auth')
 
@@ -58,6 +59,15 @@ router.post('/submit', authMiddleware, async (req, res) => {
     } else if (answer) {
       // 其他题型使用answer字段
       questionAnswer = answer
+    }
+
+    if (!questionAnswer && questionId) {
+      if (questionSource) {
+        questionAnswer = Question.findAnswerById(questionId, questionSource, userId)
+      } else {
+        questionAnswer = Question.findAnswerById(questionId, 'public', userId)
+          || Question.findAnswerById(questionId, 'private', userId)
+      }
     }
 
     // 将问题类型数组转换为逗号分隔的字符串
