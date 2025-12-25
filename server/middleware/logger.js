@@ -122,17 +122,18 @@ function apiLogger(req, res, next) {
   const apiName = getApiName(path)
   const methodColor = getMethodColor(method)
   const resetColor = '\x1b[0m'
+  const requestId = req.requestId ? ` req_id=${req.requestId}` : ''
   
   // 记录请求开始
   const timeStr = getTimeString()
-  console.log(`${methodColor}[${timeStr}] ${method}${resetColor} ${path} | ${apiName}`)
+  console.log(`${methodColor}[${timeStr}] ${method}${resetColor} ${path} | ${apiName}${requestId}`)
   
   // 拦截响应结束事件
   const originalSend = res.send
   res.send = function(data) {
     const duration = Date.now() - startTime
     const statusColor = res.statusCode >= 400 ? '\x1b[31m' : '\x1b[32m'
-    console.log(`  ${statusColor}↳ ${res.statusCode}${resetColor} | ${duration}ms`)
+    console.log(`  ${statusColor}↳ ${res.statusCode}${resetColor} | ${duration}ms${requestId}`)
     
     originalSend.call(this, data)
   }
