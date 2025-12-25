@@ -272,6 +272,10 @@ router.post('/verbs/:id/conjugations', requireAdmin, (req, res) => {
   res.status(201).json({ id: result.lastInsertRowid })
 })
 
+router.get('/conjugations/options', requireAdmin, (req, res) => {
+  res.json(Conjugation.getOptions())
+})
+
 // 获取单个变位记录
 router.get('/conjugations/:id', requireAdmin, (req, res) => {
   const item = vocabularyDb.prepare('SELECT * FROM conjugations WHERE id = ?').get(req.params.id)
@@ -421,10 +425,6 @@ router.get('/verbs/:id', requireAdmin, (req, res) => {
       infinitive: verb.infinitive
     }
   })
-})
-
-router.get('/conjugations/options', requireAdmin, (req, res) => {
-  res.json(Conjugation.getOptions())
 })
 
 router.put('/questions/:id', requireAdmin, (req, res) => {

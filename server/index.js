@@ -12,6 +12,8 @@ if (fs.existsSync(envPath)) {
 const { initDatabase } = require('./database/db')
 const { initSampleData } = require('./database/initData')
 const apiLogger = require('./middleware/logger')
+const requestId = require('./middleware/requestId')
+const { metricsMiddleware, metricsEndpoint } = require('./metrics')
 const { bootstrapAdmin } = require('./admin/bootstrap')
 
 const app = express()
@@ -21,6 +23,8 @@ const PORT = process.env.PORT || 3000
 app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+app.use(requestId)
+app.use(metricsMiddleware)
 
 // API请求日志
 app.use(apiLogger)
@@ -65,6 +69,9 @@ app.use('/api/feedback', require('./routes/feedback'))  // 用户反馈路由
 app.use('/api/question-feedback', require('./routes/questionFeedback'))  // 题目反馈路由
 app.use('/api/version', require('./routes/version'))  // 版本更新路由
 app.use('/admin', require('./routes/admin'))
+
+// Prometheus metrics
+app.get('/metrics', metricsEndpoint)
 
 // 健康检查
 app.get('/api/health', (req, res) => {

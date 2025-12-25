@@ -303,7 +303,7 @@ watch(
   () => form.tense,
   () => {
     if (!drawerOpen.value) return;
-    syncMoodFromTense();
+    syncMoodFromTense({ force: true });
   }
 );
 
@@ -322,17 +322,29 @@ function mergeOptions(options, currentValue) {
   return [currentValue, ...options];
 }
 
-function syncMoodFromTense() {
-  const mood = tenseMoodMap.value[form.tense];
+function syncMoodFromTense({ force = false } = {}) {
+  if (!form.tense) {
+    form.mood = '';
+    formErrors.mood = '';
+    return;
+  }
+
+  const hasOptions = tenseMoodMap.value && Object.keys(tenseMoodMap.value).length > 0;
+  const mood = hasOptions ? tenseMoodMap.value[form.tense] : '';
+
   if (mood) {
     form.mood = mood;
     formErrors.mood = '';
     return;
   }
-  if (form.tense) {
-    form.mood = '';
-    formErrors.mood = '该时态未匹配到语气';
+
+  if (form.mood && !force) {
+    formErrors.mood = '';
+    return;
   }
+
+  form.mood = '';
+  formErrors.mood = '该时态未匹配到语气';
 }
 
 function resetErrors(target) {
@@ -480,8 +492,9 @@ async function fetchVerbInfinitive(verbId) {
   try {
     const data = await apiRequest(`/verbs/${verbId}`);
     if (requestToken !== verbLookupToken) return;
-    form.verb_infinitive = data?.verb?.infinitive || '';
-    if (!form.verb_infinitive) {
+    const infinitive = data?.verb?.infinitive || data?.infinitive || '';
+    form.verb_infinitive = infinitive;
+    if (!infinitive) {
       formErrors.verb_id = '动词ID不存在';
     }
   } catch (err) {

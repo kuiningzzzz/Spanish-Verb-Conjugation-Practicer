@@ -73,6 +73,11 @@ Con-jugamos是一款面向西班牙语学习者的动词变位学习软件，致
 - 健康检查接口，便于监控服务状态
 - 定时任务调度，自动清理过期数据
 
+### 8. 词库、题库管理与日志反馈
+- **词库管理**：支持新增动词、维护释义与变位数据，便于持续扩充官方词库并保持内容一致性。
+- **题库管理**：支持对公共/个人题目进行增删改查与状态管理，配合反馈机制进行质量回收与优化。
+- **日志与反馈**：提供操作日志与用户反馈入口，方便定位问题、追踪异常并快速改进体验。
+
 ## 开发运行方式
 
 ### 环境要求
@@ -165,7 +170,7 @@ cp .env.example .env
 
 4. 启动服务：
 ```bash
-docker compose up -d --build
+docker-compose up -d --build
 ```
 
 Compose 会启动 API（默认 3000）和 Admin Web（默认 3001）。确保在 `server/.env` 中填写 `INITIAL_ADMIN_EMAIL`、`INITIAL_ADMIN_PASSWORD` 等变量，初始管理员会在容器启动时自动注入，幂等执行。
@@ -180,6 +185,69 @@ docker-compose logs -f
 ```bash
 docker-compose down
 ```
+
+### 可观测性（Prometheus + Grafana + Loki）
+
+> 说明：请从 `./server` 目录启动 Compose，Grafana 端口已改为 **3002** 避免与后端 3000 冲突。
+
+#### 启动方式（必须从 ./server 目录）
+
+仅启动应用（不含可观测性）：
+```bash
+cd server
+docker-compose up -d --build
+```
+
+启动应用 + 可观测性栈：
+```bash
+cd server
+docker-compose -f docker-compose.yml -f docker-compose.observability.yml up -d --build
+```
+
+#### 访问地址
+
+- Web 前端：`http://localhost:3001`
+- 后端：`http://localhost:3000`
+- Grafana：`http://localhost:3002`（默认账号/密码：`admin` / `admin`，可通过环境变量 `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` 修改）
+- Prometheus：`http://localhost:9090`
+- Loki：`http://localhost:3100`
+
+#### Grafana 使用方法
+
+1. **Explore -> Loki** 示例查询：
+   - `{compose_service="spanish-verb-api"}`
+   - `{compose_service="spanish-verb-api"} |= "error"`
+   - `{compose_service="spanish-verb-api"} |= "req_id="`
+2. **Dashboards -> API RED** 查看 RPS / 错误率 / P95 延迟。
+
+#### 验证步骤
+
+```bash
+curl http://localhost:3000/metrics
+```
+
+手动触发几个 API 请求（示例）：
+```bash
+curl http://localhost:3000/api/health
+curl http://localhost:3000/api/verb/list
+```
+
+在 Prometheus Targets 页面确认 `backend` 为 **UP**：
+`http://localhost:9090/targets`
+
+#### 常见故障排查
+
+- **Grafana 端口冲突**：Grafana 已映射为 `3002:3000`，请确保宿主机 3002 未被占用。
+- **Promtail 无权限读日志**：需要挂载 `/var/lib/docker/containers` 与 `/var/run/docker.sock`，且 Docker 日志驱动需为 `json-file`（默认）。
+- **Prometheus 抓取失败（Targets DOWN）**：确认后端服务名为 `spanish-verb-api`、容器内监听 3000，并与 observability 栈在同一网络。
+
+#### 日志保留期
+
+Loki 默认保留 7 天（`168h`），如需调整可修改 `server/observability/loki/loki-config.yml` 中的 `limits_config.retention_period`。
+
+#### 安全建议
+
+Grafana 不建议直接暴露公网，请配合反向代理与鉴权（如 Nginx + 基础认证 / OAuth）。
 
 ### Admin 管理端
 
