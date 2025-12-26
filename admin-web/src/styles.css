@@ -220,6 +220,11 @@ textarea {
   margin-bottom: 6px;
 }
 
+.total-count {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
 .users-header {
   display: flex;
   align-items: flex-start;
