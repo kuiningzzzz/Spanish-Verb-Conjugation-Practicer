@@ -18,6 +18,7 @@ const QuestionBank = require('../models/QuestionBank')
 const Feedback = require('../models/Feedback')
 const QuestionFeedback = require('../models/QuestionFeedback')
 const AdminLog = require('../models/AdminLog')
+const PracticeRecord = require('../models/PracticeRecord')
 const { vocabularyDb } = require('../database/db')
 
 const loginAttempts = new Map()
@@ -510,6 +511,90 @@ router.get('/logs', requireAdmin, (req, res) => {
   const offset = Number(req.query.offset || 0)
   const logs = AdminLog.list({ keyword, start, end, limit, offset })
   res.json(logs)
+})
+
+router.get('/practice-records', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可以查看用户数据')
+  const limit = Number(req.query.limit || 50)
+  const offset = Number(req.query.offset || 0)
+  const keyword = req.query.keyword ? String(req.query.keyword).trim() : ''
+  const userId = req.query.userId ? Number(req.query.userId) : null
+  const verbId = req.query.verbId ? Number(req.query.verbId) : null
+  const exerciseType = req.query.exerciseType ? String(req.query.exerciseType).trim() : ''
+  const tense = req.query.tense ? String(req.query.tense).trim() : ''
+  const mood = req.query.mood ? String(req.query.mood).trim() : ''
+  const person = req.query.person ? String(req.query.person).trim() : ''
+  const sortBy = req.query.sortBy ? String(req.query.sortBy).trim() : 'created_at'
+  const sortOrder = req.query.sortOrder ? String(req.query.sortOrder).trim() : 'desc'
+  const startDate = req.query.startDate ? String(req.query.startDate).trim() : ''
+  const endDate = req.query.endDate ? String(req.query.endDate).trim() : ''
+
+  let isCorrect
+  if (req.query.isCorrect !== undefined && req.query.isCorrect !== '') {
+    const raw = String(req.query.isCorrect).toLowerCase()
+    if (raw === 'true' || raw === '1') {
+      isCorrect = 1
+    } else if (raw === 'false' || raw === '0') {
+      isCorrect = 0
+    }
+  }
+
+  const result = PracticeRecord.listAll({
+    limit,
+    offset,
+    keyword,
+    userId: userId || undefined,
+    verbId: verbId || undefined,
+    exerciseType: exerciseType || undefined,
+    isCorrect,
+    tense: tense || undefined,
+    mood: mood || undefined,
+    person: person || undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    sortBy,
+    sortOrder
+  })
+  res.json(result)
+})
+
+router.get('/practice-records/stats', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可以查看用户数据')
+  const keyword = req.query.keyword ? String(req.query.keyword).trim() : ''
+  const userId = req.query.userId ? Number(req.query.userId) : null
+  const verbId = req.query.verbId ? Number(req.query.verbId) : null
+  const exerciseType = req.query.exerciseType ? String(req.query.exerciseType).trim() : ''
+  const tense = req.query.tense ? String(req.query.tense).trim() : ''
+  const mood = req.query.mood ? String(req.query.mood).trim() : ''
+  const person = req.query.person ? String(req.query.person).trim() : ''
+  const startDate = req.query.startDate ? String(req.query.startDate).trim() : ''
+  const endDate = req.query.endDate ? String(req.query.endDate).trim() : ''
+  const limit = Number(req.query.limit || 50)
+
+  let isCorrect
+  if (req.query.isCorrect !== undefined && req.query.isCorrect !== '') {
+    const raw = String(req.query.isCorrect).toLowerCase()
+    if (raw === 'true' || raw === '1') {
+      isCorrect = 1
+    } else if (raw === 'false' || raw === '0') {
+      isCorrect = 0
+    }
+  }
+
+  const result = PracticeRecord.getStats({
+    keyword,
+    userId: userId || undefined,
+    verbId: verbId || undefined,
+    exerciseType: exerciseType || undefined,
+    isCorrect,
+    tense: tense || undefined,
+    mood: mood || undefined,
+    person: person || undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    limit
+  })
+  res.json(result)
 })
 
 router.get('/feedback', requireAdmin, (req, res) => {

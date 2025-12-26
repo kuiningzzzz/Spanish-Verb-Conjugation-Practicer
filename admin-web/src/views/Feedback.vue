@@ -4,6 +4,7 @@
       <div>
         <h2>反馈处理</h2>
         <p class="muted">处理用户反馈与题目反馈，支持状态标记、备注与删除。</p>
+        <p class="muted total-count">共 {{ total }} 条</p>
       </div>
       <div class="toolbar">
         <select v-model="tab">
