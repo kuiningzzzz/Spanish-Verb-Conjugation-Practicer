@@ -483,8 +483,8 @@ export default {
       })
       // #endif
       
-      // #ifdef MP
-      // 小程序环境
+      // #ifdef MP-WEIXIN
+      // 微信小程序环境
       uni.getFileSystemManager().readFile({
         filePath: tempFilePath,
         encoding: 'base64',

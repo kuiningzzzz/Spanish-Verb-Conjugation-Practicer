@@ -73,7 +73,7 @@
           :key="user.id"
           :class="{ 'current-user': user.isCurrentUser }"
         >
-          <view class="rank-number" :class="getRankClass(index)">
+          <view class="rank-number" :class="user.rankClass">
             <text v-if="index < 3" class="medal-icon">{{ ['🥇', '🥈', '🥉'][index] }}</text>
             <text v-else class="rank-digit">{{ index + 1 }}</text>
           </view>
@@ -85,7 +85,7 @@
 
           <view class="user-info">
             <view class="user-main">
-              <text class="username" :style="getUsernameStyle(user.username)">{{ user.username }}</text>
+              <text class="username" :style="user.usernameStyle">{{ user.username }}</text>
               <view class="user-badges">
                 <view class="badge" v-if="user.isCurrentUser">我</view>
               </view>
@@ -164,10 +164,12 @@ export default {
         this.refreshing = false
 
         if (res.success) {
-          // 标记当前用户
-          this.leaderboard = (res.leaderboard || []).map(user => ({
+          // 标记当前用户并预处理样式数据
+          this.leaderboard = (res.leaderboard || []).map((user, index) => ({
             ...user,
-            isCurrentUser: user.id === this.currentUser?.id
+            isCurrentUser: user.id === this.currentUser?.id,
+            rankClass: this.getRankClass(index),
+            usernameStyle: this.getUsernameStyle(user.username)
           }))
         }
       } catch (error) {

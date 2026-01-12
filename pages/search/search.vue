@@ -22,8 +22,8 @@
       <view v-if="hasExactResults" class="results-section">
         <!-- 原型精确匹配 -->
         <view
-          v-for="(verb, index) in displayedExactInfinitive"
-          :key="'exact-inf-' + verb.id"
+          v-for="verb in displayedExactInfinitive"
+          :key="verb._key"
           class="result-item"
           @click="viewVerbDetail(verb)"
         >
@@ -42,8 +42,8 @@
 
         <!-- 变位精确匹配 -->
         <view
-          v-for="(verb, index) in displayedExactConjugation"
-          :key="'exact-conj-' + verb.id"
+          v-for="verb in displayedExactConjugation"
+          :key="verb._key"
           class="result-item"
           @click="viewVerbDetail(verb)"
         >
@@ -79,8 +79,8 @@
 
         <!-- 原型模糊匹配 -->
         <view
-          v-for="(verb, index) in displayedFuzzyInfinitive"
-          :key="'fuzzy-inf-' + verb.id"
+          v-for="verb in displayedFuzzyInfinitive"
+          :key="verb._key"
           class="result-item fuzzy-item"
           @click="viewVerbDetail(verb)"
         >
@@ -99,8 +99,8 @@
 
         <!-- 变位模糊匹配 -->
         <view
-          v-for="(verb, index) in displayedFuzzyConjugation"
-          :key="'fuzzy-conj-' + verb.id"
+          v-for="verb in displayedFuzzyConjugation"
+          :key="verb._key"
           class="result-item fuzzy-item"
           @click="viewVerbDetail(verb)"
         >
@@ -144,7 +144,7 @@
         </view>
         <view
           v-for="(verb, index) in searchHistory"
-          :key="'history-' + verb.id"
+          :key="verb._key"
           class="result-item history-item"
           @click="viewHistoryDetail(verb)"
         >
@@ -332,11 +332,12 @@ export default {
       try {
         const res = await api.searchVerbs(keyword)
         if (res.success) {
+          // 为每个结果添加唯一的 _key 属性，避免在模板中拼接字符串
           this.searchResults = {
-            exactInfinitive: res.exactInfinitive || [],
-            exactConjugation: res.exactConjugation || [],
-            fuzzyInfinitive: res.fuzzyInfinitive || [],
-            fuzzyConjugation: res.fuzzyConjugation || []
+            exactInfinitive: (res.exactInfinitive || []).map((v, i) => ({ ...v, _key: `exact-inf-${v.id}-${i}` })),
+            exactConjugation: (res.exactConjugation || []).map((v, i) => ({ ...v, _key: `exact-conj-${v.id}-${i}` })),
+            fuzzyInfinitive: (res.fuzzyInfinitive || []).map((v, i) => ({ ...v, _key: `fuzzy-inf-${v.id}-${i}` })),
+            fuzzyConjugation: (res.fuzzyConjugation || []).map((v, i) => ({ ...v, _key: `fuzzy-conj-${v.id}-${i}` }))
           }
           this.showSearchResults = true
         }
@@ -390,7 +391,10 @@ export default {
     loadSearchHistory() {
       try {
         const history = uni.getStorageSync('verbSearchHistory') || []
-        this.searchHistory = Array.isArray(history) ? history : []
+        // 为历史记录也添加 _key
+        this.searchHistory = Array.isArray(history) 
+          ? history.map((v, i) => ({ ...v, _key: `history-${v.id}-${i}` }))
+          : []
       } catch (error) {
         console.error('加载搜索历史失败:', error)
         this.searchHistory = []
