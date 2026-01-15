@@ -6,6 +6,7 @@
         <p class="muted">
           已启用用户管理表格与编辑抽屉。接口对接：GET /admin/users（limit/offset/role）、GET /admin/users/:id、POST /admin/users、PUT /admin/users/:id、DELETE /admin/users/:id、GET /admin/auth/me。
         </p>
+        <p class="muted total-count">共 {{ total }} 条</p>
       </div>
       <div class="toolbar">
         <input v-model.trim="keyword" placeholder="搜索邮箱/昵称/ID" />

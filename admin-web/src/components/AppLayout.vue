@@ -9,6 +9,7 @@
         <RouterLink to="/questions">题库管理</RouterLink>
         <RouterLink v-if="isDev" to="/logs">日志查看</RouterLink>
         <RouterLink v-if="isDev" to="/feedback">反馈处理</RouterLink>
+        <RouterLink v-if="isDev" to="/practice-records">用户数据</RouterLink>
       </nav>
     </aside>
     <div class="main">
@@ -45,7 +46,8 @@ const titles = {
   Lexicon: '词库管理',
   QuestionBank: '题库管理',
   Logs: '日志查看',
-  Feedback: '反馈处理'
+  Feedback: '反馈处理',
+  PracticeRecords: '用户数据'
 };
 
 const title = computed(() => titles[route.name] || 'Admin');

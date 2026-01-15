@@ -7,6 +7,7 @@
           已启用题库管理表格与编辑抽屉。接口对接：GET /admin/questions（limit/offset/keyword）、GET
           /admin/questions/:id、PUT /admin/questions/:id、DELETE /admin/questions/:id。
         </p>
+        <p class="muted total-count">共 {{ total }} 条</p>
       </div>
       <div class="toolbar">
         <div class="toolbar-left">
