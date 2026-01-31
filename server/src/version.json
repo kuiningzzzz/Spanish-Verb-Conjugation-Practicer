@@ -5,6 +5,9 @@
       "versionName": "1.2.0",
       "releaseDate": "2026-1-31",
       "description": "功能修复与扩充，词书扩充",
+      "newFeatures": [
+        "新增《现代西班牙语第二册》单词和课程"
+      ],
       "improvements": [
         "删掉多余组件，优化部分文本界面布局",
         "一定程度上规范西语术语显示"
