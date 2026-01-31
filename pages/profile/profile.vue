@@ -145,11 +145,6 @@
           <view class="menu-label">检查更新&更新日志</view>
           <view class="menu-arrow">→</view>
         </view>
-        <view class="menu-item" @click="aboutApp">
-          <view class="menu-icon">ℹ️</view>
-          <text class="menu-label">关于应用</text>
-          <text class="menu-arrow">→</text>
-        </view>
       </view>
     </view>
 
@@ -762,13 +757,6 @@ export default {
           console.error('navigateTo failed:', err)
           uni.showToast({ title: '无法打开更新日志页面，请重启应用', icon: 'none' })
         }
-      })
-    },
-    aboutApp() {
-      uni.showModal({
-        title: '关于应用',
-        content: '西班牙语动词变位练习APP v1.0.0\n\n帮助学生轻松掌握西班牙语动词变位\n\n—— 让学习变得更简单',
-        showCancel: false
       })
     },
     startPractice() {
