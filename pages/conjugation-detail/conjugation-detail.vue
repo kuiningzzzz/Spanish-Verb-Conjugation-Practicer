@@ -531,7 +531,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 25rpx 30rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   border-radius: 20rpx;
   cursor: pointer;
   transition: all 0.3s;

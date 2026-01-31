@@ -453,7 +453,7 @@ export default {
 
 .search-box:focus-within {
   background: white;
-  box-shadow: 0 0 0 2rpx #667eea;
+  box-shadow: 0 0 0 2rpx #8B0012;
 }
 
 .search-icon {
@@ -546,17 +546,17 @@ export default {
 }
 
 .badge.reflexive {
-  background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+  background: #ff6b6b;
   color: white;
 }
 
 .badge.irregular {
-  background: linear-gradient(135deg, #ff8c00, #ffa500);
+  background: #ff8c00;
   color: white;
 }
 
 .irregular-badge {
-  background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+  background: #ff6b6b;
   color: white;
   font-size: 20rpx;
   padding: 6rpx 16rpx;
@@ -572,11 +572,11 @@ export default {
 
 /* 变位形式匹配信息 */
 .matched-form-info {
-  background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+  background: #fff5f5;
   padding: 15rpx 20rpx;
   border-radius: 12rpx;
   margin-bottom: 15rpx;
-  border-left: 4rpx solid #667eea;
+  border-left: 4rpx solid #8B0012;
 }
 
 .matched-form-label {
@@ -587,7 +587,7 @@ export default {
 
 .matched-form-text {
   font-size: 26rpx;
-  color: #667eea;
+  color: #8B0012;
   font-weight: 600;
 }
 
@@ -615,19 +615,19 @@ export default {
 .show-more-btn {
   margin-top: 30rpx;
   padding: 20rpx 40rpx;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #8B0012;
   color: white;
   font-size: 28rpx;
   font-weight: 600;
   text-align: center;
   border-radius: 50rpx;
-  box-shadow: 0 4rpx 15rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4rpx 15rpx rgba(139, 0, 18, 0.3);
   transition: all 0.3s;
 }
 
 .show-more-btn:active {
   transform: scale(0.95);
-  box-shadow: 0 2rpx 10rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2rpx 10rpx rgba(139, 0, 18, 0.3);
 }
 
 /* 无结果 */

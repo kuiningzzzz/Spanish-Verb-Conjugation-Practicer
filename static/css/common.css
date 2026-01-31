@@ -20,7 +20,7 @@ page {
 
 /* 按钮 */
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   border: none;
   border-radius: 50rpx;
@@ -31,8 +31,8 @@ page {
 
 .btn-secondary {
   background: #fff;
-  color: #667eea;
-  border: 2rpx solid #667eea;
+  color: #8B0012;
+  border: 2rpx solid #8B0012;
   border-radius: 50rpx;
   padding: 24rpx 48rpx;
   font-size: 32rpx;
@@ -40,7 +40,7 @@ page {
 
 /* 文本 */
 .text-primary {
-  color: #667eea;
+  color: #8B0012;
 }
 
 .text-secondary {

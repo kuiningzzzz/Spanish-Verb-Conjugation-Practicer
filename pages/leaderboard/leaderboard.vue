@@ -206,7 +206,7 @@ export default {
 <style scoped>
 .container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   position: relative;
   overflow: hidden;
 }
@@ -294,7 +294,7 @@ export default {
   left: 8rpx;
   right: 8rpx;
   bottom: 8rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   border-radius: 17rpx;
   z-index: -1;
   animation: tabGlow 2s ease-in-out infinite alternate;
@@ -361,7 +361,7 @@ export default {
   width: 96rpx;
   height: 96rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+  background: #f6d365;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -374,22 +374,22 @@ export default {
 }
 
 .podium-item.first .podium-avatar {
-  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  background: #ffd700;
   width: 120rpx;
   height: 120rpx;
   font-size: 42rpx;
 }
 
 .podium-item.second .podium-avatar {
-  background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
+  background: #c0c0c0;
 }
 
 .podium-item.third .podium-avatar {
-  background: linear-gradient(135deg, #cd7f32 0%, #e8b880 100%);
+  background: #cd7f32;
 }
 
 .champion {
-  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  background: #ffd700;
 }
 
 .avatar-image {
@@ -478,8 +478,8 @@ export default {
 }
 
 .rank-item.current-user {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-  border-left: 6rpx solid #667eea;
+  background: rgba(139, 0, 18, 0.1);
+  border-left: 6rpx solid #8B0012;
 }
 
 .rank-number {
@@ -498,19 +498,19 @@ export default {
 }
 
 .rank-gold {
-  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  background: #ffd700;
   color: #fff;
   box-shadow: 0 8rpx 20rpx rgba(255, 215, 0, 0.3);
 }
 
 .rank-silver {
-  background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
+  background: #c0c0c0;
   color: #fff;
   box-shadow: 0 8rpx 20rpx rgba(192, 192, 192, 0.3);
 }
 
 .rank-bronze {
-  background: linear-gradient(135deg, #cd7f32 0%, #e8b880 100%);
+  background: #cd7f32;
   color: #fff;
   box-shadow: 0 8rpx 20rpx rgba(205, 127, 50, 0.3);
 }
@@ -523,7 +523,7 @@ export default {
   width: 80rpx;
   height: 80rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -562,7 +562,7 @@ export default {
 }
 
 .badge {
-  background: #667eea;
+  background: #8B0012;
   color: #fff;
   padding: 4rpx 12rpx;
   border-radius: 12rpx;
@@ -631,7 +631,7 @@ export default {
 }
 
 .empty-action {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   border: none;
   border-radius: 25rpx;
@@ -647,19 +647,19 @@ export default {
   right: 40rpx;
   width: 100rpx;
   height: 100rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 15rpx 30rpx rgba(102, 126, 234, 0.4);
+  box-shadow: 0 15rpx 30rpx rgba(139, 0, 18, 0.4);
   z-index: 100;
   transition: all 0.3s ease;
 }
 
 .refresh-fab:active {
   transform: scale(0.95);
-  box-shadow: 0 8rpx 20rpx rgba(102, 126, 234, 0.6);
+  box-shadow: 0 8rpx 20rpx rgba(139, 0, 18, 0.6);
 }
 
 .refresh-icon {

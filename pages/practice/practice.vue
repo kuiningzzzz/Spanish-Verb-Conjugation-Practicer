@@ -2207,11 +2207,11 @@ export default {
 }
 
 .custom-message.success {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
 }
 
 .custom-message.error {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: #d32f2f;
 }
 
 .message-text {
@@ -2248,7 +2248,7 @@ export default {
 
 .back-icon {
   font-size: 40rpx;
-  color: #667eea;
+  color: #8B0012;
   font-weight: bold;
   margin-right: 8rpx;
   line-height: 1;
@@ -2256,7 +2256,7 @@ export default {
 
 .back-text {
   font-size: 32rpx;
-  color: #667eea;
+  color: #8B0012;
   line-height: 1;
 }
 
@@ -2301,7 +2301,7 @@ export default {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   transition: width 0.3s;
 }
 
@@ -2440,7 +2440,7 @@ export default {
 .person-info {
   display: block;
   font-size: 28rpx;
-  color: #667eea;
+  color: #8B0012;
 }
 
 .input-container {
@@ -2461,7 +2461,7 @@ export default {
   align-items: center;
   gap: 8rpx;
   padding: 18rpx 30rpx;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  background: #f5f5f5;
   border: 2rpx solid #d1d9e6;
   border-radius: 50rpx;
   font-size: 26rpx;
@@ -2471,10 +2471,10 @@ export default {
 }
 
 .helper-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-color: #667eea;
+  background: #8B0012;
+  border-color: #8B0012;
   color: #fff;
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.3);
   transform: translateY(-2rpx);
 }
 
@@ -2496,7 +2496,7 @@ export default {
   padding: 25rpx;
   background: #f8f9fa;
   border-radius: 12rpx;
-  border-left: 4rpx solid #667eea;
+  border-left: 4rpx solid #8B0012;
 }
 
 .translation {
@@ -2609,12 +2609,12 @@ export default {
 
 .inline-feedback.correct {
   border-left: 6rpx solid #52c41a;
-  background: linear-gradient(135deg, #f6ffed 0%, #ffffff 100%);
+  background: #f6ffed;
 }
 
 .inline-feedback.wrong {
   border-left: 6rpx solid #ff4d4f;
-  background: linear-gradient(135deg, #fff1f0 0%, #ffffff 100%);
+  background: #fff1f0;
 }
 
 .inline-feedback .feedback-header {
@@ -2702,24 +2702,24 @@ export default {
 }
 
 .inline-feedback .rating-btn.good-btn {
-  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  background: #52c41a;
   color: #fff;
   border: none;
 }
 
 .inline-feedback .rating-btn.good-btn:active {
-  background: linear-gradient(135deg, #389e0d 0%, #52c41a 100%);
+  background: #389e0d;
   transform: scale(0.95);
 }
 
 .inline-feedback .rating-btn.bad-btn {
-  background: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%);
+  background: #ff4d4f;
   color: #fff;
   border: none;
 }
 
 .inline-feedback .rating-btn.bad-btn:active {
-  background: linear-gradient(135deg, #cf1322 0%, #ff4d4f 100%);
+  background: #cf1322;
   transform: scale(0.95);
 }
 
@@ -2809,7 +2809,7 @@ export default {
   display: block;
   font-size: 48rpx;
   font-weight: bold;
-  color: #667eea;
+  color: #8B0012;
   margin-bottom: 10rpx;
 }
 
@@ -2850,12 +2850,12 @@ export default {
 }
 
 .navbar-item.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+  background: #8B0012;
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.3);
 }
 
 .navbar-item:not(.active):active {
-  background: rgba(102, 126, 234, 0.1);
+  background: rgba(139, 0, 18, 0.1);
 }
 
 .navbar-item-text {
@@ -2887,8 +2887,8 @@ export default {
   width: 320rpx;
   height: 320rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 8rpx 24rpx rgba(102, 126, 234, 0.4);
+  background: #8B0012;
+  box-shadow: 0 8rpx 24rpx rgba(139, 0, 18, 0.4);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2912,7 +2912,7 @@ export default {
 
 .big-circle-button:active {
   transform: scale(0.95);
-  box-shadow: 0 4rpx 16rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4rpx 16rpx rgba(139, 0, 18, 0.3);
 }
 
 .button-type {
@@ -2932,19 +2932,19 @@ export default {
 
 /* 题型说明框 */
 .exercise-description-box {
-  background: linear-gradient(135deg, #f0f4ff 0%, #f8f0ff 100%);
-  border: 2rpx solid #e0e7ff;
+  background: #fff8f8;
+  border: 2rpx solid #f0d0d0;
   border-radius: 16rpx;
   padding: 25rpx;
   margin-bottom: 30rpx;
-  box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.08);
+  box-shadow: 0 2rpx 8rpx rgba(139, 0, 18, 0.08);
 }
 
 .description-title {
   display: block;
   font-size: 28rpx;
   font-weight: 600;
-  color: #667eea;
+  color: #8B0012;
   margin-bottom: 12rpx;
 }
 
@@ -2958,13 +2958,13 @@ export default {
 
 /* 课程模式提示 */
 .course-mode-tip {
-  background: linear-gradient(135deg, #e0e7ff 0%, #f0e7ff 100%);
+  background: #fff8f8;
   border-radius: 16rpx;
   padding: 24rpx;
   margin-bottom: 30rpx;
   display: flex;
   align-items: flex-start;
-  border: 2rpx solid #667eea;
+  border: 2rpx solid #8B0012;
 }
 
 .tip-icon {
@@ -2982,7 +2982,7 @@ export default {
 .tip-title {
   font-size: 28rpx;
   font-weight: bold;
-  color: #667eea;
+  color: #8B0012;
   margin-bottom: 8rpx;
 }
 
@@ -3008,7 +3008,7 @@ export default {
 
 /* 课程锁定提示 */
 .course-lock-tip {
-  background: linear-gradient(135deg, #fff4e6 0%, #ffe6e6 100%);
+  background: #fff8f3;
   border-radius: 12rpx;
   padding: 20rpx;
   margin-bottom: 24rpx;
@@ -3081,7 +3081,7 @@ export default {
 
 .picker:active {
   background: #e9ecef;
-  border-color: #667eea;
+  border-color: #8B0012;
 }
 
 .picker::after {
@@ -3110,7 +3110,7 @@ slider {
   width: 80rpx;
   height: 80rpx;
   border-radius: 16rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   font-size: 40rpx;
   font-weight: bold;
@@ -3118,7 +3118,7 @@ slider {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6rpx 16rpx rgba(102, 126, 234, 0.25);
+  box-shadow: 0 6rpx 16rpx rgba(139, 0, 18, 0.25);
 }
 
 .count-btn::after {
@@ -3158,12 +3158,12 @@ slider {
 
 /* 专项练习样式 */
 .theme-practice-item {
-  background: linear-gradient(135deg, #f8f9ff 0%, #fff5fb 100%);
-  border: 2rpx solid #e0e7ff;
+  background: #fff8f8;
+  border: 2rpx solid #f0d0d0;
   border-radius: 16rpx;
   padding: 25rpx;
   margin-bottom: 35rpx;
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.08);
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.08);
   transition: all 0.3s ease;
   position: relative;
 }
@@ -3196,7 +3196,7 @@ slider {
 
 .expand-icon {
   font-size: 24rpx;
-  color: #667eea;
+  color: #8B0012;
   font-weight: bold;
   transition: transform 0.3s ease;
 }
@@ -3210,10 +3210,7 @@ slider {
   margin-bottom: 0;
   font-size: 30rpx;
   font-weight: 600;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #8B0012;
 }
 
 .theme-details {
@@ -3260,8 +3257,8 @@ slider {
 }
 
 .checkbox-item.checked {
-  background: linear-gradient(135deg, #f0e7ff 0%, #e0e7ff 100%);
-  border-color: #667eea;
+  background: #fff8f8;
+  border-color: #8B0012;
 }
 
 .checkbox-icon {
@@ -3271,7 +3268,7 @@ slider {
 }
 
 .checkbox-item.checked .checkbox-icon {
-  color: #667eea;
+  color: #8B0012;
 }
 
 .checkbox-label {
@@ -3297,7 +3294,7 @@ slider {
   padding: 8rpx 20rpx;
   border-radius: 6rpx;
   font-size: 22rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   border: none;
   margin-right: 10rpx;
@@ -3307,8 +3304,8 @@ slider {
 
 .quick-btn.secondary {
   background: #fff;
-  color: #667eea;
-  border: 2rpx solid #667eea;
+  color: #8B0012;
+  border: 2rpx solid #8B0012;
 }
 
 .quick-btn::after {
@@ -3317,12 +3314,12 @@ slider {
 
 /* AI 开关样式优化 */
 .ai-switch-item {
-  background: linear-gradient(135deg, #f8f9ff 0%, #fff5f8 100%);
-  border: 2rpx solid #e0e7ff;
+  background: #fff8f8;
+  border: 2rpx solid #f0d0d0;
   border-radius: 16rpx;
   padding: 25rpx;
   margin-bottom: 35rpx;
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.08);
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.08);
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
@@ -3335,7 +3332,7 @@ slider {
   right: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(102, 126, 234, 0.03) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(139, 0, 18, 0.03) 0%, transparent 70%);
   animation: glow 3s ease-in-out infinite;
 }
 
@@ -3384,14 +3381,14 @@ slider {
   margin-bottom: 0;
   font-size: 30rpx;
   font-weight: 600;
-  color: #667eea;
+  color: #8B0012;
 }
 
 .ai-description-box {
-  background: rgba(102, 126, 234, 0.05);
+  background: rgba(139, 0, 18, 0.05);
   padding: 15rpx 20rpx;
   border-radius: 12rpx;
-  border-left: 4rpx solid #667eea;
+  border-left: 4rpx solid #8B0012;
   position: relative;
   z-index: 1;
 }
@@ -3409,7 +3406,7 @@ slider {
   justify-content: center;
   margin-top: 20rpx;
   padding: 15rpx 25rpx;
-  background: linear-gradient(135deg, #e0e7ff 0%, #f0e7ff 100%);
+  background: #fff8f8;
   border-radius: 50rpx;
   animation: pulse 2s ease-in-out infinite;
 }
@@ -3422,7 +3419,7 @@ slider {
 
 .ai-status-text {
   font-size: 24rpx;
-  color: #667eea;
+  color: #8B0012;
   font-weight: 500;
 }
 
@@ -3446,7 +3443,7 @@ slider {
 
 /* AI 增强样式 */
 .ai-info-box {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   padding: 20rpx;
   border-radius: 12rpx;
@@ -3456,13 +3453,13 @@ slider {
 }
 
 .ai-translation {
-  background: #f0f4ff;
-  color: #667eea;
+  background: #fff8f8;
+  color: #8B0012;
   padding: 15rpx 20rpx;
   border-radius: 10rpx;
   margin-top: 15rpx;
   font-size: 24rpx;
-  border-left: 4rpx solid #667eea;
+  border-left: 4rpx solid #8B0012;
 }
 
 .ai-hint {
@@ -3480,12 +3477,12 @@ slider {
   position: absolute;
   top: -15rpx;
   right: 20rpx;
-  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+  background: #ff4d4f;
   color: #fff;
   padding: 8rpx 20rpx;
   border-radius: 30rpx;
   font-size: 22rpx;
-  box-shadow: 0 4rpx 12rpx rgba(255, 107, 107, 0.3);
+  box-shadow: 0 4rpx 12rpx rgba(255, 77, 79, 0.3);
   animation: shake 0.5s ease-in-out;
 }
 
@@ -3542,22 +3539,22 @@ slider {
 }
 
 .good-btn {
-  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  background: #52c41a;
   color: #fff;
 }
 
 .good-btn:active {
-  background: linear-gradient(135deg, #389e0d 0%, #52c41a 100%);
+  background: #389e0d;
   transform: scale(0.95);
 }
 
 .bad-btn {
-  background: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%);
+  background: #ff4d4f;
   color: #fff;
 }
 
 .bad-btn:active {
-  background: linear-gradient(135deg, #cf1322 0%, #ff4d4f 100%);
+  background: #cf1322;
   transform: scale(0.95);
 }
 
@@ -3636,10 +3633,8 @@ slider {
 
 .summary-row.accuracy .summary-value.highlight {
   font-size: 36rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #8B0012;
+  font-weight: bold;
 }
 
 .summary-divider {
@@ -3649,7 +3644,7 @@ slider {
 }
 
 .summary-question {
-  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  background: #fff8f3;
   border-left: 6rpx solid #ff9800;
   padding: 25rpx;
   border-radius: 12rpx;
@@ -3691,7 +3686,7 @@ slider {
 
 /* 快变快填样式 */
 .given-form-section {
-  background: linear-gradient(135deg, #e3f2fd 0%, #e1f5fe 100%);
+  background: #e3f2fd;
   border-left: 6rpx solid #2196f3;
   padding: 25rpx;
   border-radius: 12rpx;
@@ -3737,7 +3732,7 @@ slider {
 
 .combo-item.answered {
   background: #fff;
-  border-color: #667eea;
+  border-color: #8B0012;
 }
 
 .combo-item.correct {
@@ -3773,8 +3768,8 @@ slider {
 
 .requirement-mood {
   font-size: 24rpx;
-  color: #667eea;
-  background: rgba(102, 126, 234, 0.1);
+  color: #8B0012;
+  background: rgba(139, 0, 18, 0.1);
   padding: 6rpx 16rpx;
   border-radius: 20rpx;
   font-weight: 500;
@@ -3782,8 +3777,8 @@ slider {
 
 .requirement-tense {
   font-size: 24rpx;
-  color: #764ba2;
-  background: rgba(118, 75, 162, 0.1);
+  color: #B8001F;
+  background: rgba(184, 0, 31, 0.1);
   padding: 6rpx 16rpx;
   border-radius: 20rpx;
   font-weight: 500;
@@ -3817,8 +3812,8 @@ slider {
 }
 
 .combo-input:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 4rpx rgba(102, 126, 234, 0.1);
+  border-color: #8B0012;
+  box-shadow: 0 0 0 4rpx rgba(139, 0, 18, 0.1);
 }
 
 .combo-correct-answer {
@@ -3854,7 +3849,7 @@ slider {
   align-items: center;
   gap: 6rpx;
   padding: 8rpx 16rpx;
-  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+  background: #ff9800;
   border-radius: 20rpx;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -3902,8 +3897,8 @@ slider {
 }
 
 .report-info {
-  background: linear-gradient(135deg, #f8f9ff 0%, #fff5fb 100%);
-  border: 2rpx solid #e0e7ff;
+  background: #fff8f8;
+  border: 2rpx solid #f0d0d0;
   border-radius: 12rpx;
   padding: 20rpx 25rpx;
   margin-bottom: 30rpx;
@@ -3961,9 +3956,9 @@ slider {
 }
 
 .report-textarea:focus {
-  border-color: #667eea;
+  border-color: #8B0012;
   background: #fff;
-  box-shadow: 0 0 0 4rpx rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4rpx rgba(139, 0, 18, 0.1);
 }
 
 .char-count {
@@ -4000,14 +3995,14 @@ slider {
 }
 
 .report-actions .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.3);
 }
 
 .report-actions .btn-primary:active {
   transform: translateY(2rpx);
-  box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2rpx 8rpx rgba(139, 0, 18, 0.3);
 }
 
 /* 问题类型选择区域 */
@@ -4046,9 +4041,9 @@ slider {
 }
 
 .issue-type-item.selected {
-  background: linear-gradient(135deg, #e7f0ff 0%, #f0e7ff 100%);
-  border-color: #667eea;
-  box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.15);
+  background: #fff8f8;
+  border-color: #8B0012;
+  box-shadow: 0 2rpx 8rpx rgba(139, 0, 18, 0.15);
 }
 
 .issue-checkbox {
@@ -4058,7 +4053,7 @@ slider {
 }
 
 .issue-type-item.selected .issue-checkbox {
-  color: #667eea;
+  color: #8B0012;
 }
 
 .issue-label {
@@ -4069,6 +4064,6 @@ slider {
 }
 
 .issue-type-item.selected .issue-label {
-  color: #667eea;
+  color: #8B0012;
 }
 </style>

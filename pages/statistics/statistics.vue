@@ -199,7 +199,7 @@ export default {
       const circumference = 2 * Math.PI * 70
       const offset = circumference - (this.accuracy / 100) * circumference
       return {
-        'background': `conic-gradient(#667eea ${this.accuracy}%, #f0f0f0 ${this.accuracy}% 100%)`
+        'background': `conic-gradient(#8B0012 ${this.accuracy}%, #f0f0f0 ${this.accuracy}% 100%)`
       }
     },
     mainStats() {
@@ -209,28 +209,28 @@ export default {
           icon: '📝',
           label: '总练习题数',
           value: this.totalStats.total_exercises || 0,
-          color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+          color: '#8B0012'
         },
         {
           key: 'mastered',
           icon: '🎯',
           label: '掌握动词',
           value: this.masteredVerbs.length || 0,
-          color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
+          color: '#D4A04A'
         },
         {
           key: 'verbs',
           icon: '📚',
           label: '练习动词',
           value: this.totalStats.practiced_verbs || 0,
-          color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+          color: '#4CAF50'
         },
         {
           key: 'days',
           icon: '📅',
           label: '练习天数',
           value: this.totalStats.practice_days || 0,
-          color: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
+          color: '#FF9800'
         }
       ]
     }
@@ -272,11 +272,11 @@ export default {
     },
     getVerbColor(level) {
       const colors = [
-        'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)',
-        'linear-gradient(135deg, #ffa726 0%, #ff9800 100%)',
-        'linear-gradient(135deg, #ffee58 0%, #fdd835 100%)',
-        'linear-gradient(135deg, #9ccc65 0%, #7cb342 100%)',
-        'linear-gradient(135deg, #66bb6a 0%, #4caf50 100%)'
+        '#ff6b6b',
+        '#ffa726',
+        '#ffee58',
+        '#9ccc65',
+        '#66bb6a'
       ]
       return colors[level - 1] || colors[0]
     },
@@ -331,7 +331,7 @@ export default {
 <style scoped>
 .container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   position: relative;
   overflow-x: hidden;
 }
@@ -554,7 +554,7 @@ export default {
 }
 
 .time-filter.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
 }
 
@@ -688,7 +688,7 @@ export default {
   padding: 20rpx;
   background: #f8f9fa;
   border-radius: 15rpx;
-  color: #667eea;
+  color: #8B0012;
   font-size: 26rpx;
   font-weight: 500;
 }
@@ -790,11 +790,11 @@ export default {
 }
 
 .record-icon.correct {
-  background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+  background: #4caf50;
 }
 
 .record-icon.wrong {
-  background: linear-gradient(135deg, #f44336 0%, #ef5350 100%);
+  background: #f44336;
 }
 
 .record-content {
@@ -835,7 +835,7 @@ export default {
   gap: 20rpx;
   box-shadow: 0 15rpx 30rpx rgba(0, 0, 0, 0.1);
   border: 1rpx solid rgba(255, 255, 255, 0.2);
-  border-left: 6rpx solid #667eea;
+  border-left: 6rpx solid #8B0012;
 }
 
 .suggestion-icon {

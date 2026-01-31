@@ -11,7 +11,7 @@
           <text class="item-title">包含 vosotros</text>
           <text class="item-desc">西班牙地区常用的复数第二人称</text>
         </view>
-        <switch :checked="pronounSettings.includeVosotros" @change="onVosotrosChange" color="#667eea" />
+        <switch :checked="pronounSettings.includeVosotros" @change="onVosotrosChange" color="#8B0012" />
       </view>
 
       <view class="setting-item">
@@ -19,7 +19,7 @@
           <text class="item-title">包含 vos</text>
           <text class="item-desc">拉美部分地区使用的第二人称</text>
         </view>
-        <switch :checked="pronounSettings.includeVos" @change="onVosChange" color="#667eea" />
+        <switch :checked="pronounSettings.includeVos" @change="onVosChange" color="#8B0012" />
       </view>
     </view>
 
@@ -68,15 +68,15 @@ export default {
 .settings-container {
   min-height: 100vh;
   padding: 30rpx 32rpx 60rpx;
-  background: linear-gradient(180deg, #f5f7ff 0%, #ffffff 100%);
+  background: #f8f8f8;
 }
 
 .settings-card {
   background: #ffffff;
   border-radius: 24rpx;
   padding: 28rpx;
-  box-shadow: 0 12rpx 30rpx rgba(102, 126, 234, 0.12);
-  border: 1rpx solid #eef0ff;
+  box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.08);
+  border: 1rpx solid #f0f0f0;
 }
 
 .card-header {

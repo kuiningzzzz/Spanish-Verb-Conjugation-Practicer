@@ -354,7 +354,7 @@ export default {
 <style scoped>
 .container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #8B0012;
   padding: 50rpx 40rpx;
   box-sizing: border-box;
   display: flex;
@@ -478,7 +478,7 @@ export default {
 
 .progress-inner {
   height: 100%;
-  background: linear-gradient(90deg, #667eea, #5b8def);
+  background: #8B0012;
   transition: width 0.3s ease;
 }
 
@@ -499,11 +499,11 @@ export default {
 
 .primary {
   width: 100%;
-  background: linear-gradient(90deg, #667eea, #5b8def);
+  background: #8B0012;
   border: none;
   color: #fff;
   border-radius: 12rpx;
-  box-shadow: 0 12rpx 24rpx rgba(102, 126, 234, 0.35);
+  box-shadow: 0 12rpx 24rpx rgba(139, 0, 18, 0.35);
   font-size: 30rpx;
   height: 88rpx;
   line-height: 88rpx;

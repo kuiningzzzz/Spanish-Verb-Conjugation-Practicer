@@ -249,7 +249,7 @@ export default {
 }
 
 .welcome-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
 }
 
@@ -303,7 +303,7 @@ export default {
   display: block;
   font-size: 40rpx;
   font-weight: bold;
-  color: #667eea;
+  color: #8B0012;
   margin-bottom: 10rpx;
 }
 

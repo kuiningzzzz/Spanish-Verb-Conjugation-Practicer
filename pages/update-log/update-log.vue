@@ -208,7 +208,7 @@ export default {
 <style scoped>
 .container { 
   min-height: 100vh; 
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+  background: #8B0012; 
   padding: 40rpx 30rpx;
   box-sizing: border-box;
 }
@@ -275,11 +275,11 @@ export default {
 }
 
 .badge-latest { 
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: #10b981;
 }
 
 .badge-outdated { 
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  background: #f97316;
   animation: pulse 2s ease-in-out infinite;
 }
 
@@ -294,7 +294,7 @@ export default {
 
 /* 最新版本提示区域 */
 .latest-section {
-  background: linear-gradient(135deg, #fff5f5 0%, #fff1f2 100%);
+  background: #fff5f5;
   border: 2rpx solid #fecaca;
   border-radius: 16rpx;
   padding: 24rpx;
@@ -345,7 +345,7 @@ export default {
 }
 
 .download-btn {
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  background: #dc2626;
   color: #fff;
   border: none;
   border-radius: 12rpx;
@@ -408,7 +408,7 @@ export default {
 }
 
 .version-card { 
-  background: linear-gradient(135deg, #fafbff 0%, #f9fafb 100%);
+  background: #fafbff;
   border-radius: 16rpx; 
   padding: 24rpx; 
   border: 2rpx solid #e8eaf0;
@@ -417,9 +417,9 @@ export default {
 }
 
 .version-card.is-current {
-  border-color: #667eea;
-  background: linear-gradient(135deg, #f0f4ff 0%, #e8ecff 100%);
-  box-shadow: 0 4rpx 16rpx rgba(102, 126, 234, 0.15);
+  border-color: #8B0012;
+  background: #fff;
+  box-shadow: 0 4rpx 16rpx rgba(139, 0, 18, 0.15);
 }
 
 .card-header { 
@@ -450,7 +450,7 @@ export default {
 }
 
 .current-tag {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   font-size: 20rpx;
   padding: 4rpx 12rpx;
@@ -526,7 +526,7 @@ export default {
 }
 
 .bullet {
-  color: #667eea;
+  color: #8B0012;
   font-weight: bold;
   font-size: 28rpx;
   flex-shrink: 0;

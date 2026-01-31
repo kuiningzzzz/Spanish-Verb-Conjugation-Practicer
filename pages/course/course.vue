@@ -382,7 +382,7 @@ export default {
 .btn-add-textbook-top {
   width: 100%;
   padding: 24rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   font-size: 28rpx;
   border-radius: 12rpx;
@@ -391,7 +391,7 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 8rpx;
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.3);
 }
 
 .add-icon {
@@ -413,7 +413,7 @@ export default {
 }
 
 .textbook-card.active {
-  box-shadow: 0 4rpx 20rpx rgba(102, 126, 234, 0.15);
+  box-shadow: 0 4rpx 20rpx rgba(139, 0, 18, 0.15);
 }
 
 .textbook-header {
@@ -567,12 +567,12 @@ export default {
 }
 
 .btn-study {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
 }
 
 .btn-review {
-  background: linear-gradient(135deg, #5565f8 0%, #235d87 100%);
+  background: #D4A04A;
   color: #fff;
 }
 
@@ -652,17 +652,17 @@ export default {
 
 .vocab-type {
   font-size: 22rpx;
-  color: #667eea;
-  background: #f0f2ff;
+  color: #8B0012;
+  background: #fff0f0;
   padding: 4rpx 12rpx;
   border-radius: 8rpx;
 }
 
 .vocab-detail-btn {
   font-size: 22rpx;
-  color: #667eea;
+  color: #8B0012;
   background: #fff;
-  border: 1rpx solid #667eea;
+  border: 1rpx solid #8B0012;
   padding: 4rpx 12rpx;
   border-radius: 8rpx;
   white-space: nowrap;
@@ -760,8 +760,8 @@ export default {
 }
 
 .textbook-option.added {
-  background: #f0f2ff;
-  border-color: #667eea;
+  background: #fff0f0;
+  border-color: #8B0012;
 }
 
 .option-info {
@@ -784,14 +784,14 @@ export default {
 
 .option-status {
   font-size: 24rpx;
-  color: #667eea;
+  color: #8B0012;
   padding: 8rpx 20rpx;
-  border: 1rpx solid #667eea;
+  border: 1rpx solid #8B0012;
   border-radius: 20rpx;
 }
 
 .textbook-option.added .option-status {
-  background: #667eea;
+  background: #8B0012;
   color: #fff;
 }
 </style>

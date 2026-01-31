@@ -329,7 +329,7 @@ export default {
 
 /* 统计卡片 */
 .stats-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   margin-bottom: 30rpx;
 }
@@ -402,7 +402,7 @@ export default {
 
 .entry-arrow {
   font-size: 40rpx;
-  color: #667eea;
+  color: #8B0012;
 }
 
 /* Tab切换 */
@@ -425,7 +425,7 @@ export default {
 }
 
 .tab-item.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   font-weight: bold;
 }
@@ -517,10 +517,10 @@ export default {
 }
 
 .detail-btn {
-  color: #667eea;
+  color: #8B0012;
   font-size: 26rpx;
   padding: 8rpx 16rpx;
-  background: #f0f3ff;
+  background: #fff0f0;
   border-radius: 8rpx;
 }
 

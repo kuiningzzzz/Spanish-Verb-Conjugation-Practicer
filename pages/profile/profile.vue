@@ -36,28 +36,28 @@
     <view class="achievement-section">
       <view class="achievement-grid">
         <view class="achievement-item">
-          <view class="achievement-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          <view class="achievement-icon" style="background: #8B0012;">
             <text>📚</text>
           </view>
           <text class="achievement-value">{{ studyDays }}</text>
           <text class="achievement-label">学习天数</text>
         </view>
         <view class="achievement-item">
-          <view class="achievement-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+          <view class="achievement-icon" style="background: #8B0012;">
             <text>✅</text>
           </view>
           <text class="achievement-value">{{ totalExercises }}</text>
           <text class="achievement-label">练习题目</text>
         </view>
         <view class="achievement-item">
-          <view class="achievement-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+          <view class="achievement-icon" style="background: #8B0012;">
             <text>🎯</text>
           </view>
           <text class="achievement-value">{{ masteredCount }}</text>
           <text class="achievement-label">掌握动词</text>
         </view>
         <view class="achievement-item">
-          <view class="achievement-icon" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);">
+          <view class="achievement-icon" style="background: #8B0012;">
             <text>🏆</text>
           </view>
           <text class="achievement-value">{{ rank }}</text>
@@ -810,7 +810,7 @@ export default {
   left: 0;
   right: 0;
   height: 200rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   z-index: 0;
 }
 
@@ -820,14 +820,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.05) 25%,
-    transparent 25%,
-    transparent 75%,
-    rgba(255, 255, 255, 0.05) 75%
-  );
-  background-size: 60rpx 60rpx;
+  background: rgba(255, 255, 255, 0.03);
   opacity: 0.3;
 }
 
@@ -857,7 +850,7 @@ export default {
   justify-content: center;
   font-size: 40rpx;
   font-weight: bold;
-  color: #667eea;
+  color: #8B0012;
   box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.1);
   position: relative;
   border: 3rpx solid #f0f0f0;  overflow: hidden;
@@ -871,7 +864,7 @@ export default {
   position: absolute;
   top: -10rpx;
   right: -10rpx;
-  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  background: #ffd700;
   color: #fff;
   padding: 6rpx 12rpx;
   border-radius: 20rpx;
@@ -886,13 +879,13 @@ export default {
   right: -8rpx;
   width: 44rpx;
   height: 44rpx;
-  background: #667eea;
+  background: #8B0012;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20rpx;
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.3);
   border: 2rpx solid #fff;
 }
 
@@ -930,7 +923,7 @@ export default {
 }
 
 .user-tag.public {
-  background: #764ba2;
+  background: #8B0012;
   color: #fff;
 }
 
@@ -1024,11 +1017,11 @@ export default {
 }
 
 .edit-button {
-  color: #667eea;
+  color: #8B0012;
   font-size: 26rpx;
   font-weight: 500;
   padding: 12rpx 20rpx;
-  background: rgba(102, 126, 234, 0.1);
+  background: rgba(139, 0, 18, 0.1);
   border-radius: 15rpx;
 }
 
@@ -1053,7 +1046,7 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 28rpx;
-  color: #667eea;
+  color: #8B0012;
 }
 
 .info-content {
@@ -1121,7 +1114,7 @@ export default {
 }
 
 .renew-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   border: none;
   border-radius: 25rpx;
@@ -1132,7 +1125,7 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  box-shadow: 0 8rpx 20rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 8rpx 20rpx rgba(139, 0, 18, 0.3);
 }
 
 .renew-button:active {
@@ -1200,7 +1193,7 @@ export default {
 
 .menu-item:active .menu-arrow {
   transform: translateX(10rpx);
-  color: #667eea;
+  color: #8B0012;
 }
 
 /* 退出登录 */
@@ -1244,18 +1237,18 @@ export default {
 .fab-button {
   width: 100rpx;
   height: 100rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 15rpx 30rpx rgba(102, 126, 234, 0.4);
+  box-shadow: 0 15rpx 30rpx rgba(139, 0, 18, 0.4);
   transition: all 0.3s ease;
 }
 
 .fab-button:active {
   transform: scale(0.95);
-  box-shadow: 0 8rpx 20rpx rgba(102, 126, 234, 0.6);
+  box-shadow: 0 8rpx 20rpx rgba(139, 0, 18, 0.6);
 }
 
 .fab-icon {
@@ -1399,7 +1392,7 @@ export default {
 }
 
 .confirm-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
 }
 </style>
