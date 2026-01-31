@@ -427,35 +427,35 @@
               @click="!isCourseMode && toggleMood('indicativo')"
             >
               <text class="checkbox-icon">{{ selectedMoods.includes('indicativo') ? '☑' : '☐' }}</text>
-              <text class="checkbox-label">陈述式（5种时态）</text>
+              <text class="checkbox-label">Indicativo 陈述式（5种时态）</text>
             </view>
             <view 
               :class="['checkbox-item', selectedMoods.includes('subjuntivo') ? 'checked' : '', isCourseMode ? 'disabled' : '']"
               @click="!isCourseMode && toggleMood('subjuntivo')"
             >
               <text class="checkbox-icon">{{ selectedMoods.includes('subjuntivo') ? '☑' : '☐' }}</text>
-              <text class="checkbox-label">虚拟式（3种时态）</text>
+              <text class="checkbox-label">Subjuntivo 虚拟式（3种时态）</text>
             </view>
             <view 
               :class="['checkbox-item', selectedMoods.includes('imperativo') ? 'checked' : '', isCourseMode ? 'disabled' : '']"
               @click="!isCourseMode && toggleMood('imperativo')"
             >
               <text class="checkbox-icon">{{ selectedMoods.includes('imperativo') ? '☑' : '☐' }}</text>
-              <text class="checkbox-label">命令式（2种时态）</text>
+              <text class="checkbox-label">Imperativo 命令式（2种时态）</text>
             </view>
             <view 
               :class="['checkbox-item', selectedMoods.includes('indicativo_compuesto') ? 'checked' : '', isCourseMode ? 'disabled' : '']"
               @click="!isCourseMode && toggleMood('indicativo_compuesto')"
             >
               <text class="checkbox-icon">{{ selectedMoods.includes('indicativo_compuesto') ? '☑' : '☐' }}</text>
-              <text class="checkbox-label">复合陈述式（5种时态）</text>
+              <text class="checkbox-label">Indicativo Compuesto 复合陈述式（5种时态）</text>
             </view>
             <view 
               :class="['checkbox-item', selectedMoods.includes('subjuntivo_compuesto') ? 'checked' : '', isCourseMode ? 'disabled' : '']"
               @click="!isCourseMode && toggleMood('subjuntivo_compuesto')"
             >
               <text class="checkbox-icon">{{ selectedMoods.includes('subjuntivo_compuesto') ? '☑' : '☐' }}</text>
-              <text class="checkbox-label">复合虚拟式（3种时态）</text>
+              <text class="checkbox-label">Subjuntivo Compuesto 复合虚拟式（3种时态）</text>
             </view>
           </view>
         </view>
@@ -557,33 +557,33 @@ export default {
       customVerbIds: [],
       // 专项练习设置
       tenseOptions: [
-        // 简单陈述式（5个）
-        { value: 'presente', label: '陈述式-现在时', mood: 'indicativo' },
-        { value: 'preterito', label: '陈述式-简单过去时', mood: 'indicativo' },
-        { value: 'imperfecto', label: '陈述式-未完成过去时', mood: 'indicativo' },
-        { value: 'futuro', label: '陈述式-将来时', mood: 'indicativo' },
-        { value: 'condicional', label: '陈述式-条件式', mood: 'indicativo' },
+        // Indicativo 陈述式（5个）
+        { value: 'presente', label: 'Presente 现在时', mood: 'indicativo' },
+        { value: 'preterito', label: 'Pretérito Indefinido 简单过去时', mood: 'indicativo' },
+        { value: 'imperfecto', label: 'Pretérito Imperfecto 过去未完成时', mood: 'indicativo' },
+        { value: 'futuro', label: 'Futuro Simple 将来时', mood: 'indicativo' },
+        { value: 'condicional', label: 'Condicional Simple 条件式', mood: 'indicativo' },
         
-        // 虚拟式（3个）
-        { value: 'subjuntivo_presente', label: '虚拟式-现在时', mood: 'subjuntivo' },
-        { value: 'subjuntivo_imperfecto', label: '虚拟式-过去时', mood: 'subjuntivo' },
-        { value: 'subjuntivo_futuro', label: '虚拟式-将来时', mood: 'subjuntivo' },
+        // Subjuntivo 虚拟式（3个）
+        { value: 'subjuntivo_presente', label: 'Presente de Subjuntivo 虚拟现在时', mood: 'subjuntivo' },
+        { value: 'subjuntivo_imperfecto', label: 'Imperfecto de Subjuntivo 虚拟过去时', mood: 'subjuntivo' },
+        { value: 'subjuntivo_futuro', label: 'Futuro de Subjuntivo 虚拟将来时', mood: 'subjuntivo' },
         
-        // 命令式（2个）
-        { value: 'imperativo_afirmativo', label: '命令式-肯定', mood: 'imperativo' },
-        { value: 'imperativo_negativo', label: '命令式-否定', mood: 'imperativo' },
+        // Imperativo 命令式（2个）
+        { value: 'imperativo_afirmativo', label: 'Imperativo Afirmativo 肯定命令式', mood: 'imperativo' },
+        { value: 'imperativo_negativo', label: 'Imperativo Negativo 否定命令式', mood: 'imperativo' },
         
-        // 复合陈述式（5个）
-        { value: 'perfecto', label: '复合陈述式-现在完成时', mood: 'indicativo_compuesto' },
-        { value: 'pluscuamperfecto', label: '复合陈述式-过去完成时', mood: 'indicativo_compuesto' },
-        { value: 'futuro_perfecto', label: '复合陈述式-将来完成时', mood: 'indicativo_compuesto' },
-        { value: 'condicional_perfecto', label: '复合陈述式-条件完成时', mood: 'indicativo_compuesto' },
-        { value: 'preterito_anterior', label: '复合陈述式-先过去时', mood: 'indicativo_compuesto' },
+        // Indicativo Compuesto 复合陈述式（5个）
+        { value: 'perfecto', label: 'Pretérito Perfecto 现在完成时', mood: 'indicativo_compuesto' },
+        { value: 'pluscuamperfecto', label: 'Pluscuamperfecto 过去完成时', mood: 'indicativo_compuesto' },
+        { value: 'futuro_perfecto', label: 'Futuro Perfecto 将来完成时', mood: 'indicativo_compuesto' },
+        { value: 'condicional_perfecto', label: 'Condicional Perfecto 条件完成时', mood: 'indicativo_compuesto' },
+        { value: 'preterito_anterior', label: 'Pretérito Anterior 先过去时', mood: 'indicativo_compuesto' },
         
-        // 复合虚拟式（3个）
-        { value: 'subjuntivo_perfecto', label: '复合虚拟式-现在完成时', mood: 'subjuntivo_compuesto' },
-        { value: 'subjuntivo_pluscuamperfecto', label: '复合虚拟式-过去完成时', mood: 'subjuntivo_compuesto' },
-        { value: 'subjuntivo_futuro_perfecto', label: '复合虚拟式-将来完成时', mood: 'subjuntivo_compuesto' }
+        // Subjuntivo Compuesto 复合虚拟式（3个）
+        { value: 'subjuntivo_perfecto', label: 'Perfecto de Subjuntivo 虚拟现在完成时', mood: 'subjuntivo_compuesto' },
+        { value: 'subjuntivo_pluscuamperfecto', label: 'Pluscuamperfecto de Subjuntivo 虚拟过去完成时', mood: 'subjuntivo_compuesto' },
+        { value: 'subjuntivo_futuro_perfecto', label: 'Futuro Perfecto de Subjuntivo 虚拟将来完成时', mood: 'subjuntivo_compuesto' }
       ],
       selectedTenses: [],  // 默认为空，用户自选
       selectedMoods: [],   // 选择的语气（新增）

@@ -87,12 +87,12 @@
           </label>
 
           <label>
-            不规则
+            Irreg. 不规则
             <input type="checkbox" v-model="form.is_irregular" />
           </label>
 
           <label>
-            自反
+            Prnl. 自反
             <input type="checkbox" v-model="form.is_reflexive" />
           </label>
 
@@ -193,7 +193,7 @@
               <input v-model="conjForm.conjugated_form" />
             </label>
             <label>
-              不规则
+              Irreg. 不规则
               <input type="checkbox" v-model="conjForm.is_irregular" />
             </label>
             <div style="margin-top:8px;display:flex;gap:8px;">

@@ -83,8 +83,8 @@
             <text class="word-meaning">{{ item.meaning }}</text>
             <view class="word-badges">
               <view class="word-tag">{{ item.conjugationType }}</view>
-              <view v-if="item.isReflexive" class="word-tag reflexive">反身</view>
-              <view v-if="item.isIrregular" class="word-tag irregular">不规则</view>
+              <view v-if="item.isReflexive" class="word-tag reflexive">Prnl.</view>
+              <view v-if="item.isIrregular" class="word-tag irregular">Irreg.</view>
             </view>
           </view>
         </view>
@@ -117,8 +117,8 @@
             <text class="word-meaning">{{ item.meaning }}</text>
             <view class="word-badges">
               <view class="word-tag">{{ item.conjugationType }}</view>
-              <view v-if="item.isReflexive" class="word-tag reflexive">反身</view>
-              <view v-if="item.isIrregular" class="word-tag irregular">不规则</view>
+              <view v-if="item.isReflexive" class="word-tag reflexive">Prnl.</view>
+              <view v-if="item.isIrregular" class="word-tag irregular">Irreg.</view>
             </view>
           </view>
           <view class="word-header-extra">

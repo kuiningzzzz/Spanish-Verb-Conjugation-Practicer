@@ -94,8 +94,8 @@
                 </view>
                 <view class="vocab-actions">
                   <view class="vocab-badges">
-                    <text v-if="word.is_reflexive" class="vocab-badge reflexive">反身</text>
-                    <text v-if="word.is_irregular" class="vocab-badge irregular">不规则</text>
+                    <text v-if="word.is_reflexive" class="vocab-badge reflexive">Prnl.</text>
+                    <text v-if="word.is_irregular" class="vocab-badge irregular">Irreg.</text>
                   </view>
                   <text class="vocab-detail-btn" @click="viewConjugations(word.id)">查看全变位</text>
                 </view>

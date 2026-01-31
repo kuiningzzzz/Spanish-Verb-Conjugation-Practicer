@@ -30,8 +30,8 @@
           <view class="result-header">
             <text class="verb-infinitive">{{ formatInfinitive(verb) }}</text>
             <view class="verb-badges">
-              <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
-              <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
+              <text v-if="verb.isReflexive" class="badge reflexive">Prnl.</text>
+              <text v-if="verb.isIrregular" class="badge irregular">Irreg.</text>
             </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
@@ -50,8 +50,8 @@
           <view class="result-header">
             <text class="verb-infinitive">{{ formatInfinitive(verb) }}</text>
             <view class="verb-badges">
-              <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
-              <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
+              <text v-if="verb.isReflexive" class="badge reflexive">Prnl.</text>
+              <text v-if="verb.isIrregular" class="badge irregular">Irreg.</text>
             </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
@@ -87,8 +87,8 @@
           <view class="result-header">
             <text class="verb-infinitive">{{ formatInfinitive(verb) }}</text>
             <view class="verb-badges">
-              <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
-              <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
+              <text v-if="verb.isReflexive" class="badge reflexive">Prnl.</text>
+              <text v-if="verb.isIrregular" class="badge irregular">Irreg.</text>
             </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
@@ -107,8 +107,8 @@
           <view class="result-header">
             <text class="verb-infinitive">{{ formatInfinitive(verb) }}</text>
             <view class="verb-badges">
-              <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
-              <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
+              <text v-if="verb.isReflexive" class="badge reflexive">Prnl.</text>
+              <text v-if="verb.isIrregular" class="badge irregular">Irreg.</text>
             </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
@@ -151,8 +151,8 @@
           <view class="result-header">
             <text class="verb-infinitive">{{ formatInfinitive(verb) }}</text>
             <view class="verb-badges">
-              <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
-              <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
+              <text v-if="verb.isReflexive" class="badge reflexive">Prnl.</text>
+              <text v-if="verb.isIrregular" class="badge irregular">Irreg.</text>
             </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
