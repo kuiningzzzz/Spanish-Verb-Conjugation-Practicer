@@ -20,7 +20,8 @@ router.post('/generate-batch', authMiddleware, async (req, res) => {
       includeRegular = true,
       includeVos = false,
       includeVosotros = true,
-      practiceMode = 'normal'
+      practiceMode = 'normal',
+      verbIds = null  // 从请求体接收 verbIds（课程模式会传递）
     } = req.body
 
     const userId = req.userId
@@ -36,28 +37,31 @@ router.post('/generate-batch', authMiddleware, async (req, res) => {
       includeRegular,
       includeVos,
       includeVosotros,
-      practiceMode
+      practiceMode,
+      verbIds  // 直接使用前端传递的 verbIds
     }
 
-    // 根据练习模式获取动词ID列表
-    if (practiceMode === 'favorite') {
-      const FavoriteVerb = require('../models/FavoriteVerb')
-      const verbIds = FavoriteVerb.getVerbIds(userId)
-      
-      if (verbIds.length === 0) {
-        return res.status(404).json({ error: '还没有收藏的单词' })
+    // 根据练习模式获取动词ID列表（仅在未传递 verbIds 时生效）
+    if (!verbIds || verbIds.length === 0) {
+      if (practiceMode === 'favorite') {
+        const FavoriteVerb = require('../models/FavoriteVerb')
+        const favoriteVerbIds = FavoriteVerb.getVerbIds(userId)
+        
+        if (favoriteVerbIds.length === 0) {
+          return res.status(404).json({ error: '还没有收藏的单词' })
+        }
+        
+        options.verbIds = favoriteVerbIds
+      } else if (practiceMode === 'wrong') {
+        const WrongVerb = require('../models/WrongVerb')
+        const wrongVerbIds = WrongVerb.getVerbIds(userId)
+        
+        if (wrongVerbIds.length === 0) {
+          return res.status(404).json({ error: '还没有错题记录' })
+        }
+        
+        options.verbIds = wrongVerbIds
       }
-      
-      options.verbIds = verbIds
-    } else if (practiceMode === 'wrong') {
-      const WrongVerb = require('../models/WrongVerb')
-      const verbIds = WrongVerb.getVerbIds(userId)
-      
-      if (verbIds.length === 0) {
-        return res.status(404).json({ error: '还没有错题记录' })
-      }
-      
-      options.verbIds = verbIds
     }
 
     // 批量生成题目和题目池
