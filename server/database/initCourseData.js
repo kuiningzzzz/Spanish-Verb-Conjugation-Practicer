@@ -15,6 +15,57 @@ function loadTextbookData(filename) {
   return JSON.parse(content);
 }
 
+// 初始化单个教材
+function initTextbook(filename) {
+  const textbookData = loadTextbookData(filename);
+  
+  // 创建教材
+  const textbook = Textbook.create(
+    textbookData.textbook.name,
+    textbookData.textbook.description,
+    null,
+    textbookData.textbook.orderIndex
+  );
+  
+  console.log(`   ✓ 创建教材：${textbookData.textbook.name}`);
+  
+  let totalVerbs = 0;
+  
+  // 为每一课创建课程并添加单词
+  for (const lessonData of textbookData.lessons) {
+    const lesson = Lesson.create(
+      textbook.lastInsertRowid,
+      lessonData.title,
+      lessonData.number,
+      lessonData.description,
+      lessonData.grammarPoints || '现在时、陈述式',
+      JSON.stringify(lessonData.moods || ['indicativo']),
+      JSON.stringify(lessonData.tenses || ['presente']),
+      JSON.stringify(lessonData.conjugationTypes || ['ar', 'er', 'ir'])
+    );
+    
+    // 获取该课所有单词的ID
+    const verbIds = [];
+    for (const infinitive of lessonData.verbs) {
+      const verb = vocabularyDb.prepare('SELECT id FROM verbs WHERE infinitive = ?').get(infinitive);
+      if (verb) {
+        verbIds.push(verb.id);
+      } else {
+        console.log(`   ⚠ 警告：未找到动词 "${infinitive}"`);
+      }
+    }
+    
+    if (verbIds.length > 0) {
+      LessonVerb.addBatch(lesson.lastInsertRowid, verbIds);
+      totalVerbs += verbIds.length;
+      console.log(`   ✓ ${lessonData.title}：添加了 ${verbIds.length} 个单词`);
+    }
+  }
+  
+  console.log(`   ✓ 创建了 ${textbookData.lessons.length} 个课程，共 ${totalVerbs} 个单词\n`);
+  return { lessons: textbookData.lessons.length, verbs: totalVerbs };
+}
+
 // 初始化课程数据
 async function initSampleCourseData() {
   try {
@@ -27,54 +78,24 @@ async function initSampleCourseData() {
       return;
     }
     
-    // 从JSON文件加载教材数据
-    const textbookData = loadTextbookData('textbook1.json');
+    // 定义所有教材文件
+    const textbookFiles = ['textbook1.json', 'textbook2.json'];
     
-    // 创建教材
-    const textbook = Textbook.create(
-      textbookData.textbook.name,
-      textbookData.textbook.description,
-      null,
-      textbookData.textbook.orderIndex
-    );
-    
-    console.log(`   ✓ 创建教材：${textbookData.textbook.name}`);
-    
+    let totalLessons = 0;
     let totalVerbs = 0;
     
-    // 为每一课创建课程并添加单词
-    for (const lessonData of textbookData.lessons) {
-      const lesson = Lesson.create(
-        textbook.lastInsertRowid,
-        lessonData.title,
-        lessonData.number,
-        lessonData.description,
-        lessonData.grammarPoints || '现在时、陈述式',
-        JSON.stringify(lessonData.moods || ['indicativo']),
-        JSON.stringify(lessonData.tenses || ['presente']),
-        JSON.stringify(lessonData.conjugationTypes || ['ar', 'er', 'ir'])
-      );
-      
-      // 获取该课所有单词的ID
-      const verbIds = [];
-      for (const infinitive of lessonData.verbs) {
-        const verb = vocabularyDb.prepare('SELECT id FROM verbs WHERE infinitive = ?').get(infinitive);
-        if (verb) {
-          verbIds.push(verb.id);
-        } else {
-          console.log(`   ⚠ 警告：未找到动词 "${infinitive}"`);
-        }
-      }
-      
-      if (verbIds.length > 0) {
-        LessonVerb.addBatch(lesson.lastInsertRowid, verbIds);
-        totalVerbs += verbIds.length;
-        console.log(`   ✓ ${lessonData.title}：添加了 ${verbIds.length} 个单词`);
+    // 依次加载每个教材
+    for (const filename of textbookFiles) {
+      try {
+        const result = initTextbook(filename);
+        totalLessons += result.lessons;
+        totalVerbs += result.verbs;
+      } catch (error) {
+        console.log(`   ⚠ 跳过教材 ${filename}：${error.message}`);
       }
     }
     
-    console.log(`\n   ✓ 创建了 ${textbookData.lessons.length} 个课程`);
-    console.log(`   ✓ 总计添加了 ${totalVerbs} 个单词`);
+    console.log(`   📊 总计创建了 ${totalLessons} 个课程，${totalVerbs} 个单词`);
     console.log('\x1b[32m   ✓ 课程数据初始化完成\x1b[0m');
   } catch (error) {
     console.error('\x1b[31m   ✗ 课程数据初始化失败:\x1b[0m', error.message);
