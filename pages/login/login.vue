@@ -227,7 +227,7 @@ export default {
         loginVerificationCode: ''
       },
       userTypes: [
-        { value: 'student', label: '学生' },
+        { value: 'student', label: '学生/教师' },
         { value: 'public', label: '社会人士' }
       ],
       userTypeIndex: 0,
