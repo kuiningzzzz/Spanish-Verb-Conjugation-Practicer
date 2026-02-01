@@ -1129,6 +1129,17 @@ export default {
         showToast('加载滚动复习失败', 'none')
       }
     },
+
+    // 获取当前练习允许的动词ID集合（课程/滚动复习/自定义）
+    getAllowedVerbIdSet() {
+      if (this.isCourseMode && Array.isArray(this.lessonVocabulary) && this.lessonVocabulary.length > 0) {
+        return new Set(this.lessonVocabulary.map(v => v.id))
+      }
+      if (this.isCustomPractice && this.customVerbIds.length > 0) {
+        return new Set(this.customVerbIds)
+      }
+      return null
+    },
     
     async startPractice() {
       // 验证是否登录
@@ -1152,6 +1163,14 @@ export default {
       if (this.selectedConjugationTypes.length === 0) {
         showToast('请至少选择一个变位类型', 'none')
         return
+      }
+
+      if (this.isCourseMode) {
+        const hasVocabulary = Array.isArray(this.lessonVocabulary) && this.lessonVocabulary.length > 0
+        if (!hasVocabulary) {
+          showToast('课程单词尚未加载，请稍后重试', 'none')
+          return
+        }
       }
       
       showLoading('正在生成练习...')
@@ -1187,10 +1206,10 @@ export default {
         if (res.success) {
           // 初始化练习
           let exercises = res.exercises || []
+          const allowList = this.getAllowedVerbIdSet()
 
-          // 自定义练习时仅保留指定动词的题目
-          if (this.isCustomPractice && this.customVerbIds.length > 0) {
-            const allowList = new Set(this.customVerbIds)
+          // 课程/滚动复习/自定义练习：仅保留允许范围内的题目
+          if (allowList) {
             exercises = exercises.filter(ex => allowList.has(ex.verbId))
           }
 
@@ -1198,8 +1217,7 @@ export default {
 
           // 接收题目池并立即去重
           let rawPool = Array.isArray(res.questionPool) ? res.questionPool : []
-          if (this.isCustomPractice && this.customVerbIds.length > 0) {
-            const allowList = new Set(this.customVerbIds)
+          if (allowList) {
             rawPool = rawPool.filter(q => allowList.has(q.verbId))
           }
           const poolQuestionIds = new Set()
@@ -1283,6 +1301,7 @@ export default {
       const isFirstBatch = this.exercises.length === 0  // 判断是否是第一批题目（题库为空）
       let successCount = 0  // 成功生成的题目数量
       let failCount = 0     // 失败次数
+      const allowList = this.getAllowedVerbIdSet()
       
       for (let i = 0; i < count; i++) {
         try {
@@ -1295,17 +1314,30 @@ export default {
           const usedVerbIds = new Set(this.exercises.map(e => e.verbId).filter(id => id))
           
           // 将已使用的动诋ID传递给后端
+          const fallbackVerbIds = this.isCourseMode && Array.isArray(this.lessonVocabulary) && this.lessonVocabulary.length > 0
+            ? this.lessonVocabulary.map(v => v.id)
+            : null
+
           const res = await api.generateSingleAI({
             aiOptions: {
               ...aiOptions,
               excludeVerbIds: Array.from(usedVerbIds),
               verbIds: this.isCustomPractice && this.customVerbIds.length > 0
                 ? this.customVerbIds
-                : aiOptions.verbIds
+                : (aiOptions.verbIds && aiOptions.verbIds.length > 0 ? aiOptions.verbIds : fallbackVerbIds)
             }
           })
           
           if (res.success && res.exercise) {
+            if (allowList && !allowList.has(res.exercise.verbId)) {
+              failCount++
+              console.warn('AI题目动词不在允许范围内，已跳过:', {
+                verbId: res.exercise.verbId,
+                infinitive: res.exercise.infinitive
+              })
+              continue
+            }
+
             successCount++
             
             // 记录已使用的题目ID

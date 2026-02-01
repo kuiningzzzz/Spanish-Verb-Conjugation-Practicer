@@ -151,6 +151,36 @@ export const BASE_URL = 'http://localhost:3000/api'
 
 如需重新初始化数据，可删除db文件后重启服务。
 
+## 题目生成脚本（课程例句）
+
+脚本会为每个课程的“课程范围内单词”生成例句填空题，默认每课目标 20 题，且每个单词至少 2 题；若 2×单词数超过目标，会自动上调目标数量。
+
+### 使用前提
+- Node.js 建议 18 或 20（更高版本可能导致 better-sqlite3 无法加载）
+- `server/.env` 已配置 `DEEPSEEK_API_KEY`
+
+### 使用方法（在项目根目录执行）
+```bash
+# 默认：每课 20 题，每词至少 2 题
+node scripts/generate_course_sentences.js
+
+# 自定义题量/最小题数
+node scripts/generate_course_sentences.js --count 20 --min-per-verb 2
+
+# 仅生成某一课
+node scripts/generate_course_sentences.js --lesson-id 3
+
+# 仅生成某一本教材
+node scripts/generate_course_sentences.js --textbook-id 1
+```
+
+可选参数：
+- `--count` / `-c`：每课目标题量（默认 20）
+- `--min-per-verb` / `-m`：每词最少题量（默认 2）
+- `--max-attempts`：每道题最多尝试生成次数（默认 3）
+- `--lesson-id`：仅处理指定课程
+- `--textbook-id`：仅处理指定教材
+
 ## 服务器部署方式
 
 ### 使用Docker部署（推荐）

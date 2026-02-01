@@ -56,24 +56,25 @@
               </view>
               <view class="lesson-actions">
                 <button 
+                  class="btn-small btn-study" 
+                  @click.stop="startLessonPractice(lesson)"
+                >
+                  {{ lesson.isCompleted ? '继续练习' : '开始练习' }}
+                </button>
+                <button 
+                  class="btn-small btn-review" 
+                  :class="{ 'btn-disabled': lesson.lessonNumber <= 1 }"
+                  :disabled="lesson.lessonNumber <= 1"
+                  @click.stop="startRollingReview(lesson)"
+                >
+                  滚动复习
+                </button>
+                <button 
                   class="btn-small btn-expand" 
                   @click.stop="toggleLesson(lesson.id)"
                   v-if="lesson.vocabularyCount > 0"
                 >
                   {{ expandedLessonId === lesson.id ? '收起' : '展开' }}
-                </button>
-                <button 
-                  class="btn-small btn-study" 
-                  @click.stop="startLessonPractice(lesson)"
-                >
-                  {{ lesson.isCompleted ? '继续学习' : '开始学习' }}
-                </button>
-                <button 
-                  v-if="lesson.lessonNumber > 1"
-                  class="btn-small btn-review" 
-                  @click.stop="startRollingReview(lesson)"
-                >
-                  滚动复习
                 </button>
               </view>
             </view>
@@ -250,6 +251,7 @@ export default {
     
     // 开始滚动复习（从第1课到本课）
     startRollingReview(lesson) {
+      if (lesson.lessonNumber <= 1) return
       uni.navigateTo({
         url: `/pages/practice/practice?mode=rollingReview&lessonId=${lesson.id}&lessonTitle=${encodeURIComponent(lesson.title)}&lessonNumber=${lesson.lessonNumber}`
       })
@@ -574,6 +576,12 @@ export default {
 .btn-review {
   background: #D4A04A;
   color: #fff;
+}
+
+.btn-review.btn-disabled,
+.btn-review[disabled] {
+  background: #e0e0e0;
+  color: #a8a8a8;
 }
 
 .vocabulary-list {
