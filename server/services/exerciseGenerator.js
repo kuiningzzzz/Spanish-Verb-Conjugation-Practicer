@@ -805,7 +805,8 @@ class ExerciseGeneratorService {
         conjugationTypes,
         includeRegular,
         includeVos: options.includeVos,
-        includeVosotros: options.includeVosotros
+        includeVosotros: options.includeVosotros,
+        verbIds
       }, 1)
 
       if (supplementQuestions.length > 0) {
