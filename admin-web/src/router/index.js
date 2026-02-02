@@ -9,6 +9,7 @@ import Logs from '../views/Logs.vue';
 import Feedback from '../views/Feedback.vue';
 import PracticeRecords from '../views/PracticeRecords.vue';
 import Announcements from '../views/Announcements.vue';
+import VersionManagement from '../views/VersionManagement.vue';
 import Login from '../views/Login.vue';
 
 const routes = [
@@ -30,7 +31,8 @@ const routes = [
       { path: 'logs', name: 'Logs', component: Logs, meta: { requiresDev: true } },
       { path: 'feedback', name: 'Feedback', component: Feedback, meta: { requiresDev: true } },
       { path: 'practice-records', name: 'PracticeRecords', component: PracticeRecords, meta: { requiresDev: true } },
-      { path: 'announcements', name: 'Announcements', component: Announcements, meta: { requiresDev: true } }
+      { path: 'announcements', name: 'Announcements', component: Announcements, meta: { requiresDev: true } },
+      { path: 'versions', name: 'VersionManagement', component: VersionManagement, meta: { requiresDev: true } }
     ]
   }
 ];

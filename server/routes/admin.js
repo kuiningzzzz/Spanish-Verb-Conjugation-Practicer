@@ -20,6 +20,24 @@ const QuestionFeedback = require('../models/QuestionFeedback')
 const AdminLog = require('../models/AdminLog')
 const PracticeRecord = require('../models/PracticeRecord')
 const { vocabularyDb } = require('../database/db')
+const fs = require('fs')
+const path = require('path')
+
+const VERSION_FILE = path.join(__dirname, '..', 'src', 'version.json')
+const UPDATE_DIR = path.join(__dirname, '..', 'src', 'updates')
+
+function loadVersionInfo() {
+  try {
+    const content = fs.readFileSync(VERSION_FILE, 'utf8')
+    return JSON.parse(content)
+  } catch (error) {
+    return { versions: [] }
+  }
+}
+
+function saveVersionInfo(data) {
+  fs.writeFileSync(VERSION_FILE, JSON.stringify(data, null, 2), 'utf8')
+}
 
 const loginAttempts = new Map()
 const MAX_ATTEMPTS = 5
@@ -212,6 +230,106 @@ router.delete('/admins/:id', requireAdmin, (req, res) => {
   }
   deleteUser(req.params.id)
   res.json({ success: true })
+})
+
+router.get('/versions', requireAdmin, (req, res) => {
+  if (!isDev(req)) {
+    return forbid(res, '仅 dev 可以查看版本信息')
+  }
+  const data = loadVersionInfo()
+  res.json({
+    versions: Array.isArray(data.versions) ? data.versions : []
+  })
+})
+
+router.post(
+  '/version/upload',
+  requireAdmin,
+  (req, res, next) => {
+    if (!isDev(req)) {
+      return forbid(res, '仅 dev 可以上传版本文件')
+    }
+    next()
+  },
+  express.raw({ type: 'application/octet-stream', limit: '300mb' }),
+  (req, res) => {
+    try {
+      const rawName = req.headers['x-file-name'] || 'app-release.apk'
+      let fileName = rawName
+      try {
+        fileName = decodeURIComponent(rawName)
+      } catch (error) {
+        fileName = rawName
+      }
+      fileName = path.basename(fileName)
+      if (!fileName) {
+        return res.status(400).json({ error: '缺少文件名' })
+      }
+      if (!req.body || !req.body.length) {
+        return res.status(400).json({ error: '文件内容为空' })
+      }
+      fs.mkdirSync(UPDATE_DIR, { recursive: true })
+      const filePath = path.join(UPDATE_DIR, fileName)
+      fs.writeFileSync(filePath, req.body)
+      return res.json({ success: true, fileName, size: req.body.length })
+    } catch (error) {
+      console.error('上传版本文件失败:', error)
+      return res.status(500).json({ error: '上传失败' })
+    }
+  }
+)
+
+router.post('/versions', requireAdmin, (req, res) => {
+  if (!isDev(req)) {
+    return forbid(res, '仅 dev 可以发布新版本')
+  }
+  const {
+    versionName,
+    description,
+    forceUpdate,
+    packageFileName,
+    newFeatures,
+    improvements,
+    bugFixes
+  } = req.body || {}
+
+  if (!versionName || !description) {
+    return res.status(400).json({ error: 'versionName 与 description 为必填项' })
+  }
+  if (forceUpdate === undefined) {
+    return res.status(400).json({ error: 'forceUpdate 为必填项' })
+  }
+  if (!packageFileName) {
+    return res.status(400).json({ error: '缺少安装包文件' })
+  }
+
+  const filePath = path.join(UPDATE_DIR, path.basename(packageFileName))
+  if (!fs.existsSync(filePath)) {
+    return res.status(400).json({ error: '安装包不存在，请先上传 apk 文件' })
+  }
+
+  const data = loadVersionInfo()
+  const versions = Array.isArray(data.versions) ? data.versions : []
+  const maxVersionCode = versions.reduce((max, item) => Math.max(max, Number(item.versionCode || 0)), 0)
+  const releaseDate = new Date().toISOString().slice(0, 10)
+
+  const newVersion = {
+    versionCode: maxVersionCode + 1,
+    versionName: String(versionName).trim(),
+    releaseDate,
+    description: String(description).trim(),
+    newFeatures: Array.isArray(newFeatures) ? newFeatures.filter(Boolean) : [],
+    improvements: Array.isArray(improvements) ? improvements.filter(Boolean) : [],
+    bugFixes: Array.isArray(bugFixes) ? bugFixes.filter(Boolean) : [],
+    packageFileName: path.basename(packageFileName),
+    downloadUrl: '',
+    forceUpdate: Boolean(forceUpdate)
+  }
+
+  const updated = [newVersion, ...versions]
+  saveVersionInfo({ versions: updated })
+
+  res.status(201).json({ success: true, version: newVersion })
 })
 
 router.get('/lexicon', requireAdmin, (req, res) => {
