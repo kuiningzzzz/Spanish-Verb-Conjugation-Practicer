@@ -1,6 +1,7 @@
 <template>
   <view class="container">
     <view class="header">
+      <text class="title">Con-jugamos</text>
       <text class="title">西班牙语动词变位</text>
       <text class="subtitle">每天练习，轻松掌握</text>
       <!-- 公告按钮 -->

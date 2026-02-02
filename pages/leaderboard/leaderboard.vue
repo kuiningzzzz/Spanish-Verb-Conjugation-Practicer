@@ -647,24 +647,26 @@ export default {
   right: 40rpx;
   width: 100rpx;
   height: 100rpx;
-  background: #8B0012;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 15rpx 30rpx rgba(139, 0, 18, 0.4);
+  box-shadow: 0 15rpx 30rpx rgba(0, 0, 0, 0.2);
+  border: 2rpx solid rgba(255, 255, 255, 0.3);
   z-index: 100;
   transition: all 0.3s ease;
 }
 
 .refresh-fab:active {
   transform: scale(0.95);
-  box-shadow: 0 8rpx 20rpx rgba(139, 0, 18, 0.6);
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.3);
 }
 
 .refresh-icon {
   font-size: 40rpx;
-  color: #fff;
+  color: #8B0012;
   transition: transform 0.3s ease;
 }
 

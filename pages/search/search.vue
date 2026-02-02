@@ -668,6 +668,9 @@ export default {
 .history-item {
   position: relative;
   padding-bottom: 60rpx;
+  margin-bottom: 30rpx;
+  border: 2rpx solid #e8e8e8;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
 }
 
 .history-delete {
