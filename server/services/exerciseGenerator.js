@@ -85,15 +85,13 @@ class ExerciseGeneratorService {
 
     // 例句填空：混合模式
     if (exerciseType === 'sentence') {
-      // 计算题库题和AI题的数量（85%题库，15%AI）
-      const bankCount = Math.round(count * 0.85)
-      let actualBankCount = 0  // 实际从题库获取的数量
+      // 尝试从题库获取count个题目
+      let allBankQuestions = []
+      
+      if (userId) {
+        console.log(`批量生成 - 准备从题库获取:`, { requestCount: count, exerciseType, practiceMode, verbIds: verbIds?.length })
 
-      // 从题库获取题目池（一次性获取所需数量）
-      if (bankCount > 0 && userId) {
-        console.log(`批量生成 - 准备从题库获取:`, { bankCount, exerciseType, practiceMode, verbIds: verbIds?.length })
-
-        const smartQuestions = Question.getSmartFromPublic(userId, {
+        allBankQuestions = Question.getSmartFromPublic(userId, {
           questionType: exerciseType,
           tenses,
           moods,
@@ -101,44 +99,100 @@ class ExerciseGeneratorService {
           includeRegular,
           includeVos,
           includeVosotros,
-          verbIds  // 添加verbIds筛选，用于收藏/错题专练
-        }, bankCount)
+          verbIds
+        }, count)
 
-        actualBankCount = smartQuestions.length
         console.log(`批量生成 - 题库返回:`, {
-          returnedCount: actualBankCount,
-          questionIds: smartQuestions.map(q => q.id)
+          returnedCount: allBankQuestions.length,
+          questionIds: allBankQuestions.map(q => q.id)
         })
-
-        // 将题库题目添加到题目池，使用Set确保题目ID不重复
-        const seenQuestionIds = new Set()
-        const uniqueQuestions = smartQuestions.filter(q => {
-          if (seenQuestionIds.has(q.id)) {
-            console.warn(`题目池构建时发现重复题目ID: ${q.id}，已过滤`)
-            return false
-          }
-          seenQuestionIds.add(q.id)
-          return true
-        })
-        
-        questionPool.push(...uniqueQuestions.map((q, index) => ({
-          ...this.formatQuestionBankExercise(q, 'public'),
-          _fromPool: true,
-          _poolIndex: questionPool.length + index
-        })))
-        
-        actualBankCount = uniqueQuestions.length
-        console.log(`批量生成 - 题目池最终数量（去重后）: ${actualBankCount}`)
       }
 
-      // 计算需要AI生成的数量：总数 - 实际从题库获取的数量
-      const aiCount = count - actualBankCount
-      console.log(`批量生成 - AI题目数量:`, { total: count, fromBank: actualBankCount, needAI: aiCount })
+      // 去重
+      const seenQuestionIds = new Set()
+      const uniqueBankQuestions = allBankQuestions.filter(q => {
+        if (seenQuestionIds.has(q.id)) {
+          console.warn(`题目池构建时发现重复题目ID: ${q.id}，已过滤`)
+          return false
+        }
+        seenQuestionIds.add(q.id)
+        return true
+      })
+      
+      const actualBankCount = uniqueBankQuestions.length
+      console.log(`批量生成 - 去重后题库题目数量: ${actualBankCount}`)
 
-      // 性能优化：立即返回题库题目（如果有的话），AI题目由前端异步调用生成
+      // 判断题库是否充足（有足够的题目）
+      const hasEnoughInBank = actualBankCount >= count
+      
+      let mainQuestions = []  // 主要题目（85%）
+      let backupQuestions = [] // 备用题目（15%）
+      let aiCount = 0          // 需要AI生成的数量
+      
+      if (hasEnoughInBank) {
+        // 情况1：题库有足够的题目（>=n个）
+        // 随机取85%作为主要题目，15%作为备用
+        const mainCount = Math.round(count * 0.85)
+        const backupCount = count - mainCount
+        
+        // 打乱题库题目
+        const shuffled = [...uniqueBankQuestions].sort(() => Math.random() - 0.5)
+        
+        mainQuestions = shuffled.slice(0, mainCount)
+        backupQuestions = shuffled.slice(mainCount, mainCount + backupCount)
+        
+        // AI生成剩余15%用于替换备用题目
+        aiCount = backupCount
+        
+        console.log(`批量生成 - 情况1（题库充足）:`, {
+          total: count,
+          mainCount,
+          backupCount,
+          aiCount,
+          strategy: '85%主题+15%备用题，AI后台生成替换备用'
+        })
+      } else {
+        // 情况2：题库不足
+        // 能取多少取多少，剩下的交给AI
+        mainQuestions = uniqueBankQuestions
+        aiCount = count - actualBankCount
+        
+        console.log(`批量生成 - 情况2（题库不足）:`, {
+          total: count,
+          fromBank: actualBankCount,
+          needAI: aiCount,
+          strategy: '题库全用+等待AI生成'
+        })
+      }
+      
+      // 将主要题目格式化后放入questionPool（前端会从这里抽取）
+      questionPool.push(...mainQuestions.map((q, index) => ({
+        ...this.formatQuestionBankExercise(q, 'public'),
+        _fromPool: true,
+        _poolIndex: index,
+        _isMain: true
+      })))
+      
+      // 将备用题目也放入questionPool，但标记为备用
+      questionPool.push(...backupQuestions.map((q, index) => ({
+        ...this.formatQuestionBankExercise(q, 'public'),
+        _fromPool: true,
+        _poolIndex: mainQuestions.length + index,
+        _isBackup: true
+      })))
+
+      // 返回题目池和AI生成参数
+      const result = {
+        exercises: [],
+        questionPool,
+        hasEnoughInBank,
+        mainCount: mainQuestions.length,
+        backupCount: backupQuestions.length,
+        needAI: aiCount
+      }
+      
       if (aiCount > 0) {
-        // 准备AI生成所需的参数
-        const aiOptions = {
+        result.aiOptions = {
           exerciseType,
           tenses,
           userId,
@@ -146,25 +200,19 @@ class ExerciseGeneratorService {
           includeRegular,
           includeVos,
           includeVosotros,
-          verbIds,  // 传递verbIds用于收藏/错题专练
-          moods: options.moods  // 传递moods参数
+          verbIds,
+          moods: options.moods
         }
         
-        if (actualBankCount > 0) {
-          console.log(`立即返回 ${actualBankCount} 个题库题目，前端需异步生成 ${aiCount} 个AI题目`)
-        } else {
-          console.log(`题库为空，前端需异步生成全部 ${aiCount} 个AI题目`)
-        }
-        
-        return { 
-          exercises,        // AI生成的题目（暂时为空）
-          questionPool,     // 题库题目（可能为空）
-          needAI: aiCount,  // 需要生成的AI题目数量
-          aiOptions         // AI生成所需参数
-        }
+        console.log(`返回结果:`, {
+          主题: mainQuestions.length,
+          备用题: backupQuestions.length,
+          需要AI: aiCount,
+          题库充足: hasEnoughInBank
+        })
       }
-
-      return { exercises, questionPool }
+      
+      return result
     }
 
     // 默认使用传统方法

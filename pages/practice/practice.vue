@@ -608,6 +608,9 @@ export default {
       wrongExercises: [],  // 错题队列
       wrongExercisesSet: new Set(),  // 已添加到错题队列的题目集合（避免重复）
       questionPool: [],  // 题目池（用于从题库题中随机抽取）
+      mainQuestionPool: [],  // 主要题目池（85%）
+      backupQuestionPool: [],  // 备用题目池（15%）
+      hasEnoughInBank: false,  // 题库是否有足够的题目
       usedPoolIndices: new Set(),  // 已使用的题目池索引
       usedQuestionIds: new Set(),  // 已使用的题目ID（包括题库题和AI题）
       currentIndex: 0,
@@ -1205,50 +1208,36 @@ export default {
 
         if (res.success) {
           // 初始化练习
-          let exercises = res.exercises || []
+          this.exercises = []
           const allowList = this.getAllowedVerbIdSet()
 
-          // 课程/滚动复习/自定义练习：仅保留允许范围内的题目
-          if (allowList) {
-            exercises = exercises.filter(ex => allowList.has(ex.verbId))
-          }
-
-          this.exercises = exercises
-
-          // 接收题目池并立即去重
+          // 接收题目池并分离主题和备用题
           let rawPool = Array.isArray(res.questionPool) ? res.questionPool : []
           if (allowList) {
             rawPool = rawPool.filter(q => allowList.has(q.verbId))
           }
-          const poolQuestionIds = new Set()
-          this.questionPool = []
-
-          for (const q of rawPool) {
-            if (q.questionId && !poolQuestionIds.has(q.questionId)) {
-              poolQuestionIds.add(q.questionId)
-              this.questionPool.push(q)
-            } else {
-              console.warn(`接收到重复题目ID: ${q.questionId}，已过滤`)
-            }
-          }
+          
+          this.mainQuestionPool = rawPool.filter(q => q._isMain)
+          this.backupQuestionPool = rawPool.filter(q => q._isBackup)
+          this.hasEnoughInBank = res.hasEnoughInBank || false
           
           console.log(`题目池接收完成:`, {
-            原始数量: rawPool.length,
-            去重后数量: this.questionPool.length,
-            题目IDs: Array.from(poolQuestionIds)
+            主题池: this.mainQuestionPool.length,
+            备用题池: this.backupQuestionPool.length,
+            题库充足: this.hasEnoughInBank,
+            需要AI: res.needAI || 0
           })
           
-          this.usedPoolIndices = new Set()
-          this.usedQuestionIds = new Set()  // 重置已使用的题目ID
+          this.usedQuestionIds = new Set()
           this.hasStarted = true
           this.currentIndex = 0
           this.correctCount = 0
-          this.questionStates = this.exercises.map(ex => this.createStateForExercise(ex))
+          this.questionStates = []
 
-          // 从题目池中随机抽取需要的题目添加到exercises中
-          this.fillFromQuestionPool()
+          // 从主题目池抽取题目
+          this.fillFromMainPool()
           
-          // 检查是否有足够的题目（题库题或等待AI生成）
+          // 检查是否有足够的题目
           const aiNeeded = this.isCustomPractice ? 0 : (res.needAI || 0)
           const hasEnoughQuestions = this.exercises.length > 0 || aiNeeded > 0
           
@@ -1296,12 +1285,78 @@ export default {
       }
     },
     
+    // 从主题目池中抽取题目（用户开始练习时调用）
+    fillFromMainPool() {
+      if (this.mainQuestionPool.length === 0) {
+        console.log('主题目池为空')
+        return
+      }
+      
+      // 打乱主题目池
+      const shuffled = [...this.mainQuestionPool].sort(() => Math.random() - 0.5)
+      
+      // 添加所有主题到exercises
+      for (const question of shuffled) {
+        if (!this.usedQuestionIds.has(question.questionId)) {
+          this.exercises.push(question)
+          this.questionStates.push(this.createStateForExercise(question))
+          this.usedQuestionIds.add(question.questionId)
+        }
+      }
+      
+      console.log(`从主题目池抽取了 ${this.exercises.length} 个题目`)
+    },
+    
+    // 从备用题目池填充（当用户做题速度快于AI生成速度时调用）
+    fillBuffer() {
+      if (this.backupQuestionPool.length === 0) {
+        console.log('备用题目池为空，无法填充')
+        return
+      }
+      
+      // 计算还需要多少题目才能达到目标
+      const remaining = this.exerciseCount - this.exercises.length
+      if (remaining <= 0) {
+        console.log('已达到目标题量，无需填充')
+        return
+      }
+      
+      // 从备用池中抽取未使用的题目
+      let filled = 0
+      for (const question of this.backupQuestionPool) {
+        if (filled >= remaining) break
+        
+        if (!this.usedQuestionIds.has(question.questionId)) {
+          // 随机插入到未做题目的位置
+          const insertStart = this.currentIndex + 1
+          const insertEnd = this.exercises.length + 1
+          const randomIndex = insertStart + Math.floor(Math.random() * (insertEnd - insertStart))
+          
+          this.exercises.splice(randomIndex, 0, question)
+          this.questionStates.splice(randomIndex, 0, this.createStateForExercise(question))
+          this.usedQuestionIds.add(question.questionId)
+          filled++
+          
+          console.log(`从备用池填充题目到位置 ${randomIndex}`)
+        }
+      }
+      
+      console.log(`从备用题目池填充了 ${filled} 个题目，当前总题数: ${this.exercises.length}`)
+    },
+    
     // 异步生成AI题目并随机插入
     async generateAIQuestionsAsync(count, aiOptions) {
       const isFirstBatch = this.exercises.length === 0  // 判断是否是第一批题目（题库为空）
       let successCount = 0  // 成功生成的题目数量
       let failCount = 0     // 失败次数
       const allowList = this.getAllowedVerbIdSet()
+      
+      console.log(`开始AI生成任务:`, {
+        需要生成: count,
+        当前题数: this.exercises.length,
+        题库充足: this.hasEnoughInBank,
+        isFirstBatch
+      })
       
       for (let i = 0; i < count; i++) {
         try {
@@ -1310,10 +1365,9 @@ export default {
           // 显示生成进度
           this.generatingCount = count - i
           
-          // 在每次循环中收集已使用的动词ID和题目ID，避免重复
+          // 收集已使用的动词ID，避免重复
           const usedVerbIds = new Set(this.exercises.map(e => e.verbId).filter(id => id))
           
-          // 将已使用的动诋ID传递给后端
           const fallbackVerbIds = this.isCourseMode && Array.isArray(this.lessonVocabulary) && this.lessonVocabulary.length > 0
             ? this.lessonVocabulary.map(v => v.id)
             : null
@@ -1331,10 +1385,7 @@ export default {
           if (res.success && res.exercise) {
             if (allowList && !allowList.has(res.exercise.verbId)) {
               failCount++
-              console.warn('AI题目动词不在允许范围内，已跳过:', {
-                verbId: res.exercise.verbId,
-                infinitive: res.exercise.infinitive
-              })
+              console.warn('AI题目动词不在允许范围内，已跳过')
               continue
             }
 
@@ -1345,29 +1396,32 @@ export default {
               this.usedQuestionIds.add(res.exercise.questionId)
             }
             
-            // 如果是第一批题目，按顺序添加；否则随机插入
-            if (isFirstBatch && i === 0) {
-              // 第一题直接添加到开头
-              this.exercises.push(res.exercise)
-              this.questionStates.push(this.createStateForExercise(res.exercise))
-              console.log(`第一个AI题目已生成，开始练习`)
+            // 检查用户当前是否还需要这个题目
+            const userNeedsMore = this.exercises.length < this.exerciseCount
+            
+            if (userNeedsMore) {
+              // 用户还需要更多题目，插入到练习队列
+              if (isFirstBatch && i === 0) {
+                // 第一题直接添加
+                this.exercises.push(res.exercise)
+                this.questionStates.push(this.createStateForExercise(res.exercise))
+                console.log(`第一个AI题目已生成，开始练习`)
+                uni.hideToast()
+                this.goToExercise(0, true)
+              } else {
+                // 随机插入到当前题目之后
+                const insertStart = this.currentIndex + 1
+                const insertEnd = this.exercises.length + 1
+                const randomIndex = insertStart + Math.floor(Math.random() * (insertEnd - insertStart))
 
-              // 隐藏加载提示，初始化第一题
-              uni.hideToast()
-              this.goToExercise(0, true)
+                this.exercises.splice(randomIndex, 0, res.exercise)
+                this.questionStates.splice(randomIndex, 0, this.createStateForExercise(res.exercise))
+
+                console.log(`AI题目已插入到位置 ${randomIndex}, 当前题目总数: ${this.exercises.length}`)
+              }
             } else {
-              // 后续题目插入到当前题目之后的位置（避免影响currentIndex）
-              // 计算插入位置：在当前题目后面到末尾之间随机选择
-              const insertStart = this.currentIndex + 1
-              const insertEnd = this.exercises.length + 1
-              const randomIndex = insertStart + Math.floor(Math.random() * (insertEnd - insertStart))
-
-              this.exercises.splice(randomIndex, 0, res.exercise)
-              this.questionStates.splice(randomIndex, 0, this.createStateForExercise(res.exercise))
-
-              console.log(`AI题目已插入到位置 ${randomIndex}, 当前位置: ${this.currentIndex}, 当前题目总数: ${this.exercises.length}`)
-              
-              // 注意：因为插入位置在currentIndex之后，所以不需要调整currentIndex
+              // 用户不需要更多题目，AI生成的题目已经过审查（后端已加入题库），直接丢弃
+              console.log(`AI题目 ${i + 1} 已生成但用户不需要，已由后端加入题库`)
             }
           } else {
             failCount++
@@ -1377,34 +1431,38 @@ export default {
           failCount++
           console.error(`生成第 ${i + 1} 个AI题目失败:`, error)
           
-          // 如果是第一批题目且前几次都失败了，给用户提示
+          // 如果是第一批题目且连续失败，提示用户
           if (isFirstBatch && i < 3 && failCount > i) {
             if (i === 2) {
-              // 连续3次失败，提示用户
               uni.hideToast()
               uni.showModal({
                 title: 'AI生成失败',
-                content: 'AI服务当前繁忙，无法生成题目。建议：\n1. 稍后再试\n2. 或先进行其他练习模式\n\n如果题库有数据，将优先使用题库题目。',
+                content: 'AI服务当前繁忙，无法生成题目。建议：\n1. 稍后再试\n2. 或先进行其他练习模式',
                 showCancel: false
               })
               this.generatingCount = 0
-              return  // 停止继续生成
+              return
             }
           }
         }
       }
       
       this.generatingCount = 0
-      console.log(`AI题目异步生成完成: 成功 ${successCount}/${count}, 失败 ${failCount}/${count}`)
+      console.log(`AI题目异步生成完成:`, {
+        成功: successCount,
+        失败: failCount,
+        总计: count,
+        当前题数: this.exercises.length,
+        目标题数: this.exerciseCount
+      })
       
       // 如果是第一批且全部失败，显示错误信息
       if (isFirstBatch && successCount === 0) {
         uni.showModal({
           title: '生成失败',
-          content: '无法生成练习题，AI服务可能暂时不可用。\n\n建议：\n1. 检查网络连接\n2. 稍后再试\n3. 或选择其他练习模式',
+          content: '无法生成练习题，AI服务可能暂时不可用。',
           showCancel: false,
           success: () => {
-            // 返回上一页
             uni.navigateBack()
           }
         })
@@ -1412,96 +1470,6 @@ export default {
     },
     
     // 从题目池中随机抽取题目
-    fillFromQuestionPool() {
-      if (this.questionPool.length === 0) {
-        console.log('题目池为空')
-        return
-      }
-      
-      // 检查题目池是否有重复的题目ID
-      const poolQuestionIds = this.questionPool.map(q => q.questionId)
-      const uniquePoolIds = new Set(poolQuestionIds)
-      console.log('题目池信息：', {
-        poolSize: this.questionPool.length,
-        uniqueQuestions: uniquePoolIds.size,
-        hasDuplicates: this.questionPool.length !== uniquePoolIds.size,
-        currentExercises: this.exercises.length,
-        targetCount: this.exerciseCount,
-        questionIds: poolQuestionIds
-      })
-      
-      // 计算还需要多少题库题
-      const totalNeeded = this.exerciseCount
-      const aiCount = this.exercises.length // AI生成的题目
-      const bankNeeded = totalNeeded - aiCount // 需要从题库抽取的数量
-      
-      // 从题目池中随机抽取
-      const availableCount = this.questionPool.length - this.usedPoolIndices.size
-      const toExtract = Math.min(bankNeeded, availableCount)
-      
-      console.log('准备从题目池抽取：', { bankNeeded, availableCount, toExtract })
-      
-      for (let i = 0; i < toExtract; i++) {
-        // 找出所有未使用的题目索引
-        const unusedIndices = []
-        for (let idx = 0; idx < this.questionPool.length; idx++) {
-          const q = this.questionPool[idx]
-          if (!this.usedPoolIndices.has(idx) && !this.usedQuestionIds.has(q.questionId)) {
-            unusedIndices.push(idx)
-          }
-        }
-        
-        // 如果没有未使用的题目了，停止抽取
-        if (unusedIndices.length === 0) {
-          console.warn(`无法找到更多不重复的题目，已抽取 ${i}/${toExtract} 个`)
-          break
-        }
-        
-        // 从未使用的题目中随机选择一个
-        const randomIdx = Math.floor(Math.random() * unusedIndices.length)
-        const randomIndex = unusedIndices[randomIdx]
-        const selectedQuestion = this.questionPool[randomIndex]
-        
-        // 标记为已使用
-        this.usedPoolIndices.add(randomIndex)
-        this.usedQuestionIds.add(selectedQuestion.questionId)
-        
-        console.log(`抽取题目 ${i + 1}/${toExtract}:`, {
-          index: randomIndex,
-          questionId: selectedQuestion.questionId,
-          infinitive: selectedQuestion.infinitive
-        })
-        
-        this.exercises.push(selectedQuestion)
-      }
-      
-      // 使用 Fisher-Yates 洗牌算法打乱题目顺序
-      for (let i = this.exercises.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
-        ;[this.exercises[i], this.exercises[j]] = [this.exercises[j], this.exercises[i]]
-      }
-      
-      // 验证打乱后没有重复的题目ID
-      const finalQuestionIds = this.exercises.map(e => e.questionId)
-      const uniqueFinalIds = new Set(finalQuestionIds)
-      console.log('打乱后的题目列表：', {
-        count: this.exercises.length,
-        uniqueCount: uniqueFinalIds.size,
-        hasDuplicates: this.exercises.length !== uniqueFinalIds.size,
-        exercises: this.exercises.map(e => ({
-          id: e.questionId,
-          verb: e.infinitive,
-          type: e.exerciseType
-        }))
-      })
-      
-      if (this.exercises.length !== uniqueFinalIds.size) {
-        console.error('警告：exercises数组中有重复的题目ID！', finalQuestionIds)
-      }
-
-      // 根据最新顺序重置题目状态
-      this.questionStates = this.exercises.map(ex => this.createStateForExercise(ex))
-    },
     
     // 显示自定义消息提示
     showMessage(text, type = 'success', duration = 3000) {
