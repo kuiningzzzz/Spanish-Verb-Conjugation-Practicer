@@ -91,6 +91,12 @@
         "navigationBarTitleText": "版本更新",
         "navigationStyle": "custom"
       }
+    },
+    {
+      "path": "pages/announcement/announcement",
+      "style": {
+        "navigationBarTitleText": "系统公告"
+      }
     }
   ],
   "globalStyle": {

@@ -3,6 +3,10 @@
     <view class="header">
       <text class="title">西班牙语动词变位</text>
       <text class="subtitle">每天练习，轻松掌握</text>
+      <!-- 公告按钮 -->
+      <view class="announcement-btn" @click="goToAnnouncement">
+        <text class="announcement-icon">📢</text>
+      </view>
     </view>
 
     <view class="card welcome-card" v-if="userInfo">
@@ -223,6 +227,11 @@ export default {
       uni.navigateTo({
         url: '/pages/course/course'
       })
+    },
+    goToAnnouncement() {
+      uni.navigateTo({
+        url: '/pages/announcement/announcement'
+      })
     }
   }
 }
@@ -232,6 +241,7 @@ export default {
 .header {
   text-align: center;
   padding: 60rpx 0 40rpx;
+  position: relative;
 }
 
 .title {
@@ -246,6 +256,47 @@ export default {
   display: block;
   font-size: 28rpx;
   color: #999;
+}
+
+/* 公告按钮样式 */
+.announcement-btn {
+  position: absolute;
+  top: 60rpx;
+  right: 30rpx;
+  width: 70rpx;
+  height: 70rpx;
+  background: #8B0012;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.4);
+  transition: all 0.3s;
+}
+
+.announcement-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 2rpx 8rpx rgba(139, 0, 18, 0.3);
+}
+
+.announcement-icon {
+  font-size: 36rpx;
+  animation: ring 2s ease-in-out infinite;
+}
+
+@keyframes ring {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  10%, 30% {
+    transform: rotate(-10deg);
+  }
+  20%, 40% {
+    transform: rotate(10deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
 }
 
 .welcome-card {

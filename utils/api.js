@@ -149,5 +149,9 @@ export default {
   getAllVersions: () => request({
     url: '/version/all',
     method: 'GET'
-  })
+  }),
+
+  // 公告相关
+  getAnnouncements: () => request({ url: '/announcement' }),
+  getAnnouncementById: (id) => request({ url: `/announcement/${id}` })
 }
