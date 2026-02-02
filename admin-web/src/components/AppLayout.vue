@@ -1,7 +1,7 @@
 <template>
   <div class="layout">
     <aside class="sidebar">
-      <div class="brand">Admin Console</div>
+      <div class="brand">Conjugamos 控制台</div>
       <nav>
         <RouterLink to="/">仪表盘</RouterLink>
         <RouterLink to="/users">用户管理</RouterLink>
@@ -16,7 +16,7 @@
       <header class="topbar">
         <div class="topbar-left">
           <h1>{{ title }}</h1>
-          <p class="subtitle">管理员登录访问。仅初始管理员可删除其他管理员。</p>
+          <p class="subtitle"></p>
         </div>
         <div class="topbar-right" v-if="user">
           <span class="chip">{{ user.username || user.email }}</span>
