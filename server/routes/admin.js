@@ -22,9 +22,17 @@ const PracticeRecord = require('../models/PracticeRecord')
 const { vocabularyDb } = require('../database/db')
 const fs = require('fs')
 const path = require('path')
+const AdmZip = require('adm-zip')
+const crypto = require('crypto')
 
 const VERSION_FILE = path.join(__dirname, '..', 'src', 'version.json')
 const UPDATE_DIR = path.join(__dirname, '..', 'src', 'updates')
+const DATA_DIR = path.join(__dirname, '..', 'data')
+const BACKUP_DIR = path.join(DATA_DIR, 'backups')
+const BACKUP_RECORDS_FILE = path.join(DATA_DIR, 'backup_records.json')
+const IMPORT_RECORDS_FILE = path.join(DATA_DIR, 'import_records.json')
+const DOWNLOAD_TOKEN_TTL_MS = 5 * 60 * 1000
+const downloadTokens = new Map()
 
 function loadVersionInfo() {
   try {
@@ -37,6 +45,90 @@ function loadVersionInfo() {
 
 function saveVersionInfo(data) {
   fs.writeFileSync(VERSION_FILE, JSON.stringify(data, null, 2), 'utf8')
+}
+
+function getAllowedFiles() {
+  const files = []
+  try {
+    const dbFiles = fs
+      .readdirSync(DATA_DIR)
+      .filter((name) => name.endsWith('.db'))
+      .map((name) => ({
+        key: `db:${name}`,
+        label: name,
+        fileName: name,
+        path: path.join(DATA_DIR, name)
+      }))
+    files.push(...dbFiles)
+  } catch (error) {
+    // ignore
+  }
+
+  files.push({
+    key: 'version.json',
+    label: 'version.json',
+    fileName: 'version.json',
+    path: path.join(__dirname, '..', 'src', 'version.json')
+  })
+  files.push({
+    key: 'announcement.json',
+    label: 'announcement.json',
+    fileName: 'announcement.json',
+    path: path.join(__dirname, '..', 'src', 'announcement.json')
+  })
+
+  return files
+}
+
+function loadRecords(filePath) {
+  try {
+    const content = fs.readFileSync(filePath, 'utf8')
+    const data = JSON.parse(content)
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    return []
+  }
+}
+
+function saveRecords(filePath, records) {
+  fs.writeFileSync(filePath, JSON.stringify(records, null, 2), 'utf8')
+}
+
+function formatTimestamp(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, '0')
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    ` ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  )
+}
+
+function issueDownloadToken(recordId) {
+  const token = crypto.randomBytes(24).toString('hex')
+  downloadTokens.set(token, { recordId, expiresAt: Date.now() + DOWNLOAD_TOKEN_TTL_MS })
+  return token
+}
+
+function consumeDownloadToken(token) {
+  const data = downloadTokens.get(token)
+  if (!data) return null
+  downloadTokens.delete(token)
+  if (data.expiresAt < Date.now()) return null
+  return data
+}
+
+function buildBackupZipBuffer(record) {
+  const targetDir = path.join(BACKUP_DIR, record.dirName || '')
+  if (!fs.existsSync(targetDir)) {
+    throw new Error('备份文件不存在')
+  }
+  const zip = new AdmZip()
+  record.files.forEach((item) => {
+    const filePath = path.join(targetDir, item.fileName)
+    if (fs.existsSync(filePath)) {
+      zip.addLocalFile(filePath)
+    }
+  })
+  return zip.toBuffer()
 }
 
 const loginAttempts = new Map()
@@ -768,5 +860,236 @@ router.delete('/question-feedback/:id', requireAdmin, (req, res) => {
   QuestionFeedback.delete(req.params.id)
   res.json({ success: true })
 })
+
+router.get('/db-files', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可查看可备份文件')
+  const files = getAllowedFiles().map(({ key, label, fileName }) => ({
+    key,
+    label,
+    fileName
+  }))
+  res.json({ files })
+})
+
+router.get('/db-backups', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可查看备份记录')
+  const records = loadRecords(BACKUP_RECORDS_FILE)
+  res.json({ records })
+})
+
+router.post('/db-backups', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可新增备份')
+  const requestedKeys = Array.isArray(req.body?.files) ? req.body.files : []
+  const allowedFiles = getAllowedFiles()
+  const allowedMap = new Map(allowedFiles.map((item) => [item.key, item]))
+  const selected = requestedKeys.length
+    ? requestedKeys.map((key) => allowedMap.get(key)).filter(Boolean)
+    : allowedFiles
+
+  if (!selected.length) {
+    return res.status(400).json({ error: '请选择需要备份的文件' })
+  }
+
+  const missing = selected.filter((item) => !fs.existsSync(item.path))
+  if (missing.length) {
+    return res.status(400).json({ error: `文件不存在：${missing.map((item) => item.fileName).join(', ')}` })
+  }
+
+  const timestamp = formatTimestamp()
+  const id = String(Date.now())
+  const dirName = `${timestamp.replace(/[^0-9]/g, '')}_${id}`
+  const targetDir = path.join(BACKUP_DIR, dirName)
+  fs.mkdirSync(targetDir, { recursive: true })
+
+  selected.forEach((item) => {
+    const targetPath = path.join(targetDir, item.fileName)
+    fs.copyFileSync(item.path, targetPath)
+  })
+
+  const record = {
+    id,
+    createdAt: timestamp,
+    files: selected.map(({ key, label, fileName }) => ({ key, label, fileName })),
+    dirName
+  }
+
+  const records = loadRecords(BACKUP_RECORDS_FILE)
+  records.unshift(record)
+  saveRecords(BACKUP_RECORDS_FILE, records)
+
+  res.status(201).json({ success: true, record })
+})
+
+router.delete('/db-backups/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可删除备份记录')
+  const records = loadRecords(BACKUP_RECORDS_FILE)
+  const index = records.findIndex((item) => item.id === req.params.id)
+  if (index === -1) {
+    return res.status(404).json({ error: '备份记录不存在' })
+  }
+  const [record] = records.splice(index, 1)
+  saveRecords(BACKUP_RECORDS_FILE, records)
+  if (record?.dirName) {
+    const targetDir = path.join(BACKUP_DIR, record.dirName)
+    fs.rmSync(targetDir, { recursive: true, force: true })
+  }
+  res.json({ success: true })
+})
+
+router.get('/db-backups/:id/download-link', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可下载备份')
+  const records = loadRecords(BACKUP_RECORDS_FILE)
+  const record = records.find((item) => item.id === req.params.id)
+  if (!record) {
+    return res.status(404).json({ error: '备份记录不存在' })
+  }
+  const token = issueDownloadToken(record.id)
+  const baseUrl = `${req.protocol}://${req.get('host')}`
+  res.json({ url: `${baseUrl}/admin/db-backups/download?token=${token}` })
+})
+
+router.get('/db-backups/download', (req, res) => {
+  const token = String(req.query.token || '')
+  if (!token) {
+    return res.status(401).json({ error: '未授权访问' })
+  }
+  const payload = consumeDownloadToken(token)
+  if (!payload) {
+    return res.status(401).json({ error: '下载链接已失效' })
+  }
+  const records = loadRecords(BACKUP_RECORDS_FILE)
+  const record = records.find((item) => item.id === payload.recordId)
+  if (!record) {
+    return res.status(404).json({ error: '备份记录不存在' })
+  }
+  try {
+    const buffer = buildBackupZipBuffer(record)
+    const fileName = `backup_${record.createdAt.replace(/[:\\s]/g, '')}.zip`
+    res.setHeader('Content-Type', 'application/zip')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+    res.setHeader('Content-Length', buffer.length)
+    res.send(buffer)
+  } catch (error) {
+    res.status(404).json({ error: error.message || '备份文件不存在' })
+  }
+})
+
+router.get('/db-backups/:id/download', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可下载备份')
+  const records = loadRecords(BACKUP_RECORDS_FILE)
+  const record = records.find((item) => item.id === req.params.id)
+  if (!record) {
+    return res.status(404).json({ error: '备份记录不存在' })
+  }
+  let buffer = null
+  try {
+    buffer = buildBackupZipBuffer(record)
+  } catch (error) {
+    return res.status(404).json({ error: error.message || '备份文件不存在' })
+  }
+  const fileName = `backup_${record.createdAt.replace(/[:\s]/g, '')}.zip`
+  res.setHeader('Content-Type', 'application/zip')
+  res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+  res.setHeader('Content-Length', buffer.length)
+  res.send(buffer)
+})
+
+router.post('/db-backups/:id/restore', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可还原备份')
+  const records = loadRecords(BACKUP_RECORDS_FILE)
+  const record = records.find((item) => item.id === req.params.id)
+  if (!record) {
+    return res.status(404).json({ error: '备份记录不存在' })
+  }
+  const targetDir = path.join(BACKUP_DIR, record.dirName || '')
+  if (!fs.existsSync(targetDir)) {
+    return res.status(404).json({ error: '备份文件不存在' })
+  }
+  const allowedMap = new Map(getAllowedFiles().map((item) => [item.key, item]))
+  record.files.forEach((item) => {
+    const definition = allowedMap.get(item.key)
+    if (!definition) {
+      return
+    }
+    const sourcePath = path.join(targetDir, item.fileName)
+    if (fs.existsSync(sourcePath)) {
+      fs.copyFileSync(sourcePath, definition.path)
+    }
+  })
+  res.json({ success: true })
+})
+
+router.get('/db-imports', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可查看导入记录')
+  const records = loadRecords(IMPORT_RECORDS_FILE)
+  res.json({ records })
+})
+
+router.delete('/db-imports/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可删除导入记录')
+  const records = loadRecords(IMPORT_RECORDS_FILE)
+  const index = records.findIndex((item) => item.id === req.params.id)
+  if (index === -1) {
+    return res.status(404).json({ error: '导入记录不存在' })
+  }
+  records.splice(index, 1)
+  saveRecords(IMPORT_RECORDS_FILE, records)
+  res.json({ success: true })
+})
+
+router.post(
+  '/db-imports',
+  requireAdmin,
+  (req, res, next) => {
+    if (!isDev(req)) {
+      return forbid(res, '仅 dev 可导入备份')
+    }
+    next()
+  },
+  express.raw({ type: 'application/zip', limit: '300mb' }),
+  (req, res) => {
+    try {
+      if (!req.body || !req.body.length) {
+        return res.status(400).json({ error: '上传内容为空' })
+      }
+      const allowedFiles = getAllowedFiles()
+      const allowedByName = new Map(allowedFiles.map((item) => [item.fileName, item]))
+      const zip = new AdmZip(req.body)
+      const entries = zip.getEntries().filter((entry) => !entry.isDirectory)
+      if (!entries.length) {
+        return res.status(400).json({ error: '压缩包中没有可导入文件' })
+      }
+
+      const invalidEntry = entries.find((entry) => !allowedByName.has(path.basename(entry.entryName)))
+      if (invalidEntry) {
+        return res.status(400).json({ error: `不支持的文件：${invalidEntry.entryName}` })
+      }
+
+      const importedFiles = []
+      entries.forEach((entry) => {
+        const fileName = path.basename(entry.entryName)
+        const definition = allowedByName.get(fileName)
+        if (!definition) return
+        const content = entry.getData()
+        fs.writeFileSync(definition.path, content)
+        importedFiles.push(fileName)
+      })
+
+      const record = {
+        id: String(Date.now()),
+        createdAt: formatTimestamp(),
+        files: importedFiles
+      }
+      const records = loadRecords(IMPORT_RECORDS_FILE)
+      records.unshift(record)
+      saveRecords(IMPORT_RECORDS_FILE, records)
+
+      res.status(201).json({ success: true, record })
+    } catch (error) {
+      console.error('导入失败:', error)
+      res.status(500).json({ error: '导入失败' })
+    }
+  }
+)
 
 module.exports = router
