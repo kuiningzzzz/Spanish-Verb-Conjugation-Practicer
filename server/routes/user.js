@@ -420,6 +420,7 @@ router.get('/info', require('../middleware/auth').authMiddleware, (req, res) => 
         userType: user.user_type,
         subscriptionEndDate: user.subscription_end_date,
         avatar: user.avatar,
+        participate_in_leaderboard: user.participate_in_leaderboard !== undefined ? user.participate_in_leaderboard : 1,
         created_at: user.created_at
       }
     })
@@ -539,6 +540,30 @@ router.put('/profile', require('../middleware/auth').authMiddleware, (req, res) 
   } catch (error) {
     console.error('更新用户信息错误:', error)
     res.status(500).json({ error: '更新用户信息失败' })
+  }
+})
+
+// 更新用户排行榜参与设置
+router.put('/settings/leaderboard', require('../middleware/auth').authMiddleware, (req, res) => {
+  try {
+    const { participateInLeaderboard } = req.body
+
+    if (participateInLeaderboard === undefined) {
+      return res.status(400).json({ error: '缺少参数' })
+    }
+
+    User.update(req.userId, {
+      participateInLeaderboard: Boolean(participateInLeaderboard)
+    })
+
+    const user = User.findById(req.userId)
+    res.json({
+      success: true,
+      participateInLeaderboard: Boolean(user.participate_in_leaderboard)
+    })
+  } catch (error) {
+    console.error('更新排行榜设置错误:', error)
+    res.status(500).json({ error: '更新设置失败' })
   }
 })
 

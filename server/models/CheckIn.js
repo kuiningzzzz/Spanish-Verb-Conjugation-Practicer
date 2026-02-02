@@ -176,7 +176,7 @@ class CheckIn {
         SUM(c.correct_count) as total_correct
       FROM users u
       JOIN check_ins c ON u.id = c.user_id
-      WHERE 1=1 ${dateFilter}
+      WHERE u.participate_in_leaderboard = 1 ${dateFilter}
       GROUP BY u.id
       ORDER BY check_in_days DESC, total_exercises DESC
       LIMIT ?

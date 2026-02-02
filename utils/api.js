@@ -68,6 +68,7 @@ export default {
   checkUsername: (data) => request({ url: '/user/check-username', method: 'POST', data }),
   updateProfile: (data) => request({ url: '/user/profile', method: 'PUT', data }),
   uploadAvatar: (data) => request({ url: '/user/avatar', method: 'POST', data }),
+  updateLeaderboardSetting: (data) => request({ url: '/user/settings/leaderboard', method: 'PUT', data }),
 
   // 动词相关
   getVerbList: (params) => request({ url: '/verb/list', data: params }),
