@@ -84,7 +84,10 @@
       <view class="mastered-card">
         <view class="section-header">
           <text class="section-title">已掌握动词</text>
-          <text class="section-count">{{ masteredVerbs.length }} 个</text>
+          <view class="header-actions">
+            <text class="criteria-btn" @click="showCriteriaModal">评判标准</text>
+            <text class="section-count">{{ masteredVerbs.length }} 个</text>
+          </view>
         </view>
         <view class="mastered-list">
           <view 
@@ -168,6 +171,77 @@
         </view>
       </view>
     </view>
+
+    <!-- 掌握度评判标准弹窗 -->
+    <view v-if="showCriteria" class="modal-overlay" @click="closeCriteriaModal">
+      <view class="modal-content" @click.stop>
+        <view class="modal-header">
+          <text class="modal-title">🎯 掌握度评判标准</text>
+          <view class="close-btn" @click="closeCriteriaModal">✕</view>
+        </view>
+        
+        <view class="criteria-list">
+          <view class="criteria-item">
+            <view class="criteria-level level-5">
+              <text class="level-icon">⭐⭐⭐⭐⭐</text>
+              <text class="level-name">精通 (5级)</text>
+            </view>
+            <view class="criteria-desc">
+              <text class="criteria-condition">条件：练习次数 ≥ 5次 且 正确率 ≥ 80%</text>
+              <text class="criteria-note">对该动词已非常熟练，几乎不会出错</text>
+            </view>
+          </view>
+
+          <view class="criteria-item">
+            <view class="criteria-level level-4">
+              <text class="level-icon">⭐⭐⭐⭐</text>
+              <text class="level-name">熟练 (4级)</text>
+            </view>
+            <view class="criteria-desc">
+              <text class="criteria-condition">条件：练习次数 ≥ 4次 且 正确率 ≥ 70%</text>
+              <text class="criteria-note">对该动词已熟练掌握，偶尔可能出错</text>
+            </view>
+          </view>
+
+          <view class="criteria-item">
+            <view class="criteria-level level-3">
+              <text class="level-icon">⭐⭐⭐</text>
+              <text class="level-name">掌握 (3级)</text>
+            </view>
+            <view class="criteria-desc">
+              <text class="criteria-condition">条件：练习次数 ≥ 3次 且 正确率 ≥ 60%</text>
+              <text class="criteria-note">已基本掌握该动词，需要继续巩固</text>
+            </view>
+          </view>
+
+          <view class="criteria-item">
+            <view class="criteria-level level-2">
+              <text class="level-icon">⭐⭐</text>
+              <text class="level-name">熟悉 (2级)</text>
+            </view>
+            <view class="criteria-desc">
+              <text class="criteria-condition">条件：正确率 ≥ 50%</text>
+              <text class="criteria-note">对该动词有一定了解，还需多练习</text>
+            </view>
+          </view>
+
+          <view class="criteria-item">
+            <view class="criteria-level level-1">
+              <text class="level-icon">⭐</text>
+              <text class="level-name">初学 (1级)</text>
+            </view>
+            <view class="criteria-desc">
+              <text class="criteria-condition">条件：正确率 < 50%</text>
+              <text class="criteria-note">刚开始学习该动词，需要多加练习</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="criteria-footer">
+          <text class="footer-note">💡 提示：系统会根据你的练习表现自动评定掌握度等级</text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -187,7 +261,8 @@ export default {
         { value: 'month', label: '本月' },
         { value: 'all', label: '全部' }
       ],
-      learningSuggestion: ''
+      learningSuggestion: '',
+      showCriteria: false  // 是否显示评判标准弹窗
     }
   },
   computed: {
@@ -199,7 +274,7 @@ export default {
       const circumference = 2 * Math.PI * 70
       const offset = circumference - (this.accuracy / 100) * circumference
       return {
-        'background': `conic-gradient(#667eea ${this.accuracy}%, #f0f0f0 ${this.accuracy}% 100%)`
+        'background': `conic-gradient(#8B0012 ${this.accuracy}%, #f0f0f0 ${this.accuracy}% 100%)`
       }
     },
     mainStats() {
@@ -209,28 +284,28 @@ export default {
           icon: '📝',
           label: '总练习题数',
           value: this.totalStats.total_exercises || 0,
-          color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+          color: '#8B0012'
         },
         {
           key: 'mastered',
           icon: '🎯',
           label: '掌握动词',
           value: this.masteredVerbs.length || 0,
-          color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
+          color: '#D4A04A'
         },
         {
           key: 'verbs',
           icon: '📚',
           label: '练习动词',
           value: this.totalStats.practiced_verbs || 0,
-          color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+          color: '#4CAF50'
         },
         {
           key: 'days',
           icon: '📅',
           label: '练习天数',
           value: this.totalStats.practice_days || 0,
-          color: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
+          color: '#FF9800'
         }
       ]
     }
@@ -272,11 +347,11 @@ export default {
     },
     getVerbColor(level) {
       const colors = [
-        'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)',
-        'linear-gradient(135deg, #ffa726 0%, #ff9800 100%)',
-        'linear-gradient(135deg, #ffee58 0%, #fdd835 100%)',
-        'linear-gradient(135deg, #9ccc65 0%, #7cb342 100%)',
-        'linear-gradient(135deg, #66bb6a 0%, #4caf50 100%)'
+        '#ff6b6b',
+        '#ffa726',
+        '#ffee58',
+        '#9ccc65',
+        '#66bb6a'
       ]
       return colors[level - 1] || colors[0]
     },
@@ -323,6 +398,12 @@ export default {
         '尝试不同类型的练习，全面提升动词变位能力！'
       ]
       this.learningSuggestion = suggestions[Math.floor(Math.random() * suggestions.length)]
+    },
+    showCriteriaModal() {
+      this.showCriteria = true
+    },
+    closeCriteriaModal() {
+      this.showCriteria = false
     }
   }
 }
@@ -331,7 +412,7 @@ export default {
 <style scoped>
 .container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   position: relative;
   overflow-x: hidden;
 }
@@ -554,7 +635,7 @@ export default {
 }
 
 .time-filter.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
 }
 
@@ -603,6 +684,27 @@ export default {
   padding: 40rpx;
   box-shadow: 0 15rpx 30rpx rgba(0, 0, 0, 0.1);
   border: 1rpx solid rgba(255, 255, 255, 0.2);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15rpx;
+}
+
+.criteria-btn {
+  font-size: 24rpx;
+  color: #8B0012;
+  background: rgba(139, 0, 18, 0.1);
+  padding: 8rpx 16rpx;
+  border-radius: 12rpx;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.criteria-btn:active {
+  background: rgba(139, 0, 18, 0.2);
+  transform: scale(0.95);
 }
 
 .section-count {
@@ -688,7 +790,7 @@ export default {
   padding: 20rpx;
   background: #f8f9fa;
   border-radius: 15rpx;
-  color: #667eea;
+  color: #8B0012;
   font-size: 26rpx;
   font-weight: 500;
 }
@@ -790,11 +892,11 @@ export default {
 }
 
 .record-icon.correct {
-  background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+  background: #4caf50;
 }
 
 .record-icon.wrong {
-  background: linear-gradient(135deg, #f44336 0%, #ef5350 100%);
+  background: #f44336;
 }
 
 .record-content {
@@ -835,7 +937,7 @@ export default {
   gap: 20rpx;
   box-shadow: 0 15rpx 30rpx rgba(0, 0, 0, 0.1);
   border: 1rpx solid rgba(255, 255, 255, 0.2);
-  border-left: 6rpx solid #667eea;
+  border-left: 6rpx solid #8B0012;
 }
 
 .suggestion-icon {
@@ -860,5 +962,162 @@ export default {
   font-size: 24rpx;
   color: #666;
   line-height: 1.5;
+}
+
+/* 掌握度评判标准弹窗 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 60rpx;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 0;
+  max-height: 80vh;
+  overflow-y: auto;
+  width: 100%;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100rpx);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 40rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+}
+
+.modal-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.close-btn {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f5f5f5;
+  font-size: 36rpx;
+  color: #666;
+  font-weight: bold;
+  transition: all 0.3s;
+}
+
+.close-btn:active {
+  background: #e8e8e8;
+  transform: scale(0.95);
+}
+
+.criteria-list {
+  padding: 30rpx 40rpx;
+}
+
+.criteria-item {
+  margin-bottom: 30rpx;
+  padding: 30rpx;
+  background: #f8f9fa;
+  border-radius: 16rpx;
+  border-left: 6rpx solid #8B0012;
+}
+
+.criteria-item:last-child {
+  margin-bottom: 0;
+}
+
+.criteria-level {
+  display: flex;
+  align-items: center;
+  gap: 15rpx;
+  margin-bottom: 15rpx;
+}
+
+.level-icon {
+  font-size: 24rpx;
+}
+
+.level-name {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.level-5 {
+  color: #ffc107;
+}
+
+.level-4 {
+  color: #4caf50;
+}
+
+.level-3 {
+  color: #2196f3;
+}
+
+.level-2 {
+  color: #ff9800;
+}
+
+.level-1 {
+  color: #9e9e9e;
+}
+
+.criteria-desc {
+  padding-left: 40rpx;
+}
+
+.criteria-condition {
+  display: block;
+  font-size: 26rpx;
+  color: #8B0012;
+  font-weight: 500;
+  margin-bottom: 10rpx;
+}
+
+.criteria-note {
+  display: block;
+  font-size: 24rpx;
+  color: #666;
+  line-height: 1.5;
+}
+
+.criteria-footer {
+  padding: 30rpx 40rpx;
+  background: #fffbf0;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.footer-note {
+  font-size: 24rpx;
+  color: #999;
+  line-height: 1.6;
 }
 </style>

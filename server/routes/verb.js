@@ -31,7 +31,7 @@ router.get('/list', authMiddleware, (req, res) => {
 router.get('/search/:keyword', authMiddleware, (req, res) => {
   try {
     const keyword = req.params.keyword.toLowerCase().trim()
-    
+
     if (!keyword || keyword.length < 2) {
       return res.json({
         success: true,
@@ -43,8 +43,8 @@ router.get('/search/:keyword', authMiddleware, (req, res) => {
     }
 
     const { vocabularyDb } = require('../database/db')
-    
-    // 1. 精确匹配原型（包含用户输入字段的单词）
+
+    // 1. 精确匹配原形（包含用户输入字段的单词）
     const exactInfinitiveQuery = `
       SELECT 
         v.id, 
@@ -68,15 +68,15 @@ router.get('/search/:keyword', authMiddleware, (req, res) => {
         LENGTH(v.infinitive),
         v.infinitive
     `
-    
+
     const exactInfinitiveMatches = vocabularyDb.prepare(exactInfinitiveQuery).all(
       `%${keyword}%`,
       keyword,
       `${keyword}%`,
       `%${keyword}`
     )
-    
-    // 2. 精确匹配变位形式（排除已经在原型匹配中出现的单词，每个单词只显示一个变位）
+
+    // 2. 精确匹配变位形式（排除已经在原形匹配中出现的单词，每个单词只显示一个变位）
     const exactInfinitiveVerbIds = exactInfinitiveMatches.map(v => v.id)
     const exactConjugationQuery = `
       SELECT DISTINCT 
@@ -100,18 +100,18 @@ router.get('/search/:keyword', authMiddleware, (req, res) => {
         ${exactInfinitiveVerbIds.length > 0 ? `AND v.id NOT IN (${exactInfinitiveVerbIds.join(',')})` : ''}
       ORDER BY v.infinitive
     `
-    
+
     const exactConjugationMatches = vocabularyDb.prepare(exactConjugationQuery).all(
       `%${keyword}%`,
       `%${keyword}%`
     )
 
-    // 3. 模糊匹配原型（排除已在精确匹配中出现的单词）
+    // 3. 模糊匹配原形（排除已在精确匹配中出现的单词）
     const allExactVerbIds = [
       ...exactInfinitiveVerbIds,
       ...exactConjugationMatches.map(v => v.id)
     ]
-    
+
     const fuzzyInfinitiveQuery = `
       SELECT 
         v.id, 
@@ -126,15 +126,15 @@ router.get('/search/:keyword', authMiddleware, (req, res) => {
       FROM verbs v
       WHERE v.id NOT IN (${allExactVerbIds.length > 0 ? allExactVerbIds.join(',') : '0'})
     `
-    
+
     const allVerbsForFuzzy = vocabularyDb.prepare(fuzzyInfinitiveQuery).all()
-    
-    // 计算模糊匹配分数（原型）
+
+    // 计算模糊匹配分数（原形）
     const fuzzyInfinitiveMatches = []
     for (const verb of allVerbsForFuzzy) {
       const infinitive = verb.infinitive.toLowerCase()
       const matchScore = calculateMatchScore(infinitive, keyword)
-      
+
       if (matchScore >= 0.6) {
         fuzzyInfinitiveMatches.push({
           ...verb,
@@ -143,7 +143,7 @@ router.get('/search/:keyword', authMiddleware, (req, res) => {
         })
       }
     }
-    
+
     // 按匹配分数排序
     fuzzyInfinitiveMatches.sort((a, b) => {
       if (b.match_score !== a.match_score) {
@@ -151,11 +151,11 @@ router.get('/search/:keyword', authMiddleware, (req, res) => {
       }
       return a.infinitive.localeCompare(b.infinitive)
     })
-    
+
     // 4. 模糊匹配变位（排除已在前面所有匹配中出现的单词，每个单词只显示一个变位）
     const fuzzyInfinitiveVerbIds = fuzzyInfinitiveMatches.map(v => v.id)
     const allMatchedVerbIds = [...allExactVerbIds, ...fuzzyInfinitiveVerbIds]
-    
+
     const fuzzyConjugationQuery = `
       SELECT DISTINCT 
         v.id, 
@@ -173,17 +173,17 @@ router.get('/search/:keyword', authMiddleware, (req, res) => {
       WHERE v.id NOT IN (${allMatchedVerbIds.length > 0 ? allMatchedVerbIds.join(',') : '0'})
       GROUP BY v.id
     `
-    
+
     const allVerbsForFuzzyConj = vocabularyDb.prepare(fuzzyConjugationQuery).all()
-    
+
     // 计算模糊匹配分数（变位）
     const fuzzyConjugationMatches = []
     for (const verb of allVerbsForFuzzyConj) {
       const allForms = verb.all_forms ? verb.all_forms.toLowerCase().split('|') : []
-      
+
       let matchedForm = null
       let maxScore = 0
-      
+
       // 检查所有变位形式，找到匹配度最高的
       for (const form of allForms) {
         if (!form) continue
@@ -193,7 +193,7 @@ router.get('/search/:keyword', authMiddleware, (req, res) => {
           matchedForm = form
         }
       }
-      
+
       if (maxScore >= 0.6) {
         fuzzyConjugationMatches.push({
           ...verb,
@@ -203,7 +203,7 @@ router.get('/search/:keyword', authMiddleware, (req, res) => {
         })
       }
     }
-    
+
     // 按匹配分数排序
     fuzzyConjugationMatches.sort((a, b) => {
       if (b.match_score !== a.match_score) {
@@ -300,7 +300,7 @@ function getCommonPrefixLength(text, keyword) {
 router.get('/:id', authMiddleware, (req, res) => {
   try {
     const verbId = parseInt(req.params.id)
-    
+
     const verb = Verb.findById(verbId)
     if (!verb) {
       return res.status(404).json({ error: '动词不存在' })

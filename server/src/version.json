@@ -1,6 +1,27 @@
 {
   "versions": [
     {
+      "versionCode": 102,
+      "versionName": "1.2.0",
+      "releaseDate": "2026-1-31",
+      "description": "功能修复与扩充，词书扩充",
+      "newFeatures": [
+        "新增《现代西班牙语第二册》单词和课程"
+      ],
+      "improvements": [
+        "删掉多余组件，优化部分文本界面布局",
+        "一定程度上规范西语术语显示",
+        "界面颜色翻新"
+      ],
+      "bugFixes": [
+        "修复排行榜统计错误的问题",
+        "修复课程练习范围选择失效的问题"
+      ],
+      "packageFileName": "Con-jugamos1.2.0.apk",
+      "downloadUrl": "",
+      "forceUpdate": false
+    },
+    {
       "versionCode": 101,
       "versionName": "1.1.0",
       "releaseDate": "2025-12-19",

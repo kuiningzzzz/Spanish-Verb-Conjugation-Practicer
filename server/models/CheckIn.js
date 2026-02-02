@@ -29,14 +29,25 @@ class CheckIn {
     const day = String(today.getDate()).padStart(2, '0')
     const todayStr = `${year}-${month}-${day}`
     
-    const stmt = db.prepare(`
+    // 使用 INSERT OR REPLACE 确保记录存在，如果不存在则自动创建
+    // 先尝试更新已存在的记录
+    const updateStmt = db.prepare(`
       UPDATE check_ins 
       SET exercise_count = exercise_count + ?,
           correct_count = correct_count + ?
       WHERE user_id = ? AND check_in_date = ?
     `)
     
-    stmt.run(exerciseCount, correctCount, userId, todayStr)
+    const result = updateStmt.run(exerciseCount, correctCount, userId, todayStr)
+    
+    // 如果没有更新任何记录（用户今天还没打卡），则自动创建打卡记录
+    if (result.changes === 0) {
+      const insertStmt = db.prepare(`
+        INSERT INTO check_ins (user_id, check_in_date, exercise_count, correct_count)
+        VALUES (?, ?, ?, ?)
+      `)
+      insertStmt.run(userId, todayStr, exerciseCount, correctCount)
+    }
   }
 
   // 获取用户打卡记录
@@ -165,7 +176,7 @@ class CheckIn {
         SUM(c.correct_count) as total_correct
       FROM users u
       JOIN check_ins c ON u.id = c.user_id
-      WHERE 1=1 ${dateFilter}
+      WHERE u.participate_in_leaderboard = 1 ${dateFilter}
       GROUP BY u.id
       ORDER BY check_in_days DESC, total_exercises DESC
       LIMIT ?

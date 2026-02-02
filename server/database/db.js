@@ -51,6 +51,7 @@ function initUserDatabase() {
       is_initial_dev INTEGER DEFAULT 0,
       subscription_end_date TEXT,
       avatar TEXT,
+      participate_in_leaderboard INTEGER DEFAULT 1,
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
       updated_at TEXT DEFAULT (datetime('now', 'localtime'))
     )
@@ -60,6 +61,7 @@ function initUserDatabase() {
   ensureColumn(userDb, 'users', 'role', "role TEXT DEFAULT 'user'")
   ensureColumn(userDb, 'users', 'is_initial_admin', 'is_initial_admin INTEGER DEFAULT 0')
   ensureColumn(userDb, 'users', 'is_initial_dev', 'is_initial_dev INTEGER DEFAULT 0')
+  ensureColumn(userDb, 'users', 'participate_in_leaderboard', 'participate_in_leaderboard INTEGER DEFAULT 1')
   
   // 为非空邮箱创建唯一索引
   userDb.exec(`

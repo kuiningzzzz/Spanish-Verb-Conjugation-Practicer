@@ -46,3 +46,6 @@ coverage/
 .tmp/
 
 .venv/
+server/data/backups/
+server/data/backup_records.json
+server/data/import_records.json

@@ -36,28 +36,28 @@
     <view class="achievement-section">
       <view class="achievement-grid">
         <view class="achievement-item">
-          <view class="achievement-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          <view class="achievement-icon" style="background: #8B0012;">
             <text>📚</text>
           </view>
           <text class="achievement-value">{{ studyDays }}</text>
           <text class="achievement-label">学习天数</text>
         </view>
         <view class="achievement-item">
-          <view class="achievement-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+          <view class="achievement-icon" style="background: #8B0012;">
             <text>✅</text>
           </view>
           <text class="achievement-value">{{ totalExercises }}</text>
           <text class="achievement-label">练习题目</text>
         </view>
         <view class="achievement-item">
-          <view class="achievement-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+          <view class="achievement-icon" style="background: #8B0012;">
             <text>🎯</text>
           </view>
           <text class="achievement-value">{{ masteredCount }}</text>
           <text class="achievement-label">掌握动词</text>
         </view>
         <view class="achievement-item">
-          <view class="achievement-icon" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);">
+          <view class="achievement-icon" style="background: #8B0012;">
             <text>🏆</text>
           </view>
           <text class="achievement-value">{{ rank }}</text>
@@ -145,11 +145,6 @@
           <view class="menu-label">检查更新&更新日志</view>
           <view class="menu-arrow">→</view>
         </view>
-        <view class="menu-item" @click="aboutApp">
-          <view class="menu-icon">ℹ️</view>
-          <text class="menu-label">关于应用</text>
-          <text class="menu-arrow">→</text>
-        </view>
       </view>
     </view>
 
@@ -163,6 +158,13 @@
 
     <!-- 浮动操作按钮 -->
     <view class="fab-container">
+      <view
+        v-if="showFeedbackTip"
+        class="fab-tip"
+        :class="{ fading: feedbackTipFading }"
+      >
+        <text class="fab-tip-text">点我进行反馈哦～</text>
+      </view>
       <view class="fab-button" @click="startPractice">
         <text class="fab-icon">📝</text>
       </view>
@@ -264,6 +266,8 @@
 import api from '@/utils/api.js'
 import { showToast, showConfirm, formatDate } from '@/utils/common.js'
 
+let hasShownProfileFeedbackTip = false
+
 export default {
   data() {
     return {
@@ -273,6 +277,8 @@ export default {
       totalExercises: 0,
       masteredCount: 0,
       rank: 0,
+      showFeedbackTip: false,
+      feedbackTipFading: false,
       showEditModal: false,
       editForm: {
         username: '',
@@ -330,6 +336,15 @@ export default {
     }
     this.loadUserInfo()
     this.loadUserStats()
+    this.maybeShowFeedbackTip()
+  },
+  onHide() {
+    this.clearFeedbackTipTimers()
+    this.showFeedbackTip = false
+    this.feedbackTipFading = false
+  },
+  onUnload() {
+    this.clearFeedbackTipTimers()
   },
   methods: {
     async loadUserInfo() {
@@ -764,17 +779,33 @@ export default {
         }
       })
     },
-    aboutApp() {
-      uni.showModal({
-        title: '关于应用',
-        content: '西班牙语动词变位练习APP v1.0.0\n\n帮助学生轻松掌握西班牙语动词变位\n\n—— 让学习变得更简单',
-        showCancel: false
-      })
-    },
     startPractice() {
       uni.navigateTo({
         url: '/pages/feedback/feedback'
       })
+    },
+    maybeShowFeedbackTip() {
+      if (hasShownProfileFeedbackTip) return
+      hasShownProfileFeedbackTip = true
+      this.showFeedbackTip = true
+      this.feedbackTipFading = false
+      this.clearFeedbackTipTimers()
+      this.feedbackTipTimer = setTimeout(() => {
+        this.feedbackTipFading = true
+      }, 3000)
+      this.feedbackTipHideTimer = setTimeout(() => {
+        this.showFeedbackTip = false
+      }, 3600)
+    },
+    clearFeedbackTipTimers() {
+      if (this.feedbackTipTimer) {
+        clearTimeout(this.feedbackTipTimer)
+        this.feedbackTipTimer = null
+      }
+      if (this.feedbackTipHideTimer) {
+        clearTimeout(this.feedbackTipHideTimer)
+        this.feedbackTipHideTimer = null
+      }
     },
     async logout() {
       try {
@@ -822,7 +853,7 @@ export default {
   left: 0;
   right: 0;
   height: 200rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   z-index: 0;
 }
 
@@ -832,14 +863,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.05) 25%,
-    transparent 25%,
-    transparent 75%,
-    rgba(255, 255, 255, 0.05) 75%
-  );
-  background-size: 60rpx 60rpx;
+  background: rgba(255, 255, 255, 0.03);
   opacity: 0.3;
 }
 
@@ -869,7 +893,7 @@ export default {
   justify-content: center;
   font-size: 40rpx;
   font-weight: bold;
-  color: #667eea;
+  color: #8B0012;
   box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.1);
   position: relative;
   border: 3rpx solid #f0f0f0;  overflow: hidden;
@@ -883,7 +907,7 @@ export default {
   position: absolute;
   top: -10rpx;
   right: -10rpx;
-  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  background: #ffd700;
   color: #fff;
   padding: 6rpx 12rpx;
   border-radius: 20rpx;
@@ -898,13 +922,13 @@ export default {
   right: -8rpx;
   width: 44rpx;
   height: 44rpx;
-  background: #667eea;
+  background: #8B0012;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20rpx;
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.3);
   border: 2rpx solid #fff;
 }
 
@@ -942,7 +966,7 @@ export default {
 }
 
 .user-tag.public {
-  background: #764ba2;
+  background: #8B0012;
   color: #fff;
 }
 
@@ -1036,11 +1060,11 @@ export default {
 }
 
 .edit-button {
-  color: #667eea;
+  color: #8B0012;
   font-size: 26rpx;
   font-weight: 500;
   padding: 12rpx 20rpx;
-  background: rgba(102, 126, 234, 0.1);
+  background: rgba(139, 0, 18, 0.1);
   border-radius: 15rpx;
 }
 
@@ -1065,7 +1089,7 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 28rpx;
-  color: #667eea;
+  color: #8B0012;
 }
 
 .info-content {
@@ -1133,7 +1157,7 @@ export default {
 }
 
 .renew-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   border: none;
   border-radius: 25rpx;
@@ -1144,7 +1168,7 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  box-shadow: 0 8rpx 20rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 8rpx 20rpx rgba(139, 0, 18, 0.3);
 }
 
 .renew-button:active {
@@ -1212,7 +1236,7 @@ export default {
 
 .menu-item:active .menu-arrow {
   transform: translateX(10rpx);
-  color: #667eea;
+  color: #8B0012;
 }
 
 /* 退出登录 */
@@ -1253,21 +1277,61 @@ export default {
   z-index: 100;
 }
 
+.fab-tip {
+  position: absolute;
+  right: 120rpx;
+  bottom: 18rpx;
+  padding: 12rpx 18rpx;
+  background: #ffffff;
+  color: #8B0012;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  box-shadow: 0 12rpx 24rpx rgba(0, 0, 0, 0.12);
+  border: 1rpx solid rgba(139, 0, 18, 0.18);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.fab-tip::after {
+  content: '';
+  position: absolute;
+  right: -14rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 10rpx 0 10rpx 14rpx;
+  border-style: solid;
+  border-color: transparent transparent transparent #ffffff;
+  filter: drop-shadow(0 6rpx 8rpx rgba(0, 0, 0, 0.08));
+}
+
+.fab-tip.fading {
+  opacity: 0;
+  transform: translateY(10rpx);
+}
+
+.fab-tip-text {
+  line-height: 1.2;
+}
+
 .fab-button {
   width: 100rpx;
   height: 100rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 15rpx 30rpx rgba(102, 126, 234, 0.4);
+  box-shadow: 0 15rpx 30rpx rgba(139, 0, 18, 0.4);
   transition: all 0.3s ease;
 }
 
 .fab-button:active {
   transform: scale(0.95);
-  box-shadow: 0 8rpx 20rpx rgba(102, 126, 234, 0.6);
+  box-shadow: 0 8rpx 20rpx rgba(139, 0, 18, 0.6);
 }
 
 .fab-icon {
@@ -1411,7 +1475,7 @@ export default {
 }
 
 .confirm-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
 }
 </style>

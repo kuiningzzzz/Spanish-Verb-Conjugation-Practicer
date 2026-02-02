@@ -1,8 +1,13 @@
 <template>
   <view class="container">
     <view class="header">
+      <text class="title">Con-jugamos</text>
       <text class="title">西班牙语动词变位</text>
       <text class="subtitle">每天练习，轻松掌握</text>
+      <!-- 公告按钮 -->
+      <view class="announcement-btn" @click="goToAnnouncement">
+        <text class="announcement-icon" :class="{ 'ring-animation': hasNewAnnouncement }">📢</text>
+      </view>
     </view>
 
     <view class="card welcome-card" v-if="userInfo">
@@ -74,7 +79,8 @@ export default {
       totalStats: {},
       streakDays: 0,
       studyDays: 0,
-      hasCheckedInToday: false
+      hasCheckedInToday: false,
+      hasNewAnnouncement: false  // 是否有新公告
     }
   },
   onLoad() {
@@ -84,6 +90,8 @@ export default {
     if (this.userInfo) {
       this.loadData()
     }
+    // 检查是否有新公告
+    this.checkNewAnnouncements()
   },
   methods: {
     checkLogin() {
@@ -223,6 +231,50 @@ export default {
       uni.navigateTo({
         url: '/pages/course/course'
       })
+    },
+    goToAnnouncement() {
+      // 进入公告页面前，先获取当前公告列表，标记为已读
+      this.markAnnouncementsAsRead()
+      uni.navigateTo({
+        url: '/pages/announcement/announcement'
+      })
+    },
+    
+    // 检查是否有新公告
+    async checkNewAnnouncements() {
+      try {
+        const res = await api.getAnnouncements()
+        if (res.success && res.data) {
+          const currentIds = res.data.map(a => a.id)
+          const readIds = uni.getStorageSync('readAnnouncementIds') || []
+          
+          // 检查是否有新公告（当前ID中有不在已读ID中的）
+          const hasNew = currentIds.some(id => !readIds.includes(id))
+          this.hasNewAnnouncement = hasNew
+          
+          // 如果有ID被删除，更新已读ID列表（只保留仍然存在的ID）
+          const validReadIds = readIds.filter(id => currentIds.includes(id))
+          if (validReadIds.length !== readIds.length) {
+            uni.setStorageSync('readAnnouncementIds', validReadIds)
+          }
+        }
+      } catch (error) {
+        console.error('检查新公告失败:', error)
+      }
+    },
+    
+    // 标记当前所有公告为已读
+    async markAnnouncementsAsRead() {
+      try {
+        const res = await api.getAnnouncements()
+        if (res.success && res.data) {
+          const currentIds = res.data.map(a => a.id)
+          uni.setStorageSync('readAnnouncementIds', currentIds)
+          this.hasNewAnnouncement = false
+        }
+      } catch (error) {
+        console.error('标记公告已读失败:', error)
+      }
     }
   }
 }
@@ -232,6 +284,7 @@ export default {
 .header {
   text-align: center;
   padding: 60rpx 0 40rpx;
+  position: relative;
 }
 
 .title {
@@ -248,8 +301,53 @@ export default {
   color: #999;
 }
 
+/* 公告按钮样式 */
+.announcement-btn {
+  position: absolute;
+  top: 60rpx;
+  right: 30rpx;
+  width: 70rpx;
+  height: 70rpx;
+  background: #8B0012;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.4);
+  transition: all 0.3s;
+}
+
+.announcement-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 2rpx 8rpx rgba(139, 0, 18, 0.3);
+}
+
+.announcement-icon {
+  font-size: 36rpx;
+}
+
+/* 只有当有ring-animation class时才播放动画 */
+.ring-animation {
+  animation: ring 2s ease-in-out infinite;
+}
+
+@keyframes ring {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  10%, 30% {
+    transform: rotate(-10deg);
+  }
+  20%, 40% {
+    transform: rotate(10deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+}
+
 .welcome-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
 }
 
@@ -303,7 +401,7 @@ export default {
   display: block;
   font-size: 40rpx;
   font-weight: bold;
-  color: #667eea;
+  color: #8B0012;
   margin-bottom: 10rpx;
 }
 

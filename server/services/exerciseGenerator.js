@@ -19,8 +19,8 @@ class ExerciseGeneratorService {
   /**
    * 批量生成题目（新策略）
    * 策略：
-   * - 选择题和变位题：使用固定算法生成（不调用AI）
-   * - 填空题和例句填空：按比例从题库和AI混合获取
+   * - 快变快填和组合填空：使用固定算法生成（不调用AI）
+   * - 例句填空：按比例从题库和AI混合获取
    * - 一次性生成所有需要的题目，管理题目池
    */
   static async generateBatch(options) {
@@ -85,15 +85,13 @@ class ExerciseGeneratorService {
 
     // 例句填空：混合模式
     if (exerciseType === 'sentence') {
-      // 计算题库题和AI题的数量（85%题库，15%AI）
-      const bankCount = Math.round(count * 0.85)
-      let actualBankCount = 0  // 实际从题库获取的数量
+      // 尝试从题库获取count个题目
+      let allBankQuestions = []
+      
+      if (userId) {
+        console.log(`批量生成 - 准备从题库获取:`, { requestCount: count, exerciseType, practiceMode, verbIds: verbIds?.length })
 
-      // 从题库获取题目池（一次性获取所需数量）
-      if (bankCount > 0 && userId) {
-        console.log(`批量生成 - 准备从题库获取:`, { bankCount, exerciseType, practiceMode, verbIds: verbIds?.length })
-
-        const smartQuestions = Question.getSmartFromPublic(userId, {
+        allBankQuestions = Question.getSmartFromPublic(userId, {
           questionType: exerciseType,
           tenses,
           moods,
@@ -101,44 +99,100 @@ class ExerciseGeneratorService {
           includeRegular,
           includeVos,
           includeVosotros,
-          verbIds  // 添加verbIds筛选，用于收藏/错题专练
-        }, bankCount)
+          verbIds
+        }, count)
 
-        actualBankCount = smartQuestions.length
         console.log(`批量生成 - 题库返回:`, {
-          returnedCount: actualBankCount,
-          questionIds: smartQuestions.map(q => q.id)
+          returnedCount: allBankQuestions.length,
+          questionIds: allBankQuestions.map(q => q.id)
         })
-
-        // 将题库题目添加到题目池，使用Set确保题目ID不重复
-        const seenQuestionIds = new Set()
-        const uniqueQuestions = smartQuestions.filter(q => {
-          if (seenQuestionIds.has(q.id)) {
-            console.warn(`题目池构建时发现重复题目ID: ${q.id}，已过滤`)
-            return false
-          }
-          seenQuestionIds.add(q.id)
-          return true
-        })
-        
-        questionPool.push(...uniqueQuestions.map((q, index) => ({
-          ...this.formatQuestionBankExercise(q, 'public'),
-          _fromPool: true,
-          _poolIndex: questionPool.length + index
-        })))
-        
-        actualBankCount = uniqueQuestions.length
-        console.log(`批量生成 - 题目池最终数量（去重后）: ${actualBankCount}`)
       }
 
-      // 计算需要AI生成的数量：总数 - 实际从题库获取的数量
-      const aiCount = count - actualBankCount
-      console.log(`批量生成 - AI题目数量:`, { total: count, fromBank: actualBankCount, needAI: aiCount })
+      // 去重
+      const seenQuestionIds = new Set()
+      const uniqueBankQuestions = allBankQuestions.filter(q => {
+        if (seenQuestionIds.has(q.id)) {
+          console.warn(`题目池构建时发现重复题目ID: ${q.id}，已过滤`)
+          return false
+        }
+        seenQuestionIds.add(q.id)
+        return true
+      })
+      
+      const actualBankCount = uniqueBankQuestions.length
+      console.log(`批量生成 - 去重后题库题目数量: ${actualBankCount}`)
 
-      // 性能优化：立即返回题库题目（如果有的话），AI题目由前端异步调用生成
+      // 判断题库是否充足（有足够的题目）
+      const hasEnoughInBank = actualBankCount >= count
+      
+      let mainQuestions = []  // 主要题目（85%）
+      let backupQuestions = [] // 备用题目（15%）
+      let aiCount = 0          // 需要AI生成的数量
+      
+      if (hasEnoughInBank) {
+        // 情况1：题库有足够的题目（>=n个）
+        // 随机取85%作为主要题目，15%作为备用
+        const mainCount = Math.round(count * 0.85)
+        const backupCount = count - mainCount
+        
+        // 打乱题库题目
+        const shuffled = [...uniqueBankQuestions].sort(() => Math.random() - 0.5)
+        
+        mainQuestions = shuffled.slice(0, mainCount)
+        backupQuestions = shuffled.slice(mainCount, mainCount + backupCount)
+        
+        // AI生成剩余15%用于替换备用题目
+        aiCount = backupCount
+        
+        console.log(`批量生成 - 情况1（题库充足）:`, {
+          total: count,
+          mainCount,
+          backupCount,
+          aiCount,
+          strategy: '85%主题+15%备用题，AI后台生成替换备用'
+        })
+      } else {
+        // 情况2：题库不足
+        // 能取多少取多少，剩下的交给AI
+        mainQuestions = uniqueBankQuestions
+        aiCount = count - actualBankCount
+        
+        console.log(`批量生成 - 情况2（题库不足）:`, {
+          total: count,
+          fromBank: actualBankCount,
+          needAI: aiCount,
+          strategy: '题库全用+等待AI生成'
+        })
+      }
+      
+      // 将主要题目格式化后放入questionPool（前端会从这里抽取）
+      questionPool.push(...mainQuestions.map((q, index) => ({
+        ...this.formatQuestionBankExercise(q, 'public'),
+        _fromPool: true,
+        _poolIndex: index,
+        _isMain: true
+      })))
+      
+      // 将备用题目也放入questionPool，但标记为备用
+      questionPool.push(...backupQuestions.map((q, index) => ({
+        ...this.formatQuestionBankExercise(q, 'public'),
+        _fromPool: true,
+        _poolIndex: mainQuestions.length + index,
+        _isBackup: true
+      })))
+
+      // 返回题目池和AI生成参数
+      const result = {
+        exercises: [],
+        questionPool,
+        hasEnoughInBank,
+        mainCount: mainQuestions.length,
+        backupCount: backupQuestions.length,
+        needAI: aiCount
+      }
+      
       if (aiCount > 0) {
-        // 准备AI生成所需的参数
-        const aiOptions = {
+        result.aiOptions = {
           exerciseType,
           tenses,
           userId,
@@ -146,25 +200,19 @@ class ExerciseGeneratorService {
           includeRegular,
           includeVos,
           includeVosotros,
-          verbIds,  // 传递verbIds用于收藏/错题专练
-          moods: options.moods  // 传递moods参数
+          verbIds,
+          moods: options.moods
         }
         
-        if (actualBankCount > 0) {
-          console.log(`立即返回 ${actualBankCount} 个题库题目，前端需异步生成 ${aiCount} 个AI题目`)
-        } else {
-          console.log(`题库为空，前端需异步生成全部 ${aiCount} 个AI题目`)
-        }
-        
-        return { 
-          exercises,        // AI生成的题目（暂时为空）
-          questionPool,     // 题库题目（可能为空）
-          needAI: aiCount,  // 需要生成的AI题目数量
-          aiOptions         // AI生成所需参数
-        }
+        console.log(`返回结果:`, {
+          主题: mainQuestions.length,
+          备用题: backupQuestions.length,
+          需要AI: aiCount,
+          题库充足: hasEnoughInBank
+        })
       }
-
-      return { exercises, questionPool }
+      
+      return result
     }
 
     // 默认使用传统方法
@@ -265,10 +313,6 @@ class ExerciseGeneratorService {
       exercise.sentence = question.question_text
       exercise.translation = question.translation
       exercise.hint = question.hint
-    } else if (question.question_type === 'fill') {
-      exercise.question = question.question_text
-      exercise.example = question.example_sentence
-      exercise.hint = question.hint
     }
 
     return exercise
@@ -292,18 +336,6 @@ class ExerciseGeneratorService {
       }
       if (!aiResult.answer || aiResult.answer === 'undefined') {
         return { valid: false, reason: '答案字段缺失或为undefined' }
-      }
-    } else if (exerciseType === 'fill') {
-      // 填空题必须字段
-      if (!aiResult.question || aiResult.question === 'undefined') {
-        return { valid: false, reason: '题目字段缺失或为undefined' }
-      }
-      if (!aiResult.answer || aiResult.answer === 'undefined') {
-        return { valid: false, reason: '答案字段缺失或为undefined' }
-      }
-      // example字段是可选的，但不能是字符串'undefined'
-      if (aiResult.example === 'undefined') {
-        aiResult.example = null  // 修正为null
       }
     }
 
@@ -410,8 +442,6 @@ class ExerciseGeneratorService {
         // 使用AI生成题目
         if (exerciseType === 'sentence') {
           aiResult = await DeepSeekService.generateSentenceExercise(verb, randomConjugation)
-        } else if (exerciseType === 'fill') {
-          aiResult = await DeepSeekService.generateFillBlankExercise(verb, randomConjugation)
         } else {
           throw new Error('不支持的AI生成题型')
         }
@@ -467,15 +497,9 @@ class ExerciseGeneratorService {
     if (!validation || !validation.passed || !aiResult) {
       console.log(`[AI生成] 经过${maxRetries}次尝试仍未生成合格题目，最后错误: ${lastError}`)
       
-      // 填空题和例句填空无法用传统方法生成，直接返回错误
-      if (exerciseType === 'fill' || exerciseType === 'sentence') {
-        console.log(`[AI生成] 填空题/例句填空无法降级，返回null`)
-        return null
-      }
-      
-      // 选择题和变位题可以降级使用传统算法（同步方法）
-      console.log(`[AI生成] 降级使用传统算法生成题目`)
-      return this.generateTraditionalExercise(options)
+      // 例句填空无法用传统方法生成，直接返回错误
+      console.log(`[AI生成] 例句填空无法降级，返回null`)
+      return null
     }
 
     // 验证通过，保存到公共题库（统一初始置信度为50）
@@ -526,17 +550,15 @@ class ExerciseGeneratorService {
       correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
       exerciseType: exerciseType,
       conjugationType: conjugationTypeMap[verb.conjugation_type] || '未知',
-      isIrregular: verb.is_irregular === 1,      isReflexive: randomVerb.is_reflexive === 1,      fromQuestionBank: false,
+      isIrregular: verb.is_irregular === 1,
+      isReflexive: verb.is_reflexive === 1,
+      fromQuestionBank: false,
       aiGenerated: true
     }
 
     if (exerciseType === 'sentence') {
       exercise.sentence = aiResult.sentence
       exercise.translation = aiResult.translation
-      exercise.hint = aiResult.hint
-    } else if (exerciseType === 'fill') {
-      exercise.question = aiResult.question
-      exercise.example = aiResult.example || null
       exercise.hint = aiResult.hint
     }
 
@@ -623,8 +645,6 @@ class ExerciseGeneratorService {
 
         if (exerciseType === 'sentence') {
           aiResult = await DeepSeekService.generateSentenceExercise(verb, randomConjugation)
-        } else if (exerciseType === 'fill') {
-          aiResult = await DeepSeekService.generateFillBlankExercise(verb, randomConjugation)
         } else {
           throw new Error('不支持的AI生成题型')
         }
@@ -726,10 +746,6 @@ class ExerciseGeneratorService {
       exercise.sentence = aiResult.sentence
       exercise.translation = aiResult.translation
       exercise.hint = aiResult.hint
-    } else if (exerciseType === 'fill') {
-      exercise.question = aiResult.question
-      exercise.example = aiResult.example || null
-      exercise.hint = aiResult.hint
     }
 
     return exercise
@@ -805,7 +821,8 @@ class ExerciseGeneratorService {
         conjugationTypes,
         includeRegular,
         includeVos: options.includeVos,
-        includeVosotros: options.includeVosotros
+        includeVosotros: options.includeVosotros,
+        verbIds
       }, 1)
 
       if (supplementQuestions.length > 0) {
@@ -817,7 +834,7 @@ class ExerciseGeneratorService {
   }
 
   /**
-   * 使用传统固定算法生成（选择题、变位题）
+   * 使用传统固定算法生成（快变快填、组合填空）
    * 注意：该方法为同步方法，不涉及AI，不需要await
    */
   static generateTraditionalExercise(options) {
@@ -1000,24 +1017,6 @@ class ExerciseGeneratorService {
     return exercise
   }
 
-  /**
-   * 生成选择题干扰选项（已弃用）
-   */
-  static generateChoiceOptions(correctConjugation, allConjugations) {
-    const options = [correctConjugation.conjugated_form]
-    const otherForms = allConjugations
-      .filter(c => c.conjugated_form !== correctConjugation.conjugated_form)
-      .map(c => c.conjugated_form)
-
-    // 随机选择3个干扰项
-    while (options.length < 4 && otherForms.length > 0) {
-      const randomIndex = Math.floor(Math.random() * otherForms.length)
-      options.push(otherForms.splice(randomIndex, 1)[0])
-    }
-
-    // 打乱选项顺序
-    return options.sort(() => Math.random() - 0.5)
-  }
 }
 
 module.exports = ExerciseGeneratorService

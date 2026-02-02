@@ -4,9 +4,9 @@
       <div>
         <h2>题库管理</h2>
         <p class="muted">
-          已启用题库管理表格与编辑抽屉。接口对接：GET /admin/questions（limit/offset/keyword）、GET
-          /admin/questions/:id、PUT /admin/questions/:id、DELETE /admin/questions/:id。
+          管理所有动词变位例句题目
         </p>
+        <p class="muted total-count">共 {{ total }} 条</p>
       </div>
       <div class="toolbar">
         <div class="toolbar-left">

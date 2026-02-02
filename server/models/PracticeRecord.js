@@ -1,6 +1,77 @@
 const { userDb, vocabularyDb } = require('../database/db')
 
 class PracticeRecord {
+  static buildWhereClause({
+    keyword,
+    userId,
+    verbId,
+    exerciseType,
+    isCorrect,
+    tense,
+    mood,
+    person,
+    startDate,
+    endDate,
+    includeUserFields = false,
+    excludeDev = false
+  } = {}) {
+    const conditions = []
+    const params = []
+    const userFields = includeUserFields ? 'u.username LIKE ? OR u.email LIKE ? OR ' : ''
+
+    if (keyword) {
+      conditions.push(`(${userFields}CAST(pr.user_id AS TEXT) LIKE ?)`)
+      const value = `%${keyword}%`
+      if (includeUserFields) {
+        params.push(value, value)
+      }
+      params.push(value)
+    }
+    if (userId) {
+      conditions.push('pr.user_id = ?')
+      params.push(userId)
+    }
+    if (verbId) {
+      conditions.push('pr.verb_id = ?')
+      params.push(verbId)
+    }
+    if (exerciseType) {
+      conditions.push('pr.exercise_type = ?')
+      params.push(exerciseType)
+    }
+    if (isCorrect !== undefined && isCorrect !== null && isCorrect !== '') {
+      conditions.push('pr.is_correct = ?')
+      params.push(isCorrect ? 1 : 0)
+    }
+    if (tense) {
+      conditions.push('pr.tense = ?')
+      params.push(tense)
+    }
+    if (mood) {
+      conditions.push('pr.mood = ?')
+      params.push(mood)
+    }
+    if (person) {
+      conditions.push('pr.person = ?')
+      params.push(person)
+    }
+    if (startDate) {
+      conditions.push('pr.created_at >= ?')
+      params.push(startDate)
+    }
+    if (endDate) {
+      conditions.push('pr.created_at <= ?')
+      params.push(endDate)
+    }
+    if (excludeDev) {
+      conditions.push('(u.role IS NULL OR u.role != ?)')
+      params.push('dev')
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+    return { whereClause, params }
+  }
+
   // 创建练习记录
   static create(recordData) {
     const { userId, verbId, exerciseType, isCorrect, answer, correctAnswer, tense, mood, person } = recordData
@@ -93,6 +164,236 @@ class PracticeRecord {
     }
     
     return records
+  }
+
+  static listAll({
+    limit = 50,
+    offset = 0,
+    keyword,
+    userId,
+    verbId,
+    exerciseType,
+    isCorrect,
+    tense,
+    mood,
+    person,
+    startDate,
+    endDate,
+    sortBy = 'created_at',
+    sortOrder = 'desc'
+  } = {}) {
+    const { whereClause, params } = this.buildWhereClause({
+      keyword,
+      userId,
+      verbId,
+      exerciseType,
+      isCorrect,
+      tense,
+      mood,
+      person,
+      startDate,
+      endDate,
+      includeUserFields: true,
+      excludeDev: true
+    })
+    const sortMap = {
+      id: 'pr.id',
+      user_id: 'pr.user_id',
+      verb_id: 'pr.verb_id',
+      exercise_type: 'pr.exercise_type',
+      is_correct: 'pr.is_correct',
+      tense: 'pr.tense',
+      mood: 'pr.mood',
+      person: 'pr.person',
+      created_at: 'pr.created_at'
+    }
+    const sortField = sortMap[sortBy] || sortMap.created_at
+    const order = String(sortOrder).toLowerCase() === 'asc' ? 'ASC' : 'DESC'
+
+    const rows = userDb
+      .prepare(
+        `
+        SELECT pr.*, u.username, u.email
+        FROM practice_records pr
+        LEFT JOIN users u ON pr.user_id = u.id
+        ${whereClause}
+        ORDER BY ${sortField} ${order}
+        LIMIT ? OFFSET ?
+      `
+      )
+      .all(...params, limit, offset)
+
+    const total = userDb
+      .prepare(
+        `
+        SELECT COUNT(*) as total
+        FROM practice_records pr
+        LEFT JOIN users u ON pr.user_id = u.id
+        ${whereClause}
+      `
+      )
+      .get(...params).total
+
+    if (rows.length > 0) {
+      const verbIds = [...new Set(rows.map(r => r.verb_id).filter(Boolean))]
+      if (verbIds.length > 0) {
+        const placeholders = verbIds.map(() => '?').join(',')
+        const verbStmt = vocabularyDb.prepare(
+          `SELECT id, infinitive, meaning FROM verbs WHERE id IN (${placeholders})`
+        )
+        const verbs = verbStmt.all(...verbIds)
+        const verbMap = {}
+        verbs.forEach(v => {
+          verbMap[v.id] = v
+        })
+        rows.forEach(r => {
+          const verb = verbMap[r.verb_id]
+          if (verb) {
+            r.infinitive = verb.infinitive
+            r.meaning = verb.meaning
+          }
+        })
+      }
+    }
+
+    return { rows, total }
+  }
+
+  static getStats({
+    keyword,
+    userId,
+    verbId,
+    exerciseType,
+    isCorrect,
+    tense,
+    mood,
+    person,
+    startDate,
+    endDate,
+    limit = 50
+  } = {}) {
+    const { whereClause, params } = this.buildWhereClause({
+      keyword,
+      userId,
+      verbId,
+      exerciseType,
+      isCorrect,
+      tense,
+      mood,
+      person,
+      startDate,
+      endDate,
+      includeUserFields: true,
+      excludeDev: true
+    })
+
+    const overall = userDb
+      .prepare(
+        `
+        SELECT COUNT(*) as total, SUM(pr.is_correct) as correct
+        FROM practice_records pr
+        LEFT JOIN users u ON pr.user_id = u.id
+        ${whereClause}
+      `
+      )
+      .get(...params)
+
+    const byUser = userDb
+      .prepare(
+        `
+        SELECT pr.user_id, u.username, u.email,
+          COUNT(*) as total,
+          SUM(pr.is_correct) as correct
+        FROM practice_records pr
+        LEFT JOIN users u ON pr.user_id = u.id
+        ${whereClause}
+        GROUP BY pr.user_id
+        ORDER BY total DESC
+        LIMIT ?
+      `
+      )
+      .all(...params, limit)
+      .map(item => ({
+        ...item,
+        accuracy: item.total ? item.correct / item.total : 0
+      }))
+
+    const byVerb = userDb
+      .prepare(
+        `
+        SELECT pr.verb_id,
+          COUNT(*) as total,
+          SUM(pr.is_correct) as correct
+        FROM practice_records pr
+        LEFT JOIN users u ON pr.user_id = u.id
+        ${whereClause}
+        GROUP BY pr.verb_id
+        ORDER BY total DESC
+        LIMIT ?
+      `
+      )
+      .all(...params, limit)
+
+    if (byVerb.length > 0) {
+      const verbIds = [...new Set(byVerb.map(item => item.verb_id).filter(Boolean))]
+      if (verbIds.length > 0) {
+        const placeholders = verbIds.map(() => '?').join(',')
+        const verbStmt = vocabularyDb.prepare(
+          `SELECT id, infinitive, meaning FROM verbs WHERE id IN (${placeholders})`
+        )
+        const verbs = verbStmt.all(...verbIds)
+        const verbMap = {}
+        verbs.forEach(v => {
+          verbMap[v.id] = v
+        })
+        byVerb.forEach(item => {
+          const verb = verbMap[item.verb_id]
+          if (verb) {
+            item.infinitive = verb.infinitive
+            item.meaning = verb.meaning
+          }
+          item.accuracy = item.total ? item.correct / item.total : 0
+        })
+      } else {
+        byVerb.forEach(item => {
+          item.accuracy = item.total ? item.correct / item.total : 0
+        })
+      }
+    }
+
+    const byUserTenseMood = userDb
+      .prepare(
+        `
+        SELECT pr.user_id, u.username, u.email, pr.tense, pr.mood,
+          COUNT(*) as total,
+          SUM(pr.is_correct) as correct
+        FROM practice_records pr
+        LEFT JOIN users u ON pr.user_id = u.id
+        ${whereClause}
+        GROUP BY pr.user_id, pr.tense, pr.mood
+        ORDER BY total DESC
+        LIMIT ?
+      `
+      )
+      .all(...params, limit)
+      .map(item => ({
+        ...item,
+        accuracy: item.total ? item.correct / item.total : 0
+      }))
+
+    return {
+      overall: {
+        total: overall?.total || 0,
+        correct: overall?.correct || 0,
+        accuracy: overall?.total ? overall.correct / overall.total : 0
+      },
+      byUser,
+      byVerb: byVerb.map(item => ({
+        ...item,
+        accuracy: item.accuracy ?? (item.total ? item.correct / item.total : 0)
+      })),
+      byUserTenseMood
+    }
   }
 
   // 获取用户统计数据

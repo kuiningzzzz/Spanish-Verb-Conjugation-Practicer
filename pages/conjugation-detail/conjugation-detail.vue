@@ -7,8 +7,8 @@
           <text class="verb-infinitive">{{ verbInfo.infinitive }}{{ verbInfo.isReflexive ? '(se)' : '' }}</text>
           <view class="verb-badges">
             <view class="badge badge-type">{{ verbInfo.conjugationType }}</view>
-            <view v-if="verbInfo.isIrregular" class="badge badge-irregular">不规则</view>
-            <view v-if="verbInfo.isReflexive" class="badge badge-reflexive">反身</view>
+            <view v-if="verbInfo.isIrregular" class="badge badge-irregular">Irreg.</view>
+            <view v-if="verbInfo.isReflexive" class="badge badge-reflexive">Prnl.</view>
           </view>
         </view>
         <view class="favorite-icon" @click="toggleFavorite">
@@ -37,9 +37,9 @@
       <!-- 反身代词变位（仅反身动词显示） -->
       <view v-if="verbInfo.isReflexive" class="mood-group">
         <view class="mood-header" @click="toggleReflexivePronouns">
-          <text class="mood-name">反身代词变位 (Pronombres Reflexivos)</text>
+          <text class="mood-name">Pronombres Reflexivos (反身代词变位)</text>
           <view class="mood-right">
-            <text class="mood-count">7个人称</text>
+            <text class="mood-count">7 personas</text>
             <text class="toggle-icon">{{ showReflexivePronouns ? '▼' : '▶' }}</text>
           </view>
         </view>
@@ -268,11 +268,11 @@ export default {
     // 获取语气名称
     getMoodName(mood) {
       const moodMap = {
-        '陈述式': '陈述式 (Indicativo)',
-        '虚拟式': '虚拟式 (Subjuntivo)',
-        '命令式': '命令式 (Imperativo)',
-        '复合陈述式': '复合陈述式 (Indicativo Compuesto)',
-        '复合虚拟式': '复合虚拟式 (Subjuntivo Compuesto)'
+        '陈述式': 'Indicativo (陈述式)',
+        '虚拟式': 'Subjuntivo (虚拟式)',
+        '命令式': 'Imperativo (命令式)',
+        '复合陈述式': 'Indicativo Compuesto (复合陈述式)',
+        '复合虚拟式': 'Subjuntivo Compuesto (复合虚拟式)'
       }
       return moodMap[mood] || mood
     },
@@ -280,24 +280,24 @@ export default {
     // 获取时态名称
     getTenseName(tense) {
       const tenseMap = {
-        '现在时': '现在时 (Presente)',
-        '简单过去时': '简单过去时 (Pretérito)',
-        '未完成过去时': '未完成过去时 (Imperfecto)',
-        '将来时': '将来时 (Futuro)',
-        '条件式': '条件式 (Condicional)',
-        '现在完成时': '现在完成时 (Pretérito Perfecto)',
-        '过去完成时': '过去完成时 (Pluscuamperfecto)',
-        '将来完成时': '将来完成时 (Futuro Perfecto)',
-        '条件完成时': '条件完成时 (Condicional Perfecto)',
-        '虚拟现在时': '虚拟现在时 (Presente)',
-        '虚拟过去时': '虚拟过去时 (Imperfecto)',
-        '虚拟将来时': '虚拟将来时 (Futuro)',
-        '虚拟现在完成时': '虚拟现在完成时 (Pretérito Perfecto)',
-        '虚拟过去完成时': '虚拟过去完成时 (Pluscuamperfecto)',
-        '虚拟将来完成时': '虚拟将来完成时 (Futuro Perfecto)',
-        '肯定命令式': '肯定命令式 (Imperativo Afirmativo)',
-        '否定命令式': '否定命令式 (Imperativo Negativo)',
-        '先过去时': '先过去时 (Pretérito Anterior)'
+        '现在时': 'Presente (现在时)',
+        '简单过去时': 'Pretérito Indefinido (简单过去时)',
+        '未完成过去时': 'Pretérito Imperfecto (过去未完成时)',
+        '将来时': 'Futuro Simple (将来时)',
+        '条件式': 'Condicional Simple (条件式)',
+        '现在完成时': 'Pretérito Perfecto (现在完成时)',
+        '过去完成时': 'Pluscuamperfecto (过去完成时)',
+        '将来完成时': 'Futuro Perfecto (将来完成时)',
+        '条件完成时': 'Condicional Perfecto (条件完成时)',
+        '虚拟现在时': 'Presente de Subjuntivo (虚拟现在时)',
+        '虚拟过去时': 'Imperfecto de Subjuntivo (虚拟过去时)',
+        '虚拟将来时': 'Futuro de Subjuntivo (虚拟将来时)',
+        '虚拟现在完成时': 'Perfecto de Subjuntivo (虚拟现在完成时)',
+        '虚拟过去完成时': 'Pluscuamperfecto de Subjuntivo (虚拟过去完成时)',
+        '虚拟将来完成时': 'Futuro Perfecto de Subjuntivo (虚拟将来完成时)',
+        '肯定命令式': 'Imperativo Afirmativo (肯定命令式)',
+        '否定命令式': 'Imperativo Negativo (否定命令式)',
+        '先过去时': 'Pretérito Anterior (先过去时)'
       }
       return tenseMap[tense] || tense
     },
@@ -531,7 +531,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 25rpx 30rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   border-radius: 20rpx;
   cursor: pointer;
   transition: all 0.3s;
