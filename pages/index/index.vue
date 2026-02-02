@@ -5,7 +5,7 @@
       <text class="subtitle">每天练习，轻松掌握</text>
       <!-- 公告按钮 -->
       <view class="announcement-btn" @click="goToAnnouncement">
-        <text class="announcement-icon">📢</text>
+        <text class="announcement-icon" :class="{ 'ring-animation': hasNewAnnouncement }">📢</text>
       </view>
     </view>
 
@@ -78,7 +78,8 @@ export default {
       totalStats: {},
       streakDays: 0,
       studyDays: 0,
-      hasCheckedInToday: false
+      hasCheckedInToday: false,
+      hasNewAnnouncement: false  // 是否有新公告
     }
   },
   onLoad() {
@@ -88,6 +89,8 @@ export default {
     if (this.userInfo) {
       this.loadData()
     }
+    // 检查是否有新公告
+    this.checkNewAnnouncements()
   },
   methods: {
     checkLogin() {
@@ -229,9 +232,48 @@ export default {
       })
     },
     goToAnnouncement() {
+      // 进入公告页面前，先获取当前公告列表，标记为已读
+      this.markAnnouncementsAsRead()
       uni.navigateTo({
         url: '/pages/announcement/announcement'
       })
+    },
+    
+    // 检查是否有新公告
+    async checkNewAnnouncements() {
+      try {
+        const res = await api.getAnnouncements()
+        if (res.success && res.data) {
+          const currentIds = res.data.map(a => a.id)
+          const readIds = uni.getStorageSync('readAnnouncementIds') || []
+          
+          // 检查是否有新公告（当前ID中有不在已读ID中的）
+          const hasNew = currentIds.some(id => !readIds.includes(id))
+          this.hasNewAnnouncement = hasNew
+          
+          // 如果有ID被删除，更新已读ID列表（只保留仍然存在的ID）
+          const validReadIds = readIds.filter(id => currentIds.includes(id))
+          if (validReadIds.length !== readIds.length) {
+            uni.setStorageSync('readAnnouncementIds', validReadIds)
+          }
+        }
+      } catch (error) {
+        console.error('检查新公告失败:', error)
+      }
+    },
+    
+    // 标记当前所有公告为已读
+    async markAnnouncementsAsRead() {
+      try {
+        const res = await api.getAnnouncements()
+        if (res.success && res.data) {
+          const currentIds = res.data.map(a => a.id)
+          uni.setStorageSync('readAnnouncementIds', currentIds)
+          this.hasNewAnnouncement = false
+        }
+      } catch (error) {
+        console.error('标记公告已读失败:', error)
+      }
     }
   }
 }
@@ -281,6 +323,10 @@ export default {
 
 .announcement-icon {
   font-size: 36rpx;
+}
+
+/* 只有当有ring-animation class时才播放动画 */
+.ring-animation {
   animation: ring 2s ease-in-out infinite;
 }
 
