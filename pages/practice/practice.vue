@@ -1621,10 +1621,10 @@ export default {
       }
     },
     
-    // 检查当前题目是否已收藏（仅填空题和例句填空）
+    // 检查当前题目是否已收藏（仅例句填空）
     async checkQuestionFavoriteStatus() {
       const ex = this.currentExercise
-      if (!ex || (ex.exerciseType !== 'fill' && ex.exerciseType !== 'sentence')) {
+      if (!ex || ex.exerciseType !== 'sentence') {
         this.isQuestionFavorited = false
         return
       }
@@ -1645,11 +1645,11 @@ export default {
       this.isQuestionFavorited = false
     },
     
-    // 切换题目收藏状态（仅填空题和例句填空）
+    // 切换题目收藏状态（仅例句填空）
     async toggleQuestionFavorite() {
       const ex = this.currentExercise
-      if (!ex || (ex.exerciseType !== 'fill' && ex.exerciseType !== 'sentence')) {
-        showToast('只支持收藏填空题和例句填空', 'none')
+      if (!ex || ex.exerciseType !== 'sentence') {
+        showToast('只支持收藏例句填空', 'none')
         return
       }
       

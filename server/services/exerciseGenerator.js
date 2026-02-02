@@ -19,8 +19,8 @@ class ExerciseGeneratorService {
   /**
    * 批量生成题目（新策略）
    * 策略：
-   * - 选择题和变位题：使用固定算法生成（不调用AI）
-   * - 填空题和例句填空：按比例从题库和AI混合获取
+   * - 快变快填和组合填空：使用固定算法生成（不调用AI）
+   * - 例句填空：按比例从题库和AI混合获取
    * - 一次性生成所有需要的题目，管理题目池
    */
   static async generateBatch(options) {
@@ -265,10 +265,6 @@ class ExerciseGeneratorService {
       exercise.sentence = question.question_text
       exercise.translation = question.translation
       exercise.hint = question.hint
-    } else if (question.question_type === 'fill') {
-      exercise.question = question.question_text
-      exercise.example = question.example_sentence
-      exercise.hint = question.hint
     }
 
     return exercise
@@ -292,18 +288,6 @@ class ExerciseGeneratorService {
       }
       if (!aiResult.answer || aiResult.answer === 'undefined') {
         return { valid: false, reason: '答案字段缺失或为undefined' }
-      }
-    } else if (exerciseType === 'fill') {
-      // 填空题必须字段
-      if (!aiResult.question || aiResult.question === 'undefined') {
-        return { valid: false, reason: '题目字段缺失或为undefined' }
-      }
-      if (!aiResult.answer || aiResult.answer === 'undefined') {
-        return { valid: false, reason: '答案字段缺失或为undefined' }
-      }
-      // example字段是可选的，但不能是字符串'undefined'
-      if (aiResult.example === 'undefined') {
-        aiResult.example = null  // 修正为null
       }
     }
 
@@ -410,8 +394,6 @@ class ExerciseGeneratorService {
         // 使用AI生成题目
         if (exerciseType === 'sentence') {
           aiResult = await DeepSeekService.generateSentenceExercise(verb, randomConjugation)
-        } else if (exerciseType === 'fill') {
-          aiResult = await DeepSeekService.generateFillBlankExercise(verb, randomConjugation)
         } else {
           throw new Error('不支持的AI生成题型')
         }
@@ -467,15 +449,9 @@ class ExerciseGeneratorService {
     if (!validation || !validation.passed || !aiResult) {
       console.log(`[AI生成] 经过${maxRetries}次尝试仍未生成合格题目，最后错误: ${lastError}`)
       
-      // 填空题和例句填空无法用传统方法生成，直接返回错误
-      if (exerciseType === 'fill' || exerciseType === 'sentence') {
-        console.log(`[AI生成] 填空题/例句填空无法降级，返回null`)
-        return null
-      }
-      
-      // 选择题和变位题可以降级使用传统算法（同步方法）
-      console.log(`[AI生成] 降级使用传统算法生成题目`)
-      return this.generateTraditionalExercise(options)
+      // 例句填空无法用传统方法生成，直接返回错误
+      console.log(`[AI生成] 例句填空无法降级，返回null`)
+      return null
     }
 
     // 验证通过，保存到公共题库（统一初始置信度为50）
@@ -526,17 +502,15 @@ class ExerciseGeneratorService {
       correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
       exerciseType: exerciseType,
       conjugationType: conjugationTypeMap[verb.conjugation_type] || '未知',
-      isIrregular: verb.is_irregular === 1,      isReflexive: randomVerb.is_reflexive === 1,      fromQuestionBank: false,
+      isIrregular: verb.is_irregular === 1,
+      isReflexive: verb.is_reflexive === 1,
+      fromQuestionBank: false,
       aiGenerated: true
     }
 
     if (exerciseType === 'sentence') {
       exercise.sentence = aiResult.sentence
       exercise.translation = aiResult.translation
-      exercise.hint = aiResult.hint
-    } else if (exerciseType === 'fill') {
-      exercise.question = aiResult.question
-      exercise.example = aiResult.example || null
       exercise.hint = aiResult.hint
     }
 
@@ -623,8 +597,6 @@ class ExerciseGeneratorService {
 
         if (exerciseType === 'sentence') {
           aiResult = await DeepSeekService.generateSentenceExercise(verb, randomConjugation)
-        } else if (exerciseType === 'fill') {
-          aiResult = await DeepSeekService.generateFillBlankExercise(verb, randomConjugation)
         } else {
           throw new Error('不支持的AI生成题型')
         }
@@ -726,10 +698,6 @@ class ExerciseGeneratorService {
       exercise.sentence = aiResult.sentence
       exercise.translation = aiResult.translation
       exercise.hint = aiResult.hint
-    } else if (exerciseType === 'fill') {
-      exercise.question = aiResult.question
-      exercise.example = aiResult.example || null
-      exercise.hint = aiResult.hint
     }
 
     return exercise
@@ -818,7 +786,7 @@ class ExerciseGeneratorService {
   }
 
   /**
-   * 使用传统固定算法生成（选择题、变位题）
+   * 使用传统固定算法生成（快变快填、组合填空）
    * 注意：该方法为同步方法，不涉及AI，不需要await
    */
   static generateTraditionalExercise(options) {
@@ -1001,24 +969,6 @@ class ExerciseGeneratorService {
     return exercise
   }
 
-  /**
-   * 生成选择题干扰选项（已弃用）
-   */
-  static generateChoiceOptions(correctConjugation, allConjugations) {
-    const options = [correctConjugation.conjugated_form]
-    const otherForms = allConjugations
-      .filter(c => c.conjugated_form !== correctConjugation.conjugated_form)
-      .map(c => c.conjugated_form)
-
-    // 随机选择3个干扰项
-    while (options.length < 4 && otherForms.length > 0) {
-      const randomIndex = Math.floor(Math.random() * otherForms.length)
-      options.push(otherForms.splice(randomIndex, 1)[0])
-    }
-
-    // 打乱选项顺序
-    return options.sort(() => Math.random() - 0.5)
-  }
 }
 
 module.exports = ExerciseGeneratorService

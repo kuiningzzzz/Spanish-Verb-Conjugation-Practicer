@@ -574,8 +574,8 @@ router.put('/questions/:id', requireAdmin, (req, res) => {
   if (!verb) {
     return res.status(400).json({ error: '动词ID不存在', errors: { verb_id: '动词ID不存在' } })
   }
-  if (!['fill', 'sentence'].includes(payload.question_type)) {
-    return res.status(400).json({ error: '题目类型需为 fill 或 sentence' })
+  if (!['sentence'].includes(payload.question_type)) {
+    return res.status(400).json({ error: '题目类型仅支持 sentence' })
   }
   if (!payload.question_text || !payload.correct_answer) {
     return res.status(400).json({ error: '题干和答案不能为空' })
