@@ -7,7 +7,7 @@
         <input 
           class="search-input" 
           v-model="searchKeyword" 
-          placeholder="搜索单词原型或变位形式..."
+          placeholder="搜索单词原形或变位形式..."
           @input="onSearchInput"
           @confirm="performSearch"
           focus
@@ -20,7 +20,7 @@
     <view v-if="showSearchResults" class="search-results">
       <!-- 精确匹配结果 -->
       <view v-if="hasExactResults" class="results-section">
-        <!-- 原型精确匹配 -->
+        <!-- 原形精确匹配 -->
         <view
           v-for="(verb, index) in displayedExactInfinitive"
           :key="'exact-inf-' + verb.id"
@@ -77,7 +77,7 @@
           <text>你想检索的单词还可能是：</text>
         </view>
 
-        <!-- 原型模糊匹配 -->
+        <!-- 原形模糊匹配 -->
         <view
           v-for="(verb, index) in displayedFuzzyInfinitive"
           :key="'fuzzy-inf-' + verb.id"
@@ -169,7 +169,7 @@
       <view v-else class="search-tips">
         <view class="tip-item">
           <text class="tip-icon">💡</text>
-          <text class="tip-text">输入动词原型，如 "hablar"</text>
+          <text class="tip-text">输入动词原形，如 "hablar"</text>
         </view>
         <view class="tip-item">
           <text class="tip-icon">💡</text>
@@ -212,7 +212,7 @@ export default {
   },
 
   computed: {
-    // 当前显示的精确匹配结果（原型）
+    // 当前显示的精确匹配结果（原形）
     displayedExactInfinitive() {
       return this.searchResults.exactInfinitive.slice(0, this.exactDisplayCount)
     },
@@ -224,7 +224,7 @@ export default {
       return this.searchResults.exactConjugation.slice(0, remaining)
     },
     
-    // 当前显示的模糊匹配结果（原型）
+    // 当前显示的模糊匹配结果（原形）
     displayedFuzzyInfinitive() {
       return this.searchResults.fuzzyInfinitive.slice(0, this.fuzzyDisplayCount)
     },

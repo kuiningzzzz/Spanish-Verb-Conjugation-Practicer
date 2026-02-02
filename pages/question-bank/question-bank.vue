@@ -30,7 +30,7 @@
         <view class="question-header">
           <view class="header-left">
             <view class="question-number">#{{ index + 1 }}</view>
-            <!-- 动词原型 -->
+            <!-- 动词原形 -->
             <view v-if="item.infinitive" class="verb-infinitive">
               <text class="verb-text">{{ item.infinitive }}</text>
               <text v-if="item.meaning" class="verb-meaning">（{{ item.meaning }}）</text>
@@ -273,7 +273,7 @@ export default {
   transform: scale(0.95);
 }
 
-/* 动词原型（在header内） */
+/* 动词原形（在header内） */
 .verb-infinitive {
   display: flex;
   align-items: center;

@@ -158,6 +158,13 @@
 
     <!-- 浮动操作按钮 -->
     <view class="fab-container">
+      <view
+        v-if="showFeedbackTip"
+        class="fab-tip"
+        :class="{ fading: feedbackTipFading }"
+      >
+        <text class="fab-tip-text">点我进行反馈哦～</text>
+      </view>
       <view class="fab-button" @click="startPractice">
         <text class="fab-icon">📝</text>
       </view>
@@ -259,6 +266,8 @@
 import api from '@/utils/api.js'
 import { showToast, showConfirm, formatDate } from '@/utils/common.js'
 
+let hasShownProfileFeedbackTip = false
+
 export default {
   data() {
     return {
@@ -268,6 +277,8 @@ export default {
       totalExercises: 0,
       masteredCount: 0,
       rank: 0,
+      showFeedbackTip: false,
+      feedbackTipFading: false,
       showEditModal: false,
       editForm: {
         username: '',
@@ -325,6 +336,15 @@ export default {
     }
     this.loadUserInfo()
     this.loadUserStats()
+    this.maybeShowFeedbackTip()
+  },
+  onHide() {
+    this.clearFeedbackTipTimers()
+    this.showFeedbackTip = false
+    this.feedbackTipFading = false
+  },
+  onUnload() {
+    this.clearFeedbackTipTimers()
   },
   methods: {
     async loadUserInfo() {
@@ -763,6 +783,29 @@ export default {
       uni.navigateTo({
         url: '/pages/feedback/feedback'
       })
+    },
+    maybeShowFeedbackTip() {
+      if (hasShownProfileFeedbackTip) return
+      hasShownProfileFeedbackTip = true
+      this.showFeedbackTip = true
+      this.feedbackTipFading = false
+      this.clearFeedbackTipTimers()
+      this.feedbackTipTimer = setTimeout(() => {
+        this.feedbackTipFading = true
+      }, 3000)
+      this.feedbackTipHideTimer = setTimeout(() => {
+        this.showFeedbackTip = false
+      }, 3600)
+    },
+    clearFeedbackTipTimers() {
+      if (this.feedbackTipTimer) {
+        clearTimeout(this.feedbackTipTimer)
+        this.feedbackTipTimer = null
+      }
+      if (this.feedbackTipHideTimer) {
+        clearTimeout(this.feedbackTipHideTimer)
+        this.feedbackTipHideTimer = null
+      }
     },
     async logout() {
       try {
@@ -1232,6 +1275,46 @@ export default {
   bottom: 40rpx;
   right: 40rpx;
   z-index: 100;
+}
+
+.fab-tip {
+  position: absolute;
+  right: 120rpx;
+  bottom: 18rpx;
+  padding: 12rpx 18rpx;
+  background: #ffffff;
+  color: #8B0012;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  box-shadow: 0 12rpx 24rpx rgba(0, 0, 0, 0.12);
+  border: 1rpx solid rgba(139, 0, 18, 0.18);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.fab-tip::after {
+  content: '';
+  position: absolute;
+  right: -14rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 10rpx 0 10rpx 14rpx;
+  border-style: solid;
+  border-color: transparent transparent transparent #ffffff;
+  filter: drop-shadow(0 6rpx 8rpx rgba(0, 0, 0, 0.08));
+}
+
+.fab-tip.fading {
+  opacity: 0;
+  transform: translateY(10rpx);
+}
+
+.fab-tip-text {
+  line-height: 1.2;
 }
 
 .fab-button {

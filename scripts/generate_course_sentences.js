@@ -131,9 +131,91 @@ function getLessons(options) {
   return lessons
 }
 
-async function addSentenceForVerb(verb, aiOptions, countStmt, maxAttempts) {
+function createTensePicker(allTenses) {
+  const tenses = Array.isArray(allTenses) ? allTenses.filter(Boolean) : []
+  if (tenses.length === 0) {
+    return () => null
+  }
+
+  let queue = []
+  let index = 0
+
+  const reshuffle = () => {
+    queue = [...tenses]
+    for (let i = queue.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[queue[i], queue[j]] = [queue[j], queue[i]]
+    }
+    index = 0
+  }
+
+  reshuffle()
+
+  return () => {
+    if (index >= queue.length) {
+      reshuffle()
+    }
+    return queue[index++]
+  }
+}
+
+function createMoodPicker(allMoods) {
+  const moods = Array.isArray(allMoods) ? allMoods.filter(Boolean) : []
+  if (moods.length === 0) {
+    return () => null
+  }
+
+  let queue = []
+  let index = 0
+
+  const reshuffle = () => {
+    queue = [...moods]
+    for (let i = queue.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[queue[i], queue[j]] = [queue[j], queue[i]]
+    }
+    index = 0
+  }
+
+  reshuffle()
+
+  return () => {
+    if (index >= queue.length) {
+      reshuffle()
+    }
+    return queue[index++]
+  }
+}
+
+function getMergedLessonConfig(lesson) {
+  const allLessons = Lesson.getByTextbookId(lesson.textbook_id)
+  const currentNumber = lesson.lesson_number || 0
+  const lessonsToMerge = allLessons.filter(l => (l.lesson_number || 0) <= currentNumber)
+
+  const moodsSet = new Set()
+  const tensesSet = new Set()
+
+  lessonsToMerge.forEach(l => {
+    parseJsonArray(l.moods).forEach(m => moodsSet.add(m))
+    parseJsonArray(l.tenses).forEach(t => tensesSet.add(t))
+  })
+
+  return {
+    moods: Array.from(moodsSet),
+    tenses: Array.from(tensesSet)
+  }
+}
+
+async function addSentenceForVerb(verb, baseAiOptions, countStmt, maxAttempts, pickTense, pickMood) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const before = countStmt.get(verb.id).count
+    const preferredTense = pickTense ? pickTense() : null
+    const preferredMood = pickMood ? pickMood() : null
+    const aiOptions = {
+      ...baseAiOptions,
+      tenses: preferredTense ? [preferredTense] : baseAiOptions.tenses,
+      moods: preferredMood ? [preferredMood] : baseAiOptions.moods
+    }
     const exercise = await ExerciseGeneratorService.generateWithAIForVerb(verb, aiOptions)
     if (!exercise) {
       continue
@@ -153,10 +235,14 @@ async function processLesson(lesson, options, countStmt) {
     return
   }
 
-  const moods = parseJsonArray(lesson.moods)
-  const tenses = parseJsonArray(lesson.tenses)
+  const mergedConfig = getMergedLessonConfig(lesson)
+  const moods = mergedConfig.moods
+  const tenses = mergedConfig.tenses
+  const pickTense = createTensePicker(tenses)
+  const pickMood = createMoodPicker(moods)
+
   const targetMinTotal = verbs.length * options.minPerVerb
-  const targetTotal = Math.max(options.count, targetMinTotal)
+  const targetTotal = Math.max(options.count, targetMinTotal, verbs.length)
 
   const verbStats = verbs.map(verb => ({
     verb,
@@ -186,7 +272,7 @@ async function processLesson(lesson, options, countStmt) {
   for (const stat of verbStats) {
     const needed = Math.max(0, options.minPerVerb - stat.count)
     for (let i = 0; i < needed; i++) {
-      const result = await addSentenceForVerb(stat.verb, aiOptions, countStmt, options.maxAttempts)
+      const result = await addSentenceForVerb(stat.verb, aiOptions, countStmt, options.maxAttempts, pickTense, pickMood)
       if (result.added) {
         stat.count = result.after
         currentTotal += 1
@@ -208,7 +294,7 @@ async function processLesson(lesson, options, countStmt) {
     const sortedStats = [...verbStats].sort((a, b) => a.count - b.count)
     for (const stat of sortedStats) {
       if (remaining <= 0) break
-      const result = await addSentenceForVerb(stat.verb, aiOptions, countStmt, options.maxAttempts)
+      const result = await addSentenceForVerb(stat.verb, aiOptions, countStmt, options.maxAttempts, pickTense, pickMood)
       if (result.added) {
         stat.count = result.after
         currentTotal += 1

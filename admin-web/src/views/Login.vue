@@ -1,8 +1,8 @@
 <template>
   <div class="login-page">
     <div class="login-card">
-      <h1>Admin 登录</h1>
-      <p class="muted">仅限管理员访问，凭证通过后端 /admin/auth/login 校验。</p>
+      <h1>Conjugamos 控制台</h1>
+      <p class="muted">仅限管理员用户登录访问。</p>
       <form @submit.prevent="handleSubmit">
         <label>
           邮箱

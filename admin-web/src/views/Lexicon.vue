@@ -3,7 +3,7 @@
     <div class="header-row">
       <div>
         <h2>词库条目管理</h2>
-        <p class="muted">接口：GET /admin/verbs（limit/offset）、GET /admin/verbs/:id、POST /admin/verbs、PUT /admin/verbs/:id、DELETE /admin/verbs/:id。</p>
+        <p class="muted">管理所有动词词库条目信息</p>
         <p class="muted total-count">共 {{ total }} 条</p>
       </div>
       <div class="toolbar">
