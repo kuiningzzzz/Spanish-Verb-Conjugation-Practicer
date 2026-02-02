@@ -334,6 +334,21 @@ textarea {
   color: #374151;
 }
 
+.tag.priority-high {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.tag.priority-medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.tag.priority-low {
+  background: #dcfce7;
+  color: #166534;
+}
+
 .tag.success {
   background: #dcfce7;
   color: #166534;
@@ -473,6 +488,69 @@ textarea {
 
 .drawer form {
   gap: 12px;
+}
+
+.scroll-form {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-item.detail-span {
+  grid-column: 1 / -1;
+}
+
+.detail-label {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.detail-value {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.list-line {
+  display: block;
+}
+
+.list-editor {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f8fafc;
+}
+
+.list-title {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.list-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.list-row input {
+  flex: 1;
 }
 
 .inline-fields {
