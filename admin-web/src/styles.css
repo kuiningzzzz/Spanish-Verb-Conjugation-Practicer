@@ -273,6 +273,7 @@ textarea {
   padding: 12px 10px;
   border-bottom: 1px solid var(--border);
   text-align: left;
+  vertical-align: middle;
 }
 
 .table th {
@@ -306,6 +307,12 @@ textarea {
 .actions {
   display: flex;
   gap: 8px;
+  align-items: center;
+  height: 100%;
+}
+
+.table td.actions {
+  height: 100%;
 }
 
 .tag {
@@ -553,6 +560,110 @@ textarea {
   flex: 1;
 }
 
+.db-panel {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.panel-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.warning-banner {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.modal.warning {
+  border: 1px solid #fecaca;
+}
+
+.toggle-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+}
+
+.toggle-label {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.toggle-label.active {
+  color: var(--text);
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #cbd5f5;
+  transition: 0.2s;
+  border-radius: 999px;
+}
+
+.slider::before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  top: 3px;
+  background-color: white;
+  transition: 0.2s;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
+}
+
+.switch input:checked + .slider {
+  background-color: #cbd5f5;
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(20px);
+}
+
+.file-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(3, auto);
+  column-gap: 16px;
+  row-gap: 4px;
+}
+
 .inline-fields {
   display: flex;
   gap: 12px;
@@ -595,6 +706,14 @@ button.danger {
 
 button.danger:hover {
   box-shadow: 0 8px 16px rgba(220, 38, 38, 0.2);
+}
+
+button.warning {
+  background: #f97316;
+}
+
+button.warning:hover {
+  box-shadow: 0 8px 16px rgba(249, 115, 22, 0.2);
 }
 
 .toast {
