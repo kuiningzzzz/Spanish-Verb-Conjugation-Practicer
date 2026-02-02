@@ -33,7 +33,7 @@
         <view class="podium-item second">
           <view class="podium-avatar">
             <image v-if="leaderboard[1].avatar" :src="leaderboard[1].avatar" class="avatar-image" mode="aspectFill"></image>
-            <text v-else class="avatar-text">{{ getAvatarText(leaderboard[1].username) }}</text>
+            <text v-else class="avatar-text">{{ leaderboard[1].avatarText }}</text>
           </view>
           <view class="podium-medal">🥈</view>
           <text class="podium-name">{{ leaderboard[1].username }}</text>
@@ -44,7 +44,7 @@
         <view class="podium-item first">
           <view class="podium-avatar champion">
             <image v-if="leaderboard[0].avatar" :src="leaderboard[0].avatar" class="avatar-image" mode="aspectFill"></image>
-            <text v-else class="avatar-text">{{ getAvatarText(leaderboard[0].username) }}</text>
+            <text v-else class="avatar-text">{{ leaderboard[0].avatarText }}</text>
             <view class="crown">👑</view>
           </view>
           <view class="podium-medal">🥇</view>
@@ -56,7 +56,7 @@
         <view class="podium-item third">
           <view class="podium-avatar">
             <image v-if="leaderboard[2].avatar" :src="leaderboard[2].avatar" class="avatar-image" mode="aspectFill"></image>
-            <text v-else class="avatar-text">{{ getAvatarText(leaderboard[2].username) }}</text>
+            <text v-else class="avatar-text">{{ leaderboard[2].avatarText }}</text>
           </view>
           <view class="podium-medal">🥉</view>
           <text class="podium-name">{{ leaderboard[2].username }}</text>
@@ -80,7 +80,7 @@
 
           <view class="user-avatar">
             <image v-if="user.avatar" :src="user.avatar" class="avatar-image" mode="aspectFill"></image>
-            <text v-else class="avatar-text">{{ getAvatarText(user.username) }}</text>
+            <text v-else class="avatar-text">{{ user.avatarText }}</text>
           </view>
 
           <view class="user-info">
@@ -169,7 +169,8 @@ export default {
             ...user,
             isCurrentUser: user.id === this.currentUser?.id,
             rankClass: this.getRankClass(index),
-            usernameStyle: this.getUsernameStyle(user.username)
+            usernameStyle: this.getUsernameStyle(user.username),
+            avatarText: this.getAvatarText(user.username)
           }))
         }
       } catch (error) {

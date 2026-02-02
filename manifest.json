@@ -71,9 +71,13 @@
             "es6" : true,
             "enhance" : false,
             "postcss" : false,
-            "minified" : false
+            "minified" : false,
+            "minifyWXML" : false
         },
-        "usingComponents" : true
+        "usingComponents" : true,
+        "optimization" : {
+            "subPackages" : true
+        }
     },
     "h5" : {
         "devServer" : {

@@ -94,7 +94,7 @@
           <view class="form-item">
             <text class="label">用户名</text>
             <input
-              :class="['input', inputStatus('username')]"
+              :class="['input', usernameStatus]"
               v-model="formData.username"
               placeholder="请输入6-15位字母或数字"
               maxlength="15"
@@ -105,7 +105,7 @@
           <view class="form-item">
             <text class="label">密码</text>
             <input
-              :class="['input', inputStatus('password')]"
+              :class="['input', passwordStatus]"
               type="password"
               v-model="formData.password"
               placeholder="请输入密码"
@@ -116,7 +116,7 @@
           <view class="form-item">
             <text class="label">确认密码</text>
             <input
-              :class="['input', inputStatus('confirmPassword')]"
+              :class="['input', confirmPasswordStatus]"
               type="password"
               v-model="formData.confirmPassword"
               placeholder="请再次输入密码"
@@ -254,6 +254,30 @@ export default {
         return `${this.codeCountdown}秒后重试`
       }
       return '发送验证码'
+    },
+    usernameStatus() {
+      if (this.isLogin) return ''
+      const error = this.fieldErrors.username
+      if (error) return 'input-error'
+      const value = this.formData.username
+      if (value && this.isUsernameValid(value)) return 'input-success'
+      return ''
+    },
+    passwordStatus() {
+      if (this.isLogin) return ''
+      const error = this.fieldErrors.password
+      if (error) return 'input-error'
+      const value = this.formData.password
+      if (value && this.isPasswordValid(value)) return 'input-success'
+      return ''
+    },
+    confirmPasswordStatus() {
+      if (this.isLogin) return ''
+      const error = this.fieldErrors.confirmPassword
+      if (error) return 'input-error'
+      const value = this.formData.confirmPassword
+      if (value && this.validateConfirmPassword()) return 'input-success'
+      return ''
     }
   },
   watch: {
