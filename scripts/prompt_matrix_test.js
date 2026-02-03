@@ -222,6 +222,7 @@ async function main() {
 
   const logHeaders = [
     'event',
+    'row_index',
     'target',
     'model',
     'temperature',
@@ -233,15 +234,31 @@ async function main() {
 
   const logLine = row => {
     const line = logHeaders.map(key => escapeCsv(row[key] ?? '')).join(',')
-    process.stderr.write(`${line}\n`)
     if (logStream) {
       logStream.write(`${line}\n`)
+      const pretty = [
+        row.event ? `${row.event}` : 'info',
+        row.row_index !== undefined && row.row_index !== '' ? `row_index=${row.row_index}` : null,
+        row.target ? `target=${row.target}` : null,
+        row.model ? `model=${row.model}` : null,
+        row.temperature !== undefined && row.temperature !== '' ? `temperature=${row.temperature}` : null,
+        row.prompt_index !== undefined && row.prompt_index !== '' ? `prompt_index=${row.prompt_index}` : null,
+        row.request_chars !== undefined && row.request_chars !== '' ? `request_chars=${row.request_chars}` : null,
+        row.response_chars !== undefined && row.response_chars !== '' ? `response_chars=${row.response_chars}` : null,
+        row.error ? `error=${row.error}` : null
+      ].filter(Boolean).join(' ')
+      process.stderr.write(`${pretty.replace(/(\w+)=/g, '[$1]=')}\n`)
+      return
     }
+    process.stderr.write(`${line}\n`)
   }
 
   writeLine(headers.map(escapeCsv).join(','))
-  logLine(Object.fromEntries(logHeaders.map(key => [key, key])))
+  if (logStream) {
+    logStream.write(`${logHeaders.join(',')}\n`)
+  }
 
+  let rowIndex = 1
   for (let caseIndex = 0; caseIndex < testCases; caseIndex++) {
     const verb = pickRandom(verbs)
     const meaning = Array.isArray(verb.translation) ? verb.translation.join('、') : ''
@@ -269,54 +286,60 @@ async function main() {
         const apiKey = provider === 'qwen' ? qwenApiKey : deepseekApiKey
 
         for (const temperature of temperatures) {
-          let question = null
-          let questionError = ''
-          let rawQuestionText = ''
-
-          try {
-            const requestText = `${promptPayload.system}\n${promptPayload.user}`
-            logLine({
-              event: 'request',
-              target: 'generator',
-              model,
-              temperature,
-              prompt_index: promptIndex,
-              request_chars: requestText.length
-            })
-            rawQuestionText = await callChat({
-              apiUrl,
-              apiKey,
-              model,
-              temperature,
-              system: promptPayload.system,
-              user: promptPayload.user,
-              maxTokens: 800
-            })
-
-            logLine({
-              event: 'response',
-              target: 'generator',
-              model,
-              temperature,
-              prompt_index: promptIndex,
-              response_chars: rawQuestionText ? rawQuestionText.length : 0
-            })
-            const cleaned = cleanJsonText(rawQuestionText)
-            question = JSON.parse(cleaned)
-          } catch (error) {
-            questionError = error.message
-            logLine({
-              event: 'error',
-              target: 'generator',
-              model,
-              temperature,
-              prompt_index: promptIndex,
-              error: questionError
-            })
-          }
-
           for (const vPromptIndex of validatorPromptIndexes) {
             const validatorPromptIndex = vPromptIndex
+            const currentRowIndex = rowIndex
+            rowIndex += 1
+
+            let question = null
+            let questionError = ''
+            let rawQuestionText = ''
+
+            try {
+              const requestText = `${promptPayload.system}\n${promptPayload.user}`
+              logLine({
+                event: 'request',
+                row_index: currentRowIndex,
+                target: 'generator',
+                model,
+                temperature,
+                prompt_index: promptIndex,
+                request_chars: requestText.length
+              })
+              rawQuestionText = await callChat({
+                apiUrl,
+                apiKey,
+                model,
+                temperature,
+                system: promptPayload.system,
+                user: promptPayload.user,
+                maxTokens: 800
+              })
+
+              logLine({
+                event: 'response',
+                row_index: currentRowIndex,
+                target: 'generator',
+                model,
+                temperature,
+                prompt_index: promptIndex,
+                response_chars: rawQuestionText ? rawQuestionText.length : 0
+              })
+              const cleaned = cleanJsonText(rawQuestionText)
+              question = JSON.parse(cleaned)
+            } catch (error) {
+              questionError = error.message
+              logLine({
+                event: 'error',
+                row_index: currentRowIndex,
+                target: 'generator',
+                model,
+                temperature,
+                prompt_index: promptIndex,
+                error: questionError
+              })
+            }
+
             let validatorResult = null
             let validatorError = ''
 
@@ -341,6 +364,7 @@ async function main() {
                 const validatorRequestText = `${validatorPrompt.system}\n${validatorPrompt.user}`
                 logLine({
                   event: 'request',
+                  row_index: currentRowIndex,
                   target: 'validator',
                   model,
                   temperature: validatorTemperature,
@@ -359,6 +383,7 @@ async function main() {
 
                 logLine({
                   event: 'response',
+                  row_index: currentRowIndex,
                   target: 'validator',
                   model,
                   temperature: validatorTemperature,
@@ -372,6 +397,7 @@ async function main() {
                 validatorError = error.message
                 logLine({
                   event: 'error',
+                  row_index: currentRowIndex,
                   target: 'validator',
                   model,
                   temperature,
@@ -411,6 +437,7 @@ async function main() {
 
   logLine({
     event: 'info',
+    row_index: '',
     target: 'run',
     model: '',
     temperature: '',
