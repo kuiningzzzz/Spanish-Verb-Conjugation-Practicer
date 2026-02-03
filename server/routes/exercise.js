@@ -201,28 +201,6 @@ router.post('/generate', authMiddleware, async (req, res) => {
       // 根据题型生成不同的题目
       try {
         switch (exerciseType) {
-          case 'choice':
-            // 选择题：使用传统方法生成干扰选项（不使用AI）
-            exercise.options = generateChoiceOptions(verb.id, randomConjugation, conjugations)
-            break
-          
-          case 'fill':
-            // 填空题：使用 AI 生成更有针对性的题目
-            if (useAI) {
-              const aiExercise = await DeepSeekService.generateFillBlankExercise(verb, randomConjugation)
-              exercise.question = aiExercise.question
-              exercise.hint = aiExercise.hint
-              exercise.example = aiExercise.example
-            } else {
-              exercise.question = `请填写动词 ${verb.infinitive}(${verb.meaning}) 在 ${randomConjugation.mood} ${randomConjugation.tense} ${randomConjugation.person} 的变位形式`
-            }
-            break
-          
-          case 'conjugate':
-            // 变位题：给出时态和人称（不使用AI）
-            exercise.question = `请写出 ${verb.infinitive}(${verb.meaning}) 的变位`
-            break
-          
           case 'sentence':
             // 句子完成题：使用 AI 生成高质量例句
             if (useAI) {
@@ -234,14 +212,30 @@ router.post('/generate', authMiddleware, async (req, res) => {
               exercise.sentence = generateSentence(verb, randomConjugation)
             }
             break
+            
+          case 'quick-fill':
+            // 快变快填：不使用AI
+            const givenConjugation = conjugations[Math.floor(Math.random() * conjugations.length)]
+            exercise.givenForm = givenConjugation.conjugated_form
+            exercise.givenDesc = `${givenConjugation.mood} - ${givenConjugation.tense} - ${givenConjugation.person}`
+            break
+            
+          case 'combo-fill':
+            // 组合填空：不使用AI
+            const selectedConjugations = conjugations.sort(() => Math.random() - 0.5).slice(0, Math.min(6, conjugations.length))
+            exercise.comboItems = selectedConjugations.map(c => ({
+              tense: c.tense,
+              mood: c.mood,
+              person: c.person,
+              correctAnswer: c.conjugated_form
+            }))
+            break
         }
       } catch (aiError) {
         console.error('AI 生成失败，使用传统方法:', aiError.message)
         // AI 失败时使用传统方法
         if (exerciseType === 'sentence') {
           exercise.sentence = generateSentence(verb, randomConjugation)
-        } else if (exerciseType === 'fill') {
-          exercise.question = `请填写动词 ${verb.infinitive}(${verb.meaning}) 在 ${randomConjugation.mood} ${randomConjugation.tense} ${randomConjugation.person} 的变位形式`
         }
       }
 
@@ -330,25 +324,6 @@ router.post('/submit', authMiddleware, (req, res) => {
     res.status(500).json({ error: '提交答案失败' })
   }
 })
-
-// 生成选择题选项
-function generateChoiceOptions(verbId, correctConjugation, allConjugations) {
-  const options = [correctConjugation.conjugated_form]
-  
-  // 从相同动词的其他变位中选择干扰项
-  const otherConjugations = allConjugations.filter(c => 
-    c.conjugated_form !== correctConjugation.conjugated_form
-  )
-  
-  // 随机选择3个干扰项
-  const shuffled = otherConjugations.sort(() => 0.5 - Math.random())
-  for (let i = 0; i < Math.min(3, shuffled.length); i++) {
-    options.push(shuffled[i].conjugated_form)
-  }
-  
-  // 打乱选项顺序
-  return options.sort(() => 0.5 - Math.random())
-}
 
 // 生成句子
 function generateSentence(verb, conjugation) {
