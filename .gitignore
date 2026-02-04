@@ -49,3 +49,8 @@ coverage/
 server/data/backups/
 server/data/backup_records.json
 server/data/import_records.json
+
+# 版本和公告配置文件（不追踪以便本地配置）
+server/src/version.json
+server/src/announcement.json
+server/src/updates/*.apk
