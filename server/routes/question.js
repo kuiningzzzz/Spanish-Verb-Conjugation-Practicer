@@ -23,8 +23,8 @@ router.post('/favorite', authMiddleware, async (req, res) => {
     } = req.body
 
     // 验证题目类型
-    if (questionType !== 'fill' && questionType !== 'sentence') {
-      return res.status(400).json({ error: '只支持收藏填空题和例句填空' })
+    if (questionType !== 'sentence') {
+      return res.status(400).json({ error: '只支持收藏例句填空' })
     }
 
     // 添加到私人题库（如果来自公共题库，保存public_question_id）
@@ -128,26 +128,21 @@ router.get('/stats', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId
 
-    const publicFillCount = Question.getPublicCount({ questionType: 'fill' })
     const publicSentenceCount = Question.getPublicCount({ questionType: 'sentence' })
-    const privateFillCount = Question.getPrivateCount(userId, { questionType: 'fill' })
     const privateSentenceCount = Question.getPrivateCount(userId, { questionType: 'sentence' })
 
     res.json({
       success: true,
       stats: {
-        totalCount: privateFillCount + privateSentenceCount,
-        fillCount: privateFillCount,
+        totalCount: privateSentenceCount,
         sentenceCount: privateSentenceCount,
         public: {
-          fill: publicFillCount,
           sentence: publicSentenceCount,
-          total: publicFillCount + publicSentenceCount
+          total: publicSentenceCount
         },
         private: {
-          fill: privateFillCount,
           sentence: privateSentenceCount,
-          total: privateFillCount + privateSentenceCount
+          total: privateSentenceCount
         }
       }
     })

@@ -307,8 +307,8 @@ export default {
 }
 
 .satisfaction-option.selected {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-color: #667eea;
+  background: #8B0012;
+  border-color: #8B0012;
   transform: scale(1.05);
 }
 
@@ -364,7 +364,7 @@ export default {
 .submit-button {
   width: 100%;
   height: 90rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   border: none;
   border-radius: 20rpx;
@@ -374,13 +374,13 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  box-shadow: 0 8rpx 20rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 8rpx 20rpx rgba(139, 0, 18, 0.3);
   transition: all 0.3s ease;
 }
 
 .submit-button:active:not([disabled]) {
   transform: scale(0.98);
-  box-shadow: 0 4rpx 15rpx rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4rpx 15rpx rgba(139, 0, 18, 0.4);
 }
 
 .submit-button[disabled] {
@@ -448,19 +448,19 @@ export default {
 }
 
 .satisfaction-badge.level-1 {
-  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  background: #ff6b6b;
 }
 
 .satisfaction-badge.level-2 {
-  background: linear-gradient(135deg, #ffa502 0%, #ff6348 100%);
+  background: #ffa502;
 }
 
 .satisfaction-badge.level-3 {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  background: #4facfe;
 }
 
 .satisfaction-badge.level-4 {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  background: #43e97b;
 }
 
 .history-date {
@@ -484,11 +484,11 @@ export default {
 
 /* 感谢卡片 */
 .thanks-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   border-radius: 25rpx;
   padding: 40rpx;
   text-align: center;
-  box-shadow: 0 10rpx 30rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 10rpx 30rpx rgba(139, 0, 18, 0.3);
 }
 
 .thanks-icon {

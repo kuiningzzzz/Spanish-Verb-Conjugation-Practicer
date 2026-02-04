@@ -427,35 +427,35 @@
               @click="!isCourseMode && toggleMood('indicativo')"
             >
               <text class="checkbox-icon">{{ selectedMoods.includes('indicativo') ? '☑' : '☐' }}</text>
-              <text class="checkbox-label">陈述式（5种时态）</text>
+              <text class="checkbox-label">Indicativo 陈述式（5种时态）</text>
             </view>
             <view 
               :class="['checkbox-item', selectedMoods.includes('subjuntivo') ? 'checked' : '', isCourseMode ? 'disabled' : '']"
               @click="!isCourseMode && toggleMood('subjuntivo')"
             >
               <text class="checkbox-icon">{{ selectedMoods.includes('subjuntivo') ? '☑' : '☐' }}</text>
-              <text class="checkbox-label">虚拟式（3种时态）</text>
+              <text class="checkbox-label">Subjuntivo 虚拟式（3种时态）</text>
             </view>
             <view 
               :class="['checkbox-item', selectedMoods.includes('imperativo') ? 'checked' : '', isCourseMode ? 'disabled' : '']"
               @click="!isCourseMode && toggleMood('imperativo')"
             >
               <text class="checkbox-icon">{{ selectedMoods.includes('imperativo') ? '☑' : '☐' }}</text>
-              <text class="checkbox-label">命令式（2种时态）</text>
+              <text class="checkbox-label">Imperativo 命令式（2种时态）</text>
             </view>
             <view 
               :class="['checkbox-item', selectedMoods.includes('indicativo_compuesto') ? 'checked' : '', isCourseMode ? 'disabled' : '']"
               @click="!isCourseMode && toggleMood('indicativo_compuesto')"
             >
               <text class="checkbox-icon">{{ selectedMoods.includes('indicativo_compuesto') ? '☑' : '☐' }}</text>
-              <text class="checkbox-label">复合陈述式（5种时态）</text>
+              <text class="checkbox-label">Indicativo Compuesto 复合陈述式（5种时态）</text>
             </view>
             <view 
               :class="['checkbox-item', selectedMoods.includes('subjuntivo_compuesto') ? 'checked' : '', isCourseMode ? 'disabled' : '']"
               @click="!isCourseMode && toggleMood('subjuntivo_compuesto')"
             >
               <text class="checkbox-icon">{{ selectedMoods.includes('subjuntivo_compuesto') ? '☑' : '☐' }}</text>
-              <text class="checkbox-label">复合虚拟式（3种时态）</text>
+              <text class="checkbox-label">Subjuntivo Compuesto 复合虚拟式（3种时态）</text>
             </view>
           </view>
         </view>
@@ -557,33 +557,33 @@ export default {
       customVerbIds: [],
       // 专项练习设置
       tenseOptions: [
-        // 简单陈述式（5个）
-        { value: 'presente', label: '陈述式-现在时', mood: 'indicativo' },
-        { value: 'preterito', label: '陈述式-简单过去时', mood: 'indicativo' },
-        { value: 'imperfecto', label: '陈述式-未完成过去时', mood: 'indicativo' },
-        { value: 'futuro', label: '陈述式-将来时', mood: 'indicativo' },
-        { value: 'condicional', label: '陈述式-条件式', mood: 'indicativo' },
+        // Indicativo 陈述式（5个）
+        { value: 'presente', label: 'Presente 现在时', mood: 'indicativo' },
+        { value: 'preterito', label: 'Pretérito Indefinido 简单过去时', mood: 'indicativo' },
+        { value: 'imperfecto', label: 'Pretérito Imperfecto 过去未完成时', mood: 'indicativo' },
+        { value: 'futuro', label: 'Futuro Simple 将来时', mood: 'indicativo' },
+        { value: 'condicional', label: 'Condicional Simple 条件式', mood: 'indicativo' },
         
-        // 虚拟式（3个）
-        { value: 'subjuntivo_presente', label: '虚拟式-现在时', mood: 'subjuntivo' },
-        { value: 'subjuntivo_imperfecto', label: '虚拟式-过去时', mood: 'subjuntivo' },
-        { value: 'subjuntivo_futuro', label: '虚拟式-将来时', mood: 'subjuntivo' },
+        // Subjuntivo 虚拟式（3个）
+        { value: 'subjuntivo_presente', label: 'Presente de Subjuntivo 虚拟现在时', mood: 'subjuntivo' },
+        { value: 'subjuntivo_imperfecto', label: 'Imperfecto de Subjuntivo 虚拟过去时', mood: 'subjuntivo' },
+        { value: 'subjuntivo_futuro', label: 'Futuro de Subjuntivo 虚拟将来时', mood: 'subjuntivo' },
         
-        // 命令式（2个）
-        { value: 'imperativo_afirmativo', label: '命令式-肯定', mood: 'imperativo' },
-        { value: 'imperativo_negativo', label: '命令式-否定', mood: 'imperativo' },
+        // Imperativo 命令式（2个）
+        { value: 'imperativo_afirmativo', label: 'Imperativo Afirmativo 肯定命令式', mood: 'imperativo' },
+        { value: 'imperativo_negativo', label: 'Imperativo Negativo 否定命令式', mood: 'imperativo' },
         
-        // 复合陈述式（5个）
-        { value: 'perfecto', label: '复合陈述式-现在完成时', mood: 'indicativo_compuesto' },
-        { value: 'pluscuamperfecto', label: '复合陈述式-过去完成时', mood: 'indicativo_compuesto' },
-        { value: 'futuro_perfecto', label: '复合陈述式-将来完成时', mood: 'indicativo_compuesto' },
-        { value: 'condicional_perfecto', label: '复合陈述式-条件完成时', mood: 'indicativo_compuesto' },
-        { value: 'preterito_anterior', label: '复合陈述式-先过去时', mood: 'indicativo_compuesto' },
+        // Indicativo Compuesto 复合陈述式（5个）
+        { value: 'perfecto', label: 'Pretérito Perfecto 现在完成时', mood: 'indicativo_compuesto' },
+        { value: 'pluscuamperfecto', label: 'Pluscuamperfecto 过去完成时', mood: 'indicativo_compuesto' },
+        { value: 'futuro_perfecto', label: 'Futuro Perfecto 将来完成时', mood: 'indicativo_compuesto' },
+        { value: 'condicional_perfecto', label: 'Condicional Perfecto 条件完成时', mood: 'indicativo_compuesto' },
+        { value: 'preterito_anterior', label: 'Pretérito Anterior 先过去时', mood: 'indicativo_compuesto' },
         
-        // 复合虚拟式（3个）
-        { value: 'subjuntivo_perfecto', label: '复合虚拟式-现在完成时', mood: 'subjuntivo_compuesto' },
-        { value: 'subjuntivo_pluscuamperfecto', label: '复合虚拟式-过去完成时', mood: 'subjuntivo_compuesto' },
-        { value: 'subjuntivo_futuro_perfecto', label: '复合虚拟式-将来完成时', mood: 'subjuntivo_compuesto' }
+        // Subjuntivo Compuesto 复合虚拟式（3个）
+        { value: 'subjuntivo_perfecto', label: 'Perfecto de Subjuntivo 虚拟现在完成时', mood: 'subjuntivo_compuesto' },
+        { value: 'subjuntivo_pluscuamperfecto', label: 'Pluscuamperfecto de Subjuntivo 虚拟过去完成时', mood: 'subjuntivo_compuesto' },
+        { value: 'subjuntivo_futuro_perfecto', label: 'Futuro Perfecto de Subjuntivo 虚拟将来完成时', mood: 'subjuntivo_compuesto' }
       ],
       selectedTenses: [],  // 默认为空，用户自选
       selectedMoods: [],   // 选择的语气（新增）
@@ -608,6 +608,9 @@ export default {
       wrongExercises: [],  // 错题队列
       wrongExercisesSet: new Set(),  // 已添加到错题队列的题目集合（避免重复）
       questionPool: [],  // 题目池（用于从题库题中随机抽取）
+      mainQuestionPool: [],  // 主要题目池（85%）
+      backupQuestionPool: [],  // 备用题目池（15%）
+      hasEnoughInBank: false,  // 题库是否有足够的题目
       usedPoolIndices: new Set(),  // 已使用的题目池索引
       usedQuestionIds: new Set(),  // 已使用的题目ID（包括题库题和AI题）
       currentIndex: 0,
@@ -1129,6 +1132,17 @@ export default {
         showToast('加载滚动复习失败', 'none')
       }
     },
+
+    // 获取当前练习允许的动词ID集合（课程/滚动复习/自定义）
+    getAllowedVerbIdSet() {
+      if (this.isCourseMode && Array.isArray(this.lessonVocabulary) && this.lessonVocabulary.length > 0) {
+        return new Set(this.lessonVocabulary.map(v => v.id))
+      }
+      if (this.isCustomPractice && this.customVerbIds.length > 0) {
+        return new Set(this.customVerbIds)
+      }
+      return null
+    },
     
     async startPractice() {
       // 验证是否登录
@@ -1152,6 +1166,14 @@ export default {
       if (this.selectedConjugationTypes.length === 0) {
         showToast('请至少选择一个变位类型', 'none')
         return
+      }
+
+      if (this.isCourseMode) {
+        const hasVocabulary = Array.isArray(this.lessonVocabulary) && this.lessonVocabulary.length > 0
+        if (!hasVocabulary) {
+          showToast('课程单词尚未加载，请稍后重试', 'none')
+          return
+        }
       }
       
       showLoading('正在生成练习...')
@@ -1186,72 +1208,84 @@ export default {
 
         if (res.success) {
           // 初始化练习
-          let exercises = res.exercises || []
+          const allowList = this.getAllowedVerbIdSet()
 
-          // 自定义练习时仅保留指定动词的题目
-          if (this.isCustomPractice && this.customVerbIds.length > 0) {
-            const allowList = new Set(this.customVerbIds)
-            exercises = exercises.filter(ex => allowList.has(ex.verbId))
-          }
-
-          this.exercises = exercises
-
-          // 接收题目池并立即去重
-          let rawPool = Array.isArray(res.questionPool) ? res.questionPool : []
-          if (this.isCustomPractice && this.customVerbIds.length > 0) {
-            const allowList = new Set(this.customVerbIds)
-            rawPool = rawPool.filter(q => allowList.has(q.verbId))
-          }
-          const poolQuestionIds = new Set()
-          this.questionPool = []
-
-          for (const q of rawPool) {
-            if (q.questionId && !poolQuestionIds.has(q.questionId)) {
-              poolQuestionIds.add(q.questionId)
-              this.questionPool.push(q)
-            } else {
-              console.warn(`接收到重复题目ID: ${q.questionId}，已过滤`)
+          // 快变快填和组合填空：直接使用exercises
+          if (this.exerciseType === 'quick-fill' || this.exerciseType === 'combo-fill') {
+            let exercises = res.exercises || []
+            if (allowList) {
+              exercises = exercises.filter(ex => allowList.has(ex.verbId))
             }
-          }
-          
-          console.log(`题目池接收完成:`, {
-            原始数量: rawPool.length,
-            去重后数量: this.questionPool.length,
-            题目IDs: Array.from(poolQuestionIds)
-          })
-          
-          this.usedPoolIndices = new Set()
-          this.usedQuestionIds = new Set()  // 重置已使用的题目ID
-          this.hasStarted = true
-          this.currentIndex = 0
-          this.correctCount = 0
-          this.questionStates = this.exercises.map(ex => this.createStateForExercise(ex))
-
-          // 从题目池中随机抽取需要的题目添加到exercises中
-          this.fillFromQuestionPool()
-          
-          // 检查是否有足够的题目（题库题或等待AI生成）
-          const aiNeeded = this.isCustomPractice ? 0 : (res.needAI || 0)
-          const hasEnoughQuestions = this.exercises.length > 0 || aiNeeded > 0
-          
-          if (hasEnoughQuestions) {
-            // 如果有题库题，检查第一题的收藏状态
+            
+            this.exercises = exercises
+            this.questionStates = this.exercises.map(ex => this.createStateForExercise(ex))
+            this.hasStarted = true
+            this.currentIndex = 0
+            this.correctCount = 0
+            
+            console.log(`${this.exerciseType === 'quick-fill' ? '快变快填' : '组合填空'}题目接收完成:`, {
+              题目数: this.exercises.length
+            })
+            
             if (this.exercises.length > 0) {
               this.goToExercise(0, true)
-            } else if (res.needAI && res.needAI > 0) {
-              // 题库为空，等待AI生成
-              console.log('题库为空，等待AI生成题目...')
-              showToast('正在生成练习题，请稍候...', 'loading', 3000)
+            } else {
+              showToast('未能生成练习题，请重试')
+              return
             }
           } else {
-            showToast('未能生成练习题，请重试')
-            return
-          }
+            // 例句填空：使用题目池模式
+            this.exercises = []
+            
+            // 接收题目池并分离主题和备用题
+            let rawPool = Array.isArray(res.questionPool) ? res.questionPool : []
+            if (allowList) {
+              rawPool = rawPool.filter(q => allowList.has(q.verbId))
+            }
+            
+            this.mainQuestionPool = rawPool.filter(q => q._isMain)
+            this.backupQuestionPool = rawPool.filter(q => q._isBackup)
+            this.hasEnoughInBank = res.hasEnoughInBank || false
+            
+            console.log(`题目池接收完成:`, {
+              主题池: this.mainQuestionPool.length,
+              备用题池: this.backupQuestionPool.length,
+              题库充足: this.hasEnoughInBank,
+              需要AI: res.needAI || 0
+            })
+            
+            this.usedQuestionIds = new Set()
+            this.hasStarted = true
+            this.currentIndex = 0
+            this.correctCount = 0
+            this.questionStates = []
+
+            // 从主题目池抽取题目
+            this.fillFromMainPool()
           
-          // 异步生成AI题目（如果需要）
-          if (!this.isCustomPractice && aiNeeded > 0 && res.aiOptions) {
-            console.log(`开始异步生成 ${res.needAI} 个AI题目`)
-            this.generateAIQuestionsAsync(aiNeeded, res.aiOptions)
+            // 检查是否有足够的题目（仅例句填空需要）
+            const aiNeeded = this.isCustomPractice ? 0 : (res.needAI || 0)
+            const hasEnoughQuestions = this.exercises.length > 0 || aiNeeded > 0
+            
+            if (hasEnoughQuestions) {
+              // 如果有题库题，检查第一题的收藏状态
+              if (this.exercises.length > 0) {
+                this.goToExercise(0, true)
+              } else if (res.needAI && res.needAI > 0) {
+                // 题库为空，等待AI生成
+                console.log('题库为空，等待AI生成题目...')
+                showToast('正在生成练习题，请稍候...', 'loading', 3000)
+              }
+            } else {
+              showToast('未能生成练习题，请重试')
+              return
+            }
+            
+            // 异步生成AI题目（如果需要）
+            if (!this.isCustomPractice && aiNeeded > 0 && res.aiOptions) {
+              console.log(`开始异步生成 ${res.needAI} 个AI题目`)
+              this.generateAIQuestionsAsync(aiNeeded, res.aiOptions)
+            }
           }
         } else {
           showToast('获取练习题失败')
@@ -1278,11 +1312,78 @@ export default {
       }
     },
     
+    // 从主题目池中抽取题目（用户开始练习时调用）
+    fillFromMainPool() {
+      if (this.mainQuestionPool.length === 0) {
+        console.log('主题目池为空')
+        return
+      }
+      
+      // 打乱主题目池
+      const shuffled = [...this.mainQuestionPool].sort(() => Math.random() - 0.5)
+      
+      // 添加所有主题到exercises
+      for (const question of shuffled) {
+        if (!this.usedQuestionIds.has(question.questionId)) {
+          this.exercises.push(question)
+          this.questionStates.push(this.createStateForExercise(question))
+          this.usedQuestionIds.add(question.questionId)
+        }
+      }
+      
+      console.log(`从主题目池抽取了 ${this.exercises.length} 个题目`)
+    },
+    
+    // 从备用题目池填充（当用户做题速度快于AI生成速度时调用）
+    fillBuffer() {
+      if (this.backupQuestionPool.length === 0) {
+        console.log('备用题目池为空，无法填充')
+        return
+      }
+      
+      // 计算还需要多少题目才能达到目标
+      const remaining = this.exerciseCount - this.exercises.length
+      if (remaining <= 0) {
+        console.log('已达到目标题量，无需填充')
+        return
+      }
+      
+      // 从备用池中抽取未使用的题目
+      let filled = 0
+      for (const question of this.backupQuestionPool) {
+        if (filled >= remaining) break
+        
+        if (!this.usedQuestionIds.has(question.questionId)) {
+          // 随机插入到未做题目的位置
+          const insertStart = this.currentIndex + 1
+          const insertEnd = this.exercises.length + 1
+          const randomIndex = insertStart + Math.floor(Math.random() * (insertEnd - insertStart))
+          
+          this.exercises.splice(randomIndex, 0, question)
+          this.questionStates.splice(randomIndex, 0, this.createStateForExercise(question))
+          this.usedQuestionIds.add(question.questionId)
+          filled++
+          
+          console.log(`从备用池填充题目到位置 ${randomIndex}`)
+        }
+      }
+      
+      console.log(`从备用题目池填充了 ${filled} 个题目，当前总题数: ${this.exercises.length}`)
+    },
+    
     // 异步生成AI题目并随机插入
     async generateAIQuestionsAsync(count, aiOptions) {
       const isFirstBatch = this.exercises.length === 0  // 判断是否是第一批题目（题库为空）
       let successCount = 0  // 成功生成的题目数量
       let failCount = 0     // 失败次数
+      const allowList = this.getAllowedVerbIdSet()
+      
+      console.log(`开始AI生成任务:`, {
+        需要生成: count,
+        当前题数: this.exercises.length,
+        题库充足: this.hasEnoughInBank,
+        isFirstBatch
+      })
       
       for (let i = 0; i < count; i++) {
         try {
@@ -1291,21 +1392,30 @@ export default {
           // 显示生成进度
           this.generatingCount = count - i
           
-          // 在每次循环中收集已使用的动词ID和题目ID，避免重复
+          // 收集已使用的动词ID，避免重复
           const usedVerbIds = new Set(this.exercises.map(e => e.verbId).filter(id => id))
           
-          // 将已使用的动诋ID传递给后端
+          const fallbackVerbIds = this.isCourseMode && Array.isArray(this.lessonVocabulary) && this.lessonVocabulary.length > 0
+            ? this.lessonVocabulary.map(v => v.id)
+            : null
+
           const res = await api.generateSingleAI({
             aiOptions: {
               ...aiOptions,
               excludeVerbIds: Array.from(usedVerbIds),
               verbIds: this.isCustomPractice && this.customVerbIds.length > 0
                 ? this.customVerbIds
-                : aiOptions.verbIds
+                : (aiOptions.verbIds && aiOptions.verbIds.length > 0 ? aiOptions.verbIds : fallbackVerbIds)
             }
           })
           
           if (res.success && res.exercise) {
+            if (allowList && !allowList.has(res.exercise.verbId)) {
+              failCount++
+              console.warn('AI题目动词不在允许范围内，已跳过')
+              continue
+            }
+
             successCount++
             
             // 记录已使用的题目ID
@@ -1313,29 +1423,32 @@ export default {
               this.usedQuestionIds.add(res.exercise.questionId)
             }
             
-            // 如果是第一批题目，按顺序添加；否则随机插入
-            if (isFirstBatch && i === 0) {
-              // 第一题直接添加到开头
-              this.exercises.push(res.exercise)
-              this.questionStates.push(this.createStateForExercise(res.exercise))
-              console.log(`第一个AI题目已生成，开始练习`)
+            // 检查用户当前是否还需要这个题目
+            const userNeedsMore = this.exercises.length < this.exerciseCount
+            
+            if (userNeedsMore) {
+              // 用户还需要更多题目，插入到练习队列
+              if (isFirstBatch && i === 0) {
+                // 第一题直接添加
+                this.exercises.push(res.exercise)
+                this.questionStates.push(this.createStateForExercise(res.exercise))
+                console.log(`第一个AI题目已生成，开始练习`)
+                uni.hideToast()
+                this.goToExercise(0, true)
+              } else {
+                // 随机插入到当前题目之后
+                const insertStart = this.currentIndex + 1
+                const insertEnd = this.exercises.length + 1
+                const randomIndex = insertStart + Math.floor(Math.random() * (insertEnd - insertStart))
 
-              // 隐藏加载提示，初始化第一题
-              uni.hideToast()
-              this.goToExercise(0, true)
+                this.exercises.splice(randomIndex, 0, res.exercise)
+                this.questionStates.splice(randomIndex, 0, this.createStateForExercise(res.exercise))
+
+                console.log(`AI题目已插入到位置 ${randomIndex}, 当前题目总数: ${this.exercises.length}`)
+              }
             } else {
-              // 后续题目插入到当前题目之后的位置（避免影响currentIndex）
-              // 计算插入位置：在当前题目后面到末尾之间随机选择
-              const insertStart = this.currentIndex + 1
-              const insertEnd = this.exercises.length + 1
-              const randomIndex = insertStart + Math.floor(Math.random() * (insertEnd - insertStart))
-
-              this.exercises.splice(randomIndex, 0, res.exercise)
-              this.questionStates.splice(randomIndex, 0, this.createStateForExercise(res.exercise))
-
-              console.log(`AI题目已插入到位置 ${randomIndex}, 当前位置: ${this.currentIndex}, 当前题目总数: ${this.exercises.length}`)
-              
-              // 注意：因为插入位置在currentIndex之后，所以不需要调整currentIndex
+              // 用户不需要更多题目，AI生成的题目已经过审查（后端已加入题库），直接丢弃
+              console.log(`AI题目 ${i + 1} 已生成但用户不需要，已由后端加入题库`)
             }
           } else {
             failCount++
@@ -1345,34 +1458,38 @@ export default {
           failCount++
           console.error(`生成第 ${i + 1} 个AI题目失败:`, error)
           
-          // 如果是第一批题目且前几次都失败了，给用户提示
+          // 如果是第一批题目且连续失败，提示用户
           if (isFirstBatch && i < 3 && failCount > i) {
             if (i === 2) {
-              // 连续3次失败，提示用户
               uni.hideToast()
               uni.showModal({
                 title: 'AI生成失败',
-                content: 'AI服务当前繁忙，无法生成题目。建议：\n1. 稍后再试\n2. 或先进行其他练习模式\n\n如果题库有数据，将优先使用题库题目。',
+                content: 'AI服务当前繁忙，无法生成题目。建议：\n1. 稍后再试\n2. 或先进行其他练习模式',
                 showCancel: false
               })
               this.generatingCount = 0
-              return  // 停止继续生成
+              return
             }
           }
         }
       }
       
       this.generatingCount = 0
-      console.log(`AI题目异步生成完成: 成功 ${successCount}/${count}, 失败 ${failCount}/${count}`)
+      console.log(`AI题目异步生成完成:`, {
+        成功: successCount,
+        失败: failCount,
+        总计: count,
+        当前题数: this.exercises.length,
+        目标题数: this.exerciseCount
+      })
       
       // 如果是第一批且全部失败，显示错误信息
       if (isFirstBatch && successCount === 0) {
         uni.showModal({
           title: '生成失败',
-          content: '无法生成练习题，AI服务可能暂时不可用。\n\n建议：\n1. 检查网络连接\n2. 稍后再试\n3. 或选择其他练习模式',
+          content: '无法生成练习题，AI服务可能暂时不可用。',
           showCancel: false,
           success: () => {
-            // 返回上一页
             uni.navigateBack()
           }
         })
@@ -1380,96 +1497,6 @@ export default {
     },
     
     // 从题目池中随机抽取题目
-    fillFromQuestionPool() {
-      if (this.questionPool.length === 0) {
-        console.log('题目池为空')
-        return
-      }
-      
-      // 检查题目池是否有重复的题目ID
-      const poolQuestionIds = this.questionPool.map(q => q.questionId)
-      const uniquePoolIds = new Set(poolQuestionIds)
-      console.log('题目池信息：', {
-        poolSize: this.questionPool.length,
-        uniqueQuestions: uniquePoolIds.size,
-        hasDuplicates: this.questionPool.length !== uniquePoolIds.size,
-        currentExercises: this.exercises.length,
-        targetCount: this.exerciseCount,
-        questionIds: poolQuestionIds
-      })
-      
-      // 计算还需要多少题库题
-      const totalNeeded = this.exerciseCount
-      const aiCount = this.exercises.length // AI生成的题目
-      const bankNeeded = totalNeeded - aiCount // 需要从题库抽取的数量
-      
-      // 从题目池中随机抽取
-      const availableCount = this.questionPool.length - this.usedPoolIndices.size
-      const toExtract = Math.min(bankNeeded, availableCount)
-      
-      console.log('准备从题目池抽取：', { bankNeeded, availableCount, toExtract })
-      
-      for (let i = 0; i < toExtract; i++) {
-        // 找出所有未使用的题目索引
-        const unusedIndices = []
-        for (let idx = 0; idx < this.questionPool.length; idx++) {
-          const q = this.questionPool[idx]
-          if (!this.usedPoolIndices.has(idx) && !this.usedQuestionIds.has(q.questionId)) {
-            unusedIndices.push(idx)
-          }
-        }
-        
-        // 如果没有未使用的题目了，停止抽取
-        if (unusedIndices.length === 0) {
-          console.warn(`无法找到更多不重复的题目，已抽取 ${i}/${toExtract} 个`)
-          break
-        }
-        
-        // 从未使用的题目中随机选择一个
-        const randomIdx = Math.floor(Math.random() * unusedIndices.length)
-        const randomIndex = unusedIndices[randomIdx]
-        const selectedQuestion = this.questionPool[randomIndex]
-        
-        // 标记为已使用
-        this.usedPoolIndices.add(randomIndex)
-        this.usedQuestionIds.add(selectedQuestion.questionId)
-        
-        console.log(`抽取题目 ${i + 1}/${toExtract}:`, {
-          index: randomIndex,
-          questionId: selectedQuestion.questionId,
-          infinitive: selectedQuestion.infinitive
-        })
-        
-        this.exercises.push(selectedQuestion)
-      }
-      
-      // 使用 Fisher-Yates 洗牌算法打乱题目顺序
-      for (let i = this.exercises.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
-        ;[this.exercises[i], this.exercises[j]] = [this.exercises[j], this.exercises[i]]
-      }
-      
-      // 验证打乱后没有重复的题目ID
-      const finalQuestionIds = this.exercises.map(e => e.questionId)
-      const uniqueFinalIds = new Set(finalQuestionIds)
-      console.log('打乱后的题目列表：', {
-        count: this.exercises.length,
-        uniqueCount: uniqueFinalIds.size,
-        hasDuplicates: this.exercises.length !== uniqueFinalIds.size,
-        exercises: this.exercises.map(e => ({
-          id: e.questionId,
-          verb: e.infinitive,
-          type: e.exerciseType
-        }))
-      })
-      
-      if (this.exercises.length !== uniqueFinalIds.size) {
-        console.error('警告：exercises数组中有重复的题目ID！', finalQuestionIds)
-      }
-
-      // 根据最新顺序重置题目状态
-      this.questionStates = this.exercises.map(ex => this.createStateForExercise(ex))
-    },
     
     // 显示自定义消息提示
     showMessage(text, type = 'success', duration = 3000) {
@@ -1589,10 +1616,10 @@ export default {
       }
     },
     
-    // 检查当前题目是否已收藏（仅填空题和例句填空）
+    // 检查当前题目是否已收藏（仅例句填空）
     async checkQuestionFavoriteStatus() {
       const ex = this.currentExercise
-      if (!ex || (ex.exerciseType !== 'fill' && ex.exerciseType !== 'sentence')) {
+      if (!ex || ex.exerciseType !== 'sentence') {
         this.isQuestionFavorited = false
         return
       }
@@ -1613,11 +1640,11 @@ export default {
       this.isQuestionFavorited = false
     },
     
-    // 切换题目收藏状态（仅填空题和例句填空）
+    // 切换题目收藏状态（仅例句填空）
     async toggleQuestionFavorite() {
       const ex = this.currentExercise
-      if (!ex || (ex.exerciseType !== 'fill' && ex.exerciseType !== 'sentence')) {
-        showToast('只支持收藏填空题和例句填空', 'none')
+      if (!ex || ex.exerciseType !== 'sentence') {
+        showToast('只支持收藏例句填空', 'none')
         return
       }
       
@@ -2207,11 +2234,11 @@ export default {
 }
 
 .custom-message.success {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
 }
 
 .custom-message.error {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: #d32f2f;
 }
 
 .message-text {
@@ -2248,7 +2275,7 @@ export default {
 
 .back-icon {
   font-size: 40rpx;
-  color: #667eea;
+  color: #8B0012;
   font-weight: bold;
   margin-right: 8rpx;
   line-height: 1;
@@ -2256,7 +2283,7 @@ export default {
 
 .back-text {
   font-size: 32rpx;
-  color: #667eea;
+  color: #8B0012;
   line-height: 1;
 }
 
@@ -2301,7 +2328,7 @@ export default {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   transition: width 0.3s;
 }
 
@@ -2440,7 +2467,7 @@ export default {
 .person-info {
   display: block;
   font-size: 28rpx;
-  color: #667eea;
+  color: #8B0012;
 }
 
 .input-container {
@@ -2461,7 +2488,7 @@ export default {
   align-items: center;
   gap: 8rpx;
   padding: 18rpx 30rpx;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  background: #f5f5f5;
   border: 2rpx solid #d1d9e6;
   border-radius: 50rpx;
   font-size: 26rpx;
@@ -2471,10 +2498,10 @@ export default {
 }
 
 .helper-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-color: #667eea;
+  background: #8B0012;
+  border-color: #8B0012;
   color: #fff;
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.3);
   transform: translateY(-2rpx);
 }
 
@@ -2496,7 +2523,7 @@ export default {
   padding: 25rpx;
   background: #f8f9fa;
   border-radius: 12rpx;
-  border-left: 4rpx solid #667eea;
+  border-left: 4rpx solid #8B0012;
 }
 
 .translation {
@@ -2609,12 +2636,12 @@ export default {
 
 .inline-feedback.correct {
   border-left: 6rpx solid #52c41a;
-  background: linear-gradient(135deg, #f6ffed 0%, #ffffff 100%);
+  background: #f6ffed;
 }
 
 .inline-feedback.wrong {
   border-left: 6rpx solid #ff4d4f;
-  background: linear-gradient(135deg, #fff1f0 0%, #ffffff 100%);
+  background: #fff1f0;
 }
 
 .inline-feedback .feedback-header {
@@ -2702,24 +2729,24 @@ export default {
 }
 
 .inline-feedback .rating-btn.good-btn {
-  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  background: #52c41a;
   color: #fff;
   border: none;
 }
 
 .inline-feedback .rating-btn.good-btn:active {
-  background: linear-gradient(135deg, #389e0d 0%, #52c41a 100%);
+  background: #389e0d;
   transform: scale(0.95);
 }
 
 .inline-feedback .rating-btn.bad-btn {
-  background: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%);
+  background: #ff4d4f;
   color: #fff;
   border: none;
 }
 
 .inline-feedback .rating-btn.bad-btn:active {
-  background: linear-gradient(135deg, #cf1322 0%, #ff4d4f 100%);
+  background: #cf1322;
   transform: scale(0.95);
 }
 
@@ -2809,7 +2836,7 @@ export default {
   display: block;
   font-size: 48rpx;
   font-weight: bold;
-  color: #667eea;
+  color: #8B0012;
   margin-bottom: 10rpx;
 }
 
@@ -2850,12 +2877,12 @@ export default {
 }
 
 .navbar-item.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+  background: #8B0012;
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.3);
 }
 
 .navbar-item:not(.active):active {
-  background: rgba(102, 126, 234, 0.1);
+  background: rgba(139, 0, 18, 0.1);
 }
 
 .navbar-item-text {
@@ -2887,8 +2914,8 @@ export default {
   width: 320rpx;
   height: 320rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 8rpx 24rpx rgba(102, 126, 234, 0.4);
+  background: #8B0012;
+  box-shadow: 0 8rpx 24rpx rgba(139, 0, 18, 0.4);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2912,7 +2939,7 @@ export default {
 
 .big-circle-button:active {
   transform: scale(0.95);
-  box-shadow: 0 4rpx 16rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4rpx 16rpx rgba(139, 0, 18, 0.3);
 }
 
 .button-type {
@@ -2932,19 +2959,19 @@ export default {
 
 /* 题型说明框 */
 .exercise-description-box {
-  background: linear-gradient(135deg, #f0f4ff 0%, #f8f0ff 100%);
-  border: 2rpx solid #e0e7ff;
+  background: #fff8f8;
+  border: 2rpx solid #f0d0d0;
   border-radius: 16rpx;
   padding: 25rpx;
   margin-bottom: 30rpx;
-  box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.08);
+  box-shadow: 0 2rpx 8rpx rgba(139, 0, 18, 0.08);
 }
 
 .description-title {
   display: block;
   font-size: 28rpx;
   font-weight: 600;
-  color: #667eea;
+  color: #8B0012;
   margin-bottom: 12rpx;
 }
 
@@ -2958,13 +2985,13 @@ export default {
 
 /* 课程模式提示 */
 .course-mode-tip {
-  background: linear-gradient(135deg, #e0e7ff 0%, #f0e7ff 100%);
+  background: #fff8f8;
   border-radius: 16rpx;
   padding: 24rpx;
   margin-bottom: 30rpx;
   display: flex;
   align-items: flex-start;
-  border: 2rpx solid #667eea;
+  border: 2rpx solid #8B0012;
 }
 
 .tip-icon {
@@ -2982,7 +3009,7 @@ export default {
 .tip-title {
   font-size: 28rpx;
   font-weight: bold;
-  color: #667eea;
+  color: #8B0012;
   margin-bottom: 8rpx;
 }
 
@@ -3008,7 +3035,7 @@ export default {
 
 /* 课程锁定提示 */
 .course-lock-tip {
-  background: linear-gradient(135deg, #fff4e6 0%, #ffe6e6 100%);
+  background: #fff8f3;
   border-radius: 12rpx;
   padding: 20rpx;
   margin-bottom: 24rpx;
@@ -3081,7 +3108,7 @@ export default {
 
 .picker:active {
   background: #e9ecef;
-  border-color: #667eea;
+  border-color: #8B0012;
 }
 
 .picker::after {
@@ -3110,7 +3137,7 @@ slider {
   width: 80rpx;
   height: 80rpx;
   border-radius: 16rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   font-size: 40rpx;
   font-weight: bold;
@@ -3118,7 +3145,7 @@ slider {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6rpx 16rpx rgba(102, 126, 234, 0.25);
+  box-shadow: 0 6rpx 16rpx rgba(139, 0, 18, 0.25);
 }
 
 .count-btn::after {
@@ -3158,12 +3185,12 @@ slider {
 
 /* 专项练习样式 */
 .theme-practice-item {
-  background: linear-gradient(135deg, #f8f9ff 0%, #fff5fb 100%);
-  border: 2rpx solid #e0e7ff;
+  background: #fff8f8;
+  border: 2rpx solid #f0d0d0;
   border-radius: 16rpx;
   padding: 25rpx;
   margin-bottom: 35rpx;
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.08);
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.08);
   transition: all 0.3s ease;
   position: relative;
 }
@@ -3196,7 +3223,7 @@ slider {
 
 .expand-icon {
   font-size: 24rpx;
-  color: #667eea;
+  color: #8B0012;
   font-weight: bold;
   transition: transform 0.3s ease;
 }
@@ -3210,10 +3237,7 @@ slider {
   margin-bottom: 0;
   font-size: 30rpx;
   font-weight: 600;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #8B0012;
 }
 
 .theme-details {
@@ -3260,8 +3284,8 @@ slider {
 }
 
 .checkbox-item.checked {
-  background: linear-gradient(135deg, #f0e7ff 0%, #e0e7ff 100%);
-  border-color: #667eea;
+  background: #fff8f8;
+  border-color: #8B0012;
 }
 
 .checkbox-icon {
@@ -3271,7 +3295,7 @@ slider {
 }
 
 .checkbox-item.checked .checkbox-icon {
-  color: #667eea;
+  color: #8B0012;
 }
 
 .checkbox-label {
@@ -3297,7 +3321,7 @@ slider {
   padding: 8rpx 20rpx;
   border-radius: 6rpx;
   font-size: 22rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   border: none;
   margin-right: 10rpx;
@@ -3307,8 +3331,8 @@ slider {
 
 .quick-btn.secondary {
   background: #fff;
-  color: #667eea;
-  border: 2rpx solid #667eea;
+  color: #8B0012;
+  border: 2rpx solid #8B0012;
 }
 
 .quick-btn::after {
@@ -3317,12 +3341,12 @@ slider {
 
 /* AI 开关样式优化 */
 .ai-switch-item {
-  background: linear-gradient(135deg, #f8f9ff 0%, #fff5f8 100%);
-  border: 2rpx solid #e0e7ff;
+  background: #fff8f8;
+  border: 2rpx solid #f0d0d0;
   border-radius: 16rpx;
   padding: 25rpx;
   margin-bottom: 35rpx;
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.08);
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.08);
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
@@ -3335,7 +3359,7 @@ slider {
   right: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(102, 126, 234, 0.03) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(139, 0, 18, 0.03) 0%, transparent 70%);
   animation: glow 3s ease-in-out infinite;
 }
 
@@ -3384,14 +3408,14 @@ slider {
   margin-bottom: 0;
   font-size: 30rpx;
   font-weight: 600;
-  color: #667eea;
+  color: #8B0012;
 }
 
 .ai-description-box {
-  background: rgba(102, 126, 234, 0.05);
+  background: rgba(139, 0, 18, 0.05);
   padding: 15rpx 20rpx;
   border-radius: 12rpx;
-  border-left: 4rpx solid #667eea;
+  border-left: 4rpx solid #8B0012;
   position: relative;
   z-index: 1;
 }
@@ -3409,7 +3433,7 @@ slider {
   justify-content: center;
   margin-top: 20rpx;
   padding: 15rpx 25rpx;
-  background: linear-gradient(135deg, #e0e7ff 0%, #f0e7ff 100%);
+  background: #fff8f8;
   border-radius: 50rpx;
   animation: pulse 2s ease-in-out infinite;
 }
@@ -3422,7 +3446,7 @@ slider {
 
 .ai-status-text {
   font-size: 24rpx;
-  color: #667eea;
+  color: #8B0012;
   font-weight: 500;
 }
 
@@ -3446,7 +3470,7 @@ slider {
 
 /* AI 增强样式 */
 .ai-info-box {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   padding: 20rpx;
   border-radius: 12rpx;
@@ -3456,13 +3480,13 @@ slider {
 }
 
 .ai-translation {
-  background: #f0f4ff;
-  color: #667eea;
+  background: #fff8f8;
+  color: #8B0012;
   padding: 15rpx 20rpx;
   border-radius: 10rpx;
   margin-top: 15rpx;
   font-size: 24rpx;
-  border-left: 4rpx solid #667eea;
+  border-left: 4rpx solid #8B0012;
 }
 
 .ai-hint {
@@ -3480,12 +3504,12 @@ slider {
   position: absolute;
   top: -15rpx;
   right: 20rpx;
-  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+  background: #ff4d4f;
   color: #fff;
   padding: 8rpx 20rpx;
   border-radius: 30rpx;
   font-size: 22rpx;
-  box-shadow: 0 4rpx 12rpx rgba(255, 107, 107, 0.3);
+  box-shadow: 0 4rpx 12rpx rgba(255, 77, 79, 0.3);
   animation: shake 0.5s ease-in-out;
 }
 
@@ -3542,22 +3566,22 @@ slider {
 }
 
 .good-btn {
-  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  background: #52c41a;
   color: #fff;
 }
 
 .good-btn:active {
-  background: linear-gradient(135deg, #389e0d 0%, #52c41a 100%);
+  background: #389e0d;
   transform: scale(0.95);
 }
 
 .bad-btn {
-  background: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%);
+  background: #ff4d4f;
   color: #fff;
 }
 
 .bad-btn:active {
-  background: linear-gradient(135deg, #cf1322 0%, #ff4d4f 100%);
+  background: #cf1322;
   transform: scale(0.95);
 }
 
@@ -3636,10 +3660,8 @@ slider {
 
 .summary-row.accuracy .summary-value.highlight {
   font-size: 36rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #8B0012;
+  font-weight: bold;
 }
 
 .summary-divider {
@@ -3649,7 +3671,7 @@ slider {
 }
 
 .summary-question {
-  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  background: #fff8f3;
   border-left: 6rpx solid #ff9800;
   padding: 25rpx;
   border-radius: 12rpx;
@@ -3691,7 +3713,7 @@ slider {
 
 /* 快变快填样式 */
 .given-form-section {
-  background: linear-gradient(135deg, #e3f2fd 0%, #e1f5fe 100%);
+  background: #e3f2fd;
   border-left: 6rpx solid #2196f3;
   padding: 25rpx;
   border-radius: 12rpx;
@@ -3737,7 +3759,7 @@ slider {
 
 .combo-item.answered {
   background: #fff;
-  border-color: #667eea;
+  border-color: #8B0012;
 }
 
 .combo-item.correct {
@@ -3773,8 +3795,8 @@ slider {
 
 .requirement-mood {
   font-size: 24rpx;
-  color: #667eea;
-  background: rgba(102, 126, 234, 0.1);
+  color: #8B0012;
+  background: rgba(139, 0, 18, 0.1);
   padding: 6rpx 16rpx;
   border-radius: 20rpx;
   font-weight: 500;
@@ -3782,8 +3804,8 @@ slider {
 
 .requirement-tense {
   font-size: 24rpx;
-  color: #764ba2;
-  background: rgba(118, 75, 162, 0.1);
+  color: #B8001F;
+  background: rgba(184, 0, 31, 0.1);
   padding: 6rpx 16rpx;
   border-radius: 20rpx;
   font-weight: 500;
@@ -3817,8 +3839,8 @@ slider {
 }
 
 .combo-input:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 4rpx rgba(102, 126, 234, 0.1);
+  border-color: #8B0012;
+  box-shadow: 0 0 0 4rpx rgba(139, 0, 18, 0.1);
 }
 
 .combo-correct-answer {
@@ -3854,7 +3876,7 @@ slider {
   align-items: center;
   gap: 6rpx;
   padding: 8rpx 16rpx;
-  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+  background: #ff9800;
   border-radius: 20rpx;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -3902,8 +3924,8 @@ slider {
 }
 
 .report-info {
-  background: linear-gradient(135deg, #f8f9ff 0%, #fff5fb 100%);
-  border: 2rpx solid #e0e7ff;
+  background: #fff8f8;
+  border: 2rpx solid #f0d0d0;
   border-radius: 12rpx;
   padding: 20rpx 25rpx;
   margin-bottom: 30rpx;
@@ -3961,9 +3983,9 @@ slider {
 }
 
 .report-textarea:focus {
-  border-color: #667eea;
+  border-color: #8B0012;
   background: #fff;
-  box-shadow: 0 0 0 4rpx rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4rpx rgba(139, 0, 18, 0.1);
 }
 
 .char-count {
@@ -4000,14 +4022,14 @@ slider {
 }
 
 .report-actions .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.3);
 }
 
 .report-actions .btn-primary:active {
   transform: translateY(2rpx);
-  box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2rpx 8rpx rgba(139, 0, 18, 0.3);
 }
 
 /* 问题类型选择区域 */
@@ -4046,9 +4068,9 @@ slider {
 }
 
 .issue-type-item.selected {
-  background: linear-gradient(135deg, #e7f0ff 0%, #f0e7ff 100%);
-  border-color: #667eea;
-  box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.15);
+  background: #fff8f8;
+  border-color: #8B0012;
+  box-shadow: 0 2rpx 8rpx rgba(139, 0, 18, 0.15);
 }
 
 .issue-checkbox {
@@ -4058,7 +4080,7 @@ slider {
 }
 
 .issue-type-item.selected .issue-checkbox {
-  color: #667eea;
+  color: #8B0012;
 }
 
 .issue-label {
@@ -4069,6 +4091,6 @@ slider {
 }
 
 .issue-type-item.selected .issue-label {
-  color: #667eea;
+  color: #8B0012;
 }
 </style>

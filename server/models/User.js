@@ -39,7 +39,7 @@ class User {
 
   // 根据ID查找用户
   static findById(id) {
-    const stmt = db.prepare('SELECT id, username, email, school, enrollment_year, user_type, subscription_end_date, avatar, created_at FROM users WHERE id = ?')
+    const stmt = db.prepare('SELECT id, username, email, school, enrollment_year, user_type, subscription_end_date, avatar, participate_in_leaderboard, created_at FROM users WHERE id = ?')
     return stmt.get(id)
   }
 
@@ -86,6 +86,11 @@ class User {
     if (userData.enrollmentYear !== undefined) {
       fields.push('enrollment_year = ?')
       params.push(userData.enrollmentYear)
+    }
+
+    if (userData.participateInLeaderboard !== undefined) {
+      fields.push('participate_in_leaderboard = ?')
+      params.push(userData.participateInLeaderboard ? 1 : 0)
     }
 
     fields.push('updated_at = ?')

@@ -30,7 +30,7 @@
         <view class="question-header">
           <view class="header-left">
             <view class="question-number">#{{ index + 1 }}</view>
-            <!-- 动词原型 -->
+            <!-- 动词原形 -->
             <view v-if="item.infinitive" class="verb-infinitive">
               <text class="verb-text">{{ item.infinitive }}</text>
               <text v-if="item.meaning" class="verb-meaning">（{{ item.meaning }}）</text>
@@ -174,7 +174,7 @@ export default {
 .container {
   min-height: 100vh;
   padding: 40rpx;
-  background: linear-gradient(180deg, #f5f7ff 0%, #f8f8f8 100%);
+  background: #f8f8f8;
 }
 
 /* 页面标题 */
@@ -195,17 +195,17 @@ export default {
 .page-subtitle {
   display: block;
   font-size: 28rpx;
-  color: #667eea;
+  color: #8B0012;
   font-weight: 500;
 }
 
 /* 题目类型标题 */
 .type-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   border-radius: 16rpx;
   padding: 28rpx;
   margin-bottom: 30rpx;
-  box-shadow: 0 4rpx 20rpx rgba(102, 126, 234, 0.25);
+  box-shadow: 0 4rpx 20rpx rgba(139, 0, 18, 0.25);
   text-align: center;
 }
 
@@ -243,13 +243,13 @@ export default {
 }
 
 .question-number {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   padding: 10rpx 24rpx;
   border-radius: 24rpx;
   font-size: 26rpx;
   font-weight: bold;
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.3);
   flex-shrink: 0;
 }
 
@@ -273,7 +273,7 @@ export default {
   transform: scale(0.95);
 }
 
-/* 动词原型（在header内） */
+/* 动词原形（在header内） */
 .verb-infinitive {
   display: flex;
   align-items: center;
@@ -300,13 +300,13 @@ export default {
 }
 
 .meta-tag {
-  background: linear-gradient(135deg, #f5f7ff 0%, #e8ecff 100%);
+  background: #fff5f5;
   padding: 8rpx 18rpx;
   border-radius: 12rpx;
   font-size: 24rpx;
-  color: #667eea;
+  color: #8B0012;
   font-weight: 500;
-  border: 1rpx solid #d9e1ff;
+  border: 1rpx solid #ffd9d9;
 }
 
 /* 题目内容 */
@@ -339,7 +339,7 @@ export default {
 }
 
 .answer-box {
-  background: linear-gradient(135deg, #e8f5e9 0%, #d4edd6 100%);
+  background: #e8f5e9;
   padding: 22rpx 28rpx;
   border-radius: 12rpx;
   border-left: 6rpx solid #4caf50;
@@ -358,7 +358,7 @@ export default {
   display: flex;
   align-items: flex-start;
   padding: 24rpx;
-  background: linear-gradient(135deg, #fff9e6 0%, #fff3d9 100%);
+  background: #fff9e6;
   border-radius: 12rpx;
   margin-bottom: 20rpx;
   border: 1rpx solid #ffe8b3;

@@ -1,0 +1,151 @@
+{
+  "textbook": {
+    "name": "现代西班牙语第二册",
+    "description": "适合有一定基础的学习者，涵盖过去时态和更多动词变位",
+    "orderIndex": 2
+  },
+  "lessons": [
+    {
+      "number": 1,
+      "title": "第一课",
+      "description": "学习简单过去时和日常生活动词",
+      "grammarPoints": "陈述式简单过去时",
+      "moods": ["indicativo"],
+      "tenses": ["preterito"],
+      "conjugationTypes": ["ar", "er", "ir"],
+      "verbs": [
+        "despertar",
+        "vestir",
+        "asear",
+        "asistir",
+        "contestar",
+        "recordar",
+        "madrugar",
+        "dar",
+        "decir",
+        "estar",
+        "haber",
+        "ir",
+        "poder",
+        "poner",
+        "querer",
+        "saber",
+        "ser",
+        "tener",
+        "servir",
+        "venir",
+        "ver"
+      ]
+    },
+    {
+      "number": 2,
+      "title": "第二课",
+      "description": "学习过去未完成时和表达动词",
+      "grammarPoints": "陈述式过去未完成时",
+      "moods": ["indicativo"],
+      "tenses": ["imperfecto"],
+      "conjugationTypes": ["ar", "er", "ir"],
+      "verbs": [
+        "exigir",
+        "discutir",
+        "proporcionar",
+        "comenzar",
+        "entregar",
+        "indicar",
+        "leer",
+        "oír"
+      ]
+    },
+    {
+      "number": 3,
+      "title": "第三课",
+      "description": "综合复习陈述式时态",
+      "grammarPoints": "陈述式现在时、简单过去时、过去未完成时综合",
+      "moods": ["indicativo"],
+      "tenses": ["presente", "preterito", "imperfecto"],
+      "conjugationTypes": ["ar", "er", "ir"],
+      "verbs": [
+        "producir",
+        "durar",
+        "aparcar",
+        "aparecer",
+        "avisar",
+        "decidir",
+        "lograr",
+        "abrazar",
+        "reír",
+        "entablar",
+        "conectar",
+        "paralizar",
+        "tardar",
+        "ir",
+        "ser",
+        "ver"
+      ]
+    },
+    {
+      "number": 4,
+      "title": "第四课",
+      "description": "学习日常活动和情态动词",
+      "grammarPoints": "陈述式现在时、简单过去时、过去未完成时综合",
+      "moods": ["indicativo"],
+      "tenses": ["presente", "preterito", "imperfecto"],
+      "conjugationTypes": ["ar", "er", "ir"],
+      "verbs": [
+        "cultivar",
+        "nadar",
+        "atardecer",
+        "alojar",
+        "compartir",
+        "repartir",
+        "permitir",
+        "funcionar",
+        "obligar"
+      ]
+    },
+    {
+      "number": 9,
+      "title": "第九课",
+      "description": "学习旅行和交通相关动词",
+      "grammarPoints": "陈述式、命令式、虚拟式综合",
+      "moods": ["indicativo", "imperativo", "subjuntivo"],
+      "tenses": ["presente", "preterito", "imperfecto", "imperativo_afirmativo", "imperativo_negativo"],
+      "conjugationTypes": ["ar", "er", "ir"],
+      "verbs": [
+        "intensificar",
+        "advertir",
+        "notar",
+        "realizar",
+        "efectuar",
+        "obtener",
+        "fijar",
+        "ampliar",
+        "reservar",
+        "requerir",
+        "resolver",
+        "separar",
+        "despegar",
+        "ocurrir",
+        "partir",
+        "aterrizar",
+        "aproximar",
+        "alejar",
+        "atrever",
+        "referir"
+      ]
+    },
+    {
+      "number": 10,
+      "title": "第十课",
+      "description": "综合复习与拓展",
+      "grammarPoints": "陈述式、命令式、虚拟式综合复习",
+      "moods": ["indicativo", "imperativo", "subjuntivo"],
+      "tenses": ["presente", "preterito", "imperfecto", "imperativo_afirmativo", "imperativo_negativo"],
+      "conjugationTypes": ["ar", "er", "ir"],
+      "verbs": [
+        "preferir",
+        "recorrer"
+      ]
+    }
+  ]
+}

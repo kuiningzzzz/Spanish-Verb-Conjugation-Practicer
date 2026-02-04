@@ -227,7 +227,7 @@ export default {
         loginVerificationCode: ''
       },
       userTypes: [
-        { value: 'student', label: '学生' },
+        { value: 'student', label: '学生/教师' },
         { value: 'public', label: '社会人士' }
       ],
       userTypeIndex: 0,
@@ -709,9 +709,7 @@ export default {
   display: block;
   font-size: 52rpx;
   font-weight: bold;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #8B0012;
   margin-bottom: 20rpx;
 }
 
@@ -741,7 +739,7 @@ export default {
 }
 
 .tab-item.active {
-  color: #667eea;
+  color: #8B0012;
   font-weight: bold;
 }
 
@@ -753,7 +751,7 @@ export default {
   transform: translateX(-50%);
   width: 60rpx;
   height: 4rpx;
-  background: #667eea;
+  background: #8B0012;
   border-radius: 2rpx;
 }
 
@@ -781,7 +779,7 @@ export default {
 }
 
 .mode-item.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   font-weight: bold;
 }
@@ -835,7 +833,7 @@ export default {
 .code-button {
   height: 80rpx;
   padding: 0 25rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   border: none;
   border-radius: 12rpx;

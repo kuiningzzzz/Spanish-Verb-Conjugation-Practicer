@@ -68,6 +68,7 @@ export default {
   checkUsername: (data) => request({ url: '/user/check-username', method: 'POST', data }),
   updateProfile: (data) => request({ url: '/user/profile', method: 'PUT', data }),
   uploadAvatar: (data) => request({ url: '/user/avatar', method: 'POST', data }),
+  updateLeaderboardSetting: (data) => request({ url: '/user/settings/leaderboard', method: 'PUT', data }),
 
   // 动词相关
   getVerbList: (params) => request({ url: '/verb/list', data: params }),
@@ -84,6 +85,7 @@ export default {
   // 学习记录
   getStudyRecords: (params) => request({ url: '/record/list', data: params }),
   getStatistics: () => request({ url: '/record/statistics' }),
+  getStudyTrend: (type) => request({ url: `/record/trend/${type}` }),
 
   // 打卡
   checkIn: () => request({ url: '/checkin', method: 'POST' }),
@@ -149,5 +151,9 @@ export default {
   getAllVersions: () => request({
     url: '/version/all',
     method: 'GET'
-  })
+  }),
+
+  // 公告相关
+  getAnnouncements: () => request({ url: '/announcement' }),
+  getAnnouncementById: (id) => request({ url: `/announcement/${id}` })
 }

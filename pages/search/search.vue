@@ -7,7 +7,7 @@
         <input 
           class="search-input" 
           v-model="searchKeyword" 
-          placeholder="搜索单词原型或变位形式..."
+          placeholder="搜索单词原形或变位形式..."
           @input="onSearchInput"
           @confirm="performSearch"
           focus
@@ -20,7 +20,7 @@
     <view v-if="showSearchResults" class="search-results">
       <!-- 精确匹配结果 -->
       <view v-if="hasExactResults" class="results-section">
-        <!-- 原型精确匹配 -->
+        <!-- 原形精确匹配 -->
         <view
           v-for="(verb, index) in displayedExactInfinitive"
           :key="'exact-inf-' + verb.id"
@@ -30,8 +30,8 @@
           <view class="result-header">
             <text class="verb-infinitive">{{ formatInfinitive(verb) }}</text>
             <view class="verb-badges">
-              <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
-              <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
+              <text v-if="verb.isReflexive" class="badge reflexive">Prnl.</text>
+              <text v-if="verb.isIrregular" class="badge irregular">Irreg.</text>
             </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
@@ -50,8 +50,8 @@
           <view class="result-header">
             <text class="verb-infinitive">{{ formatInfinitive(verb) }}</text>
             <view class="verb-badges">
-              <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
-              <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
+              <text v-if="verb.isReflexive" class="badge reflexive">Prnl.</text>
+              <text v-if="verb.isIrregular" class="badge irregular">Irreg.</text>
             </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
@@ -77,7 +77,7 @@
           <text>你想检索的单词还可能是：</text>
         </view>
 
-        <!-- 原型模糊匹配 -->
+        <!-- 原形模糊匹配 -->
         <view
           v-for="(verb, index) in displayedFuzzyInfinitive"
           :key="'fuzzy-inf-' + verb.id"
@@ -87,8 +87,8 @@
           <view class="result-header">
             <text class="verb-infinitive">{{ formatInfinitive(verb) }}</text>
             <view class="verb-badges">
-              <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
-              <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
+              <text v-if="verb.isReflexive" class="badge reflexive">Prnl.</text>
+              <text v-if="verb.isIrregular" class="badge irregular">Irreg.</text>
             </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
@@ -107,8 +107,8 @@
           <view class="result-header">
             <text class="verb-infinitive">{{ formatInfinitive(verb) }}</text>
             <view class="verb-badges">
-              <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
-              <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
+              <text v-if="verb.isReflexive" class="badge reflexive">Prnl.</text>
+              <text v-if="verb.isIrregular" class="badge irregular">Irreg.</text>
             </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
@@ -151,8 +151,8 @@
           <view class="result-header">
             <text class="verb-infinitive">{{ formatInfinitive(verb) }}</text>
             <view class="verb-badges">
-              <text v-if="verb.isReflexive" class="badge reflexive">反身</text>
-              <text v-if="verb.isIrregular" class="badge irregular">不规则</text>
+              <text v-if="verb.isReflexive" class="badge reflexive">Prnl.</text>
+              <text v-if="verb.isIrregular" class="badge irregular">Irreg.</text>
             </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
@@ -169,7 +169,7 @@
       <view v-else class="search-tips">
         <view class="tip-item">
           <text class="tip-icon">💡</text>
-          <text class="tip-text">输入动词原型，如 "hablar"</text>
+          <text class="tip-text">输入动词原形，如 "hablar"</text>
         </view>
         <view class="tip-item">
           <text class="tip-icon">💡</text>
@@ -212,7 +212,7 @@ export default {
   },
 
   computed: {
-    // 当前显示的精确匹配结果（原型）
+    // 当前显示的精确匹配结果（原形）
     displayedExactInfinitive() {
       return this.searchResults.exactInfinitive.slice(0, this.exactDisplayCount)
     },
@@ -224,7 +224,7 @@ export default {
       return this.searchResults.exactConjugation.slice(0, remaining)
     },
     
-    // 当前显示的模糊匹配结果（原型）
+    // 当前显示的模糊匹配结果（原形）
     displayedFuzzyInfinitive() {
       return this.searchResults.fuzzyInfinitive.slice(0, this.fuzzyDisplayCount)
     },
@@ -453,7 +453,7 @@ export default {
 
 .search-box:focus-within {
   background: white;
-  box-shadow: 0 0 0 2rpx #667eea;
+  box-shadow: 0 0 0 2rpx #8B0012;
 }
 
 .search-icon {
@@ -546,17 +546,17 @@ export default {
 }
 
 .badge.reflexive {
-  background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+  background: #ff6b6b;
   color: white;
 }
 
 .badge.irregular {
-  background: linear-gradient(135deg, #ff8c00, #ffa500);
+  background: #ff8c00;
   color: white;
 }
 
 .irregular-badge {
-  background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+  background: #ff6b6b;
   color: white;
   font-size: 20rpx;
   padding: 6rpx 16rpx;
@@ -572,11 +572,11 @@ export default {
 
 /* 变位形式匹配信息 */
 .matched-form-info {
-  background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+  background: #fff5f5;
   padding: 15rpx 20rpx;
   border-radius: 12rpx;
   margin-bottom: 15rpx;
-  border-left: 4rpx solid #667eea;
+  border-left: 4rpx solid #8B0012;
 }
 
 .matched-form-label {
@@ -587,7 +587,7 @@ export default {
 
 .matched-form-text {
   font-size: 26rpx;
-  color: #667eea;
+  color: #8B0012;
   font-weight: 600;
 }
 
@@ -615,19 +615,19 @@ export default {
 .show-more-btn {
   margin-top: 30rpx;
   padding: 20rpx 40rpx;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #8B0012;
   color: white;
   font-size: 28rpx;
   font-weight: 600;
   text-align: center;
   border-radius: 50rpx;
-  box-shadow: 0 4rpx 15rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4rpx 15rpx rgba(139, 0, 18, 0.3);
   transition: all 0.3s;
 }
 
 .show-more-btn:active {
   transform: scale(0.95);
-  box-shadow: 0 2rpx 10rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2rpx 10rpx rgba(139, 0, 18, 0.3);
 }
 
 /* 无结果 */
@@ -668,6 +668,9 @@ export default {
 .history-item {
   position: relative;
   padding-bottom: 60rpx;
+  margin-bottom: 30rpx;
+  border: 2rpx solid #e8e8e8;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
 }
 
 .history-delete {

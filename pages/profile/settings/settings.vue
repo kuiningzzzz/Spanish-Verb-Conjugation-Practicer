@@ -11,7 +11,7 @@
           <text class="item-title">包含 vosotros</text>
           <text class="item-desc">西班牙地区常用的复数第二人称</text>
         </view>
-        <switch :checked="pronounSettings.includeVosotros" @change="onVosotrosChange" color="#667eea" />
+        <switch :checked="pronounSettings.includeVosotros" @change="onVosotrosChange" color="#8B0012" />
       </view>
 
       <view class="setting-item">
@@ -19,7 +19,22 @@
           <text class="item-title">包含 vos</text>
           <text class="item-desc">拉美部分地区使用的第二人称</text>
         </view>
-        <switch :checked="pronounSettings.includeVos" @change="onVosChange" color="#667eea" />
+        <switch :checked="pronounSettings.includeVos" @change="onVosChange" color="#8B0012" />
+      </view>
+    </view>
+
+    <view class="settings-card">
+      <view class="card-header">
+        <text class="card-title">隐私设置</text>
+        <text class="card-subtitle">控制你在排行榜中的可见性</text>
+      </view>
+
+      <view class="setting-item">
+        <view class="item-info">
+          <text class="item-title">参与排行榜</text>
+          <text class="item-desc">关闭后，其他用户将无法在排行榜中看到你</text>
+        </view>
+        <switch :checked="participateInLeaderboard" @change="onLeaderboardChange" color="#8B0012" />
       </view>
     </view>
 
@@ -32,18 +47,32 @@
 
 <script>
 import { getPronounSettings, setPronounSettings } from '@/utils/settings.js'
-import { showToast } from '@/utils/common.js'
+import { showToast, showLoading, hideLoading } from '@/utils/common.js'
+import api from '@/utils/api.js'
 
 export default {
   data() {
     return {
-      pronounSettings: getPronounSettings()
+      pronounSettings: getPronounSettings(),
+      participateInLeaderboard: true
     }
   },
   onShow() {
     this.pronounSettings = getPronounSettings()
+    this.loadUserSettings()
   },
   methods: {
+    async loadUserSettings() {
+      try {
+        const res = await api.getUserInfo()
+        if (res.success) {
+          // participate_in_leaderboard 为 1 表示参与，0 表示不参与
+          this.participateInLeaderboard = res.user.participate_in_leaderboard === 1
+        }
+      } catch (error) {
+        console.error('加载用户设置失败:', error)
+      }
+    },
     onVosotrosChange(event) {
       const updated = setPronounSettings({
         ...this.pronounSettings,
@@ -59,6 +88,32 @@ export default {
       })
       this.pronounSettings = updated
       showToast(`已${updated.includeVos ? '开启' : '关闭'} vos`, 'success')
+    },
+    async onLeaderboardChange(event) {
+      const newValue = event.detail.value
+      showLoading('保存中...')
+      
+      try {
+        const res = await api.updateLeaderboardSetting({
+          participateInLeaderboard: newValue
+        })
+        hideLoading()
+        
+        if (res.success) {
+          this.participateInLeaderboard = newValue
+          showToast(`已${newValue ? '参与' : '退出'}排行榜`, 'success')
+        } else {
+          showToast('设置失败，请重试', 'error')
+          // 恢复原值
+          this.participateInLeaderboard = !newValue
+        }
+      } catch (error) {
+        hideLoading()
+        console.error('更新排行榜设置失败:', error)
+        showToast('设置失败，请重试', 'error')
+        // 恢复原值
+        this.participateInLeaderboard = !newValue
+      }
     }
   }
 }
@@ -68,15 +123,15 @@ export default {
 .settings-container {
   min-height: 100vh;
   padding: 30rpx 32rpx 60rpx;
-  background: linear-gradient(180deg, #f5f7ff 0%, #ffffff 100%);
+  background: #f8f8f8;
 }
 
 .settings-card {
   background: #ffffff;
   border-radius: 24rpx;
   padding: 28rpx;
-  box-shadow: 0 12rpx 30rpx rgba(102, 126, 234, 0.12);
-  border: 1rpx solid #eef0ff;
+  box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.08);
+  border: 1rpx solid #f0f0f0;
 }
 
 .card-header {

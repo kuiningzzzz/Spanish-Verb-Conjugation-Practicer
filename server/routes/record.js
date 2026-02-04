@@ -43,4 +43,22 @@ router.get('/statistics', authMiddleware, (req, res) => {
   }
 })
 
+// 获取学习趋势数据
+router.get('/trend/:type', authMiddleware, (req, res) => {
+  try {
+    const { type } = req.params // week, month, year
+    const userId = req.userId
+
+    const trendData = PracticeRecord.getTrendData(userId, type)
+
+    res.json({
+      success: true,
+      trend: trendData
+    })
+  } catch (error) {
+    console.error('获取趋势数据错误:', error)
+    res.status(500).json({ error: '获取趋势数据失败' })
+  }
+})
+
 module.exports = router

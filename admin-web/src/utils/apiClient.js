@@ -8,6 +8,7 @@ function normalizeApiBase(base) {
 }
 
 const API_BASE = normalizeApiBase(process.env.VUE_APP_ADMIN_API_BASE_URL);
+const API_ROOT = API_BASE.replace(/\/admin$/, '');
 
 export class ApiError extends Error {
   constructor(message, { status = 0, data = null, fieldErrors = null } = {}) {
@@ -46,6 +47,17 @@ function buildQuery(params = {}) {
   return `?${search.toString()}`;
 }
 
+function resolveApiUrl(path, params) {
+  const query = buildQuery(params);
+  if (/^https?:\/\//.test(path)) {
+    return `${path}${query}`;
+  }
+  if (path.startsWith('/api/')) {
+    return `${API_ROOT}${path}${query}`;
+  }
+  return `${API_BASE}${path}${query}`;
+}
+
 function getToken() {
   return localStorage.getItem(TOKEN_KEY) || '';
 }
@@ -60,7 +72,7 @@ export async function apiRequest(path, options = {}) {
     auth = true
   } = options;
 
-  const url = `${API_BASE}${path}${buildQuery(params)}`;
+  const url = resolveApiUrl(path, params);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
 

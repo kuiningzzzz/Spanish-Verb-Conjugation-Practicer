@@ -28,41 +28,9 @@
 
     <!-- 排行榜内容 -->
     <view class="leaderboard-content">
-      <!-- 前三名奖台 -->
-      <view class="podium" v-if="leaderboard.length >= 3">
-        <view class="podium-item second">
-          <view class="podium-avatar">
-            <image v-if="leaderboard[1].avatar" :src="leaderboard[1].avatar" class="avatar-image" mode="aspectFill"></image>
-            <text v-else class="avatar-text">{{ getAvatarText(leaderboard[1].username) }}</text>
-          </view>
-          <view class="podium-medal">🥈</view>
-          <text class="podium-name">{{ leaderboard[1].username }}</text>
-          <text class="podium-school" v-if="leaderboard[1].school">{{ leaderboard[1].school }}</text>
-          <text class="podium-stats">{{ leaderboard[1].check_in_days }}天 · {{ leaderboard[1].total_exercises }}题</text>
-        </view>
-
-        <view class="podium-item first">
-          <view class="podium-avatar champion">
-            <image v-if="leaderboard[0].avatar" :src="leaderboard[0].avatar" class="avatar-image" mode="aspectFill"></image>
-            <text v-else class="avatar-text">{{ getAvatarText(leaderboard[0].username) }}</text>
-            <view class="crown">👑</view>
-          </view>
-          <view class="podium-medal">🥇</view>
-          <text class="podium-name">{{ leaderboard[0].username }}</text>
-          <text class="podium-school" v-if="leaderboard[0].school">{{ leaderboard[0].school }}</text>
-          <text class="podium-stats">{{ leaderboard[0].check_in_days }}天 · {{ leaderboard[0].total_exercises }}题</text>
-        </view>
-
-        <view class="podium-item third">
-          <view class="podium-avatar">
-            <image v-if="leaderboard[2].avatar" :src="leaderboard[2].avatar" class="avatar-image" mode="aspectFill"></image>
-            <text v-else class="avatar-text">{{ getAvatarText(leaderboard[2].username) }}</text>
-          </view>
-          <view class="podium-medal">🥉</view>
-          <text class="podium-name">{{ leaderboard[2].username }}</text>
-          <text class="podium-school" v-if="leaderboard[2].school">{{ leaderboard[2].school }}</text>
-          <text class="podium-stats">{{ leaderboard[2].check_in_days }}天 · {{ leaderboard[2].total_exercises }}题</text>
-        </view>
+      <!-- 榜单描述 -->
+      <view class="leaderboard-desc">
+        <text class="desc-text">{{ getCurrentTabDesc() }}</text>
       </view>
 
       <!-- 排行榜列表 -->
@@ -94,13 +62,17 @@
           </view>
 
           <view class="user-stats">
-            <view class="stat-item">
+            <view class="stat-item" v-if="activeTab === 'veteran'">
               <text class="stat-icon">📅</text>
               <text class="stat-value">{{ user.check_in_days }}天</text>
             </view>
-            <view class="stat-item">
+            <view class="stat-item" v-else-if="activeTab === 'exercise'">
               <text class="stat-icon">📝</text>
               <text class="stat-value">{{ user.total_exercises }}题</text>
+            </view>
+            <view class="stat-item" v-else-if="activeTab === 'streak'">
+              <text class="stat-icon">🔥</text>
+              <text class="stat-value">{{ user.consecutive_days }}天</text>
             </view>
           </view>
         </view>
@@ -130,11 +102,11 @@ export default {
   data() {
     return {
       tabs: [
-        { value: 'week', label: '周榜' },
-        { value: 'month', label: '月榜' },
-        { value: 'all', label: '总榜' }
+        { value: 'veteran', label: '老资历榜', desc: '累计练习天数排行\n积极出勤才能成为老资历噢！' },
+        { value: 'exercise', label: '数值怪榜', desc: '累计练习题数排行\n增加数值的最佳手段肯定还是打副本啦！' },
+        { value: 'streak', label: '焊武帝榜', desc: '连续练习天数排行\n我就焊死在这儿不走啦！' }
       ],
-      activeTab: 'week',
+      activeTab: 'veteran',
       leaderboard: [],
       refreshing: false,
       currentUser: null
@@ -150,6 +122,10 @@ export default {
     this.loadLeaderboard()
   },
   methods: {
+    getCurrentTabDesc() {
+      const tab = this.tabs.find(t => t.value === this.activeTab)
+      return tab ? tab.desc : ''
+    },
     switchTab(tab) {
       this.activeTab = tab
       this.loadLeaderboard()
@@ -206,7 +182,7 @@ export default {
 <style scoped>
 .container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   position: relative;
   overflow: hidden;
 }
@@ -294,7 +270,7 @@ export default {
   left: 8rpx;
   right: 8rpx;
   bottom: 8rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   border-radius: 17rpx;
   z-index: -1;
   animation: tabGlow 2s ease-in-out infinite alternate;
@@ -309,148 +285,21 @@ export default {
   padding: 0 20rpx 120rpx;
 }
 
-/* 前三名奖台 */
-.podium {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 15rpx;
-  margin-bottom: 40rpx;
-  padding: 0 20rpx;
-  max-width: 720rpx;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.podium-item {
-  flex: none;
-  width: 190rpx;
+/* 榜单描述 */
+.leaderboard-desc {
   text-align: center;
+  padding: 20rpx 40rpx;
+  margin: 0 20rpx 30rpx;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   border-radius: 20rpx;
-  padding: 30rpx 20rpx;
-  box-shadow: 0 15rpx 30rpx rgba(0, 0, 0, 0.1);
-  border: 1rpx solid rgba(255, 255, 255, 0.2);
-  position: relative;
-  min-height: 320rpx;
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.08);
 }
 
-.podium-item.first {
-  order: 2;
-  margin-bottom: -20rpx;
-  z-index: 3;
-  width: 220rpx;
-}
-
-.podium-item.second {
-  order: 1;
-  margin-bottom: -10rpx;
-  z-index: 2;
-  width: 180rpx;
-}
-
-.podium-item.third {
-  order: 3;
-  margin-bottom: -10rpx;
-  z-index: 2;
-  width: 180rpx;
-}
-
-.podium-avatar {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 15rpx;
-  font-size: 36rpx;
-  font-weight: bold;
-  color: #fff;
-  position: relative;
-  overflow: hidden;
-}
-
-.podium-item.first .podium-avatar {
-  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-  width: 120rpx;
-  height: 120rpx;
-  font-size: 42rpx;
-}
-
-.podium-item.second .podium-avatar {
-  background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
-}
-
-.podium-item.third .podium-avatar {
-  background: linear-gradient(135deg, #cd7f32 0%, #e8b880 100%);
-}
-
-.champion {
-  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-}
-
-.avatar-image {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-}
-
-.crown {
-  position: absolute;
-  top: -10rpx;
-  right: -10rpx;
-  font-size: 24rpx;
-  animation: crownGlow 2s ease-in-out infinite;
-}
-
-@keyframes crownGlow {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-}
-
-.podium-medal {
-  font-size: 48rpx;
-  margin-bottom: 10rpx;
-}
-
-.podium-name {
-  display: block;
-  font-size: 30rpx;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 5rpx;
-  max-width: 180rpx;
-  margin-left: auto;
-  margin-right: auto;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.podium-item.first .podium-name {
-  max-width: 200rpx;
-  font-size: 32rpx;
-}
-
-.podium-item.second .podium-name,
-.podium-item.third .podium-name {
-  max-width: 170rpx;
-}
-
-.podium-school {
-  display: block;
-  font-size: 22rpx;
+.desc-text {
+  font-size: 26rpx;
   color: #666;
-  margin-bottom: 10rpx;
-}
-
-.podium-stats {
-  display: block;
-  font-size: 20rpx;
-  color: #999;
+  line-height: 1.5;
 }
 
 /* 排行榜列表 */
@@ -478,8 +327,8 @@ export default {
 }
 
 .rank-item.current-user {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-  border-left: 6rpx solid #667eea;
+  background: rgba(139, 0, 18, 0.1);
+  border-left: 6rpx solid #8B0012;
 }
 
 .rank-number {
@@ -498,19 +347,19 @@ export default {
 }
 
 .rank-gold {
-  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  background: #ffd700;
   color: #fff;
   box-shadow: 0 8rpx 20rpx rgba(255, 215, 0, 0.3);
 }
 
 .rank-silver {
-  background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
+  background: #c0c0c0;
   color: #fff;
   box-shadow: 0 8rpx 20rpx rgba(192, 192, 192, 0.3);
 }
 
 .rank-bronze {
-  background: linear-gradient(135deg, #cd7f32 0%, #e8b880 100%);
+  background: #cd7f32;
   color: #fff;
   box-shadow: 0 8rpx 20rpx rgba(205, 127, 50, 0.3);
 }
@@ -523,7 +372,7 @@ export default {
   width: 80rpx;
   height: 80rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -532,6 +381,18 @@ export default {
   font-weight: bold;
   color: #fff;
   overflow: hidden;
+}
+
+.user-avatar .avatar-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.user-avatar .avatar-text {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #fff;
 }
 
 .user-info {
@@ -562,7 +423,7 @@ export default {
 }
 
 .badge {
-  background: #667eea;
+  background: #8B0012;
   color: #fff;
   padding: 4rpx 12rpx;
   border-radius: 12rpx;
@@ -581,7 +442,7 @@ export default {
   gap: 5rpx;
   margin-right: 20rpx;
   flex-shrink: 0;
-  width: 170rpx;
+  width: 120rpx;
   margin-left: auto;
   align-items: flex-end;
   text-align: right;
@@ -594,12 +455,13 @@ export default {
 }
 
 .stat-icon {
-  font-size: 20rpx;
+  font-size: 24rpx;
 }
 
 .stat-value {
-  font-size: 22rpx;
-  color: #666;
+  font-size: 26rpx;
+  font-weight: bold;
+  color: #8B0012;
 }
 
 /* 空状态 */
@@ -631,7 +493,7 @@ export default {
 }
 
 .empty-action {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8B0012;
   color: #fff;
   border: none;
   border-radius: 25rpx;
@@ -647,24 +509,26 @@ export default {
   right: 40rpx;
   width: 100rpx;
   height: 100rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 15rpx 30rpx rgba(102, 126, 234, 0.4);
+  box-shadow: 0 15rpx 30rpx rgba(0, 0, 0, 0.2);
+  border: 2rpx solid rgba(255, 255, 255, 0.3);
   z-index: 100;
   transition: all 0.3s ease;
 }
 
 .refresh-fab:active {
   transform: scale(0.95);
-  box-shadow: 0 8rpx 20rpx rgba(102, 126, 234, 0.6);
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.3);
 }
 
 .refresh-icon {
   font-size: 40rpx;
-  color: #fff;
+  color: #8B0012;
   transition: transform 0.3s ease;
 }
 
