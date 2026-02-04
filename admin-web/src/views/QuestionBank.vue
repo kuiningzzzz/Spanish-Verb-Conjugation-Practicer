@@ -19,6 +19,7 @@
           <button class="ghost" :disabled="loading" @click="refresh">刷新</button>
         </div>
         <div class="toolbar-right">
+          <button class="ghost" :disabled="downloadingAll" @click="downloadAllQuestionsJson">下载题库JSON</button>
           <div class="pagination inline-pagination" v-if="total > pageSize">
             <button class="ghost" :disabled="page === 1 || loading" @click="changePage(page - 1)">上一页</button>
             <span>第 {{ page }} / {{ totalPages }} 页</span>
@@ -222,6 +223,7 @@ const tenseMoodMap = ref({});
 const drawerOpen = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
+const downloadingAll = ref(false);
 const deleteDialog = ref(null);
 const activeQuestion = ref(null);
 
@@ -451,6 +453,69 @@ function clearSearch() {
   keyword.value = '';
   debouncedKeyword.value = '';
   page.value = 1;
+}
+
+function downloadJsonFile(payload, fileName) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildDownloadFileName() {
+  const now = new Date();
+  const stamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+    String(now.getSeconds()).padStart(2, '0')
+  ].join('');
+  return `question-bank-list-${stamp}.json`;
+}
+
+async function fetchAllQuestions() {
+  const limit = 200;
+  let offset = 0;
+  let rounds = 0;
+  const all = [];
+  while (true) {
+    const data = await apiRequest('/questions', {
+      params: { limit, offset, sortBy: 'id', sortOrder: 'asc' }
+    });
+    const rows = data?.rows || [];
+    if (!rows.length) break;
+    all.push(...rows);
+    if (rows.length < limit) break;
+    offset += limit;
+    rounds += 1;
+    if (rounds > 500) break;
+  }
+  return all;
+}
+
+async function downloadAllQuestionsJson() {
+  if (downloadingAll.value) return;
+  downloadingAll.value = true;
+  try {
+    const rows = await fetchAllQuestions();
+    if (!rows.length) {
+      showToast('没有题目可下载', 'info');
+      return;
+    }
+    downloadJsonFile(rows, buildDownloadFileName());
+    showToast('JSON 已下载', 'success');
+  } catch (err) {
+    handleApiError(err);
+  } finally {
+    downloadingAll.value = false;
+  }
 }
 
 function formatDate(value) {

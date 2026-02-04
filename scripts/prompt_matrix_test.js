@@ -21,6 +21,38 @@ const DEFAULT_VALIDATOR_FLAG = true
 const DEFAULT_TEST_CASES = 1
 const DEFAULT_GENERATOR_PROMPTS = generatorPrompts.map((_, i) => i)
 const DEFAULT_VALIDATOR_PROMPTS = validatorPrompts.map((_, i) => i)
+const TEMPLATE_OPENINGS = [
+  'mañana',
+  'manana',
+  'ayer',
+  'hoy',
+  'ahora',
+  'siempre',
+  'nunca',
+  'todos los días',
+  'todos los dias',
+  'cada día',
+  'cada dia',
+  'últimamente',
+  'ultimamente',
+  'en este momento'
+]
+const HIGH_RISK_TIME_ADVERBS = [
+  'mañana',
+  'manana',
+  'ayer',
+  'hoy',
+  'ahora',
+  'siempre',
+  'nunca',
+  'todos los días',
+  'todos los dias',
+  'cada día',
+  'cada dia',
+  'últimamente',
+  'ultimamente',
+  'en este momento'
+]
 
 function parseCsvList(value) {
   if (!value) return null
@@ -39,8 +71,62 @@ function parseBool(value) {
   return normalized === 'true' || normalized === '1' || normalized === 'yes'
 }
 
+function parsePositiveInt(value, fallback) {
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback
+  return parsed
+}
+
 function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)]
+}
+
+function normalizeSentenceStart(text) {
+  if (!text) return ''
+  return text.trim().replace(/^[\s¡¿"'\(\[\{«»]+/, '').toLowerCase()
+}
+
+function startsWithAny(text, phrases) {
+  const normalized = normalizeSentenceStart(text)
+  return phrases.some(phrase => normalized.startsWith(phrase))
+}
+
+function countWords(text) {
+  if (!text) return 0
+  const matches = text.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+/g)
+  return matches ? matches.length : 0
+}
+
+function countPhraseHits(text, phrases) {
+  if (!text) return 0
+  const lower = text.toLowerCase()
+  let total = 0
+  for (const phrase of phrases) {
+    if (!phrase) continue
+    let idx = 0
+    while (idx < lower.length) {
+      const found = lower.indexOf(phrase, idx)
+      if (found === -1) break
+      total += 1
+      idx = found + phrase.length
+    }
+  }
+  return total
+}
+
+function quantile(sortedValues, p) {
+  if (!sortedValues.length) return 0
+  const idx = (sortedValues.length - 1) * p
+  const lower = Math.floor(idx)
+  const upper = Math.ceil(idx)
+  if (lower === upper) return sortedValues[lower]
+  const weight = idx - lower
+  return sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight
+}
+
+function roundNumber(value, digits = 4) {
+  if (!Number.isFinite(value)) return 0
+  return Number(value.toFixed(digits))
 }
 
 function buildConjugationEntries(verb) {
@@ -110,7 +196,7 @@ function escapeCsv(value) {
   return str
 }
 
-async function callChat({ apiUrl, apiKey, model, temperature, system, user, maxTokens }) {
+async function callChat({ apiUrl, apiKey, model, temperature, system, user, maxTokens, timeoutMs }) {
   if (!apiUrl || !apiKey) {
     throw new Error('Missing apiUrl/apiKey')
   }
@@ -131,7 +217,7 @@ async function callChat({ apiUrl, apiKey, model, temperature, system, user, maxT
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      timeout: 30000
+      timeout: timeoutMs || 30000
     }
   )
 
@@ -165,6 +251,9 @@ async function main() {
     : DEFAULT_TEST_CASES
   const generatorPromptIndexes = parseNumberList(process.env.GENERATOR_PROMPTS) || DEFAULT_GENERATOR_PROMPTS
   const validatorPromptIndexes = parseNumberList(process.env.VALIDATOR_PROMPTS) || DEFAULT_VALIDATOR_PROMPTS
+  const generatorMaxTokens = parsePositiveInt(process.env.GENERATOR_MAX_TOKENS, 1000)
+  const validatorMaxTokens = parsePositiveInt(process.env.VALIDATOR_MAX_TOKENS, 700)
+  const requestTimeoutMs = parsePositiveInt(process.env.REQUEST_TIMEOUT_MS, 45000)
 
   const deepseekApiUrl = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions'
   const deepseekApiKey = process.env.DEEPSEEK_API_KEY
@@ -173,21 +262,21 @@ async function main() {
 
   const outputPath = process.env.OUTPUT_FILE
   const logPath = process.env.LOG_FILE
+  const resolvedOutputPath = outputPath
+    ? (path.isAbsolute(outputPath) ? outputPath : path.join(process.cwd(), outputPath))
+    : ''
+  const resolvedLogPath = logPath
+    ? (path.isAbsolute(logPath) ? logPath : path.join(process.cwd(), logPath))
+    : ''
   let outputStream = null
   let logStream = null
-  if (outputPath) {
-    const resolved = path.isAbsolute(outputPath)
-      ? outputPath
-      : path.join(process.cwd(), outputPath)
-    fs.mkdirSync(path.dirname(resolved), { recursive: true })
-    outputStream = fs.createWriteStream(resolved, { encoding: 'utf8' })
+  if (resolvedOutputPath) {
+    fs.mkdirSync(path.dirname(resolvedOutputPath), { recursive: true })
+    outputStream = fs.createWriteStream(resolvedOutputPath, { encoding: 'utf8' })
   }
-  if (logPath) {
-    const resolvedLog = path.isAbsolute(logPath)
-      ? logPath
-      : path.join(process.cwd(), logPath)
-    fs.mkdirSync(path.dirname(resolvedLog), { recursive: true })
-    logStream = fs.createWriteStream(resolvedLog, { encoding: 'utf8' })
+  if (resolvedLogPath) {
+    fs.mkdirSync(path.dirname(resolvedLogPath), { recursive: true })
+    logStream = fs.createWriteStream(resolvedLogPath, { encoding: 'utf8' })
   }
 
   const headers = [
@@ -222,6 +311,7 @@ async function main() {
 
   const logHeaders = [
     'event',
+    'row_index',
     'target',
     'model',
     'temperature',
@@ -233,15 +323,43 @@ async function main() {
 
   const logLine = row => {
     const line = logHeaders.map(key => escapeCsv(row[key] ?? '')).join(',')
-    process.stderr.write(`${line}\n`)
     if (logStream) {
       logStream.write(`${line}\n`)
+      const pretty = [
+        row.event ? `${row.event}` : 'info',
+        row.row_index !== undefined && row.row_index !== '' ? `row_index=${row.row_index}` : null,
+        row.target ? `target=${row.target}` : null,
+        row.model ? `model=${row.model}` : null,
+        row.temperature !== undefined && row.temperature !== '' ? `temperature=${row.temperature}` : null,
+        row.prompt_index !== undefined && row.prompt_index !== '' ? `prompt_index=${row.prompt_index}` : null,
+        row.request_chars !== undefined && row.request_chars !== '' ? `request_chars=${row.request_chars}` : null,
+        row.response_chars !== undefined && row.response_chars !== '' ? `response_chars=${row.response_chars}` : null,
+        row.error ? `error=${row.error}` : null
+      ].filter(Boolean).join(' ')
+      process.stderr.write(`${pretty.replace(/(\w+)=/g, '[$1]=')}\n`)
+      return
     }
+    process.stderr.write(`${line}\n`)
   }
 
   writeLine(headers.map(escapeCsv).join(','))
-  logLine(Object.fromEntries(logHeaders.map(key => [key, key])))
+  if (logStream) {
+    logStream.write(`${logHeaders.join(',')}\n`)
+  }
 
+  const summaryStats = {
+    totalRows: 0,
+    sentenceRows: 0,
+    wordCounts: [],
+    templateOpeningHits: 0,
+    timeAdverbSentenceHits: 0,
+    timeAdverbTotalHits: 0,
+    validatorRows: 0,
+    validatorPass: 0,
+    failureTagCounts: {}
+  }
+
+  let rowIndex = 1
   for (let caseIndex = 0; caseIndex < testCases; caseIndex++) {
     const verb = pickRandom(verbs)
     const meaning = Array.isArray(verb.translation) ? verb.translation.join('、') : ''
@@ -269,54 +387,61 @@ async function main() {
         const apiKey = provider === 'qwen' ? qwenApiKey : deepseekApiKey
 
         for (const temperature of temperatures) {
-          let question = null
-          let questionError = ''
-          let rawQuestionText = ''
-
-          try {
-            const requestText = `${promptPayload.system}\n${promptPayload.user}`
-            logLine({
-              event: 'request',
-              target: 'generator',
-              model,
-              temperature,
-              prompt_index: promptIndex,
-              request_chars: requestText.length
-            })
-            rawQuestionText = await callChat({
-              apiUrl,
-              apiKey,
-              model,
-              temperature,
-              system: promptPayload.system,
-              user: promptPayload.user,
-              maxTokens: 800
-            })
-
-            logLine({
-              event: 'response',
-              target: 'generator',
-              model,
-              temperature,
-              prompt_index: promptIndex,
-              response_chars: rawQuestionText ? rawQuestionText.length : 0
-            })
-            const cleaned = cleanJsonText(rawQuestionText)
-            question = JSON.parse(cleaned)
-          } catch (error) {
-            questionError = error.message
-            logLine({
-              event: 'error',
-              target: 'generator',
-              model,
-              temperature,
-              prompt_index: promptIndex,
-              error: questionError
-            })
-          }
-
           for (const vPromptIndex of validatorPromptIndexes) {
             const validatorPromptIndex = vPromptIndex
+            const currentRowIndex = rowIndex
+            rowIndex += 1
+
+            let question = null
+            let questionError = ''
+            let rawQuestionText = ''
+
+            try {
+              const requestText = `${promptPayload.system}\n${promptPayload.user}`
+              logLine({
+                event: 'request',
+                row_index: currentRowIndex,
+                target: 'generator',
+                model,
+                temperature,
+                prompt_index: promptIndex,
+                request_chars: requestText.length
+              })
+              rawQuestionText = await callChat({
+                apiUrl,
+                apiKey,
+                model,
+                temperature,
+                system: promptPayload.system,
+                user: promptPayload.user,
+                maxTokens: generatorMaxTokens,
+                timeoutMs: requestTimeoutMs
+              })
+
+              logLine({
+                event: 'response',
+                row_index: currentRowIndex,
+                target: 'generator',
+                model,
+                temperature,
+                prompt_index: promptIndex,
+                response_chars: rawQuestionText ? rawQuestionText.length : 0
+              })
+              const cleaned = cleanJsonText(rawQuestionText)
+              question = JSON.parse(cleaned)
+            } catch (error) {
+              questionError = error.message
+              logLine({
+                event: 'error',
+                row_index: currentRowIndex,
+                target: 'generator',
+                model,
+                temperature,
+                prompt_index: promptIndex,
+                error: questionError
+              })
+            }
+
             let validatorResult = null
             let validatorError = ''
 
@@ -341,6 +466,7 @@ async function main() {
                 const validatorRequestText = `${validatorPrompt.system}\n${validatorPrompt.user}`
                 logLine({
                   event: 'request',
+                  row_index: currentRowIndex,
                   target: 'validator',
                   model,
                   temperature: validatorTemperature,
@@ -354,11 +480,13 @@ async function main() {
                   temperature: validatorTemperature,
                   system: validatorPrompt.system,
                   user: validatorPrompt.user,
-                  maxTokens: 300
+                  maxTokens: validatorMaxTokens,
+                  timeoutMs: requestTimeoutMs
                 })
 
                 logLine({
                   event: 'response',
+                  row_index: currentRowIndex,
                   target: 'validator',
                   model,
                   temperature: validatorTemperature,
@@ -372,12 +500,41 @@ async function main() {
                 validatorError = error.message
                 logLine({
                   event: 'error',
+                  row_index: currentRowIndex,
                   target: 'validator',
                   model,
                   temperature,
                   prompt_index: validatorPromptIndex,
                   error: validatorError
                 })
+              }
+            }
+
+            const sentenceText = question?.sentence || ''
+            summaryStats.totalRows += 1
+            if (sentenceText) {
+              summaryStats.sentenceRows += 1
+              summaryStats.wordCounts.push(countWords(sentenceText))
+              if (startsWithAny(sentenceText, TEMPLATE_OPENINGS)) {
+                summaryStats.templateOpeningHits += 1
+              }
+              const timeHits = countPhraseHits(sentenceText, HIGH_RISK_TIME_ADVERBS)
+              if (timeHits > 0) {
+                summaryStats.timeAdverbSentenceHits += 1
+                summaryStats.timeAdverbTotalHits += timeHits
+              }
+            }
+
+            if (useValidatorFlag) {
+              summaryStats.validatorRows += 1
+              if (validatorResult?.isValid === true && validatorResult?.hasUniqueAnswer === true) {
+                summaryStats.validatorPass += 1
+              }
+              if (Array.isArray(validatorResult?.failure_tags)) {
+                const uniqueTags = new Set(validatorResult.failure_tags.filter(Boolean))
+                for (const tag of uniqueTags) {
+                  summaryStats.failureTagCounts[tag] = (summaryStats.failureTagCounts[tag] || 0) + 1
+                }
               }
             }
 
@@ -409,8 +566,67 @@ async function main() {
     }
   }
 
+  const sortedWordCounts = summaryStats.wordCounts.slice().sort((a, b) => a - b)
+  const wordCountMean = sortedWordCounts.length
+    ? sortedWordCounts.reduce((sum, value) => sum + value, 0) / sortedWordCounts.length
+    : 0
+  const sentenceDenominator = summaryStats.sentenceRows || 1
+  const validatorDenominator = summaryStats.validatorRows || 1
+  const failureTagSummary = {}
+  Object.keys(summaryStats.failureTagCounts).sort().forEach(tag => {
+    const count = summaryStats.failureTagCounts[tag]
+    failureTagSummary[tag] = {
+      count,
+      rate: roundNumber(count / validatorDenominator)
+    }
+  })
+
+  const summaryOutput = {
+    totals: {
+      rows: summaryStats.totalRows,
+      sentence_rows: summaryStats.sentenceRows,
+      validator_rows: summaryStats.validatorRows
+    },
+    validator_pass: {
+      count: summaryStats.validatorPass,
+      rate: roundNumber(summaryStats.validatorPass / validatorDenominator)
+    },
+    word_count: {
+      mean: roundNumber(wordCountMean, 2),
+      p10: roundNumber(quantile(sortedWordCounts, 0.1), 2),
+      p50: roundNumber(quantile(sortedWordCounts, 0.5), 2),
+      p90: roundNumber(quantile(sortedWordCounts, 0.9), 2)
+    },
+    template_opening: {
+      hits: summaryStats.templateOpeningHits,
+      rate: roundNumber(summaryStats.templateOpeningHits / sentenceDenominator),
+      phrases: TEMPLATE_OPENINGS
+    },
+    time_adverbs: {
+      hit_sentences: summaryStats.timeAdverbSentenceHits,
+      hit_rate: roundNumber(summaryStats.timeAdverbSentenceHits / sentenceDenominator),
+      total_hits: summaryStats.timeAdverbTotalHits,
+      phrases: HIGH_RISK_TIME_ADVERBS
+    },
+    failure_tags: {
+      distribution: failureTagSummary
+    }
+  }
+
+  const summaryText = JSON.stringify(summaryOutput, null, 2)
+  const summaryBasePath = resolvedOutputPath || resolvedLogPath || path.join(__dirname, 'output', 'prompt_matrix.csv')
+  const summaryDir = path.dirname(summaryBasePath)
+  const summaryBaseName = path.basename(summaryBasePath, path.extname(summaryBasePath))
+  const summaryPath = path.join(summaryDir, `${summaryBaseName}.summary.json`)
+  fs.mkdirSync(summaryDir, { recursive: true })
+  fs.writeFileSync(summaryPath, summaryText, 'utf8')
+  if (logStream) {
+    process.stderr.write(`[summary]\n${summaryText}\n`)
+  }
+
   logLine({
     event: 'info',
+    row_index: '',
     target: 'run',
     model: '',
     temperature: '',

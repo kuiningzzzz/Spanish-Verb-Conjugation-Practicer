@@ -56,6 +56,7 @@ node prompt_matrix_test.js > output/prompt_matrix.csv
 **日志与输出文件**
 - 默认 CSV 输出到终端（stdout），日志以 CSV 形式输出到终端（stderr）。
 - 如需写入文件，可设置：`OUTPUT_FILE=/path/to/out.csv`，`LOG_FILE=/path/to/run.log`。
+- 日志 CSV 字段包含 `row_index`，用于对应每一条测试输出的行号。
 
 ---
 
