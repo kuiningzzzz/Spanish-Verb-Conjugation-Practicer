@@ -1208,57 +1208,84 @@ export default {
 
         if (res.success) {
           // 初始化练习
-          this.exercises = []
           const allowList = this.getAllowedVerbIdSet()
 
-          // 接收题目池并分离主题和备用题
-          let rawPool = Array.isArray(res.questionPool) ? res.questionPool : []
-          if (allowList) {
-            rawPool = rawPool.filter(q => allowList.has(q.verbId))
-          }
-          
-          this.mainQuestionPool = rawPool.filter(q => q._isMain)
-          this.backupQuestionPool = rawPool.filter(q => q._isBackup)
-          this.hasEnoughInBank = res.hasEnoughInBank || false
-          
-          console.log(`题目池接收完成:`, {
-            主题池: this.mainQuestionPool.length,
-            备用题池: this.backupQuestionPool.length,
-            题库充足: this.hasEnoughInBank,
-            需要AI: res.needAI || 0
-          })
-          
-          this.usedQuestionIds = new Set()
-          this.hasStarted = true
-          this.currentIndex = 0
-          this.correctCount = 0
-          this.questionStates = []
-
-          // 从主题目池抽取题目
-          this.fillFromMainPool()
-          
-          // 检查是否有足够的题目
-          const aiNeeded = this.isCustomPractice ? 0 : (res.needAI || 0)
-          const hasEnoughQuestions = this.exercises.length > 0 || aiNeeded > 0
-          
-          if (hasEnoughQuestions) {
-            // 如果有题库题，检查第一题的收藏状态
+          // 快变快填和组合填空：直接使用exercises
+          if (this.exerciseType === 'quick-fill' || this.exerciseType === 'combo-fill') {
+            let exercises = res.exercises || []
+            if (allowList) {
+              exercises = exercises.filter(ex => allowList.has(ex.verbId))
+            }
+            
+            this.exercises = exercises
+            this.questionStates = this.exercises.map(ex => this.createStateForExercise(ex))
+            this.hasStarted = true
+            this.currentIndex = 0
+            this.correctCount = 0
+            
+            console.log(`${this.exerciseType === 'quick-fill' ? '快变快填' : '组合填空'}题目接收完成:`, {
+              题目数: this.exercises.length
+            })
+            
             if (this.exercises.length > 0) {
               this.goToExercise(0, true)
-            } else if (res.needAI && res.needAI > 0) {
-              // 题库为空，等待AI生成
-              console.log('题库为空，等待AI生成题目...')
-              showToast('正在生成练习题，请稍候...', 'loading', 3000)
+            } else {
+              showToast('未能生成练习题，请重试')
+              return
             }
           } else {
-            showToast('未能生成练习题，请重试')
-            return
-          }
+            // 例句填空：使用题目池模式
+            this.exercises = []
+            
+            // 接收题目池并分离主题和备用题
+            let rawPool = Array.isArray(res.questionPool) ? res.questionPool : []
+            if (allowList) {
+              rawPool = rawPool.filter(q => allowList.has(q.verbId))
+            }
+            
+            this.mainQuestionPool = rawPool.filter(q => q._isMain)
+            this.backupQuestionPool = rawPool.filter(q => q._isBackup)
+            this.hasEnoughInBank = res.hasEnoughInBank || false
+            
+            console.log(`题目池接收完成:`, {
+              主题池: this.mainQuestionPool.length,
+              备用题池: this.backupQuestionPool.length,
+              题库充足: this.hasEnoughInBank,
+              需要AI: res.needAI || 0
+            })
+            
+            this.usedQuestionIds = new Set()
+            this.hasStarted = true
+            this.currentIndex = 0
+            this.correctCount = 0
+            this.questionStates = []
+
+            // 从主题目池抽取题目
+            this.fillFromMainPool()
           
-          // 异步生成AI题目（如果需要）
-          if (!this.isCustomPractice && aiNeeded > 0 && res.aiOptions) {
-            console.log(`开始异步生成 ${res.needAI} 个AI题目`)
-            this.generateAIQuestionsAsync(aiNeeded, res.aiOptions)
+            // 检查是否有足够的题目（仅例句填空需要）
+            const aiNeeded = this.isCustomPractice ? 0 : (res.needAI || 0)
+            const hasEnoughQuestions = this.exercises.length > 0 || aiNeeded > 0
+            
+            if (hasEnoughQuestions) {
+              // 如果有题库题，检查第一题的收藏状态
+              if (this.exercises.length > 0) {
+                this.goToExercise(0, true)
+              } else if (res.needAI && res.needAI > 0) {
+                // 题库为空，等待AI生成
+                console.log('题库为空，等待AI生成题目...')
+                showToast('正在生成练习题，请稍候...', 'loading', 3000)
+              }
+            } else {
+              showToast('未能生成练习题，请重试')
+              return
+            }
+            
+            // 异步生成AI题目（如果需要）
+            if (!this.isCustomPractice && aiNeeded > 0 && res.aiOptions) {
+              console.log(`开始异步生成 ${res.needAI} 个AI题目`)
+              this.generateAIQuestionsAsync(aiNeeded, res.aiOptions)
+            }
           }
         } else {
           showToast('获取练习题失败')
