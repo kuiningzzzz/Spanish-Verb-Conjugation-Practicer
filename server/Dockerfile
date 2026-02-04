@@ -6,8 +6,13 @@ WORKDIR /app
 
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
-# 安装better-sqlite3所需的构建依赖
-RUN apk add --no-cache python3 make g++
+# 安装better-sqlite3所需的构建依赖和时区数据
+RUN apk add --no-cache python3 make g++ tzdata
+
+# 设置时区为上海
+ENV TZ=Asia/Shanghai
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone
 
 # 复制package.json（项目根目录的）
 COPY package.json ./
