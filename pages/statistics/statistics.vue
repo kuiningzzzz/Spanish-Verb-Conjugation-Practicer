@@ -69,11 +69,29 @@
           </view>
         </view>
         <view class="trend-chart">
-          <!-- 这里可以集成图表组件 -->
-          <view class="chart-placeholder">
+          <view class="chart-container" v-if="trendData.length > 0">
+            <view class="chart-bars">
+              <view 
+                class="bar-item" 
+                v-for="(item, index) in trendData" 
+                :key="index"
+              >
+                <view class="bar-wrapper">
+                  <view class="bar-count">{{ item.count }}</view>
+                  <view 
+                    class="bar" 
+                    :style="{ height: getBarHeight(item.count) + '%', background: '#8B0012' }"
+                  >
+                  </view>
+                </view>
+                <view class="bar-label">{{ item.label }}</view>
+              </view>
+            </view>
+          </view>
+          <view class="chart-placeholder" v-else>
             <text class="chart-icon">📊</text>
-            <text class="chart-text">学习趋势图表</text>
-            <text class="chart-desc">展示最近学习进度和正确率变化</text>
+            <text class="chart-text">暂无数据</text>
+            <text class="chart-desc">开始练习后将显示学习趋势</text>
           </view>
         </view>
       </view>
@@ -259,8 +277,9 @@ export default {
       timeFilters: [
         { value: 'week', label: '本周' },
         { value: 'month', label: '本月' },
-        { value: 'all', label: '全部' }
+        { value: 'year', label: '本年' }
       ],
+      trendData: [],  // 趋势数据
       learningSuggestion: '',
       showCriteria: false  // 是否显示评判标准弹窗
     }
@@ -332,18 +351,41 @@ export default {
         if (recordsRes.success) {
           this.recentRecords = recordsRes.records || []
         }
+        
+        // 加载趋势数据
+        await this.loadTrendData()
       } catch (error) {
         showToast('加载数据失败')
       }
     },
+    async loadTrendData() {
+      try {
+        const res = await api.getStudyTrend(this.activeTimeFilter)
+        if (res.success) {
+          this.trendData = res.trend || []
+        }
+      } catch (error) {
+        console.error('加载趋势数据失败:', error)
+      }
+    },
     switchTimeFilter(filter) {
       this.activeTimeFilter = filter
+      const filterName = filter === 'week' ? '本周' : filter === 'month' ? '本月' : '本年'
       uni.showToast({
-        title: `已切换到${filter === 'week' ? '本周' : filter === 'month' ? '本月' : '全部'}数据`,
+        title: `已切换到${filterName}数据`,
         icon: 'none',
         duration: 1500
       })
-      // TODO: 未来可以加载对应时间范围的详细趋势数据
+      this.loadTrendData()
+    },
+    getMaxValue() {
+      if (this.trendData.length === 0) return 10
+      const max = Math.max(...this.trendData.map(d => d.count))
+      return max > 0 ? max : 10
+    },
+    getBarHeight(count) {
+      const max = this.getMaxValue()
+      return Math.max((count / max) * 100, 2) // 最小高度2%，避免为0时看不见
     },
     getVerbColor(level) {
       const colors = [
@@ -640,17 +682,85 @@ export default {
 }
 
 .trend-chart {
-  height: 300rpx;
+  min-height: 300rpx;
   background: #f8f9fa;
   border-radius: 15rpx;
+  padding: 30rpx 20rpx 60rpx;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.chart-container {
+  min-width: 100%;
+  height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-end;
+}
+
+.chart-bars {
+  width: 100%;
+  height: 240rpx;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8rpx;
+  padding-bottom: 50rpx;
+  position: relative;
+}
+
+.bar-item {
+  flex: 1;
+  min-width: 40rpx;
+  display: flex;
   flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.bar-wrapper {
+  width: 100%;
+  height: 180rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.bar-count {
+  position: absolute;
+  top: -25rpx;
+  font-size: 20rpx;
+  color: #666;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.bar {
+  width: 100%;
+  min-height: 4rpx;
+  background: #8B0012;
+  border-radius: 4rpx 4rpx 0 0;
+  transition: all 0.3s ease;
+  box-shadow: 0 -2rpx 8rpx rgba(139, 0, 18, 0.2);
+}
+
+.bar-label {
+  position: absolute;
+  bottom: -45rpx;
+  left: 50%;
+  font-size: 20rpx;
+  color: #666;
+  white-space: nowrap;
+  transform: translateX(-50%) rotate(-45deg);
+  transform-origin: center center;
+  min-width: 60rpx;
+  text-align: center;
 }
 
 .chart-placeholder {
   text-align: center;
+  padding: 60rpx 0;
 }
 
 .chart-icon {

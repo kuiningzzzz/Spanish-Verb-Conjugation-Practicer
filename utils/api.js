@@ -85,6 +85,7 @@ export default {
   // 学习记录
   getStudyRecords: (params) => request({ url: '/record/list', data: params }),
   getStatistics: () => request({ url: '/record/statistics' }),
+  getStudyTrend: (type) => request({ url: `/record/trend/${type}` }),
 
   // 打卡
   checkIn: () => request({ url: '/checkin', method: 'POST' }),
