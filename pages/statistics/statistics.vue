@@ -179,17 +179,6 @@
       </view>
     </view>
 
-    <!-- 学习建议 -->
-    <view class="suggestion-section">
-      <view class="suggestion-card">
-        <text class="suggestion-icon">💡</text>
-        <view class="suggestion-content">
-          <text class="suggestion-title">学习建议</text>
-          <text class="suggestion-text">{{ learningSuggestion }}</text>
-        </view>
-      </view>
-    </view>
-
     <!-- 掌握度评判标准弹窗 -->
     <view v-if="showCriteria" class="modal-overlay" @click="closeCriteriaModal">
       <view class="modal-content" @click.stop>
@@ -280,7 +269,6 @@ export default {
         { value: 'year', label: '本年' }
       ],
       trendData: [],  // 趋势数据
-      learningSuggestion: '',
       showCriteria: false  // 是否显示评判标准弹窗
     }
   },
@@ -336,7 +324,6 @@ export default {
       return
     }
     this.loadData()
-    this.generateSuggestion()
   },
   methods: {
     async loadData() {
@@ -429,17 +416,6 @@ export default {
       uni.navigateTo({
         url: `/pages/conjugation-detail/conjugation-detail?verbId=${record.verb_id}`
       })
-    },
-    generateSuggestion() {
-      const accuracy = this.accuracy
-      const suggestions = [
-        '继续保持当前的学习节奏，每天坚持练习！',
-        '正确率不错，可以尝试挑战更高难度的题目！',
-        '多练习错题，巩固薄弱环节，提升会更快！',
-        '每天坚持打卡，养成良好的学习习惯！',
-        '尝试不同类型的练习，全面提升动词变位能力！'
-      ]
-      this.learningSuggestion = suggestions[Math.floor(Math.random() * suggestions.length)]
     },
     showCriteriaModal() {
       this.showCriteria = true
@@ -1030,48 +1006,6 @@ export default {
 .record-time {
   font-size: 22rpx;
   color: #999;
-}
-
-/* 学习建议 */
-.suggestion-section {
-  padding: 0 40rpx 40rpx;
-}
-
-.suggestion-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 25rpx;
-  padding: 30rpx;
-  display: flex;
-  align-items: flex-start;
-  gap: 20rpx;
-  box-shadow: 0 15rpx 30rpx rgba(0, 0, 0, 0.1);
-  border: 1rpx solid rgba(255, 255, 255, 0.2);
-  border-left: 6rpx solid #8B0012;
-}
-
-.suggestion-icon {
-  font-size: 36rpx;
-  margin-top: 5rpx;
-}
-
-.suggestion-content {
-  flex: 1;
-}
-
-.suggestion-title {
-  display: block;
-  font-size: 26rpx;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 10rpx;
-}
-
-.suggestion-text {
-  display: block;
-  font-size: 24rpx;
-  color: #666;
-  line-height: 1.5;
 }
 
 /* 掌握度评判标准弹窗 */
