@@ -54,3 +54,5 @@ server/data/import_records.json
 server/src/version.json
 server/src/announcement.json
 server/src/updates/*.apk
+
+scripts/output/
