@@ -25,6 +25,14 @@
           <option :value="3">3</option>
           <option :value="4">4</option>
         </select>
+        <button
+          v-if="tab === 'question'"
+          class="ghost"
+          :disabled="downloadingAll"
+          @click="downloadAllQuestionFeedbackJson"
+        >
+          下载题目反馈JSON
+        </button>
         <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
       </div>
     </div>
@@ -246,6 +254,7 @@ const drawerType = ref('general');
 const detail = reactive({});
 const saving = ref(false);
 const deleting = ref(false);
+const downloadingAll = ref(false);
 const deleteDialog = ref(null);
 
 const toast = reactive({ visible: false, message: '', type: 'info' });
@@ -361,6 +370,144 @@ function formatQuestionId(value) {
   if (value === null || value === undefined || value === '') return '-';
   const parsed = Number.parseInt(value, 10);
   return Number.isNaN(parsed) ? value : parsed;
+}
+
+function displayValue(value, fallback = '-') {
+  return value === null || value === undefined || value === '' ? fallback : value;
+}
+
+function buildQuestionDetailPayload(question) {
+  if (!question) return null;
+  return {
+    '题目ID': displayValue(question.id, '-'),
+    '动词ID': displayValue(question.verb_id, '-'),
+    '动词原形': displayValue(question.infinitive, '-'),
+    '题目类型': displayValue(question.question_type, '-'),
+    '题干': displayValue(question.question_text, '-'),
+    '正确答案': displayValue(question.correct_answer, '-'),
+    '例句': displayValue(question.example_sentence, '-'),
+    '翻译': displayValue(question.translation, '-'),
+    '提示': displayValue(question.hint, '-'),
+    '时态': displayValue(question.tense, '-'),
+    '语气': displayValue(question.mood, '-'),
+    '人称': displayValue(question.person, '-'),
+    '置信度': displayValue(question.confidence_score, '-'),
+    '创建时间': formatDate(question.created_at)
+  };
+}
+
+function buildQuestionFeedbackPayload(feedback, questionDetail) {
+  return {
+    '用户ID': displayValue(feedback.user_id, '-'),
+    '用户名': displayValue(feedback.username, '-'),
+    '题目ID': questionDetail || { '题目ID': formatQuestionId(feedback.question_id) },
+    '题目类型': displayValue(feedback.question_type, '-'),
+    '动词': displayValue(feedback.verb_infinitive, '-'),
+    '题目来源': displayValue(feedback.question_source, '-'),
+    '题目答案': displayValue(feedback.question_answer, '-'),
+    '时态': displayValue(feedback.tense, '-'),
+    '语气': displayValue(feedback.mood, '-'),
+    '人称': displayValue(feedback.person, '-'),
+    '用户说明': displayValue(feedback.user_comment, '-'),
+    '报告类型': displayValue(feedback.issue_types, '-'),
+    '创建时间': formatDate(feedback.created_at)
+  };
+}
+
+function downloadJsonFile(payload, fileName) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildDownloadFileName() {
+  const now = new Date();
+  const stamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+    String(now.getSeconds()).padStart(2, '0')
+  ].join('');
+  return `question-feedback-list-${stamp}.json`;
+}
+
+async function fetchAllQuestionFeedback() {
+  const limit = 200;
+  let offset = 0;
+  let rounds = 0;
+  const all = [];
+  while (true) {
+    const data = await apiRequest('/question-feedback', { params: { limit, offset } });
+    const rows = data.feedbackList || data.rows || (Array.isArray(data) ? data : []);
+    if (!rows.length) break;
+    all.push(...rows);
+    if (rows.length < limit) break;
+    offset += limit;
+    rounds += 1;
+    if (rounds > 500) break;
+  }
+  return all;
+}
+
+async function fetchQuestionDetailCached(questionId, cache) {
+  if (cache.has(questionId)) return cache.get(questionId);
+  try {
+    const data = await apiRequest(`/questions/${questionId}`);
+    const detailPayload = buildQuestionDetailPayload(data);
+    cache.set(questionId, detailPayload);
+    return detailPayload;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) {
+      cache.set(questionId, null);
+      return null;
+    }
+    throw err;
+  }
+}
+
+async function downloadAllQuestionFeedbackJson() {
+  if (tab.value !== 'question') return;
+  if (downloadingAll.value) return;
+  downloadingAll.value = true;
+  try {
+    const items = await fetchAllQuestionFeedback();
+    if (!items.length) {
+      showToast('没有题目反馈可下载', 'info');
+      return;
+    }
+
+    const questionCache = new Map();
+    const payloadList = [];
+    let errorNotified = false;
+
+    for (const item of items) {
+      let questionDetail = null;
+      if (item.question_id !== null && item.question_id !== undefined && item.question_id !== '') {
+        try {
+          questionDetail = await fetchQuestionDetailCached(item.question_id, questionCache);
+        } catch (err) {
+          if (!errorNotified) {
+            handleApiError(err);
+            errorNotified = true;
+          }
+        }
+      }
+      payloadList.push(buildQuestionFeedbackPayload(item, questionDetail));
+    }
+
+    downloadJsonFile(payloadList, buildDownloadFileName());
+    showToast('JSON 已下载', 'success');
+  } finally {
+    downloadingAll.value = false;
+  }
 }
 
 async function openGeneralDetail(item) {
