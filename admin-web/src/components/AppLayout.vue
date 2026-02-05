@@ -3,7 +3,7 @@
     <aside class="sidebar">
       <div class="brand">Conjugamos 控制台</div>
       <nav>
-        <RouterLink to="/">仪表盘</RouterLink>
+        <RouterLink to="/" end>仪表盘</RouterLink>
         <RouterLink to="/users">用户管理</RouterLink>
         <RouterLink to="/lexicon">词库管理</RouterLink>
         <RouterLink to="/questions">题库管理</RouterLink>
@@ -44,7 +44,7 @@ const router = useRouter();
 const { state, logout, isDev } = useAuth();
 
 const titles = {
-  Dashboard: 'Dashboard',
+  Dashboard: '仪表盘',
   Users: '用户管理',
   Lexicon: '词库管理',
   QuestionBank: '题库管理',

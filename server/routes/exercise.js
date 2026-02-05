@@ -272,8 +272,8 @@ router.post('/submit', authMiddleware, (req, res) => {
 
     // 判断答案是否正确（支持多个答案，用 | 分隔）
     let isCorrect = false
-    const userAnswer = answer.trim().toLowerCase()
-    const correctAnswers = correctAnswer.split('|').map(a => a.trim().toLowerCase())
+    const userAnswer = answer !== undefined && answer !== null ? String(answer) : ''
+    const correctAnswers = String(correctAnswer || '').split('|')
     
     // 只要匹配任意一个正确答案即可
     for (const correct of correctAnswers) {
