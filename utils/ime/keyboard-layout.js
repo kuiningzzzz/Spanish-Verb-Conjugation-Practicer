@@ -19,12 +19,17 @@ function charLabel(char, shiftState) {
 }
 
 function makeCharKey(char, shiftState) {
+  const baseVariants = VARIANTS[char] ? [...VARIANTS[char]] : []
+  const isLetter = /^[a-zñ]$/.test(char)
+  if (isLetter) {
+    baseVariants.push(char.toUpperCase(), char)
+  }
   return {
     id: `Key-${char}`,
     type: 'CHAR',
     label: charLabel(char, shiftState),
     output: char,
-    variants: VARIANTS[char] || []
+    variants: baseVariants
   }
 }
 

@@ -208,6 +208,7 @@
     <InAppKeyboardHost
       @height-change="onImeHeightChange"
       @visibility-change="onImeVisibilityChange"
+      @popup-height-change="onImePopupHeightChange"
     />
   </view>
 </template>
@@ -230,6 +231,7 @@ export default {
       useInAppIME: getUseInAppIME(),
       imeVisible: false,
       imeHeight: 0,
+      imePopupHeight: 0,
       imeLift: 0,
       focusedInputId: '',
       searchKeyword: '',
@@ -346,9 +348,24 @@ export default {
       this.unsubscribeImeSetting = null
     }
   },
+  onBackPress() {
+    if (this.imeVisible) {
+      setActiveTarget(null)
+      return true
+    }
+    return false
+  },
   methods: {
     onImeHeightChange(height) {
       this.imeHeight = height || 0
+      if (this.imeVisible && this.focusedInputId) {
+        this.$nextTick(() => {
+          this.ensureInputVisible(this.focusedInputId)
+        })
+      }
+    },
+    onImePopupHeightChange(height) {
+      this.imePopupHeight = height || 0
       if (this.imeVisible && this.focusedInputId) {
         this.$nextTick(() => {
           this.ensureInputVisible(this.focusedInputId)
@@ -359,6 +376,7 @@ export default {
       this.imeVisible = visible
       if (!visible) {
         this.imeLift = 0
+        this.imePopupHeight = 0
       }
       if (visible && this.focusedInputId) {
         this.$nextTick(() => {
@@ -379,8 +397,8 @@ export default {
         if (!rect) return
         const systemInfo = uni.getSystemInfoSync()
         const windowHeight = systemInfo.windowHeight || 0
-        const keyboardTop = windowHeight - this.imeHeight
-        const margin = 12
+      const keyboardTop = windowHeight - this.imeHeight - this.imePopupHeight
+      const margin = 24
         const originalBottom = rect.bottom + this.imeLift
         const requiredLift = originalBottom > keyboardTop - margin ? originalBottom - (keyboardTop - margin) : 0
         this.imeLift = requiredLift

@@ -56,6 +56,7 @@ export default {
         variants: [],
         highlightIndex: 0
       },
+      popupHeight: 0,
       unsubscribeFocus: null,
       unsubscribeCore: null,
       unsubscribeSettings: null
@@ -112,9 +113,11 @@ export default {
       this.popup.visible = false
       this.popup.variants = []
       this.popup.highlightIndex = 0
+      this.popupHeight = 0
       imeCore.detachTarget()
       this.$emit('visibility-change', false)
       this.$emit('height-change', 0)
+      this.$emit('popup-height-change', 0)
     },
     onKeyTouchStart(key) {
       this.pressedKey = key
@@ -131,6 +134,9 @@ export default {
     onKeyTouchEnd(key) {
       this.clearLongPressTimer()
       if (this.popup.visible) {
+        if (key && key.type === 'FUNC') {
+          this.handleKeyPress(key)
+        }
         return
       }
       if (!this.longPressTriggered) {
@@ -147,6 +153,28 @@ export default {
     },
     handleKeyPress(key) {
       if (!key) return
+      if (this.popup.visible) {
+        if (key.action === 'LEFT') {
+          this.moveVariantHighlight(-1)
+          return
+        }
+        if (key.action === 'RIGHT') {
+          this.moveVariantHighlight(1)
+          return
+        }
+        if (key.action === 'SPACE') {
+          this.commitHighlightedVariant()
+          return
+        }
+        if (key.action === 'ENTER') {
+          this.commitHighlightedVariant()
+          return
+        }
+        if (key.action === 'BACKSPACE') {
+          this.hidePopup()
+          return
+        }
+      }
       if (key.type === 'CHAR') {
         imeCore.insert(key.output)
         return
@@ -190,13 +218,29 @@ export default {
       this.popup.visible = true
       this.popup.variants = key.variants
       this.popup.highlightIndex = highlightIndex
+      this.updatePopupHeight()
     },
     hidePopup() {
       this.popup.visible = false
       this.popup.variants = []
       this.popup.highlightIndex = 0
+      this.popupHeight = 0
+      this.$emit('popup-height-change', 0)
     },
     handleVariantSelect(variant) {
+      if (!variant) return
+      imeCore.insert(variant, false)
+      this.hidePopup()
+    },
+    moveVariantHighlight(delta) {
+      if (!this.popup.visible || !this.popup.variants.length) return
+      const count = this.popup.variants.length
+      const next = (this.popup.highlightIndex + delta + count) % count
+      this.popup.highlightIndex = next
+    },
+    commitHighlightedVariant() {
+      if (!this.popup.visible || !this.popup.variants.length) return
+      const variant = this.popup.variants[this.popup.highlightIndex]
       if (!variant) return
       imeCore.insert(variant, false)
       this.hidePopup()
@@ -212,6 +256,16 @@ export default {
         clearTimeout(this.longPressTimer)
         this.longPressTimer = null
       }
+    },
+    updatePopupHeight() {
+      this.$nextTick(() => {
+        const query = uni.createSelectorQuery().in(this)
+        query.select('.ime-popup').boundingClientRect((rect) => {
+          const height = rect && rect.height ? rect.height : 0
+          this.popupHeight = height
+          this.$emit('popup-height-change', height)
+        }).exec()
+      })
     },
     updateKeyboardHeight() {
       this.$nextTick(() => {
