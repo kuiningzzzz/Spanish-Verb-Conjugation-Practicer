@@ -1,16 +1,35 @@
 <template>
-  <view class="search-container">
+  <view class="page-root">
+    <view
+      class="search-container"
+      :style="{
+        paddingBottom: imeVisible ? imeHeight + 'px' : '',
+        transform: imeLift ? 'translateY(-' + imeLift + 'px)' : ''
+      }"
+    >
     <!-- 搜索框 -->
     <view class="search-header">
       <view class="search-box">
         <text class="search-icon">🔍</text>
-        <input 
-          class="search-input" 
-          v-model="searchKeyword" 
+        <InAppInput
+          v-if="useInAppIME"
+          class="search-input"
+          v-model="searchKeyword"
+          placeholder="搜索单词原形或变位形式..."
+          textAlign="left"
+          :autoFocus="false"
+          inputId="search-input"
+          @focus="handleInAppFocus('search-input')"
+          @input="onSearchInput"
+          @confirm="performSearch"
+        />
+        <input
+          v-else
+          class="search-input"
+          v-model="searchKeyword"
           placeholder="搜索单词原形或变位形式..."
           @input="onSearchInput"
           @confirm="performSearch"
-          focus
         />
         <text v-if="searchKeyword" class="clear-btn" @click="clearSearch">✕</text>
       </view>
@@ -185,16 +204,34 @@
         </view>
       </view>
     </view>
+    </view>
+    <InAppKeyboardHost
+      @height-change="onImeHeightChange"
+      @visibility-change="onImeVisibilityChange"
+    />
   </view>
 </template>
 
 <script>
 import api from '@/utils/api'
 import { showToast } from '@/utils/common'
+import { getUseInAppIME, subscribeUseInAppIME } from '@/utils/ime/settings-store.js'
+import { setActiveTarget } from '@/utils/ime/focus-controller.js'
+import InAppInput from '@/components/inapp-ime/InAppInput.vue'
+import InAppKeyboardHost from '@/components/inapp-ime/InAppKeyboardHost.vue'
 
 export default {
+  components: {
+    InAppInput,
+    InAppKeyboardHost
+  },
   data() {
     return {
+      useInAppIME: getUseInAppIME(),
+      imeVisible: false,
+      imeHeight: 0,
+      imeLift: 0,
+      focusedInputId: '',
       searchKeyword: '',
       showSearchResults: false,
       searchResults: {
@@ -207,7 +244,8 @@ export default {
       // 分页控制
       exactDisplayCount: 10, // 精确匹配默认显示10条
       fuzzyDisplayCount: 5,  // 模糊匹配默认显示5条
-      searchHistory: []
+      searchHistory: [],
+      unsubscribeImeSetting: null
     }
   },
 
@@ -291,10 +329,64 @@ export default {
   },
 
   onShow() {
+    if (!this.unsubscribeImeSetting) {
+      this.unsubscribeImeSetting = subscribeUseInAppIME((value) => {
+        this.useInAppIME = value
+        if (!value) {
+          setActiveTarget(null)
+        }
+      })
+    }
     this.loadSearchHistory()
   },
-
+  onUnload() {
+    setActiveTarget(null)
+    if (this.unsubscribeImeSetting) {
+      this.unsubscribeImeSetting()
+      this.unsubscribeImeSetting = null
+    }
+  },
   methods: {
+    onImeHeightChange(height) {
+      this.imeHeight = height || 0
+      if (this.imeVisible && this.focusedInputId) {
+        this.$nextTick(() => {
+          this.ensureInputVisible(this.focusedInputId)
+        })
+      }
+    },
+    onImeVisibilityChange(visible) {
+      this.imeVisible = visible
+      if (!visible) {
+        this.imeLift = 0
+      }
+      if (visible && this.focusedInputId) {
+        this.$nextTick(() => {
+          this.ensureInputVisible(this.focusedInputId)
+        })
+      }
+    },
+    handleInAppFocus(inputId) {
+      this.focusedInputId = inputId
+      this.ensureInputVisible(inputId)
+    },
+    ensureInputVisible(inputId) {
+      if (!this.imeVisible || !this.imeHeight || !inputId) return
+      const query = uni.createSelectorQuery().in(this)
+      query.select(`#${inputId}`).boundingClientRect()
+      query.exec((res) => {
+        const rect = res[0]
+        if (!rect) return
+        const systemInfo = uni.getSystemInfoSync()
+        const windowHeight = systemInfo.windowHeight || 0
+        const keyboardTop = windowHeight - this.imeHeight
+        const margin = 12
+        const originalBottom = rect.bottom + this.imeLift
+        const requiredLift = originalBottom > keyboardTop - margin ? originalBottom - (keyboardTop - margin) : 0
+        this.imeLift = requiredLift
+      })
+    },
+  
     formatInfinitive(verb) {
       if (!verb) return ''
       return verb.isReflexive ? `${verb.infinitive}(se)` : verb.infinitive

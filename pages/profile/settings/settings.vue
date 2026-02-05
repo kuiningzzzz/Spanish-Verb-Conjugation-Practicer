@@ -25,6 +25,21 @@
 
     <view class="settings-card">
       <view class="card-header">
+        <text class="card-title">输入法设置</text>
+        <text class="card-subtitle">启用应用内西班牙语键盘</text>
+      </view>
+
+      <view class="setting-item">
+        <view class="item-info">
+          <text class="item-title">启用内置输入法</text>
+          <text class="item-desc">开启后，查词和练习输入将不再弹出系统键盘</text>
+        </view>
+        <switch :checked="useInAppIME" @change="onUseInAppIMEChange" color="#8B0012" />
+      </view>
+    </view>
+
+    <view class="settings-card">
+      <view class="card-header">
         <text class="card-title">隐私设置</text>
         <text class="card-subtitle">控制你在排行榜中的可见性</text>
       </view>
@@ -47,6 +62,7 @@
 
 <script>
 import { getPronounSettings, setPronounSettings } from '@/utils/settings.js'
+import { getUseInAppIME, setUseInAppIME } from '@/utils/ime/settings-store.js'
 import { showToast, showLoading, hideLoading } from '@/utils/common.js'
 import api from '@/utils/api.js'
 
@@ -54,11 +70,13 @@ export default {
   data() {
     return {
       pronounSettings: getPronounSettings(),
-      participateInLeaderboard: true
+      participateInLeaderboard: true,
+      useInAppIME: getUseInAppIME()
     }
   },
   onShow() {
     this.pronounSettings = getPronounSettings()
+    this.useInAppIME = getUseInAppIME()
     this.loadUserSettings()
   },
   methods: {
@@ -114,6 +132,11 @@ export default {
         // 恢复原值
         this.participateInLeaderboard = !newValue
       }
+    },
+    onUseInAppIMEChange(event) {
+      const newValue = event.detail.value
+      this.useInAppIME = setUseInAppIME(newValue)
+      showToast(`已${this.useInAppIME ? '开启' : '关闭'}内置输入法`, 'success')
     }
   }
 }

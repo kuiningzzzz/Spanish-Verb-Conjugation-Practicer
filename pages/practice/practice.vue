@@ -1,5 +1,13 @@
 <template>
-  <view class="container" :style="{ paddingTop: containerPaddingTop }">
+  <view class="page-root">
+    <view
+      class="container"
+      :style="{
+        paddingTop: containerPaddingTop,
+        paddingBottom: imeVisible ? imeHeight + 'px' : '',
+        transform: imeLift ? 'translateY(-' + imeLift + 'px)' : ''
+      }"
+    >
     <!-- 自定义导航栏 -->
     <view class="custom-navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="navbar-content">
@@ -122,7 +130,20 @@
           <text class="hint-text">{{ currentExercise.hint }}</text>
         </view>
         
+        <InAppInput
+          v-if="useInAppIME"
+          :key="`sentence-${currentIndex}`"
+          class="answer-input"
+          v-model="userAnswer"
+          placeholder="请填入正确的动词变位"
+          :disabled="showFeedback"
+          :autoFocus="answerInputFocus && !showFeedback"
+          inputId="answer-sentence"
+          @focus="handleInAppFocus('answer-sentence')"
+          @confirm="handleAnswerAction"
+        />
         <input
+          v-else
           :key="`sentence-${currentIndex}`"
           class="answer-input"
           v-model="userAnswer"
@@ -134,7 +155,20 @@
 
       <!-- 快变快填题 -->
       <view v-if="exerciseType === 'quick-fill'" class="input-container">
+        <InAppInput
+          v-if="useInAppIME"
+          :key="`quick-${currentIndex}`"
+          class="answer-input"
+          v-model="userAnswer"
+          placeholder="请输入目标变位形式"
+          :disabled="showFeedback"
+          :autoFocus="answerInputFocus && !showFeedback"
+          inputId="answer-quick"
+          @focus="handleInAppFocus('answer-quick')"
+          @confirm="handleAnswerAction"
+        />
         <input
+          v-else
           :key="`quick-${currentIndex}`"
           class="answer-input"
           v-model="userAnswer"
@@ -162,7 +196,19 @@
               <text class="requirement-person">{{ item.person }}</text>
             </view>
           </view>
+          <InAppInput
+            v-if="useInAppIME"
+            class="combo-input"
+            v-model="comboAnswers[index]"
+            placeholder="请输入变位形式"
+            :disabled="showFeedback"
+            :inputId="`combo-input-${index}`"
+            :ref="`comboInput-${index}`"
+            @focus="handleComboFocus(index)"
+            @confirm="onComboConfirm(index)"
+          />
           <input
+            v-else
             class="combo-input"
             v-model="comboAnswers[index]"
             placeholder="请输入变位形式"
@@ -518,16 +564,35 @@
       </view>
     </view>
   </view>
+  <InAppKeyboardHost
+    @height-change="onImeHeightChange"
+    @visibility-change="onImeVisibilityChange"
+  />
+</view>
 </template>
 
 <script>
 import api from '@/utils/api.js'
 import { showToast, showLoading, hideLoading } from '@/utils/common.js'
 import { getPronounSettings } from '@/utils/settings.js'
+import { getUseInAppIME, subscribeUseInAppIME } from '@/utils/ime/settings-store.js'
+import { setActiveTarget } from '@/utils/ime/focus-controller.js'
+import InAppInput from '@/components/inapp-ime/InAppInput.vue'
+import InAppKeyboardHost from '@/components/inapp-ime/InAppKeyboardHost.vue'
 
 export default {
+  components: {
+    InAppInput,
+    InAppKeyboardHost
+  },
   data() {
     return {
+      useInAppIME: getUseInAppIME(),
+      imeVisible: false,
+      imeHeight: 0,
+      imeLift: 0,
+      focusedInputId: '',
+      focusedComboIndex: null,
       statusBarHeight: 0, // 状态栏高度
       hasStarted: false,
       exerciseTypes: [
@@ -674,7 +739,8 @@ export default {
         { value: 'inappropriate', label: '内容不适' },
         { value: 'other', label: '其他问题' }
       ],
-      selectedIssueTypes: []   // 选中的问题类型
+      selectedIssueTypes: [],  // 选中的问题类型
+      unsubscribeImeSetting: null
     }
   },
   onLoad(options) {
@@ -727,6 +793,24 @@ export default {
   },
   onShow() {
     this.loadPronounSettings()
+    if (!this.unsubscribeImeSetting) {
+      this.unsubscribeImeSetting = subscribeUseInAppIME((value) => {
+        this.useInAppIME = value
+        if (!value) {
+          setActiveTarget(null)
+        }
+      })
+    }
+  },
+  onHide() {
+    setActiveTarget(null)
+  },
+  onUnload() {
+    setActiveTarget(null)
+    if (this.unsubscribeImeSetting) {
+      this.unsubscribeImeSetting()
+      this.unsubscribeImeSetting = null
+    }
   },
   onBackPress() {
     if (this.allowNavigateBack) {
@@ -781,14 +865,98 @@ export default {
         return types[this.exerciseType] || ''
       },
     // 根据选择的语气过滤时态选项
-    filteredTenseOptions() {
+  filteredTenseOptions() {
       if (this.selectedMoods.length === 0) {
         return this.tenseOptions
       }
       return this.tenseOptions.filter(t => this.selectedMoods.includes(t.mood))
     }
   },
+  watch: {
+    showFeedback(value) {
+      if (value) {
+        setActiveTarget(null)
+      }
+    }
+  },
   methods: {
+  onImeHeightChange(height) {
+    this.imeHeight = height || 0
+    if (this.imeVisible && this.focusedInputId) {
+      this.$nextTick(() => {
+        this.ensureInputVisible(this.focusedInputId)
+      })
+    }
+  },
+    onImeVisibilityChange(visible) {
+      this.imeVisible = visible
+      if (!visible) {
+        this.imeLift = 0
+      }
+      if (visible && this.focusedInputId) {
+        this.$nextTick(() => {
+          this.ensureInputVisible(this.focusedInputId)
+        })
+      }
+    },
+    handleInAppFocus(inputId) {
+      this.focusedInputId = inputId
+      this.ensureInputVisible(inputId)
+    },
+    handleComboFocus(index) {
+      this.focusedComboIndex = index
+      this.handleInAppFocus(`combo-input-${index}`)
+    },
+    onComboConfirm(index) {
+      if (this.exerciseType !== 'combo-fill') {
+        this.handleAnswerAction()
+        return
+      }
+      const nextIndex = this.findNextEmptyCombo(index)
+      if (nextIndex === null) {
+        this.handleAnswerAction()
+        return
+      }
+      this.focusComboInput(nextIndex)
+    },
+    findNextEmptyCombo(currentIndex) {
+      const items = Array.isArray(this.comboAnswers) ? this.comboAnswers : []
+      if (!items.length) return null
+      const emptyIndexes = []
+      for (let i = 0; i < items.length; i += 1) {
+        const value = items[i]
+        if (!value || !value.trim()) {
+          emptyIndexes.push(i)
+        }
+      }
+      if (emptyIndexes.length === 0) return null
+      const afterCurrent = emptyIndexes.find(index => index > currentIndex)
+      return afterCurrent !== undefined ? afterCurrent : emptyIndexes[0]
+    },
+    focusComboInput(index) {
+      const refKey = `comboInput-${index}`
+      const ref = this.$refs[refKey]
+      const instance = Array.isArray(ref) ? ref[0] : ref
+      if (instance && typeof instance.focus === 'function') {
+        instance.focus()
+      }
+    },
+    ensureInputVisible(inputId) {
+      if (!this.imeVisible || !this.imeHeight || !inputId) return
+      const query = uni.createSelectorQuery().in(this)
+      query.select(`#${inputId}`).boundingClientRect()
+      query.exec((res) => {
+        const rect = res[0]
+        if (!rect) return
+        const systemInfo = uni.getSystemInfoSync()
+        const windowHeight = systemInfo.windowHeight || 0
+        const keyboardTop = windowHeight - this.imeHeight
+        const margin = 12
+        const originalBottom = rect.bottom + this.imeLift
+        const requiredLift = originalBottom > keyboardTop - margin ? originalBottom - (keyboardTop - margin) : 0
+        this.imeLift = requiredLift
+      })
+    },
     goBack() {
       if (this.hasStarted) {
         uni.showModal({
@@ -1778,7 +1946,7 @@ export default {
           
           for (let i = 0; i < items.length; i++) {
             const item = items[i]
-            const userAnswer = this.comboAnswers[i].trim()
+            const userAnswer = this.comboAnswers[i] || ''
             
             const res = await api.submitAnswer({
               verbId: this.currentExercise.verbId,
