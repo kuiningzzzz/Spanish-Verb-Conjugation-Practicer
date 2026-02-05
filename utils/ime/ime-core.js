@@ -1,5 +1,6 @@
 const SHIFT_OFF = 'OFF'
-const SHIFT_ON = 'ON'
+const SHIFT_ONCE = 'ONCE'
+const SHIFT_LOCK = 'LOCK'
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value))
@@ -80,6 +81,9 @@ export class IMECore {
     const after = this.textBuffer.slice(this.cursor)
     this.textBuffer = `${before}${output}${after}`
     this.cursor += output.length
+    if (this.shiftState === SHIFT_ONCE) {
+      this.shiftState = SHIFT_OFF
+    }
     this.commit()
   }
 
@@ -100,7 +104,13 @@ export class IMECore {
   }
 
   toggleShift() {
-    this.shiftState = this.shiftState === SHIFT_OFF ? SHIFT_ON : SHIFT_OFF
+    if (this.shiftState === SHIFT_OFF) {
+      this.shiftState = SHIFT_ONCE
+    } else if (this.shiftState === SHIFT_ONCE) {
+      this.shiftState = SHIFT_LOCK
+    } else {
+      this.shiftState = SHIFT_OFF
+    }
     this.emit()
   }
 
@@ -119,5 +129,6 @@ export class IMECore {
 
 export const SHIFT_STATES = {
   OFF: SHIFT_OFF,
-  ON: SHIFT_ON
+  ONCE: SHIFT_ONCE,
+  LOCK: SHIFT_LOCK
 }

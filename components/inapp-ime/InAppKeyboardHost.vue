@@ -25,7 +25,7 @@
             @touchcancel.stop="onKeyTouchCancel"
             @tap.stop="onKeyTap(key)"
           >
-            <text class="ime-key-label">{{ key.label }}</text>
+            <text class="ime-key-label" :class="{ 'is-bold': key.bold }">{{ key.label }}</text>
           </view>
         </view>
       </view>
@@ -110,7 +110,8 @@ export default {
         'is-num': key.isNumber,
         'is-aux': key.isAux,
         'is-space': key.isSpace,
-        'is-shift-active': key.action === 'SHIFT' && this.shiftState !== 'OFF'
+        'is-shift-active': key.action === 'SHIFT' && this.shiftState !== 'OFF',
+        'is-shift-lock': key.action === 'SHIFT' && this.shiftState === 'LOCK'
       }
     },
     handleMaskTap() {
@@ -333,11 +334,11 @@ export default {
 
 .ime-panel {
   width: 100%;
-  background: linear-gradient(160deg, #3b1624 0%, #100b10 100%);
+  background: #8b0012;
   padding: 24rpx 20rpx 36rpx;
-  border-top-left-radius: 32rpx;
-  border-top-right-radius: 32rpx;
-  box-shadow: 0 -18rpx 40rpx rgba(0, 0, 0, 0.35);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  box-shadow: none;
 }
 
 .ime-popup {
@@ -385,13 +386,14 @@ export default {
 .ime-key {
   flex: 1;
   min-height: 86rpx;
-  background: #fdf6ec;
-  border-radius: 18rpx;
+  background: #ffffff;
+  border-radius: 12rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.7), 0 8rpx 16rpx rgba(0, 0, 0, 0.25);
+  box-shadow: none;
   border: 1rpx solid rgba(255, 255, 255, 0.6);
+  color: #8b0012;
 }
 
 .ime-key.is-wide {
@@ -403,33 +405,56 @@ export default {
 }
 
 .ime-key.is-func {
-  background: #c0392b;
-  color: #fff5ea;
+  background: #fff0f0;
+  color: #8b0012;
+  border: none;
+  box-shadow: none;
 }
 
 .ime-key.is-numsym {
-  background: #c0392b;
-  color: #fff5ea;
+  background: #fff0f0;
+  color: #8b0012;
+  border: none;
+  box-shadow: none;
 }
 
 .ime-key.is-num {
-  background: #fdf6ec;
-  color: #2c1b0f;
+  background: #ffffff;
+  color: #8b0012;
 }
 
 .ime-key.is-aux {
-  background: #c0392b;
-  color: #fff5ea;
+  background: #fff0f0;
+  color: #8b0012;
+  border: none;
+  box-shadow: none;
 }
 
 .ime-key.is-space {
-  background: #c0392b;
-  color: #fff5ea;
+  background: #fff0f0;
+  color: #8b0012;
+  border: none;
+  box-shadow: none;
 }
 
 .ime-key.is-shift-active {
-  background: #f39c12;
+  background: #f7c77b;
   color: #2c1b0f;
+}
+
+.ime-key.is-shift-lock {
+  position: relative;
+}
+
+.ime-key.is-shift-lock::after {
+  content: '';
+  position: absolute;
+  top: 10rpx;
+  right: 10rpx;
+  width: 12rpx;
+  height: 12rpx;
+  background: #8b0012;
+  border-radius: 999rpx;
 }
 
 
@@ -437,5 +462,9 @@ export default {
   font-family: 'Noto Serif', 'Georgia', serif;
   font-size: 30rpx;
   font-weight: 600;
+}
+
+.ime-key-label.is-bold {
+  font-weight: 800;
 }
 </style>

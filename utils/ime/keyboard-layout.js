@@ -96,7 +96,7 @@ export function getNumSymbolLayout() {
     ],
     [
       { id: 'Key-Ex', type: 'CHAR', label: '!', output: '!', isAux: true },
-      { id: 'Key-Return', type: 'FUNC', label: '返回', action: 'RETURN', isAux: true },
+      { id: 'Key-Return', type: 'FUNC', label: '返回', action: 'RETURN', isAux: true, bold: true },
       { id: 'Key-0', type: 'CHAR', label: '0', output: '0', isNumber: true },
       { id: 'Key-Space', type: 'FUNC', label: 'Space', action: 'SPACE', isAux: true, isSpace: true },
       { id: 'Key-Enter', type: 'FUNC', label: 'Enter', action: 'ENTER', isAux: true }
