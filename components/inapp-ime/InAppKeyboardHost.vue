@@ -23,6 +23,7 @@
             @touchstart.stop="onKeyTouchStart(key)"
             @touchend.stop="onKeyTouchEnd(key)"
             @touchcancel.stop="onKeyTouchCancel"
+            @tap.stop="onKeyTap(key)"
           >
             <text class="ime-key-label">{{ key.label }}</text>
           </view>
@@ -33,7 +34,7 @@
 </template>
 
 <script>
-import { getSpanishLayout } from '@/utils/ime/keyboard-layout.js'
+import { getSpanishLayout, getNumSymbolLayout } from '@/utils/ime/keyboard-layout.js'
 import { IMECore } from '@/utils/ime/ime-core.js'
 import { subscribeActiveTarget, setActiveTarget } from '@/utils/ime/focus-controller.js'
 import { getUseInAppIME, subscribeUseInAppIME } from '@/utils/ime/settings-store.js'
@@ -48,9 +49,12 @@ export default {
       visible: false,
       rows: [],
       shiftState: 'OFF',
+      layoutMode: 'alpha',
       longPressTimer: null,
       longPressTriggered: false,
       pressedKey: null,
+      tapConsumed: false,
+      suppressNextTap: false,
       popup: {
         visible: false,
         variants: [],
@@ -66,7 +70,7 @@ export default {
     this.rows = getSpanishLayout(this.shiftState)
     this.unsubscribeCore = imeCore.subscribe((snapshot) => {
       this.shiftState = snapshot.shiftState
-      this.rows = getSpanishLayout(this.shiftState)
+      this.rows = this.layoutMode === 'alpha' ? getSpanishLayout(this.shiftState) : getNumSymbolLayout()
     })
     this.unsubscribeFocus = subscribeActiveTarget((target) => {
       if (!getUseInAppIME()) {
@@ -76,6 +80,8 @@ export default {
       if (target) {
         imeCore.attachTarget(target)
         this.visible = true
+        this.layoutMode = 'alpha'
+        this.rows = getSpanishLayout(this.shiftState)
         this.$emit('visibility-change', true)
         this.updateKeyboardHeight()
       } else {
@@ -101,6 +107,9 @@ export default {
         'is-wide': key.wide,
         'is-narrow': key.narrow,
         'is-numsym': key.isNumSym,
+        'is-num': key.isNumber,
+        'is-aux': key.isAux,
+        'is-space': key.isSpace,
         'is-shift-active': key.action === 'SHIFT' && this.shiftState !== 'OFF'
       }
     },
@@ -110,6 +119,7 @@ export default {
     },
     hideKeyboard() {
       this.visible = false
+      this.layoutMode = 'alpha'
       this.popup.visible = false
       this.popup.variants = []
       this.popup.highlightIndex = 0
@@ -137,10 +147,12 @@ export default {
         if (key && key.type === 'FUNC') {
           this.handleKeyPress(key)
         }
+        this.longPressTriggered = false
         return
       }
-      if (!this.longPressTriggered) {
-        this.handleKeyPress(key)
+      if (this.tapConsumed) {
+        this.tapConsumed = false
+        return
       }
       this.longPressTriggered = false
       this.pressedKey = null
@@ -150,30 +162,47 @@ export default {
       this.hidePopup()
       this.longPressTriggered = false
       this.pressedKey = null
+      this.tapConsumed = false
+      this.suppressNextTap = false
+    },
+    onKeyTap(key) {
+      if (this.longPressTriggered) return
+      if (this.suppressNextTap) {
+        this.suppressNextTap = false
+        return
+      }
+      if (this.popup.visible) return
+      this.handleKeyPress(key)
     },
     handleKeyPress(key) {
       if (!key) return
       if (this.popup.visible) {
         if (key.action === 'LEFT') {
+          this.suppressNextTap = true
           this.moveVariantHighlight(-1)
           return
         }
         if (key.action === 'RIGHT') {
+          this.suppressNextTap = true
           this.moveVariantHighlight(1)
           return
         }
         if (key.action === 'SPACE') {
+          this.suppressNextTap = true
           this.commitHighlightedVariant()
           return
         }
         if (key.action === 'ENTER') {
+          this.suppressNextTap = true
           this.commitHighlightedVariant()
           return
         }
         if (key.action === 'BACKSPACE') {
+          this.suppressNextTap = true
           this.hidePopup()
           return
         }
+        return
       }
       if (key.type === 'CHAR') {
         imeCore.insert(key.output)
@@ -199,6 +228,14 @@ export default {
           this.handleSubmit()
           break
         case 'NUMSYM':
+          this.layoutMode = 'num'
+          this.rows = getNumSymbolLayout()
+          this.updateKeyboardHeight()
+          break
+        case 'RETURN':
+          this.layoutMode = 'alpha'
+          this.rows = getSpanishLayout(this.shiftState)
+          this.updateKeyboardHeight()
           break
         default:
           break
@@ -371,6 +408,21 @@ export default {
 }
 
 .ime-key.is-numsym {
+  background: #c0392b;
+  color: #fff5ea;
+}
+
+.ime-key.is-num {
+  background: #fdf6ec;
+  color: #2c1b0f;
+}
+
+.ime-key.is-aux {
+  background: #c0392b;
+  color: #fff5ea;
+}
+
+.ime-key.is-space {
   background: #c0392b;
   color: #fff5ea;
 }

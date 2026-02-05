@@ -1,5 +1,5 @@
 const USE_IN_APP_IME_KEY = 'useInAppIME'
-const defaultUseInAppIME = false
+const defaultUseInAppIME = true
 
 const listeners = new Set()
 
