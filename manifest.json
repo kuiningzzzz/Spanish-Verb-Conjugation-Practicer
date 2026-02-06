@@ -2,8 +2,8 @@
     "name" : "Con-jugamos",
     "appid" : "__UNI__D279B08",
     "description" : "西班牙语动词变位练习APP",
-    "versionName" : "1.1.0",
-    "versionCode" : 101,
+    "versionName" : "2.0.0",
+    "versionCode" : 102,
     "transformPx" : false,
     "app-plus" : {
         "usingComponents" : true,
