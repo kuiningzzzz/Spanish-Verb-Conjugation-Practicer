@@ -6,7 +6,8 @@
       <text class="subtitle">每天练习，轻松掌握</text>
       <!-- 公告按钮 -->
       <view class="announcement-btn" @click="goToAnnouncement">
-        <text class="announcement-icon" :class="{ 'ring-animation': hasNewAnnouncement }">📢</text>
+        <text class="announcement-icon">📢</text>
+        <view v-if="hasNewAnnouncement" class="announcement-dot"></view>
       </view>
     </view>
 
@@ -233,8 +234,6 @@ export default {
       })
     },
     goToAnnouncement() {
-      // 进入公告页面前，先获取当前公告列表，标记为已读
-      this.markAnnouncementsAsRead()
       uni.navigateTo({
         url: '/pages/announcement/announcement'
       })
@@ -260,20 +259,6 @@ export default {
         }
       } catch (error) {
         console.error('检查新公告失败:', error)
-      }
-    },
-    
-    // 标记当前所有公告为已读
-    async markAnnouncementsAsRead() {
-      try {
-        const res = await api.getAnnouncements()
-        if (res.success && res.data) {
-          const currentIds = res.data.map(a => a.id)
-          uni.setStorageSync('readAnnouncementIds', currentIds)
-          this.hasNewAnnouncement = false
-        }
-      } catch (error) {
-        console.error('标记公告已读失败:', error)
       }
     }
   }
@@ -326,24 +311,14 @@ export default {
   font-size: 36rpx;
 }
 
-/* 只有当有ring-animation class时才播放动画 */
-.ring-animation {
-  animation: ring 2s ease-in-out infinite;
-}
-
-@keyframes ring {
-  0%, 100% {
-    transform: rotate(0deg);
-  }
-  10%, 30% {
-    transform: rotate(-10deg);
-  }
-  20%, 40% {
-    transform: rotate(10deg);
-  }
-  50% {
-    transform: rotate(0deg);
-  }
+.announcement-dot {
+  position: absolute;
+  top: 4rpx;
+  right: 4rpx;
+  width: 14rpx;
+  height: 14rpx;
+  background: #FF0000;
+  border-radius: 50%;
 }
 
 .welcome-card {
