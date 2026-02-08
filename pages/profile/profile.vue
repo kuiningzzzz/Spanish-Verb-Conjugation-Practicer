@@ -247,10 +247,6 @@
             </picker>
           </view>
 
-          <view class="form-note">
-            <text class="note-icon">ℹ️</text>
-            <text class="note-text">邮箱和注册时间不可修改</text>
-          </view>
         </view>
         
         <view class="modal-footer">
@@ -1431,26 +1427,6 @@ export default {
 
 .picker-input .placeholder {
   color: #999;
-}
-
-.form-note {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  padding: 20rpx;
-  background: rgba(102, 126, 234, 0.05);
-  border-radius: 15rpx;
-  margin-top: 10rpx;
-}
-
-.note-icon {
-  font-size: 28rpx;
-}
-
-.note-text {
-  font-size: 24rpx;
-  color: #666;
-  line-height: 1.5;
 }
 
 .modal-footer {
