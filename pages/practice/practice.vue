@@ -416,6 +416,36 @@
         </view>
       </view>
 
+      <view v-if="exerciseType === 'sentence'" class="form-item theme-practice-item">
+        <view class="theme-header" @click="!isCourseMode && toggleSentenceModeSettings()">
+          <view class="theme-header-left">
+            <text class="label theme-label">模式选择</text>
+            <view class="mode-info-button" @click.stop="openSentenceModeInfoModal">
+              <text class="mode-info-button-text">i</text>
+            </view>
+            <text v-if="isCourseMode" class="locked-badge">🔒 已锁定</text>
+          </view>
+          <view class="theme-header-right">
+            <text class="mode-current-text">当前模式：{{ currentSentenceModeLabel }}</text>
+            <text v-if="!isCourseMode" class="expand-icon">{{ sentenceModeSettingsExpanded ? '▲' : '▼' }}</text>
+          </view>
+        </view>
+
+        <view class="theme-details" v-show="sentenceModeSettingsExpanded || isCourseMode">
+          <view class="sentence-mode-list">
+            <view
+              v-for="mode in sentenceModeOptions"
+              :key="mode.value"
+              :class="['sentence-mode-item', selectedSentenceMode === mode.value ? 'active' : '', isCourseMode ? 'disabled' : '']"
+              @click="!isCourseMode && selectSentenceMode(mode.value)"
+            >
+              <text class="sentence-mode-check">{{ selectedSentenceMode === mode.value ? '◉' : '○' }}</text>
+              <text class="sentence-mode-label">{{ mode.label }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
       <view class="form-item theme-practice-item count-practice-item">
         <view class="count-header">
           <text class="label theme-label">题目数量</text>
@@ -532,7 +562,7 @@
           <view class="other-option-item">
             <view class="other-option-info">
               <text class="other-option-title">包含规则变位动词</text>
-              <text class="other-option-desc">默认开启</text>
+              <text class="other-option-desc">关闭后，将只练习不规则动词</text>
             </view>
             <switch
               :checked="includeRegular"
@@ -556,6 +586,22 @@
           </view>
         </view>
         <button class="btn-primary mt-20" @click="closeExerciseModeModal">我知道了</button>
+      </view>
+    </view>
+
+    <view class="modal" v-if="showSentenceModeInfoModal" @click="closeSentenceModeInfoModal">
+      <view class="modal-content exercise-mode-modal" @click.stop>
+        <text class="exercise-mode-modal-title">模式说明</text>
+        <view class="exercise-mode-list">
+          <view
+            v-for="mode in sentenceModeOptions"
+            :key="mode.value"
+            class="exercise-mode-item"
+          >
+            <text class="exercise-mode-item-title">{{ mode.label }}</text>
+          </view>
+        </view>
+        <button class="btn-primary mt-20" @click="closeSentenceModeInfoModal">我知道了</button>
       </view>
     </view>
   </view>
@@ -618,9 +664,16 @@ export default {
           description: '一次性完成同一个动词的六个不同时态、语气和人称的变位填空，全面考查对动词变位体系的掌握程度。'
         }
       ],
+      sentenceModeOptions: [
+        { value: 'verb-only', label: '纯动词变位' },
+        { value: 'with-pronoun', label: '带代词变位' },
+        { value: 'mixed', label: '混合模式' }
+      ],
       exerciseTypeIndex: 0,
       exerciseType: 'sentence',
       showExerciseModeModal: false,
+      showSentenceModeInfoModal: false,
+      selectedSentenceMode: 'verb-only',
       exerciseCount: 10,
       minExerciseCount: 5,
       maxExerciseCount: 50,
@@ -685,6 +738,7 @@ export default {
       reduceRareTenseFrequency: true, // 是否减少罕见时态出现
       
       // 专项练习折叠状态
+      sentenceModeSettingsExpanded: false, // 例句填空模式设置折叠
       themeSettingsExpanded: false,  // 默认折叠
       otherSettingsExpanded: false, // 其他选项默认折叠
       
@@ -889,6 +943,9 @@ export default {
       canSkipCurrent() {
         return this.hasStarted && this.currentExercise && !this.showFeedback
       },
+      currentSentenceModeLabel() {
+        return this.sentenceModeOptions.find((mode) => mode.value === this.selectedSentenceMode)?.label || ''
+      },
       currentExerciseModeInfo() {
         return this.exerciseModeDescriptions.find((mode) => mode.value === this.exerciseType) || {
           label: '',
@@ -1026,6 +1083,22 @@ export default {
 
     closeExerciseModeModal() {
       this.showExerciseModeModal = false
+    },
+
+    openSentenceModeInfoModal() {
+      this.showSentenceModeInfoModal = true
+    },
+
+    closeSentenceModeInfoModal() {
+      this.showSentenceModeInfoModal = false
+    },
+
+    toggleSentenceModeSettings() {
+      this.sentenceModeSettingsExpanded = !this.sentenceModeSettingsExpanded
+    },
+
+    selectSentenceMode(mode) {
+      this.selectedSentenceMode = mode
     },
 
     createStateForExercise(exercise) {
@@ -3229,18 +3302,79 @@ export default {
   color: #8B0012;
 }
 
+.mode-info-button {
+  width: 38rpx;
+  height: 38rpx;
+  border-radius: 50%;
+  border: 2rpx solid #8B0012;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 10rpx;
+  background: #fff;
+}
+
+.mode-info-button-text {
+  font-size: 24rpx;
+  line-height: 1;
+  color: #8B0012;
+  font-weight: 600;
+}
+
+.mode-current-text {
+  font-size: 24rpx;
+  color: #666;
+  margin-right: 16rpx;
+  text-align: right;
+}
+
+.sentence-mode-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.sentence-mode-item {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 18rpx;
+  border-radius: 10rpx;
+  border: 2rpx solid #e9ecef;
+  background: #fff;
+}
+
+.sentence-mode-item.active {
+  border-color: #8B0012;
+  background: #fff8f8;
+}
+
+.sentence-mode-item.disabled {
+  opacity: 0.6;
+}
+
+.sentence-mode-check {
+  font-size: 30rpx;
+  color: #8B0012;
+  margin-right: 10rpx;
+}
+
+.sentence-mode-label {
+  font-size: 25rpx;
+  color: #333;
+}
+
 .exercise-mode-modal {
-  width: 86%;
-  max-width: 680rpx;
-  padding: 44rpx 36rpx;
+  width: 72%;
+  max-width: 560rpx;
+  padding: 46rpx 32rpx;
 }
 
 .exercise-mode-modal-title {
   display: block;
-  font-size: 34rpx;
+  font-size: 38rpx;
   font-weight: 700;
   color: #8B0012;
-  margin-bottom: 26rpx;
+  margin-bottom: 28rpx;
   text-align: center;
 }
 
@@ -3253,7 +3387,7 @@ export default {
   background: #fff8f8;
   border: 2rpx solid #f0d0d0;
   border-radius: 14rpx;
-  padding: 18rpx 20rpx;
+  padding: 20rpx 18rpx;
   margin-bottom: 14rpx;
 }
 
@@ -3263,17 +3397,17 @@ export default {
 
 .exercise-mode-item-title {
   display: block;
-  font-size: 28rpx;
+  font-size: 32rpx;
   font-weight: 600;
   color: #8B0012;
-  margin-bottom: 8rpx;
+  margin-bottom: 10rpx;
 }
 
 .exercise-mode-item-desc {
   display: block;
-  font-size: 25rpx;
+  font-size: 29rpx;
   color: #555;
-  line-height: 1.7;
+  line-height: 1.9;
 }
 
 /* 课程模式提示 */
