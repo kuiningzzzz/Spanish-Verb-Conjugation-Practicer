@@ -1,61 +1,72 @@
 <template>
   <view class="settings-container">
-    <view class="settings-card">
-      <view class="card-header">
-        <text class="card-title">人称设置</text>
-        <text class="card-subtitle">影响练习题中是否包含特定人称</text>
+    <!-- 练习设置分组 -->
+    <view class="section-group">
+      <view class="section-header">
+        <text class="section-title">练习设置</text>
+        <text class="section-subtitle">影响练习题的生成和输入方式</text>
       </view>
 
-      <view class="setting-item">
-        <view class="item-info">
-          <text class="item-title">包含 vosotros</text>
-          <text class="item-desc">西班牙地区常用的复数第二人称</text>
+      <view class="settings-card">
+        <view class="card-header">
+          <text class="card-title">人称设置</text>
+          <text class="card-subtitle">影响练习题中是否包含特定人称</text>
         </view>
-        <switch :checked="pronounSettings.includeVosotros" @change="onVosotrosChange" color="#8B0012" />
+
+        <view class="setting-item">
+          <view class="item-info">
+            <text class="item-title">包含 vosotros</text>
+            <text class="item-desc">西班牙地区常用的复数第二人称</text>
+          </view>
+          <switch :checked="pronounSettings.includeVosotros" @change="onVosotrosChange" color="#8B0012" />
+        </view>
+
+        <view class="setting-item">
+          <view class="item-info">
+            <text class="item-title">包含 vos</text>
+            <text class="item-desc">拉美部分地区使用的第二人称</text>
+          </view>
+          <switch :checked="pronounSettings.includeVos" @change="onVosChange" color="#8B0012" />
+        </view>
       </view>
 
-      <view class="setting-item">
-        <view class="item-info">
-          <text class="item-title">包含 vos</text>
-          <text class="item-desc">拉美部分地区使用的第二人称</text>
+      <view class="settings-card">
+        <view class="card-header">
+          <text class="card-title">输入法设置</text>
+          <text class="card-subtitle">启用应用内西班牙语键盘</text>
         </view>
-        <switch :checked="pronounSettings.includeVos" @change="onVosChange" color="#8B0012" />
+
+        <view class="setting-item">
+          <view class="item-info">
+            <text class="item-title">启用内置输入法</text>
+            <text class="item-desc">开启后，查词和练习输入将不再弹出系统键盘</text>
+          </view>
+          <switch :checked="useInAppIME" @change="onUseInAppIMEChange" color="#8B0012" />
+        </view>
       </view>
     </view>
 
-    <view class="settings-card">
-      <view class="card-header">
-        <text class="card-title">输入法设置</text>
-        <text class="card-subtitle">启用应用内西班牙语键盘</text>
+    <!-- 隐私设置 -->
+    <view class="section-group">
+      <view class="section-header">
+        <text class="section-title">隐私设置</text>
+        <text class="section-subtitle">控制你的信息隐私</text>
       </view>
 
-      <view class="setting-item">
-        <view class="item-info">
-          <text class="item-title">启用内置输入法</text>
-          <text class="item-desc">开启后，查词和练习输入将不再弹出系统键盘</text>
+      <view class="settings-card">
+        <view class="card-header">
+          <text class="card-title">可见性设置</text>
+          <text class="card-subtitle">控制你数据的可见性</text>
         </view>
-        <switch :checked="useInAppIME" @change="onUseInAppIMEChange" color="#8B0012" />
-      </view>
-    </view>
 
-    <view class="settings-card">
-      <view class="card-header">
-        <text class="card-title">隐私设置</text>
-        <text class="card-subtitle">控制你在排行榜中的可见性</text>
-      </view>
-
-      <view class="setting-item">
-        <view class="item-info">
-          <text class="item-title">参与排行榜</text>
-          <text class="item-desc">关闭后，其他用户将无法在排行榜中看到你</text>
+        <view class="setting-item">
+          <view class="item-info">
+            <text class="item-title">参与排行榜</text>
+            <text class="item-desc">关闭后，其他用户将无法在排行榜中看到你</text>
+          </view>
+          <switch :checked="participateInLeaderboard" @change="onLeaderboardChange" color="#8B0012" />
         </view>
-        <switch :checked="participateInLeaderboard" @change="onLeaderboardChange" color="#8B0012" />
       </view>
-    </view>
-
-    <view class="tips-card">
-      <text class="tips-title">说明</text>
-      <text class="tips-text">这里的设置会全局生效，专项练习和其他功能会根据这里的选项生成题目。</text>
     </view>
   </view>
 </template>
@@ -136,7 +147,7 @@ export default {
     onUseInAppIMEChange(event) {
       const newValue = event.detail.value
       this.useInAppIME = setUseInAppIME(newValue)
-      showToast(`已${this.useInAppIME ? '开启' : '关闭'}内置输入法`, 'success')
+      showToast(`已${this.useInAppIME ? '开启' : '关闭'}输入法`, 'success')
     }
   }
 }
@@ -149,12 +160,41 @@ export default {
   background: #f8f8f8;
 }
 
+.section-group {
+  margin-bottom: 40rpx;
+}
+
+.section-header {
+  margin-bottom: 20rpx;
+  padding: 0 8rpx;
+}
+
+.section-title {
+  display: block;
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1f2430;
+  margin-bottom: 8rpx;
+}
+
+.section-subtitle {
+  display: block;
+  font-size: 26rpx;
+  color: #7786b7;
+  line-height: 1.5;
+}
+
 .settings-card {
   background: #ffffff;
   border-radius: 24rpx;
   padding: 28rpx;
   box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.08);
   border: 1rpx solid #f0f0f0;
+  margin-bottom: 16rpx;
+}
+
+.settings-card:last-child {
+  margin-bottom: 0;
 }
 
 .card-header {
@@ -204,28 +244,5 @@ export default {
   display: block;
   font-size: 24rpx;
   color: #8c93a5;
-}
-
-.tips-card {
-  margin-top: 20rpx;
-  background: #f7f8ff;
-  border-radius: 18rpx;
-  padding: 20rpx;
-  color: #5f6b8a;
-  border: 1rpx dashed #d9def7;
-}
-
-.tips-title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #4a53a1;
-  margin-bottom: 6rpx;
-}
-
-.tips-text {
-  display: block;
-  font-size: 24rpx;
-  line-height: 1.6;
 }
 </style>

@@ -295,9 +295,9 @@ export default {
       recentRecords: [],
       activeTimeFilter: 'week',
       timeFilters: [
-        { value: 'week', label: '本周' },
-        { value: 'month', label: '本月' },
-        { value: 'year', label: '本年' }
+        { value: 'week', label: '近7天' },
+        { value: 'month', label: '近30天' },
+        { value: 'year', label: '近一年' }
       ],
       trendData: [],  // 趋势数据
       showCriteria: false  // 是否显示评判标准弹窗
@@ -356,12 +356,6 @@ export default {
     },
     switchTimeFilter(filter) {
       this.activeTimeFilter = filter
-      const filterName = filter === 'week' ? '本周' : filter === 'month' ? '本月' : '本年'
-      uni.showToast({
-        title: `已切换到${filterName}数据`,
-        icon: 'none',
-        duration: 1500
-      })
       this.loadTrendData()
     },
     getMaxValue() {
@@ -665,12 +659,11 @@ export default {
   background: #f8f9fa;
   border-radius: 15rpx;
   padding: 30rpx 20rpx 60rpx;
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: hidden;
 }
 
 .chart-container {
-  min-width: 100%;
+  width: 100%;
   height: 100%;
   display: flex;
   align-items: flex-end;
@@ -682,14 +675,15 @@ export default {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 8rpx;
+  gap: 6rpx;
   padding-bottom: 50rpx;
   position: relative;
 }
 
 .bar-item {
   flex: 1;
-  min-width: 40rpx;
+  min-width: 30rpx;
+  max-width: 80rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -709,7 +703,7 @@ export default {
 .bar-count {
   position: absolute;
   top: -25rpx;
-  font-size: 20rpx;
+  font-size: 18rpx;
   color: #666;
   font-weight: bold;
   white-space: nowrap;
@@ -728,12 +722,11 @@ export default {
   position: absolute;
   bottom: -45rpx;
   left: 50%;
-  font-size: 20rpx;
+  font-size: 18rpx;
   color: #666;
   white-space: nowrap;
   transform: translateX(-50%) rotate(-45deg);
   transform-origin: center center;
-  min-width: 60rpx;
   text-align: center;
 }
 
