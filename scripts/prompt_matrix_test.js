@@ -130,6 +130,13 @@ function roundNumber(value, digits = 4) {
 }
 
 function buildConjugationEntries(verb) {
+  const EXCLUDED_TENSES = new Set([
+    // Rare/archaic forms: exclude from prompt-matrix testing.
+    'subjunctive.future',
+    'compound_subjunctive.future_perfect',
+    'compound_indicative.preterite_anterior'
+  ])
+
   const moodMap = {
     indicative: '陈述式',
     subjunctive: '虚拟式',
@@ -156,7 +163,6 @@ function buildConjugationEntries(verb) {
   const personMap = {
     first_singular: '第一人称单数',
     second_singular: '第二人称单数',
-    second_singular_vos_form: '第二人称单数（vos）',
     third_singular: '第三人称单数',
     first_plural: '第一人称复数',
     second_plural: '第二人称复数',
@@ -170,6 +176,8 @@ function buildConjugationEntries(verb) {
     if (!moodBlock) return
     Object.entries(moodBlock).forEach(([tenseKey, tenseBlock]) => {
       if (!tenseBlock) return
+      const tenseSelector = `${moodKey}.${tenseKey}`
+      if (EXCLUDED_TENSES.has(tenseSelector)) return
       Object.entries(personMap).forEach(([personKey, personLabel]) => {
         const forms = tenseBlock[personKey]
         if (!Array.isArray(forms) || forms.length === 0) return
