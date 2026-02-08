@@ -93,7 +93,7 @@ export default {
   getUserRank: () => request({ url: '/checkin/rank' }),
 
   // 排行榜
-  getLeaderboard: (type) => request({ url: `/leaderboard/${type}` }),
+  getLeaderboard: (type, timeRange = 'all') => request({ url: `/leaderboard/${type}`, data: { range: timeRange } }),
 
   // 单词本相关
   getVocabularyStats: () => request({ url: '/vocabulary/stats' }),
