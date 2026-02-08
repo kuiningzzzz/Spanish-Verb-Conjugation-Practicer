@@ -20,11 +20,11 @@
       <!-- 动词形式 -->
       <view class="verb-forms">
         <view v-if="verbInfo.gerund" class="verb-form-item">
-          <text class="form-label">副动词 (Gerundio):</text>
+          <text class="form-label">Gerundio（副动词）:</text>
           <text class="form-value">{{ verbInfo.gerund }}</text>
         </view>
         <view v-if="verbInfo.participle" class="verb-form-item">
-          <text class="form-label">过去分词 (Participio):</text>
+          <text class="form-label">Participio（过去分词）:</text>
           <text class="form-value">{{ getParticipleForms() }}</text>
         </view>
       </view>
@@ -84,7 +84,10 @@
           <!-- 每个时态一个卡片 -->
           <view v-for="tense in group.tenses" :key="tense.tense" class="tense-card card">
             <view class="tense-header" @click="toggleTense(moodKey, tense.tense)">
-              <text class="tense-title">{{ tense.tenseName }}</text>
+              <text class="tense-title">
+                <text :class="tense.tenseDisplay.dimmed ? 'tense-cn-dimmed' : ''">{{ tense.tenseDisplay.es }}</text>
+                <text :class="['tense-cn', tense.tenseDisplay.dimmed ? 'tense-cn-dimmed' : '']">（{{ tense.tenseDisplay.cn }}）</text>
+              </text>
               <text class="toggle-icon">{{ isTenseExpanded(moodKey, tense.tense) ? '▼' : '▶' }}</text>
             </view>
             
@@ -188,7 +191,7 @@ export default {
       const groups = {}
       
       this.conjugations.forEach(conj => {
-        const moodKey = conj.mood
+        const moodKey = this.getDisplayMoodKey(conj.mood, conj.tense)
         if (!groups[moodKey]) {
           groups[moodKey] = {
             mood: moodKey,
@@ -200,7 +203,7 @@ export default {
         if (!groups[moodKey].tenses[tenseKey]) {
           groups[moodKey].tenses[tenseKey] = {
             tense: tenseKey,
-            tenseName: this.getTenseName(tenseKey),
+            tenseDisplay: this.getTenseDisplay(tenseKey, moodKey),
             conjugations: []
           }
         }
@@ -216,29 +219,88 @@ export default {
       })
       
       // 转换为数组格式，并对人称排序
-      Object.keys(groups).forEach(moodKey => {
+      const orderedGroups = {}
+      Object.keys(groups)
+        .sort((a, b) => this.getMoodOrder(a) - this.getMoodOrder(b))
+        .forEach(moodKey => {
         const tenseArray = Object.values(groups[moodKey].tenses)
+          .sort((a, b) => this.getTenseOrder(moodKey, a.tense) - this.getTenseOrder(moodKey, b.tense))
         tenseArray.forEach(tense => {
           tense.conjugations.sort((a, b) => this.getPersonOrder(a.person) - this.getPersonOrder(b.person))
         })
-        groups[moodKey].tenses = tenseArray
+          orderedGroups[moodKey] = {
+            ...groups[moodKey],
+            tenses: tenseArray
+          }
       })
       
-      this.groupedConjugations = groups
+      this.groupedConjugations = orderedGroups
       
       // 初始化折叠状态（第一个语气默认展开，其他折叠）
       this.expandedMoods = {}
       this.expandedTenses = {}
-      const moodKeys = Object.keys(groups)
+      const moodKeys = Object.keys(orderedGroups)
       moodKeys.forEach((moodKey, index) => {
         // 第一个语气默认展开
         this.expandedMoods[moodKey] = index === 0
         this.expandedTenses[moodKey] = {}
-        groups[moodKey].tenses.forEach(tense => {
+        orderedGroups[moodKey].tenses.forEach(tense => {
           // 时态默认全部折叠
           this.expandedTenses[moodKey][tense.tense] = false
         })
       })
+    },
+
+    getDisplayMoodKey(rawMood, rawTense) {
+      if (rawTense === '条件式' || rawTense === '条件完成时') return '条件式'
+      if (rawMood === '陈述式' || rawMood === '复合陈述式') return '陈述式'
+      if (rawMood === '虚拟式' || rawMood === '复合虚拟式') return '虚拟式'
+      if (rawMood === '命令式') return '命令式'
+      return rawMood
+    },
+
+    getMoodOrder(mood) {
+      const order = {
+        '陈述式': 1,
+        '虚拟式': 2,
+        '条件式': 3,
+        '命令式': 4
+      }
+      return order[mood] || 99
+    },
+
+    getTenseOrder(mood, tense) {
+      const orderMap = {
+        '陈述式': {
+          '现在时': 1,
+          '现在完成时': 2,
+          '未完成过去时': 3,
+          '简单过去时': 4,
+          '将来时': 5,
+          '过去完成时': 6,
+          '将来完成时': 7,
+          '先过去时': 8
+        },
+        '虚拟式': {
+          '虚拟现在时': 1,
+          '虚拟过去时': 2,
+          '虚拟现在完成时': 3,
+          '虚拟过去完成时': 4,
+          '虚拟将来时': 5,
+          '虚拟将来完成时': 6
+        },
+        '条件式': {
+          '条件式': 1,
+          '条件完成时': 2
+        },
+        '命令式': {
+          '肯定命令式': 1,
+          '否定命令式': 2
+        }
+      }
+
+      const moodOrder = orderMap[mood] || {}
+      return moodOrder[tense] || 99
     },
 
     // 切换语气展开/折叠
@@ -269,37 +331,64 @@ export default {
     getMoodName(mood) {
       const moodMap = {
         '陈述式': 'Indicativo (陈述式)',
+        '条件式': 'Condicional (条件式)',
         '虚拟式': 'Subjuntivo (虚拟式)',
-        '命令式': 'Imperativo (命令式)',
-        '复合陈述式': 'Indicativo Compuesto (复合陈述式)',
-        '复合虚拟式': 'Subjuntivo Compuesto (复合虚拟式)'
+        '命令式': 'Imperativo (命令式)'
       }
       return moodMap[mood] || mood
     },
 
-    // 获取时态名称
-    getTenseName(tense) {
-      const tenseMap = {
-        '现在时': 'Presente (现在时)',
-        '简单过去时': 'Pretérito Indefinido (简单过去时)',
-        '未完成过去时': 'Pretérito Imperfecto (过去未完成时)',
-        '将来时': 'Futuro Simple (将来时)',
-        '条件式': 'Condicional Simple (条件式)',
-        '现在完成时': 'Pretérito Perfecto (现在完成时)',
-        '过去完成时': 'Pluscuamperfecto (过去完成时)',
-        '将来完成时': 'Futuro Perfecto (将来完成时)',
-        '条件完成时': 'Condicional Perfecto (条件完成时)',
-        '虚拟现在时': 'Presente de Subjuntivo (虚拟现在时)',
-        '虚拟过去时': 'Imperfecto de Subjuntivo (虚拟过去时)',
-        '虚拟将来时': 'Futuro de Subjuntivo (虚拟将来时)',
-        '虚拟现在完成时': 'Perfecto de Subjuntivo (虚拟现在完成时)',
-        '虚拟过去完成时': 'Pluscuamperfecto de Subjuntivo (虚拟过去完成时)',
-        '虚拟将来完成时': 'Futuro Perfecto de Subjuntivo (虚拟将来完成时)',
-        '肯定命令式': 'Imperativo Afirmativo (肯定命令式)',
-        '否定命令式': 'Imperativo Negativo (否定命令式)',
-        '先过去时': 'Pretérito Anterior (先过去时)'
+    // 获取时态显示（西语 + 中文）
+    getTenseDisplay(tense, mood) {
+      const tenseMapByMood = {
+        '陈述式': {
+          '现在时': { es: 'Presente', cn: '陈述式 一般现在时' },
+          '现在完成时': { es: 'Pretérito Perfecto', cn: '陈述式 现在完成时' },
+          '未完成过去时': { es: 'Pretérito Imperfecto', cn: '陈述式 过去未完成时' },
+          '简单过去时': { es: 'Pretérito Indefinido', cn: '陈述式 简单过去时' },
+          '过去完成时': { es: 'Pretérito Pluscuamperfecto', cn: '陈述式 过去完成时' },
+          '将来时': { es: 'Futuro Imperfecto', cn: '陈述式 将来未完成时' },
+          '将来完成时': { es: 'Futuro Perfecto', cn: '陈述式 将来完成时' },
+          '先过去时': { es: 'Pretérito Anterior', cn: '陈述式 近逾过去时' }
+        },
+        '虚拟式': {
+          '虚拟现在时': { es: 'Presente', cn: '虚拟式 现在时' },
+          '虚拟过去时': { es: 'Pretérito Imperfecto', cn: '虚拟式 过去未完成时' },
+          '虚拟将来时': { es: 'Futuro', cn: '虚拟式 将来时' },
+          '虚拟现在完成时': { es: 'Pretérito Perfecto', cn: '虚拟式 现在完成时' },
+          '虚拟过去完成时': { es: 'Pretérito Pluscuamperfecto', cn: '虚拟式 过去完成时' },
+          '虚拟将来完成时': { es: 'Futuro Perfecto', cn: '虚拟式 将来完成时' }
+        },
+        '条件式': {
+          '条件式': { es: 'Condicional Simple', cn: '简单条件式' },
+          '条件完成时': { es: 'Condicional Compuesto', cn: '复合条件式' }
+        },
+        '命令式': {
+          '肯定命令式': { es: 'Imperativo', cn: '命令式' },
+          '否定命令式': { es: 'Imperativo Negativo', cn: '否定命令式' }
+        }
       }
-      return tenseMap[tense] || tense
+
+      const moodMap = tenseMapByMood[mood] || {}
+      const display = moodMap[tense]
+      if (!display) {
+        return { es: tense, cn: tense, dimmed: false }
+      }
+
+      const dimmedKeys = new Set([
+        '陈述式|先过去时',
+        '虚拟式|虚拟将来时',
+        '虚拟式|虚拟过去完成时',
+        '虚拟式|虚拟现在完成时',
+        '虚拟式|虚拟将来完成时'
+      ])
+      const dimmed = dimmedKeys.has(`${mood}|${tense}`)
+
+      return {
+        es: display.es,
+        cn: display.cn,
+        dimmed
+      }
     },
 
     // 获取人称标签
@@ -605,6 +694,14 @@ export default {
   font-size: 28rpx;
   font-weight: bold;
   color: #495057;
+}
+
+.tense-cn {
+  color: #495057;
+}
+
+.tense-cn-dimmed {
+  color: #9aa0a6;
 }
 
 /* 变位表格 */

@@ -8,6 +8,80 @@ const QuestionValidatorService = require('./traditional_conjugation/questionVali
  * 题目生成服务（带题库和AI混合模式）
  */
 class ExerciseGeneratorService {
+  static getTenseCategory(tense) {
+    if ([
+      '先过去时',
+      '虚拟将来时',
+      '虚拟过去完成时',
+      '虚拟现在完成时',
+      '虚拟将来完成时'
+    ].includes(tense)) {
+      return 3
+    }
+
+    if ([
+      '过去完成时',
+      '将来完成时',
+      '条件完成时',
+      '虚拟过去时'
+    ].includes(tense)) {
+      return 2
+    }
+
+    return 1
+  }
+
+  static chooseTenseCategoryByWeight(availableCategorySet) {
+    const weighted = [
+      { category: 1, weight: 0.70 },
+      { category: 2, weight: 0.25 },
+      { category: 3, weight: 0.05 }
+    ].filter(item => availableCategorySet.has(item.category))
+
+    if (weighted.length === 0) return null
+    if (weighted.length === 1) return weighted[0].category
+
+    const total = weighted.reduce((sum, item) => sum + item.weight, 0)
+    let random = Math.random() * total
+    for (const item of weighted) {
+      if (random < item.weight) return item.category
+      random -= item.weight
+    }
+    return weighted[weighted.length - 1].category
+  }
+
+  static pickConjugationByTenseWeight(conjugations, reduceRareTenseFrequency = true) {
+    if (!Array.isArray(conjugations) || conjugations.length === 0) return null
+    if (!reduceRareTenseFrequency) {
+      return conjugations[Math.floor(Math.random() * conjugations.length)]
+    }
+
+    const tenseGroups = new Map()
+    conjugations.forEach((item) => {
+      if (!tenseGroups.has(item.tense)) tenseGroups.set(item.tense, [])
+      tenseGroups.get(item.tense).push(item)
+    })
+
+    const tenses = Array.from(tenseGroups.keys())
+    const availableCategorySet = new Set(tenses.map(tense => this.getTenseCategory(tense)))
+    const pickedCategory = this.chooseTenseCategoryByWeight(availableCategorySet)
+    if (!pickedCategory) {
+      return conjugations[Math.floor(Math.random() * conjugations.length)]
+    }
+
+    const tensesInCategory = tenses.filter(tense => this.getTenseCategory(tense) === pickedCategory)
+    if (tensesInCategory.length === 0) {
+      return conjugations[Math.floor(Math.random() * conjugations.length)]
+    }
+
+    const pickedTense = tensesInCategory[Math.floor(Math.random() * tensesInCategory.length)]
+    const candidates = tenseGroups.get(pickedTense) || []
+    if (candidates.length === 0) {
+      return conjugations[Math.floor(Math.random() * conjugations.length)]
+    }
+    return candidates[Math.floor(Math.random() * candidates.length)]
+  }
+
   static buildHint(person, tense) {
     if (person && tense) return `${person}，${tense}`
     if (person) return String(person)
@@ -41,6 +115,7 @@ class ExerciseGeneratorService {
       includeRegular = true,
       includeVos = false,
       includeVosotros = true,
+      reduceRareTenseFrequency = true,
       practiceMode = 'normal',
       verbIds = null
     } = options
@@ -207,6 +282,7 @@ class ExerciseGeneratorService {
           includeRegular,
           includeVos,
           includeVosotros,
+          reduceRareTenseFrequency,
           verbIds,
           moods: options.moods
         }
@@ -435,7 +511,10 @@ class ExerciseGeneratorService {
       throw new Error('没有符合所选时态和语气的变位数据')
     }
 
-    const randomConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
+    const randomConjugation = this.pickConjugationByTenseWeight(
+      filteredConjugations,
+      options.reduceRareTenseFrequency
+    )
     const generatedHint = this.buildHint(randomConjugation.person, randomConjugation.tense)
 
     // 重试循环：最多尝试3次生成和验证
@@ -640,7 +719,10 @@ class ExerciseGeneratorService {
       throw new Error('没有符合所选时态和语气的变位数据')
     }
 
-    const randomConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
+    const randomConjugation = this.pickConjugationByTenseWeight(
+      filteredConjugations,
+      options.reduceRareTenseFrequency
+    )
     const generatedHint = this.buildHint(randomConjugation.person, randomConjugation.tense)
 
     // 重试循环
@@ -945,8 +1027,11 @@ class ExerciseGeneratorService {
     if (exerciseType === 'quick-fill') {
       // 随机选择一个变位作为给定形式
       const givenConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
-      // 再随机选择一个不同的变位作为目标形式
-      const targetConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
+      // 目标形式按时态类别加权抽样
+      const targetConjugation = this.pickConjugationByTenseWeight(
+        filteredConjugations,
+        options.reduceRareTenseFrequency
+      )
       
       const exercise = {
         verbId: verb.id,
@@ -974,11 +1059,19 @@ class ExerciseGeneratorService {
         throw new Error('该动词在所选范围内的变位数少于6个，无法生成组合填空题')
       }
       
-      // 随机打乱所有可用变位
-      const shuffled = [...filteredConjugations].sort(() => Math.random() - 0.5)
-      
-      // 选择前6个
-      const selectedConjugations = shuffled.slice(0, 6)
+      // 逐个按时态类别加权抽样，且不重复
+      const pool = [...filteredConjugations]
+      const selectedConjugations = []
+      while (selectedConjugations.length < 6 && pool.length > 0) {
+        const picked = this.pickConjugationByTenseWeight(pool, options.reduceRareTenseFrequency)
+        if (!picked) break
+        selectedConjugations.push(picked)
+        const idx = pool.indexOf(picked)
+        if (idx > -1) pool.splice(idx, 1)
+      }
+      if (selectedConjugations.length < 6) {
+        throw new Error('该动词在所选范围内的变位数少于6个，无法生成组合填空题')
+      }
       
       // 构建组合填空题目
       const comboItems = selectedConjugations.map(c => ({
@@ -1006,7 +1099,10 @@ class ExerciseGeneratorService {
     }
 
     // 如果是其他题型，返回基本结构
-    const randomConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
+    const randomConjugation = this.pickConjugationByTenseWeight(
+      filteredConjugations,
+      options.reduceRareTenseFrequency
+    )
     
     const exercise = {
       verbId: verb.id,

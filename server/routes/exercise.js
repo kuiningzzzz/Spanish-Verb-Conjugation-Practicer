@@ -21,6 +21,7 @@ router.post('/generate-batch', authMiddleware, async (req, res) => {
       includeRegular = true,
       includeVos = false,
       includeVosotros = true,
+      reduceRareTenseFrequency = true,
       practiceMode = 'normal',
       verbIds = null  // 从请求体接收 verbIds（课程模式会传递）
     } = req.body
@@ -38,6 +39,7 @@ router.post('/generate-batch', authMiddleware, async (req, res) => {
       includeRegular,
       includeVos,
       includeVosotros,
+      reduceRareTenseFrequency,
       practiceMode,
       verbIds  // 直接使用前端传递的 verbIds
     }
@@ -92,6 +94,7 @@ router.post('/generate-one', authMiddleware, async (req, res) => {
       includeRegular = true,
       includeVos = false,
       includeVosotros = true,
+      reduceRareTenseFrequency = true,
       practiceMode = 'normal'
     } = req.body
 
@@ -107,6 +110,7 @@ router.post('/generate-one', authMiddleware, async (req, res) => {
       includeRegular,
       includeVos,
       includeVosotros,
+      reduceRareTenseFrequency,
       practiceMode
     }
 
