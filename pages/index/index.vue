@@ -1,5 +1,6 @@
 <template>
   <view class="container">
+    <view v-if="loadFailed" class="network-error-tip">加载失败，请检查您的网络连接</view>
     <view class="header">
       <text class="title">Con-jugamos</text>
       <text class="title">西班牙语动词变位</text>
@@ -81,7 +82,8 @@ export default {
       streakDays: 0,
       studyDays: 0,
       hasCheckedInToday: false,
-      hasNewAnnouncement: false  // 是否有新公告
+      hasNewAnnouncement: false,  // 是否有新公告
+      loadFailed: false
     }
   },
   onLoad() {
@@ -110,33 +112,36 @@ export default {
       }
     },
     async loadData() {
+      this.loadFailed = false
       try {
         // 获取最新用户信息
         try {
-          const userRes = await api.getUserInfo()
+          const userRes = await api.getUserInfo({ silentFailToast: true })
           if (userRes.success) {
             this.userInfo = userRes.user
             // 更新本地缓存
             uni.setStorageSync('userInfo', userRes.user)
           }
         } catch (error) {
+          if (this.isNetworkError(error)) this.loadFailed = true
           console.error('获取用户信息失败:', error)
         }
 
         // 获取统计数据
         try {
-          const statsRes = await api.getStatistics()
+          const statsRes = await api.getStatistics({ silentFailToast: true })
           if (statsRes.success) {
             this.todayStats = statsRes.statistics.today || { total: 0, correct: 0 }
             this.totalStats = statsRes.statistics || {}
           }
         } catch (error) {
+          if (this.isNetworkError(error)) this.loadFailed = true
           console.error('获取统计数据失败:', error)
         }
 
         // 获取打卡信息
         try {
-          const checkInRes = await api.getCheckInHistory()
+          const checkInRes = await api.getCheckInHistory({ silentFailToast: true })
           console.log('📅 打卡信息返回:', checkInRes)
           if (checkInRes.success) {
             // 使用类型检查，避免0被误判为falsy
@@ -147,6 +152,7 @@ export default {
             console.error('❌ 获取打卡信息失败:', checkInRes)
           }
         } catch (error) {
+          if (this.isNetworkError(error)) this.loadFailed = true
           console.error('获取打卡信息异常:', error)
         }
 
@@ -192,8 +198,12 @@ export default {
           this.studyDays = 1
         }
       } catch (error) {
+        if (this.isNetworkError(error)) this.loadFailed = true
         console.error('加载数据失败:', error)
       }
+    },
+    isNetworkError(error) {
+      return Boolean(error && typeof error.errMsg === 'string' && error.errMsg.includes('request:fail'))
     },
     startPractice() {
       uni.navigateTo({
@@ -242,7 +252,7 @@ export default {
     // 检查是否有新公告
     async checkNewAnnouncements() {
       try {
-        const res = await api.getAnnouncements()
+        const res = await api.getAnnouncements({ silentFailToast: true })
         if (res.success && res.data) {
           const currentIds = res.data.map(a => a.id)
           const readIds = uni.getStorageSync('readAnnouncementIds') || []
@@ -258,6 +268,7 @@ export default {
           }
         }
       } catch (error) {
+        if (this.isNetworkError(error)) this.loadFailed = true
         console.error('检查新公告失败:', error)
       }
     }
@@ -266,6 +277,14 @@ export default {
 </script>
 
 <style scoped>
+.network-error-tip {
+  text-align: center;
+  color: #d93025;
+  font-size: 28rpx;
+  font-weight: 600;
+  padding-top: 12rpx;
+}
+
 .header {
   text-align: center;
   padding: 60rpx 0 40rpx;

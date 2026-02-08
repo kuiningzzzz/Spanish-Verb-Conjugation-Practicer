@@ -1,5 +1,6 @@
 <template>
   <view class="container">
+    <view v-if="loadFailed" class="network-error-tip">加载失败，请检查您的网络连接</view>
     <!-- 用户资料卡片 -->
     <view class="profile-card">
       <view class="profile-background">
@@ -273,6 +274,7 @@ export default {
       totalExercises: 0,
       masteredCount: 0,
       rank: 0,
+      loadFailed: false,
       showFeedbackTip: false,
       feedbackTipFading: false,
       showEditModal: false,
@@ -330,6 +332,7 @@ export default {
       uni.reLaunch({ url: '/pages/login/login' })
       return
     }
+    this.loadFailed = false
     this.loadUserInfo()
     this.loadUserStats()
     this.maybeShowFeedbackTip()
@@ -350,19 +353,20 @@ export default {
       }
 
       try {
-        const res = await api.getUserInfo()
+        const res = await api.getUserInfo({ silentFailToast: true })
         if (res.success) {
           this.userInfo = res.user
           uni.setStorageSync('userInfo', res.user)
         }
       } catch (error) {
+        if (this.isNetworkError(error)) this.loadFailed = true
         console.error('获取用户信息失败:', error)
       }
     },
     async loadUserStats() {
       try {
         // 获取统计数据
-        const statsRes = await api.getStatistics()
+        const statsRes = await api.getStatistics({ silentFailToast: true })
         if (statsRes.success) {
           const stats = statsRes.statistics.total || {}
           this.totalExercises = stats.total_exercises || 0
@@ -370,20 +374,24 @@ export default {
         }
 
         // 获取打卡信息（包括连续天数和总学习天数）
-        const checkInRes = await api.getCheckInHistory()
+        const checkInRes = await api.getCheckInHistory({ silentFailToast: true })
         if (checkInRes.success) {
           this.streakDays = checkInRes.streakDays || 0
           this.studyDays = checkInRes.totalStudyDays || 0
         }
 
         // 获取用户排名
-        const rankRes = await api.getUserRank()
+        const rankRes = await api.getUserRank({ silentFailToast: true })
         if (rankRes.success) {
           this.rank = rankRes.rank || 0
         }
       } catch (error) {
+        if (this.isNetworkError(error)) this.loadFailed = true
         console.error('加载用户统计失败:', error)
       }
+    },
+    isNetworkError(error) {
+      return Boolean(error && typeof error.errMsg === 'string' && error.errMsg.includes('request:fail'))
     },
     async chooseAvatar() {
       uni.chooseImage({
@@ -1263,6 +1271,14 @@ export default {
 
 .logout-icon {
   font-size: 32rpx;
+}
+
+.network-error-tip {
+  text-align: center;
+  color: #d93025;
+  font-size: 28rpx;
+  font-weight: 600;
+  padding-top: 12rpx;
 }
 
 /* 浮动操作按钮 */
