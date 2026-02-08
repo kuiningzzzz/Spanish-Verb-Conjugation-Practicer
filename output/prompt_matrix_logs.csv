@@ -1,0 +1,162 @@
+event,row_index,target,model,temperature,prompt_index,request_chars,response_chars,error
+request,1,generator,deepseek-chat,0.7,1,2051,,
+error,1,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,1,validator,deepseek-chat,0.3,1,1638,,
+error,1,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,2,generator,qwen3-max,0.7,1,2051,,
+error,2,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,2,validator,qwen3-max,0.3,1,1638,,
+error,2,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,3,generator,deepseek-chat,0.7,1,2061,,
+error,3,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,3,validator,deepseek-chat,0.3,1,1636,,
+error,3,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,4,generator,qwen3-max,0.7,1,2061,,
+error,4,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,4,validator,qwen3-max,0.3,1,1636,,
+error,4,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,5,generator,deepseek-chat,0.7,1,2055,,
+error,5,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,5,validator,deepseek-chat,0.3,1,1628,,
+error,5,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,6,generator,qwen3-max,0.7,1,2055,,
+error,6,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,6,validator,qwen3-max,0.3,1,1628,,
+error,6,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,7,generator,deepseek-chat,0.7,1,2062,,
+error,7,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,7,validator,deepseek-chat,0.3,1,1633,,
+error,7,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,8,generator,qwen3-max,0.7,1,2062,,
+error,8,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,8,validator,qwen3-max,0.3,1,1633,,
+error,8,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,9,generator,deepseek-chat,0.7,1,2054,,
+error,9,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,9,validator,deepseek-chat,0.3,1,1629,,
+error,9,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,10,generator,qwen3-max,0.7,1,2054,,
+error,10,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,10,validator,qwen3-max,0.3,1,1629,,
+error,10,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,11,generator,deepseek-chat,0.7,1,2060,,
+error,11,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,11,validator,deepseek-chat,0.3,1,1633,,
+error,11,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,12,generator,qwen3-max,0.7,1,2060,,
+error,12,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,12,validator,qwen3-max,0.3,1,1633,,
+error,12,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,13,generator,deepseek-chat,0.7,1,2045,,
+error,13,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,13,validator,deepseek-chat,0.3,1,1624,,
+error,13,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,14,generator,qwen3-max,0.7,1,2045,,
+error,14,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,14,validator,qwen3-max,0.3,1,1624,,
+error,14,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,15,generator,deepseek-chat,0.7,1,2041,,
+error,15,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,15,validator,deepseek-chat,0.3,1,1624,,
+error,15,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,16,generator,qwen3-max,0.7,1,2041,,
+error,16,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,16,validator,qwen3-max,0.3,1,1624,,
+error,16,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,17,generator,deepseek-chat,0.7,1,2022,,
+error,17,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,17,validator,deepseek-chat,0.3,1,1617,,
+error,17,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,18,generator,qwen3-max,0.7,1,2022,,
+error,18,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,18,validator,qwen3-max,0.3,1,1617,,
+error,18,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,19,generator,deepseek-chat,0.7,1,2063,,
+error,19,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,19,validator,deepseek-chat,0.3,1,1642,,
+error,19,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,20,generator,qwen3-max,0.7,1,2063,,
+error,20,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,20,validator,qwen3-max,0.3,1,1642,,
+error,20,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,21,generator,deepseek-chat,0.7,1,2054,,
+error,21,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,21,validator,deepseek-chat,0.3,1,1631,,
+error,21,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,22,generator,qwen3-max,0.7,1,2054,,
+error,22,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,22,validator,qwen3-max,0.3,1,1631,,
+error,22,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,23,generator,deepseek-chat,0.7,1,2064,,
+error,23,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,23,validator,deepseek-chat,0.3,1,1635,,
+error,23,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,24,generator,qwen3-max,0.7,1,2064,,
+error,24,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,24,validator,qwen3-max,0.3,1,1635,,
+error,24,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,25,generator,deepseek-chat,0.7,1,2047,,
+error,25,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,25,validator,deepseek-chat,0.3,1,1626,,
+error,25,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,26,generator,qwen3-max,0.7,1,2047,,
+error,26,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,26,validator,qwen3-max,0.3,1,1626,,
+error,26,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,27,generator,deepseek-chat,0.7,1,2051,,
+error,27,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,27,validator,deepseek-chat,0.3,1,1628,,
+error,27,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,28,generator,qwen3-max,0.7,1,2051,,
+error,28,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,28,validator,qwen3-max,0.3,1,1628,,
+error,28,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,29,generator,deepseek-chat,0.7,1,2053,,
+error,29,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,29,validator,deepseek-chat,0.3,1,1630,,
+error,29,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,30,generator,qwen3-max,0.7,1,2053,,
+error,30,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,30,validator,qwen3-max,0.3,1,1630,,
+error,30,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,31,generator,deepseek-chat,0.7,1,2058,,
+error,31,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,31,validator,deepseek-chat,0.3,1,1633,,
+error,31,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,32,generator,qwen3-max,0.7,1,2058,,
+error,32,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,32,validator,qwen3-max,0.3,1,1633,,
+error,32,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,33,generator,deepseek-chat,0.7,1,2048,,
+error,33,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,33,validator,deepseek-chat,0.3,1,1625,,
+error,33,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,34,generator,qwen3-max,0.7,1,2048,,
+error,34,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,34,validator,qwen3-max,0.3,1,1625,,
+error,34,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,35,generator,deepseek-chat,0.7,1,2041,,
+error,35,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,35,validator,deepseek-chat,0.3,1,1624,,
+error,35,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,36,generator,qwen3-max,0.7,1,2041,,
+error,36,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,36,validator,qwen3-max,0.3,1,1624,,
+error,36,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,37,generator,deepseek-chat,0.7,1,2034,,
+error,37,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,37,validator,deepseek-chat,0.3,1,1623,,
+error,37,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,38,generator,qwen3-max,0.7,1,2034,,
+error,38,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,38,validator,qwen3-max,0.3,1,1623,,
+error,38,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,39,generator,deepseek-chat,0.7,1,2058,,
+error,39,generator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,39,validator,deepseek-chat,0.3,1,1631,,
+error,39,validator,deepseek-chat,0.7,1,,,getaddrinfo ENOTFOUND api.deepseek.com
+request,40,generator,qwen3-max,0.7,1,2058,,
+error,40,generator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+request,40,validator,qwen3-max,0.3,1,1631,,
+error,40,validator,qwen3-max,0.7,1,,,getaddrinfo ENOTFOUND dashscope.aliyuncs.com
+info,,run,,,,,,cases=20 models=2 generator_prompts=1 validator_prompts=1 validator_used=true

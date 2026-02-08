@@ -476,7 +476,7 @@
               <view class="mood-panel-header" @click="toggleMoodPanel(mood.value)">
                 <text class="mood-panel-title">{{ mood.label }}</text>
                 <view class="mood-panel-right">
-                  <text class="mood-panel-count">已选{{ getSelectedTenseCountByMood(mood.value) }}种时态</text>
+                  <text class="mood-panel-count">已选{{ getSelectedTenseCountByMood(mood.value) }}项</text>
                   <text class="expand-icon">{{ isMoodPanelExpanded(mood.value) ? '▲' : '▼' }}</text>
                 </view>
               </view>

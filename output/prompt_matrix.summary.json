@@ -1,0 +1,61 @@
+{
+  "totals": {
+    "rows": 40,
+    "sentence_rows": 0,
+    "validator_rows": 40
+  },
+  "validator_pass": {
+    "count": 0,
+    "rate": 0
+  },
+  "word_count": {
+    "mean": 0,
+    "p10": 0,
+    "p50": 0,
+    "p90": 0
+  },
+  "template_opening": {
+    "hits": 0,
+    "rate": 0,
+    "phrases": [
+      "mañana",
+      "manana",
+      "ayer",
+      "hoy",
+      "ahora",
+      "siempre",
+      "nunca",
+      "todos los días",
+      "todos los dias",
+      "cada día",
+      "cada dia",
+      "últimamente",
+      "ultimamente",
+      "en este momento"
+    ]
+  },
+  "time_adverbs": {
+    "hit_sentences": 0,
+    "hit_rate": 0,
+    "total_hits": 0,
+    "phrases": [
+      "mañana",
+      "manana",
+      "ayer",
+      "hoy",
+      "ahora",
+      "siempre",
+      "nunca",
+      "todos los días",
+      "todos los dias",
+      "cada día",
+      "cada dia",
+      "últimamente",
+      "ultimamente",
+      "en este momento"
+    ]
+  },
+  "failure_tags": {
+    "distribution": {}
+  }
+}

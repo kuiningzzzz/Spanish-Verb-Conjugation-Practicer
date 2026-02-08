@@ -130,34 +130,16 @@ function roundNumber(value, digits = 4) {
 }
 
 function buildConjugationEntries(verb) {
-  const EXCLUDED_TENSES = new Set([
-    // Rare/archaic forms: exclude from prompt-matrix testing.
-    'subjunctive.future',
-    'compound_subjunctive.future_perfect',
-    'compound_indicative.preterite_anterior'
-  ])
-
-  const moodMap = {
-    indicative: '陈述式',
-    subjunctive: '虚拟式',
-    imperative: '命令式',
-    compound_indicative: '复合陈述式',
-    compound_subjunctive: '复合虚拟式'
-  }
-
-  const tenseMap = {
-    present: '现在时',
-    imperfect: '未完成过去时',
-    preterite: '简单过去时',
-    future: '将来时',
-    conditional: '条件式',
-    affirmative: '肯定命令式',
-    negative: '否定命令式',
-    preterite_perfect: '现在完成时',
-    pluperfect: '过去完成时',
-    future_perfect: '将来完成时',
-    conditional_perfect: '条件完成时',
-    preterite_anterior: '先过去时'
+  const ALLOWED_SLOTS = {
+    'indicative.present': { mood: '陈述式', tense: '一般现在时' },
+    'compound_indicative.preterite_perfect': { mood: '陈述式', tense: '现在完成时' },
+    'indicative.imperfect': { mood: '陈述式', tense: '过去未完成时' },
+    'indicative.preterite': { mood: '陈述式', tense: '简单过去时' },
+    'indicative.future': { mood: '陈述式', tense: '将来未完成时' },
+    'indicative.conditional': { mood: '条件式', tense: '简单条件式' },
+    'imperative.affirmative': { mood: '命令式', tense: '命令式' },
+    'imperative.negative': { mood: '命令式', tense: '否定命令式' },
+    'subjunctive.present': { mood: '虚拟式', tense: '现在时' }
   }
 
   const personMap = {
@@ -171,23 +153,19 @@ function buildConjugationEntries(verb) {
 
   const entries = []
 
-  Object.entries(moodMap).forEach(([moodKey, moodLabel]) => {
-    const moodBlock = verb[moodKey]
-    if (!moodBlock) return
-    Object.entries(moodBlock).forEach(([tenseKey, tenseBlock]) => {
-      if (!tenseBlock) return
-      const tenseSelector = `${moodKey}.${tenseKey}`
-      if (EXCLUDED_TENSES.has(tenseSelector)) return
-      Object.entries(personMap).forEach(([personKey, personLabel]) => {
-        const forms = tenseBlock[personKey]
-        if (!Array.isArray(forms) || forms.length === 0) return
-        const conjugatedForm = forms.join(' | ')
-        entries.push({
-          mood: moodLabel,
-          tense: tenseMap[tenseKey] || tenseKey,
-          person: personLabel,
-          conjugated_form: conjugatedForm
-        })
+  Object.entries(ALLOWED_SLOTS).forEach(([slot, labels]) => {
+    const [moodKey, tenseKey] = slot.split('.')
+    const tenseBlock = verb?.[moodKey]?.[tenseKey]
+    if (!tenseBlock) return
+
+    Object.entries(personMap).forEach(([personKey, personLabel]) => {
+      const forms = tenseBlock[personKey]
+      if (!Array.isArray(forms) || forms.length === 0) return
+      entries.push({
+        mood: labels.mood,
+        tense: labels.tense,
+        person: personLabel,
+        conjugated_form: forms.join(' | ')
       })
     })
   })

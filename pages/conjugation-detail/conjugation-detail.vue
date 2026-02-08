@@ -74,7 +74,7 @@
         <view class="mood-header" @click="toggleMood(moodKey)">
           <text class="mood-name">{{ getMoodName(moodKey) }}</text>
           <view class="mood-right">
-            <text class="mood-count">{{ group.tenses.length }}个时态</text>
+            <text class="mood-count">{{ group.tenses.length }}项</text>
             <text class="toggle-icon">{{ expandedMoods[moodKey] ? '▼' : '▶' }}</text>
           </view>
         </view>
