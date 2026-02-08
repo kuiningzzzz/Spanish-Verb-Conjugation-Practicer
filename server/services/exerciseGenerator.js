@@ -1,8 +1,8 @@
 const Verb = require('../models/Verb')
 const Conjugation = require('../models/Conjugation')
 const Question = require('../models/Question')
-const QuestionGeneratorService = require('./traditional_question/questionGenerator')
-const QuestionValidatorService = require('./traditional_question/questionValidator')
+const QuestionGeneratorService = require('./traditional_conjugation/questionGenerator')
+const QuestionValidatorService = require('./traditional_conjugation/questionValidator')
 
 /**
  * 题目生成服务（带题库和AI混合模式）

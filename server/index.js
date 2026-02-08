@@ -113,7 +113,7 @@ const startServer = async () => {
     
     // 检查 DeepSeek API 配置
     try {
-      const QuestionGeneratorService = require('./services/traditional_question/questionGenerator')
+      const QuestionGeneratorService = require('./services/traditional_conjugation/questionGenerator')
       const config = QuestionGeneratorService.checkConfig()
       if (config.configured) {
         console.log('\n   \x1b[32m✓ DeepSeek API 已配置\x1b[0m')

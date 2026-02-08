@@ -385,7 +385,7 @@ Spanish-Verb-Conjugation-Practicer/
 │   │   ├── exerciseGenerator.js
 │   │   ├── imageCompression.js
 │   │   ├── scheduler.js
-│   │   └── traditional_question/   # 题目生成与验证服务
+│   │   └── traditional_conjugation/   # 题目生成与验证服务
 │   │       ├── questionGenerator.js
 │   │       └── questionValidator.js
 │   ├── middleware/                 # 中间件

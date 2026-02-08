@@ -6,7 +6,7 @@ const PracticeRecord = require('../models/PracticeRecord')
 const Question = require('../models/Question')
 const CheckIn = require('../models/CheckIn')
 const ExerciseGeneratorService = require('../services/exerciseGenerator')
-const QuestionGeneratorService = require('../services/traditional_question/questionGenerator')
+const QuestionGeneratorService = require('../services/traditional_conjugation/questionGenerator')
 const { authMiddleware } = require('../middleware/auth')
 
 // 批量生成练习题（新版：题库+AI混合模式，带题目池管理）
