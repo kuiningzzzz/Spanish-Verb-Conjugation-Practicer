@@ -6,6 +6,7 @@ const PracticeRecord = require('../models/PracticeRecord')
 const Question = require('../models/Question')
 const CheckIn = require('../models/CheckIn')
 const ExerciseGeneratorService = require('../services/exerciseGenerator')
+const QuestionGeneratorService = require('../services/traditional_conjugation/questionGenerator')
 const { authMiddleware } = require('../middleware/auth')
 
 // 批量生成练习题（新版：题库+AI混合模式，带题目池管理）
@@ -204,10 +205,10 @@ router.post('/generate', authMiddleware, async (req, res) => {
           case 'sentence':
             // 句子完成题：使用 AI 生成高质量例句
             if (useAI) {
-              const aiSentence = await DeepSeekService.generateSentenceExercise(verb, randomConjugation)
+              const aiSentence = await QuestionGeneratorService.generateSentenceExercise(verb, randomConjugation)
               exercise.sentence = aiSentence.sentence
               exercise.translation = aiSentence.translation
-              exercise.hint = aiSentence.hint
+              exercise.hint = ExerciseGeneratorService.buildHint(randomConjugation.person, randomConjugation.tense)
             } else {
               exercise.sentence = generateSentence(verb, randomConjugation)
             }

@@ -1,6 +1,6 @@
 const axios = require('axios')
 const path = require('path')
-require('dotenv').config({ path: path.join(__dirname, '../.env') })
+require('dotenv').config({ path: path.join(__dirname, '../../.env') })
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY
 const DEEPSEEK_API_URL = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions'
@@ -14,7 +14,7 @@ if (!DEEPSEEK_API_KEY) {
   console.log(`  • API Key: ${DEEPSEEK_API_KEY.substring(0, 10)}...`)
 }
 
-class DeepSeekService {
+class QuestionGeneratorService {
   /**
    * 检查 API 配置是否完整
    */
@@ -134,8 +134,7 @@ class DeepSeekService {
 {
   "sentence": "完整的西班牙语句子，用 __?__ 表示要填空的位置",
   "answer": "${conjugation.conjugated_form}",
-  "translation": "句子的中文翻译",
-  "hint": "简短的提示（如陈述式现在时、虚拟式过去时等，可包含人称但不直接暴露答案）"
+  "translation": "句子的中文翻译"
 }
 `
 
@@ -153,4 +152,4 @@ class DeepSeekService {
   }
 }
 
-module.exports = DeepSeekService
+module.exports = QuestionGeneratorService

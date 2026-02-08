@@ -25,7 +25,6 @@ const validatorPrompts = [
 例句：${exampleSentence}
 正确答案：${correctAnswer}${answerNote}
 翻译：${translation || '无'}
-提示：${hint || '无'}
 
 请验证：
 1. 句子的语法是否正确
@@ -33,7 +32,6 @@ const validatorPrompts = [
 3. 如果答案包含多个形式（用 | 分隔），这是同一变位的不同表达，都应该被接受
 4. 句子是否自然、地道
 5. 翻译是否准确
-6. 提示可以指出需要什么形式，但是不直接暴露答案是什么
 
 请严格按照以下JSON格式返回（不要包含markdown标记）：
 {
@@ -64,7 +62,6 @@ const validatorPrompts = [
 例句：${exampleSentence || questionText}
 正确答案：${correctAnswer}${answerNote}
 翻译：${translation || '无'}
-提示：${hint || '无'}
 
 【核心输出要求】
 1. 只输出一个 JSON 对象；必须能 JSON.parse；禁止任何 markdown 包裹或额外说明。
@@ -89,8 +86,7 @@ const validatorPrompts = [
 2) 人称锚定：是否明确锁定 expectedPerson；若更换人称仍然合理，则 hasUniqueAnswer=false 且 failure_tags 包含 "person_ambiguous"。
 3) 唯一性：是否只有 expectedMood+expectedTense+expectedPerson 才成立（由正确答案所对应的变位决定）；若其它时态/语气也可成立，则 hasUniqueAnswer=false，添加 "tense_ambiguous" 或 "mood_ambiguous"。
 4) 去套路检查：若题干以模板句首开头或过度依赖高危时间状语锁定，标记 "template_opening" 或 "time_adverb_overused"；若因此导致唯一性像“明牌提示”，在 reason 中说明并给 rewrite_advice。
-5) 泄露检查：题干中是否出现 correctAnswer 明文（或非常近似泄露）；若出现 isValid=false，failure_tags 包含 "answer_leak"。
-6) 自然度：是否像真实西语表达；若明显“为锁语法而尬写”，failure_tags 包含 "unnatural"（是否 isValid=false 由你判断，但必须在 reason 解释）。
+5) 自然度：是否像真实西语表达；若明显“为锁语法而尬写”，failure_tags 包含 "unnatural"（是否 isValid=false 由你判断，但必须在 reason 解释）。
 
 【failure_tags 枚举（至少包含这些，输出时可多选）】
 - "too_short_info"

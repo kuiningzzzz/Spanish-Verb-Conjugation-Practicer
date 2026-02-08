@@ -28,8 +28,7 @@ const generatorPrompts = [
 {
   "sentence": "完整的西班牙语句子，用 __?__ 表示要填空的位置",
   "answer": "${conjugation.conjugated_form}",
-  "translation": "句子的中文翻译",
-  "hint": "简短的提示（如陈述式现在时、虚拟式过去时等，可包含人称但不直接暴露答案）"
+  "translation": "句子的中文翻译"
 }
 `
     }
@@ -66,8 +65,7 @@ const generatorPrompts = [
   "sentence": "…__?__…（可 1–3 句；填空只出现一次）",
   "answer_variants": ${answerVariantsJson},
   "answer": "${answerText}",
-  "translation": "覆盖全部句子的中文翻译",
-  "hint": "点开后提示：必须明确 mood/tense/person（可直接写 '虚拟式过去未完成时 + 第一人称单数'）"
+  "translation": "覆盖全部句子的中文翻译"
 }
 
 【人称锚定（必须显式、不可替换）】

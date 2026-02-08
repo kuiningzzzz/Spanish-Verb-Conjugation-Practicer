@@ -9,13 +9,44 @@
     <!-- 总体统计 -->
     <view class="overview-section">
       <view class="stats-grid">
-        <view class="stat-card" v-for="stat in mainStats" :key="stat.key">
-          <view class="stat-icon" :style="{ background: stat.color }">
-            <text>{{ stat.icon }}</text>
+        <view class="stats-row">
+          <view class="stat-card">
+            <view class="stat-icon" :style="{ background: '#8B0012' }">
+              <text>📝</text>
+            </view>
+            <view class="stat-content">
+              <text class="stat-value">{{ totalStats.total_exercises || 0 }}</text>
+              <text class="stat-label">总练习题数</text>
+            </view>
           </view>
-          <view class="stat-content">
-            <text class="stat-value">{{ stat.value }}</text>
-            <text class="stat-label">{{ stat.label }}</text>
+          <view class="stat-card">
+            <view class="stat-icon" :style="{ background: '#D4A04A' }">
+              <text>🎯</text>
+            </view>
+            <view class="stat-content">
+              <text class="stat-value">{{ masteredVerbs.length || 0 }}</text>
+              <text class="stat-label">掌握动词</text>
+            </view>
+          </view>
+        </view>
+        <view class="stats-row">
+          <view class="stat-card">
+            <view class="stat-icon" :style="{ background: '#4CAF50' }">
+              <text>📚</text>
+            </view>
+            <view class="stat-content">
+              <text class="stat-value">{{ totalStats.practiced_verbs || 0 }}</text>
+              <text class="stat-label">练习动词</text>
+            </view>
+          </view>
+          <view class="stat-card">
+            <view class="stat-icon" :style="{ background: '#FF9800' }">
+              <text>📅</text>
+            </view>
+            <view class="stat-content">
+              <text class="stat-value">{{ totalStats.practice_days || 0 }}</text>
+              <text class="stat-label">练习天数</text>
+            </view>
           </view>
         </view>
       </view>
@@ -110,8 +141,8 @@
         <view class="mastered-list">
           <view 
             class="mastered-item" 
-            v-for="verb in masteredVerbs.slice(0, 6)" 
-            :key="verb.id"
+            v-for="(verb, index) in masteredVerbs.slice(0, 6)" 
+            :key="getVerbKey(verb, index)"
           >
             <view class="verb-avatar" :style="{ background: getVerbColor(verb.mastery_level) }">
               <text class="verb-icon">📖</text>
@@ -157,8 +188,8 @@
         <view class="records-list">
           <view 
             class="record-item record-clickable" 
-            v-for="record in recentRecords.slice(0, 10)" 
-            :key="record.id"
+            v-for="(record, index) in recentRecords.slice(0, 10)" 
+            :key="getRecordKey(record, index)"
             @click="viewVerbDetail(record)"
           >
             <view class="record-icon" :class="record.is_correct ? 'correct' : 'wrong'">
@@ -283,38 +314,6 @@ export default {
       return {
         'background': `conic-gradient(#8B0012 ${this.accuracy}%, #f0f0f0 ${this.accuracy}% 100%)`
       }
-    },
-    mainStats() {
-      return [
-        {
-          key: 'total',
-          icon: '📝',
-          label: '总练习题数',
-          value: this.totalStats.total_exercises || 0,
-          color: '#8B0012'
-        },
-        {
-          key: 'mastered',
-          icon: '🎯',
-          label: '掌握动词',
-          value: this.masteredVerbs.length || 0,
-          color: '#D4A04A'
-        },
-        {
-          key: 'verbs',
-          icon: '📚',
-          label: '练习动词',
-          value: this.totalStats.practiced_verbs || 0,
-          color: '#4CAF50'
-        },
-        {
-          key: 'days',
-          icon: '📅',
-          label: '练习天数',
-          value: this.totalStats.practice_days || 0,
-          color: '#FF9800'
-        }
-      ]
     }
   },
   onShow() {
@@ -377,6 +376,14 @@ export default {
         '#66bb6a'
       ]
       return colors[level - 1] || colors[0]
+    },
+    getVerbKey(verb, index) {
+      if (!verb) return `verb-${index}`
+      return verb.id || verb.verb_id || verb.infinitive || `verb-${index}`
+    },
+    getRecordKey(record, index) {
+      if (!record) return `record-${index}`
+      return record.id || record.record_id || record.created_at || record.verb_id || `record-${index}`
     },
     formatTime(timeStr) {
       if (!timeStr) return ''
@@ -454,33 +461,29 @@ export default {
 }
 
 .stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: block;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
   gap: 20rpx;
+  margin-bottom: 20rpx;
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
+  width: 48%;
+  background: #ffffff;
   border-radius: 20rpx;
   padding: 30rpx;
   display: flex;
   align-items: center;
   gap: 20rpx;
-  box-shadow: 0 15rpx 30rpx rgba(0, 0, 0, 0.1);
-  border: 1rpx solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10rpx 20rpx rgba(0, 0, 0, 0.08);
+  border: 1rpx solid #f0f0f0;
   position: relative;
-  overflow: hidden;
-}
-
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4rpx;
-  background: inherit;
+  box-sizing: border-box;
+  margin-bottom: 0;
 }
 
 .stat-icon {

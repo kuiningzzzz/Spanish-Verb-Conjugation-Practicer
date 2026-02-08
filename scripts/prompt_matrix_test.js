@@ -130,6 +130,13 @@ function roundNumber(value, digits = 4) {
 }
 
 function buildConjugationEntries(verb) {
+  const EXCLUDED_TENSES = new Set([
+    // Rare/archaic forms: exclude from prompt-matrix testing.
+    'subjunctive.future',
+    'compound_subjunctive.future_perfect',
+    'compound_indicative.preterite_anterior'
+  ])
+
   const moodMap = {
     indicative: '陈述式',
     subjunctive: '虚拟式',
@@ -156,7 +163,6 @@ function buildConjugationEntries(verb) {
   const personMap = {
     first_singular: '第一人称单数',
     second_singular: '第二人称单数',
-    second_singular_vos_form: '第二人称单数（vos）',
     third_singular: '第三人称单数',
     first_plural: '第一人称复数',
     second_plural: '第二人称复数',
@@ -170,6 +176,8 @@ function buildConjugationEntries(verb) {
     if (!moodBlock) return
     Object.entries(moodBlock).forEach(([tenseKey, tenseBlock]) => {
       if (!tenseBlock) return
+      const tenseSelector = `${moodKey}.${tenseKey}`
+      if (EXCLUDED_TENSES.has(tenseSelector)) return
       Object.entries(personMap).forEach(([personKey, personLabel]) => {
         const forms = tenseBlock[personKey]
         if (!Array.isArray(forms) || forms.length === 0) return
@@ -235,6 +243,13 @@ function cleanJsonText(text) {
   return cleaned.trim()
 }
 
+function buildHint(person, tense) {
+  if (person && tense) return `${person}，${tense}`
+  if (person) return String(person)
+  if (tense) return String(tense)
+  return ''
+}
+
 async function main() {
   const verbs = JSON.parse(fs.readFileSync(VERB_SOURCE, 'utf8'))
   if (!Array.isArray(verbs) || verbs.length === 0) {
@@ -298,7 +313,8 @@ async function main() {
     'validator_prompt_index',
     'validator_is_valid',
     'validator_has_unique_answer',
-    'validator_reason'
+    'validator_reason',
+    'validator_rewrite_advice'
   ]
 
   const writeLine = line => {
@@ -444,6 +460,7 @@ async function main() {
 
             let validatorResult = null
             let validatorError = ''
+            const fixedHint = buildHint(conjugation.person, conjugation.tense)
 
             if (useValidatorFlag) {
               const validatorPromptBuilder = validatorPrompts[validatorPromptIndex]
@@ -455,7 +472,7 @@ async function main() {
                   correctAnswer: question?.answer || conjugation.conjugated_form,
                   exampleSentence: question?.sentence || '',
                   translation: question?.translation || '',
-                  hint: question?.hint || '',
+                  hint: fixedHint,
                   verb: { infinitive: verb.infinitive, meaning }
                 })
 
@@ -548,7 +565,7 @@ async function main() {
               question_sentence: question?.sentence || '',
               question_answer: question?.answer || '',
               question_translation: question?.translation || '',
-              question_hint: question?.hint || '',
+              question_hint: fixedHint,
               question_error: questionError,
               generator_prompt_index: String(promptIndex),
               generator_model: model,
@@ -557,7 +574,10 @@ async function main() {
               validator_prompt_index: String(validatorPromptIndex),
               validator_is_valid: validatorResult?.isValid ?? '',
               validator_has_unique_answer: validatorResult?.hasUniqueAnswer ?? '',
-              validator_reason: validatorResult?.reason || validatorError
+              validator_reason: validatorResult?.reason || validatorError,
+              validator_rewrite_advice: Array.isArray(validatorResult?.rewrite_advice)
+                ? validatorResult.rewrite_advice.join(' | ')
+                : (validatorResult?.rewrite_advice || '')
             }
             writeLine(headers.map(key => escapeCsv(row[key])).join(','))
           }

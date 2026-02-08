@@ -1,5 +1,8 @@
 <template>
   <view class="container">
+    <view class="top-bar">
+      <view class="sort-btn" @click="openSortPicker">排序</view>
+    </view>
     <!-- 加载状态 -->
     <view v-if="loading" class="loading-container">
       <text class="loading-text">加载中...</text>
@@ -8,12 +11,13 @@
     <!-- 公告列表 -->
     <view v-else-if="announcements.length > 0" class="announcement-list">
       <view 
-        v-for="announcement in announcements" 
+        v-for="announcement in pagedAnnouncements" 
         :key="announcement.id"
         class="announcement-item"
         :class="'priority-' + announcement.priority"
         @click="showDetail(announcement)"
       >
+        <view v-if="announcement.isUnread" class="new-dot"></view>
         <!-- 公告头部 -->
         <view class="announcement-header">
           <text class="announcement-time">【{{ getPriorityLabel(announcement.priority) }}】{{ formatTime(announcement.publishTime) }}</text>
@@ -21,7 +25,6 @@
 
         <!-- 公告标题 -->
         <view class="announcement-title">
-          <text class="priority-indicator" v-if="announcement.priority === 'high'">🔴</text>
           {{ announcement.title }}
         </view>
 
@@ -36,6 +39,11 @@
           <text class="read-more">查看详情 ›</text>
         </view>
       </view>
+    </view>
+    <view v-if="announcements.length > 0" class="pagination">
+      <view class="page-btn" :class="{ disabled: currentPage <= 1 }" @click="goPrevPage">上一页</view>
+      <text class="page-info">共 {{ currentPage }} / {{ totalPages }} 页</text>
+      <view class="page-btn" :class="{ disabled: currentPage >= totalPages }" @click="goNextPage">下一页</view>
     </view>
 
     <!-- 空状态 -->
@@ -78,6 +86,10 @@ export default {
     return {
       loading: false,
       announcements: [],
+      readAnnouncementIds: [],
+      pageSize: 10,
+      currentPage: 1,
+      sortMode: 'time',
       showDetailModal: false,
       selectedAnnouncement: null
     }
@@ -85,13 +97,28 @@ export default {
   onLoad() {
     this.loadAnnouncements()
   },
+  computed: {
+    totalPages() {
+      if (this.announcements.length === 0) return 0
+      return Math.max(1, Math.ceil(this.announcements.length / this.pageSize))
+    },
+    pagedAnnouncements() {
+      if (this.announcements.length === 0) return []
+      const start = (this.currentPage - 1) * this.pageSize
+      return this.announcements.slice(start, start + this.pageSize)
+    }
+  },
   methods: {
     async loadAnnouncements() {
       this.loading = true
       try {
         const res = await api.getAnnouncements()
         if (res.success) {
-          this.announcements = res.data || []
+          const list = Array.isArray(res.data) ? res.data : []
+          this.readAnnouncementIds = this.getReadAnnouncementIds(list)
+          this.announcements = this.sortAnnouncements(list)
+          this.currentPage = 1
+          this.clampCurrentPage()
         } else {
           showToast('获取公告失败', 'none')
         }
@@ -142,9 +169,84 @@ export default {
       const text = content.replace(/\n/g, ' ')
       return text.length > 50 ? text.substring(0, 50) + '...' : text
     },
+    openSortPicker() {
+      uni.showActionSheet({
+        itemList: ['按时间排序', '按重要程度排序'],
+        success: (res) => {
+          if (res.tapIndex === 0) {
+            this.sortMode = 'time'
+          } else if (res.tapIndex === 1) {
+            this.sortMode = 'priority'
+          }
+          this.announcements = this.sortAnnouncements(this.announcements)
+          this.currentPage = 1
+          this.clampCurrentPage()
+        }
+      })
+    },
+    getReadAnnouncementIds(currentAnnouncements = []) {
+      const stored = uni.getStorageSync('readAnnouncementIds') || []
+      const currentIds = currentAnnouncements.map(a => a.id)
+      const validReadIds = stored.filter(id => currentIds.includes(id))
+      if (validReadIds.length !== stored.length) {
+        uni.setStorageSync('readAnnouncementIds', validReadIds)
+      }
+      return validReadIds
+    },
+    sortAnnouncements(list) {
+      const readIds = this.readAnnouncementIds
+      const withFlags = list.map(item => ({
+        ...item,
+        isUnread: !readIds.includes(item.id)
+      }))
+      const priorityRank = (priority) => {
+        const rank = { high: 3, medium: 2, low: 1 }
+        return rank[priority] || 0
+      }
+      const sortByTimeDesc = (a, b) => {
+        const timeA = new Date(a.publishTime).getTime() || 0
+        const timeB = new Date(b.publishTime).getTime() || 0
+        return timeB - timeA
+      }
+      const sortByPriorityDesc = (a, b) => {
+        const diff = priorityRank(b.priority) - priorityRank(a.priority)
+        if (diff !== 0) return diff
+        return sortByTimeDesc(a, b)
+      }
+      const sorter = this.sortMode === 'priority' ? sortByPriorityDesc : sortByTimeDesc
+      const unreadList = withFlags.filter(item => item.isUnread).sort(sorter)
+      const readList = withFlags.filter(item => !item.isUnread).sort(sorter)
+      return unreadList.concat(readList)
+    },
+    markAnnouncementAsRead(announcementId) {
+      if (!announcementId) return
+      if (!this.readAnnouncementIds.includes(announcementId)) {
+        this.readAnnouncementIds = [...this.readAnnouncementIds, announcementId]
+        uni.setStorageSync('readAnnouncementIds', this.readAnnouncementIds)
+        this.announcements = this.sortAnnouncements(this.announcements)
+        this.clampCurrentPage()
+      }
+    },
+    clampCurrentPage() {
+      if (this.totalPages === 0) {
+        this.currentPage = 1
+        return
+      }
+      if (this.currentPage < 1) this.currentPage = 1
+      if (this.currentPage > this.totalPages) this.currentPage = this.totalPages
+    },
+    goPrevPage() {
+      if (this.currentPage <= 1) return
+      this.currentPage -= 1
+    },
+    goNextPage() {
+      if (this.currentPage >= this.totalPages) return
+      this.currentPage += 1
+    },
     showDetail(announcement) {
       this.selectedAnnouncement = announcement
       this.showDetailModal = true
+      this.markAnnouncementAsRead(announcement.id)
     },
     closeDetail() {
       this.showDetailModal = false
@@ -161,6 +263,25 @@ export default {
   min-height: 100vh;
   background: #f5f5f5;
   padding-bottom: 40rpx;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 20rpx 30rpx 0;
+}
+
+.sort-btn {
+  font-size: 24rpx;
+  color: #8B0012;
+  background: #fff;
+  border-radius: 999rpx;
+  padding: 10rpx 22rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+}
+
+.sort-btn:active {
+  opacity: 0.8;
 }
 
 /* 加载状态 */
@@ -186,6 +307,7 @@ export default {
   margin-bottom: 20rpx;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
   transition: all 0.3s;
+  position: relative;
 }
 
 .announcement-item:active {
@@ -229,9 +351,14 @@ export default {
   line-height: 1.5;
 }
 
-.priority-indicator {
-  margin-right: 8rpx;
-  font-size: 24rpx;
+.new-dot {
+  position: absolute;
+  top: 18rpx;
+  right: 18rpx;
+  width: 14rpx;
+  height: 14rpx;
+  background: #FF0000;
+  border-radius: 50%;
 }
 
 /* 公告预览 */
@@ -278,6 +405,33 @@ export default {
   display: block;
   font-size: 28rpx;
   color: #999;
+}
+
+/* 分页 */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20rpx;
+  padding: 10rpx 30rpx 30rpx;
+}
+
+.page-btn {
+  padding: 10rpx 22rpx;
+  border-radius: 999rpx;
+  background: #fff;
+  color: #8B0012;
+  font-size: 24rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+}
+
+.page-btn.disabled {
+  opacity: 0.4;
+}
+
+.page-info {
+  font-size: 24rpx;
+  color: #666;
 }
 
 /* 详情弹窗 */
