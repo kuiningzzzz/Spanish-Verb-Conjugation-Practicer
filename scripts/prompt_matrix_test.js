@@ -313,7 +313,8 @@ async function main() {
     'validator_prompt_index',
     'validator_is_valid',
     'validator_has_unique_answer',
-    'validator_reason'
+    'validator_reason',
+    'validator_rewrite_advice'
   ]
 
   const writeLine = line => {
@@ -573,7 +574,10 @@ async function main() {
               validator_prompt_index: String(validatorPromptIndex),
               validator_is_valid: validatorResult?.isValid ?? '',
               validator_has_unique_answer: validatorResult?.hasUniqueAnswer ?? '',
-              validator_reason: validatorResult?.reason || validatorError
+              validator_reason: validatorResult?.reason || validatorError,
+              validator_rewrite_advice: Array.isArray(validatorResult?.rewrite_advice)
+                ? validatorResult.rewrite_advice.join(' | ')
+                : (validatorResult?.rewrite_advice || '')
             }
             writeLine(headers.map(key => escapeCsv(row[key])).join(','))
           }
