@@ -411,16 +411,16 @@
           <text class="button-type">{{ exerciseTypes[exerciseTypeIndex].label }}</text>
           <text class="button-action">开始练习</text>
         </view>
-      </view>
-      
-      <!-- 题型说明框 -->
-      <view class="exercise-description-box">
-        <text class="description-title">📝 {{ exerciseTypes[exerciseTypeIndex].label }}</text>
-        <text class="description-text">{{ getExerciseDescription() }}</text>
+        <view class="mode-help-button" @click="openExerciseModeModal">
+          <text class="mode-help-button-text">?</text>
+        </view>
       </view>
 
-      <view class="form-item">
-        <text class="label">题目数量</text>
+      <view class="form-item theme-practice-item count-practice-item">
+        <view class="count-header">
+          <text class="label theme-label">题目数量</text>
+          <text v-if="isCourseMode" class="locked-badge">🔒 已锁定</text>
+        </view>
         <view :class="['count-selector', { disabled: isCourseMode }]">
           <button
             class="count-btn"
@@ -442,12 +442,11 @@
         </view>
       </view>
 
-      <!-- 专项练习设置 -->
+      <!-- 语气与时态设置 -->
       <view class="form-item theme-practice-item">
         <view class="theme-header" @click="!isCourseMode && toggleThemeSettings()">
           <view class="theme-header-left">
-            <text class="theme-icon">🎯</text>
-            <text class="label theme-label">专项练习</text>
+            <text class="label theme-label">语气与时态选择</text>
             <text v-if="isCourseMode" class="locked-badge">🔒 已锁定</text>
           </view>
           <view class="theme-header-right" v-if="!isCourseMode">
@@ -455,7 +454,7 @@
           </view>
         </view>
         
-        <!-- 专项练习详细设置（可折叠） -->
+        <!-- 语气与时态详细设置（可折叠） -->
         <view class="theme-details" v-show="themeSettingsExpanded || isCourseMode">
         
         <!-- 课程模式提示 -->
@@ -466,7 +465,6 @@
         
         <!-- 语气分组选择 -->
         <view class="theme-section">
-          <text class="theme-subtitle">语气与时态选择</text>
           <view class="mood-accordion">
             <view
               v-for="(mood, index) in moodOptions"
@@ -514,23 +512,50 @@
             </view>
           </view>
         </view>
+        </view>
+        <!-- 结束 theme-details -->
+      </view>
 
-        <!-- 动词规则性与人称选项 -->
-        <view class="theme-section">
-          <text class="theme-subtitle">其他选项</text>
-          <view class="checkbox-group">
-            <view
-              :class="['checkbox-item', includeRegular ? 'checked' : '', isCourseMode ? 'disabled' : '']"
-              @click="!isCourseMode && toggleRegular()"
-            >
-              <text class="checkbox-icon">{{ includeRegular ? '☑' : '☐' }}</text>
-              <text class="checkbox-label">包含规则变位动词</text>
-            </view>
+      <!-- 其他选项 -->
+      <view class="form-item theme-practice-item">
+        <view class="theme-header" @click="!isCourseMode && toggleOtherSettings()">
+          <view class="theme-header-left">
+            <text class="label theme-label">其他选项</text>
+            <text v-if="isCourseMode" class="locked-badge">🔒 已锁定</text>
+          </view>
+          <view class="theme-header-right" v-if="!isCourseMode">
+            <text class="expand-icon">{{ otherSettingsExpanded ? '▲' : '▼' }}</text>
           </view>
         </view>
 
+        <view class="theme-details" v-show="otherSettingsExpanded || isCourseMode">
+          <view class="other-option-item">
+            <view class="other-option-info">
+              <text class="other-option-title">包含规则变位动词</text>
+              <text class="other-option-desc">默认开启</text>
+            </view>
+            <switch
+              :checked="includeRegular"
+              :disabled="isCourseMode"
+              @change="onIncludeRegularChange"
+              color="#8B0012"
+            />
+          </view>
         </view>
-        <!-- 结束 theme-details -->
+      </view>
+    </view>
+
+    <!-- 练习模式说明弹窗 -->
+    <view class="modal" v-if="showExerciseModeModal" @click="closeExerciseModeModal">
+      <view class="modal-content exercise-mode-modal" @click.stop>
+        <text class="exercise-mode-modal-title">练习模式说明</text>
+        <view class="exercise-mode-list">
+          <view class="exercise-mode-item">
+            <text class="exercise-mode-item-title">{{ currentExerciseModeInfo.label }}</text>
+            <text class="exercise-mode-item-desc">{{ currentExerciseModeInfo.description }}</text>
+          </view>
+        </view>
+        <button class="btn-primary mt-20" @click="closeExerciseModeModal">我知道了</button>
       </view>
     </view>
   </view>
@@ -576,8 +601,26 @@ export default {
         { value: 'quick-fill', label: '快变快填' },
         { value: 'combo-fill', label: '组合填空' }
       ],
+      exerciseModeDescriptions: [
+        {
+          value: 'sentence',
+          label: '例句填空',
+          description: '在真实语境的例句中填入正确的动词变位形式，通过上下文理解和运用动词变位，提升实战能力。'
+        },
+        {
+          value: 'quick-fill',
+          label: '快变快填',
+          description: '给出一个已知动词，要求快速变换到另一个指定的时态、语气和人称，锻炼变位形式之间的快速转换能力。'
+        },
+        {
+          value: 'combo-fill',
+          label: '组合填空',
+          description: '一次性完成同一个动词的六个不同时态、语气和人称的变位填空，全面考查对动词变位体系的掌握程度。'
+        }
+      ],
       exerciseTypeIndex: 0,
       exerciseType: 'sentence',
+      showExerciseModeModal: false,
       exerciseCount: 10,
       minExerciseCount: 5,
       maxExerciseCount: 50,
@@ -643,6 +686,7 @@ export default {
       
       // 专项练习折叠状态
       themeSettingsExpanded: false,  // 默认折叠
+      otherSettingsExpanded: false, // 其他选项默认折叠
       
       exercises: [],
       wrongExercises: [],  // 错题队列
@@ -845,6 +889,12 @@ export default {
       canSkipCurrent() {
         return this.hasStarted && this.currentExercise && !this.showFeedback
       },
+      currentExerciseModeInfo() {
+        return this.exerciseModeDescriptions.find((mode) => mode.value === this.exerciseType) || {
+          label: '',
+          description: ''
+        }
+      },
       exerciseTypeText() {
         const types = { sentence: '例句填空', 'quick-fill': '快变快填', 'combo-fill': '组合填空' }
         return types[this.exerciseType] || ''
@@ -969,15 +1019,13 @@ export default {
       this.exerciseTypeIndex = index
       this.exerciseType = this.exerciseTypes[index].value
     },
-    
-    // 获取题型说明（新方法）
-    getExerciseDescription() {
-      const descriptions = {
-        'sentence': '在真实语境的例句中填入正确的动词变位形式，通过上下文理解和运用动词变位，提升实战能力。',
-        'quick-fill': '给出一个已知动词，要求快速变换到另一个指定的时态、语气和人称，锻炼变位形式之间的快速转换能力。',
-        'combo-fill': '一次性完成同一个动词的六个不同时态、语气和人称的变位填空，全面考查对动词变位体系的掌握程度。'
-      }
-      return descriptions[this.exerciseType] || ''
+
+    openExerciseModeModal() {
+      this.showExerciseModeModal = true
+    },
+
+    closeExerciseModeModal() {
+      this.showExerciseModeModal = false
     },
 
     createStateForExercise(exercise) {
@@ -1231,6 +1279,10 @@ export default {
     toggleThemeSettings() {
       this.themeSettingsExpanded = !this.themeSettingsExpanded
     },
+
+    toggleOtherSettings() {
+      this.otherSettingsExpanded = !this.otherSettingsExpanded
+    },
     
     toggleTense(tense) {
       const index = this.selectedTenses.indexOf(tense)
@@ -1242,8 +1294,9 @@ export default {
       this.syncSelectedMoodsFromTenses()
     },
     
-    toggleRegular() {
-      this.includeRegular = !this.includeRegular
+    onIncludeRegularChange(event) {
+      if (this.isCourseMode) return
+      this.includeRegular = event.detail.value
     },
 
     // 加载课程配置
@@ -3100,6 +3153,7 @@ export default {
   align-items: center;
   padding: 30rpx 0;
   margin-bottom: 30rpx;
+  position: relative;
 }
 
 /* 大圆形按钮 */
@@ -3150,30 +3204,76 @@ export default {
   z-index: 1;
 }
 
-/* 题型说明框 */
-.exercise-description-box {
-  background: #fff8f8;
-  border: 2rpx solid #f0d0d0;
-  border-radius: 16rpx;
-  padding: 25rpx;
-  margin-bottom: 30rpx;
-  box-shadow: 0 2rpx 8rpx rgba(139, 0, 18, 0.08);
+.mode-help-button {
+  position: absolute;
+  top: 20rpx;
+  right: 0;
+  width: 70rpx;
+  height: 70rpx;
+  border-radius: 50%;
+  border: 2rpx solid #8B0012;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6rpx 14rpx rgba(139, 0, 18, 0.2);
 }
 
-.description-title {
+.mode-help-button:active {
+  transform: scale(0.95);
+}
+
+.mode-help-button-text {
+  font-size: 38rpx;
+  font-weight: 700;
+  color: #8B0012;
+}
+
+.exercise-mode-modal {
+  width: 86%;
+  max-width: 680rpx;
+  padding: 44rpx 36rpx;
+}
+
+.exercise-mode-modal-title {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #8B0012;
+  margin-bottom: 26rpx;
+  text-align: center;
+}
+
+.exercise-mode-list {
+  max-height: 56vh;
+  overflow-y: auto;
+}
+
+.exercise-mode-item {
+  background: #fff8f8;
+  border: 2rpx solid #f0d0d0;
+  border-radius: 14rpx;
+  padding: 18rpx 20rpx;
+  margin-bottom: 14rpx;
+}
+
+.exercise-mode-item:last-child {
+  margin-bottom: 0;
+}
+
+.exercise-mode-item-title {
   display: block;
   font-size: 28rpx;
   font-weight: 600;
   color: #8B0012;
-  margin-bottom: 12rpx;
+  margin-bottom: 8rpx;
 }
 
-.description-text {
+.exercise-mode-item-desc {
   display: block;
-  font-size: 26rpx;
-  color: #666;
-  line-height: 1.8;
-  text-align: justify;
+  font-size: 25rpx;
+  color: #555;
+  line-height: 1.7;
 }
 
 /* 课程模式提示 */
@@ -3326,6 +3426,15 @@ slider {
   margin-top: 10rpx;
 }
 
+.count-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+  padding-bottom: 15rpx;
+  border-bottom: 2rpx solid #e0e7ff;
+}
+
 .count-btn {
   width: 80rpx;
   height: 80rpx;
@@ -3421,11 +3530,6 @@ slider {
   transition: transform 0.3s ease;
 }
 
-.theme-icon {
-  font-size: 36rpx;
-  margin-right: 12rpx;
-}
-
 .theme-label {
   margin-bottom: 0;
   font-size: 30rpx;
@@ -3452,12 +3556,8 @@ slider {
   margin-bottom: 25rpx;
 }
 
-.theme-subtitle {
-  display: block;
-  font-size: 26rpx;
-  color: #666;
-  margin-bottom: 12rpx;
-  font-weight: 500;
+.theme-section:last-child {
+  margin-bottom: 0;
 }
 
 .mood-accordion {
@@ -3593,6 +3693,32 @@ slider {
 
 .quick-btn::after {
   border: none;
+}
+
+.other-option-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 8rpx 4rpx;
+}
+
+.other-option-info {
+  flex: 1;
+}
+
+.other-option-title {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 6rpx;
+}
+
+.other-option-desc {
+  display: block;
+  font-size: 22rpx;
+  color: #8c8c8c;
 }
 
 /* AI 开关样式优化 */
