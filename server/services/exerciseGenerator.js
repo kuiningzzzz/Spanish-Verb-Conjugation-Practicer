@@ -1,8 +1,8 @@
 const Verb = require('../models/Verb')
 const Conjugation = require('../models/Conjugation')
 const Question = require('../models/Question')
-const DeepSeekService = require('./deepseek')
-const QuestionValidatorService = require('./questionValidator')
+const QuestionGeneratorService = require('./traditional_question/questionGenerator')
+const QuestionValidatorService = require('./traditional_question/questionValidator')
 
 /**
  * 题目生成服务（带题库和AI混合模式）
@@ -449,7 +449,7 @@ class ExerciseGeneratorService {
 
         // 使用AI生成题目
         if (exerciseType === 'sentence') {
-          aiResult = await DeepSeekService.generateSentenceExercise(verb, randomConjugation)
+          aiResult = await QuestionGeneratorService.generateSentenceExercise(verb, randomConjugation)
         } else {
           throw new Error('不支持的AI生成题型')
         }
@@ -653,7 +653,7 @@ class ExerciseGeneratorService {
         console.log(`[AI生成] 为${verb.infinitive}第${attempt}次尝试生成题目 (类型: ${exerciseType})`)
 
         if (exerciseType === 'sentence') {
-          aiResult = await DeepSeekService.generateSentenceExercise(verb, randomConjugation)
+          aiResult = await QuestionGeneratorService.generateSentenceExercise(verb, randomConjugation)
         } else {
           throw new Error('不支持的AI生成题型')
         }

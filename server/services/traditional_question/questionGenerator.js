@@ -1,6 +1,6 @@
 const axios = require('axios')
 const path = require('path')
-require('dotenv').config({ path: path.join(__dirname, '../.env') })
+require('dotenv').config({ path: path.join(__dirname, '../../.env') })
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY
 const DEEPSEEK_API_URL = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions'
@@ -14,7 +14,7 @@ if (!DEEPSEEK_API_KEY) {
   console.log(`  • API Key: ${DEEPSEEK_API_KEY.substring(0, 10)}...`)
 }
 
-class DeepSeekService {
+class QuestionGeneratorService {
   /**
    * 检查 API 配置是否完整
    */
@@ -152,4 +152,4 @@ class DeepSeekService {
   }
 }
 
-module.exports = DeepSeekService
+module.exports = QuestionGeneratorService

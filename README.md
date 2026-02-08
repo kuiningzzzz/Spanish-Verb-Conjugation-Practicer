@@ -381,12 +381,13 @@ Spanish-Verb-Conjugation-Practicer/
 │   │   ├── version.js
 │   │   └── vocabulary.js
 │   ├── services/                   # 业务逻辑层
-│   │   ├── deepseek.js
 │   │   ├── emailService.js
 │   │   ├── exerciseGenerator.js
 │   │   ├── imageCompression.js
-│   │   ├── questionValidator.js
-│   │   └── scheduler.js
+│   │   ├── scheduler.js
+│   │   └── traditional_question/   # 题目生成与验证服务
+│   │       ├── questionGenerator.js
+│   │       └── questionValidator.js
 │   ├── middleware/                 # 中间件
 │   │   ├── auth.js
 │   │   └── logger.js
