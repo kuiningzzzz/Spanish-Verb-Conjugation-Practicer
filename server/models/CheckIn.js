@@ -150,7 +150,21 @@ class CheckIn {
   }
 
   // 老资历榜：按总签到天数排名（不考虑题目数）
-  static getVeteranLeaderboard(limit = 50) {
+  static getVeteranLeaderboard(limit = 50, timeRange = 'all') {
+    let dateFilter = ''
+    
+    switch(timeRange) {
+      case 'week':
+        dateFilter = "AND c.check_in_date >= DATE('now', 'localtime', '-7 days')"
+        break
+      case 'month':
+        dateFilter = "AND c.check_in_date >= DATE('now', 'localtime', '-30 days')"
+        break
+      case 'all':
+      default:
+        dateFilter = ''
+    }
+    
     const stmt = db.prepare(`
       SELECT 
         u.id,
@@ -162,7 +176,7 @@ class CheckIn {
         SUM(c.correct_count) as total_correct
       FROM users u
       JOIN check_ins c ON u.id = c.user_id
-      WHERE u.participate_in_leaderboard = 1
+      WHERE u.participate_in_leaderboard = 1 ${dateFilter}
       GROUP BY u.id
       ORDER BY check_in_days DESC
       LIMIT ?
@@ -172,7 +186,21 @@ class CheckIn {
   }
 
   // 数值怪榜：按总题目数排名（不考虑天数）
-  static getExerciseLeaderboard(limit = 50) {
+  static getExerciseLeaderboard(limit = 50, timeRange = 'all') {
+    let dateFilter = ''
+    
+    switch(timeRange) {
+      case 'week':
+        dateFilter = "AND c.check_in_date >= DATE('now', 'localtime', '-7 days')"
+        break
+      case 'month':
+        dateFilter = "AND c.check_in_date >= DATE('now', 'localtime', '-30 days')"
+        break
+      case 'all':
+      default:
+        dateFilter = ''
+    }
+    
     const stmt = db.prepare(`
       SELECT 
         u.id,
@@ -184,7 +212,7 @@ class CheckIn {
         SUM(c.correct_count) as total_correct
       FROM users u
       JOIN check_ins c ON u.id = c.user_id
-      WHERE u.participate_in_leaderboard = 1
+      WHERE u.participate_in_leaderboard = 1 ${dateFilter}
       GROUP BY u.id
       ORDER BY total_exercises DESC
       LIMIT ?
