@@ -12,15 +12,18 @@ if (fs.existsSync(dotenvPath)) {
 
 const generatorPrompts = require('./input/generator_prompt')
 const validatorPrompts = require('./input/validator_prompt')
+const revisorPrompts = require('./input/revisor_prompt')
 
 const VERB_SOURCE = path.join(__dirname, '../server/src/verbs.json')
 
 const DEFAULT_MODELS = ['deepseek:deepseek-chat', 'qwen:qwen-plus', 'qwen:qwen3-max']
 const DEFAULT_GENERATOR_TEMPS = [0.7]
 const DEFAULT_VALIDATOR_FLAG = true
+const DEFAULT_REVISOR_FLAG = true
 const DEFAULT_TEST_CASES = 1
 const DEFAULT_GENERATOR_PROMPTS = generatorPrompts.map((_, i) => i)
 const DEFAULT_VALIDATOR_PROMPTS = validatorPrompts.map((_, i) => i)
+const DEFAULT_REVISOR_PROMPTS = revisorPrompts.map((_, i) => i)
 const TEMPLATE_OPENINGS = [
   'mañana',
   'manana',
@@ -238,14 +241,19 @@ async function main() {
   const temperatures = parseNumberList(process.env.GENERATOR_TEMPERATURES) || DEFAULT_GENERATOR_TEMPS
   const useValidator = parseBool(process.env.USE_VALIDATOR)
   const useValidatorFlag = useValidator === null ? DEFAULT_VALIDATOR_FLAG : useValidator
+  const useRevisor = parseBool(process.env.USE_REVISOR)
+  const useRevisorFlag = useRevisor === null ? DEFAULT_REVISOR_FLAG : useRevisor
   const testCasesParsed = Number.parseInt(process.env.TEST_CASES || DEFAULT_TEST_CASES, 10)
   const testCases = Number.isFinite(testCasesParsed) && testCasesParsed > 0
     ? testCasesParsed
     : DEFAULT_TEST_CASES
   const generatorPromptIndexes = parseNumberList(process.env.GENERATOR_PROMPTS) || DEFAULT_GENERATOR_PROMPTS
   const validatorPromptIndexes = parseNumberList(process.env.VALIDATOR_PROMPTS) || DEFAULT_VALIDATOR_PROMPTS
+  const revisorPromptIndexes = parseNumberList(process.env.REVISOR_PROMPTS) || DEFAULT_REVISOR_PROMPTS
+  const activeRevisorPromptIndexes = useRevisorFlag ? revisorPromptIndexes : [0]
   const generatorMaxTokens = parsePositiveInt(process.env.GENERATOR_MAX_TOKENS, 1000)
   const validatorMaxTokens = parsePositiveInt(process.env.VALIDATOR_MAX_TOKENS, 700)
+  const revisorMaxTokens = parsePositiveInt(process.env.REVISOR_MAX_TOKENS, 500)
   const requestTimeoutMs = parsePositiveInt(process.env.REQUEST_TIMEOUT_MS, 45000)
 
   const deepseekApiUrl = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions'
@@ -284,11 +292,25 @@ async function main() {
     'question_translation',
     'question_hint',
     'question_error',
+    'revised_sentence',
+    'revisor_reason',
+    'revised_question_error',
     'generator_prompt_index',
     'generator_model',
     'generator_temperature',
     'validator_used',
     'validator_prompt_index',
+    'revisor_used',
+    'revisor_prompt_index',
+    'revisor_temperature',
+    'validator_1_is_valid',
+    'validator_1_has_unique_answer',
+    'validator_1_reason',
+    'validator_1_rewrite_advice',
+    'validator_2_is_valid',
+    'validator_2_has_unique_answer',
+    'validator_2_reason',
+    'validator_2_rewrite_advice',
     'validator_is_valid',
     'validator_has_unique_answer',
     'validator_reason',
@@ -382,182 +404,335 @@ async function main() {
 
         for (const temperature of temperatures) {
           for (const vPromptIndex of validatorPromptIndexes) {
-            const validatorPromptIndex = vPromptIndex
-            const currentRowIndex = rowIndex
-            rowIndex += 1
+            for (const rPromptIndex of activeRevisorPromptIndexes) {
+              const validatorPromptIndex = vPromptIndex
+              const revisorPromptIndex = rPromptIndex
+              const currentRowIndex = rowIndex
+              rowIndex += 1
 
-            let question = null
-            let questionError = ''
-            let rawQuestionText = ''
-
-            try {
-              const requestText = `${promptPayload.system}\n${promptPayload.user}`
-              logLine({
-                event: 'request',
-                row_index: currentRowIndex,
-                target: 'generator',
-                model,
-                temperature,
-                prompt_index: promptIndex,
-                request_chars: requestText.length
-              })
-              rawQuestionText = await callChat({
-                apiUrl,
-                apiKey,
-                model,
-                temperature,
-                system: promptPayload.system,
-                user: promptPayload.user,
-                maxTokens: generatorMaxTokens,
-                timeoutMs: requestTimeoutMs
-              })
-
-              logLine({
-                event: 'response',
-                row_index: currentRowIndex,
-                target: 'generator',
-                model,
-                temperature,
-                prompt_index: promptIndex,
-                response_chars: rawQuestionText ? rawQuestionText.length : 0
-              })
-              const cleaned = cleanJsonText(rawQuestionText)
-              question = JSON.parse(cleaned)
-            } catch (error) {
-              questionError = error.message
-              logLine({
-                event: 'error',
-                row_index: currentRowIndex,
-                target: 'generator',
-                model,
-                temperature,
-                prompt_index: promptIndex,
-                error: questionError
-              })
-            }
-
-            let validatorResult = null
-            let validatorError = ''
-            const fixedHint = buildHint(conjugation.person, conjugation.tense)
-
-            if (useValidatorFlag) {
-              const validatorPromptBuilder = validatorPrompts[validatorPromptIndex]
+              let question = null
+              let questionError = ''
+              let rawQuestionText = ''
+              let validator1Result = null
+              let validator1Error = ''
+              let rawValidator1Text = ''
+              let revisorResult = null
+              let revisorError = ''
+              let rawRevisorText = ''
+              let revisedQuestion = null
+              let revisedQuestionError = ''
+              let validator2Result = null
+              let validator2Error = ''
+              let rawValidator2Text = ''
+              const fixedHint = buildHint(conjugation.person, conjugation.tense)
 
               try {
-                const validatorPrompt = validatorPromptBuilder({
-                  questionType: 'sentence',
-                  questionText: question?.sentence || '',
-                  correctAnswer: question?.answer || conjugation.conjugated_form,
-                  exampleSentence: question?.sentence || '',
-                  translation: question?.translation || '',
-                  hint: fixedHint,
-                  verb: { infinitive: verb.infinitive, meaning }
-                })
-
-                const validatorTemperature = process.env.VALIDATOR_TEMPERATURE
-                  ? Number(process.env.VALIDATOR_TEMPERATURE)
-                  : temperature
-
-                const validatorRequestText = `${validatorPrompt.system}\n${validatorPrompt.user}`
+                const requestText = `${promptPayload.system}\n${promptPayload.user}`
                 logLine({
                   event: 'request',
                   row_index: currentRowIndex,
-                  target: 'validator',
+                  target: 'generator',
                   model,
-                  temperature: validatorTemperature,
-                  prompt_index: validatorPromptIndex,
-                  request_chars: validatorRequestText.length
+                  temperature,
+                  prompt_index: promptIndex,
+                  request_chars: requestText.length
                 })
-                const validatorText = await callChat({
+                rawQuestionText = await callChat({
                   apiUrl,
                   apiKey,
                   model,
-                  temperature: validatorTemperature,
-                  system: validatorPrompt.system,
-                  user: validatorPrompt.user,
-                  maxTokens: validatorMaxTokens,
+                  temperature,
+                  system: promptPayload.system,
+                  user: promptPayload.user,
+                  maxTokens: generatorMaxTokens,
                   timeoutMs: requestTimeoutMs
                 })
 
                 logLine({
                   event: 'response',
                   row_index: currentRowIndex,
-                  target: 'validator',
+                  target: 'generator',
                   model,
-                  temperature: validatorTemperature,
-                  prompt_index: validatorPromptIndex,
-                  response_chars: validatorText ? validatorText.length : 0
+                  temperature,
+                  prompt_index: promptIndex,
+                  response_chars: rawQuestionText ? rawQuestionText.length : 0
                 })
-                const cleanedValidator = cleanJsonText(validatorText)
-                validatorResult = JSON.parse(cleanedValidator)
-                validatorError = ''
+                const cleaned = cleanJsonText(rawQuestionText)
+                question = JSON.parse(cleaned)
               } catch (error) {
-                validatorError = error.message
+                questionError = error.message
                 logLine({
                   event: 'error',
                   row_index: currentRowIndex,
-                  target: 'validator',
+                  target: 'generator',
                   model,
                   temperature,
-                  prompt_index: validatorPromptIndex,
-                  error: validatorError
+                  prompt_index: promptIndex,
+                  error: questionError
                 })
               }
-            }
 
-            const sentenceText = question?.sentence || ''
-            summaryStats.totalRows += 1
-            if (sentenceText) {
-              summaryStats.sentenceRows += 1
-              summaryStats.wordCounts.push(countWords(sentenceText))
-              if (startsWithAny(sentenceText, TEMPLATE_OPENINGS)) {
-                summaryStats.templateOpeningHits += 1
-              }
-              const timeHits = countPhraseHits(sentenceText, HIGH_RISK_TIME_ADVERBS)
-              if (timeHits > 0) {
-                summaryStats.timeAdverbSentenceHits += 1
-                summaryStats.timeAdverbTotalHits += timeHits
-              }
-            }
+              const validatorTemperature = process.env.VALIDATOR_TEMPERATURE
+                ? Number(process.env.VALIDATOR_TEMPERATURE)
+                : temperature
 
-            if (useValidatorFlag) {
-              summaryStats.validatorRows += 1
-              if (validatorResult?.isValid === true && validatorResult?.hasUniqueAnswer === true) {
-                summaryStats.validatorPass += 1
-              }
-              if (Array.isArray(validatorResult?.failure_tags)) {
-                const uniqueTags = new Set(validatorResult.failure_tags.filter(Boolean))
-                for (const tag of uniqueTags) {
-                  summaryStats.failureTagCounts[tag] = (summaryStats.failureTagCounts[tag] || 0) + 1
+              if (useValidatorFlag) {
+                const validatorPromptBuilder = validatorPrompts[validatorPromptIndex]
+                try {
+                  const validatorPrompt = validatorPromptBuilder({
+                    questionType: 'sentence',
+                    questionText: question?.sentence || '',
+                    correctAnswer: question?.answer || conjugation.conjugated_form,
+                    exampleSentence: question?.sentence || '',
+                    translation: question?.translation || '',
+                    hint: fixedHint,
+                    verb: { infinitive: verb.infinitive, meaning }
+                  })
+                  const validatorRequestText = `${validatorPrompt.system}\n${validatorPrompt.user}`
+                  logLine({
+                    event: 'request',
+                    row_index: currentRowIndex,
+                    target: 'validator_1',
+                    model,
+                    temperature: validatorTemperature,
+                    prompt_index: validatorPromptIndex,
+                    request_chars: validatorRequestText.length
+                  })
+                  rawValidator1Text = await callChat({
+                    apiUrl,
+                    apiKey,
+                    model,
+                    temperature: validatorTemperature,
+                    system: validatorPrompt.system,
+                    user: validatorPrompt.user,
+                    maxTokens: validatorMaxTokens,
+                    timeoutMs: requestTimeoutMs
+                  })
+                  logLine({
+                    event: 'response',
+                    row_index: currentRowIndex,
+                    target: 'validator_1',
+                    model,
+                    temperature: validatorTemperature,
+                    prompt_index: validatorPromptIndex,
+                    response_chars: rawValidator1Text ? rawValidator1Text.length : 0
+                  })
+                  validator1Result = JSON.parse(cleanJsonText(rawValidator1Text))
+                } catch (error) {
+                  validator1Error = error.message
+                  logLine({
+                    event: 'error',
+                    row_index: currentRowIndex,
+                    target: 'validator_1',
+                    model,
+                    temperature: validatorTemperature,
+                    prompt_index: validatorPromptIndex,
+                    error: validator1Error
+                  })
                 }
               }
-            }
 
-            const row = {
-              verb_infinitive: verb.infinitive,
-              verb_meaning: meaning,
-              conjugation_mood: conjugation.mood,
-              conjugation_tense: conjugation.tense,
-              conjugation_person: conjugation.person,
-              conjugation_form: conjugation.conjugated_form,
-              question_sentence: question?.sentence || '',
-              question_answer: question?.answer || '',
-              question_translation: question?.translation || '',
-              question_hint: fixedHint,
-              question_error: questionError,
-              generator_prompt_index: String(promptIndex),
-              generator_model: model,
-              generator_temperature: String(temperature),
-              validator_used: String(useValidatorFlag),
-              validator_prompt_index: String(validatorPromptIndex),
-              validator_is_valid: validatorResult?.isValid ?? '',
-              validator_has_unique_answer: validatorResult?.hasUniqueAnswer ?? '',
-              validator_reason: validatorResult?.reason || validatorError,
-              validator_rewrite_advice: Array.isArray(validatorResult?.rewrite_advice)
-                ? validatorResult.rewrite_advice.join(' | ')
-                : (validatorResult?.rewrite_advice || '')
+              const parsedRevisorTemperature = process.env.REVISOR_TEMPERATURE
+                ? Number(process.env.REVISOR_TEMPERATURE)
+                : NaN
+              const revisorTemperature = Number.isFinite(parsedRevisorTemperature)
+                ? parsedRevisorTemperature
+                : 0.4
+
+              const validator1Passed = validator1Result?.isValid === true && validator1Result?.hasUniqueAnswer === true
+              const shouldRunRevisor = useRevisorFlag && useValidatorFlag && question && !validator1Passed
+
+              if (shouldRunRevisor) {
+                const revisorPromptBuilder = revisorPrompts[revisorPromptIndex]
+                try {
+                  const revisorPrompt = revisorPromptBuilder({
+                    verb: { infinitive: verb.infinitive, meaning },
+                    conjugation,
+                    originalQuestion: question,
+                    validatorResult: validator1Result || { reason: validator1Error || '' },
+                    fixedHint
+                  })
+                  const revisorRequestText = `${revisorPrompt.system}\n${revisorPrompt.user}`
+                  logLine({
+                    event: 'request',
+                    row_index: currentRowIndex,
+                    target: 'revisor',
+                    model,
+                    temperature: revisorTemperature,
+                    prompt_index: revisorPromptIndex,
+                    request_chars: revisorRequestText.length
+                  })
+                  rawRevisorText = await callChat({
+                    apiUrl,
+                    apiKey,
+                    model,
+                    temperature: revisorTemperature,
+                    system: revisorPrompt.system,
+                    user: revisorPrompt.user,
+                    maxTokens: revisorMaxTokens,
+                    timeoutMs: requestTimeoutMs
+                  })
+                  logLine({
+                    event: 'response',
+                    row_index: currentRowIndex,
+                    target: 'revisor',
+                    model,
+                    temperature: revisorTemperature,
+                    prompt_index: revisorPromptIndex,
+                    response_chars: rawRevisorText ? rawRevisorText.length : 0
+                  })
+                  revisorResult = JSON.parse(cleanJsonText(rawRevisorText))
+                  const revisedSentence = typeof revisorResult?.sentence === 'string'
+                    ? revisorResult.sentence.trim()
+                    : ''
+                  if (!revisedSentence) {
+                    revisedQuestionError = 'revisor returned empty sentence'
+                  } else {
+                    revisedQuestion = { ...question, sentence: revisedSentence }
+                  }
+                } catch (error) {
+                  revisorError = error.message
+                  logLine({
+                    event: 'error',
+                    row_index: currentRowIndex,
+                    target: 'revisor',
+                    model,
+                    temperature: revisorTemperature,
+                    prompt_index: revisorPromptIndex,
+                    error: revisorError
+                  })
+                }
+              }
+
+              if (useValidatorFlag && revisedQuestion?.sentence) {
+                const validatorPromptBuilder = validatorPrompts[validatorPromptIndex]
+                try {
+                  const validatorPrompt = validatorPromptBuilder({
+                    questionType: 'sentence',
+                    questionText: revisedQuestion.sentence || '',
+                    correctAnswer: revisedQuestion.answer || conjugation.conjugated_form,
+                    exampleSentence: revisedQuestion.sentence || '',
+                    translation: revisedQuestion.translation || '',
+                    hint: fixedHint,
+                    verb: { infinitive: verb.infinitive, meaning }
+                  })
+                  const validatorRequestText = `${validatorPrompt.system}\n${validatorPrompt.user}`
+                  logLine({
+                    event: 'request',
+                    row_index: currentRowIndex,
+                    target: 'validator_2',
+                    model,
+                    temperature: validatorTemperature,
+                    prompt_index: validatorPromptIndex,
+                    request_chars: validatorRequestText.length
+                  })
+                  rawValidator2Text = await callChat({
+                    apiUrl,
+                    apiKey,
+                    model,
+                    temperature: validatorTemperature,
+                    system: validatorPrompt.system,
+                    user: validatorPrompt.user,
+                    maxTokens: validatorMaxTokens,
+                    timeoutMs: requestTimeoutMs
+                  })
+                  logLine({
+                    event: 'response',
+                    row_index: currentRowIndex,
+                    target: 'validator_2',
+                    model,
+                    temperature: validatorTemperature,
+                    prompt_index: validatorPromptIndex,
+                    response_chars: rawValidator2Text ? rawValidator2Text.length : 0
+                  })
+                  validator2Result = JSON.parse(cleanJsonText(rawValidator2Text))
+                } catch (error) {
+                  validator2Error = error.message
+                  logLine({
+                    event: 'error',
+                    row_index: currentRowIndex,
+                    target: 'validator_2',
+                    model,
+                    temperature: validatorTemperature,
+                    prompt_index: validatorPromptIndex,
+                    error: validator2Error
+                  })
+                }
+              }
+
+              const sentenceText = revisedQuestion?.sentence || question?.sentence || ''
+              summaryStats.totalRows += 1
+              if (sentenceText) {
+                summaryStats.sentenceRows += 1
+                summaryStats.wordCounts.push(countWords(sentenceText))
+                if (startsWithAny(sentenceText, TEMPLATE_OPENINGS)) {
+                  summaryStats.templateOpeningHits += 1
+                }
+                const timeHits = countPhraseHits(sentenceText, HIGH_RISK_TIME_ADVERBS)
+                if (timeHits > 0) {
+                  summaryStats.timeAdverbSentenceHits += 1
+                  summaryStats.timeAdverbTotalHits += timeHits
+                }
+              }
+
+              const finalValidator = validator2Result || validator1Result
+              if (useValidatorFlag) {
+                summaryStats.validatorRows += 1
+                if (finalValidator?.isValid === true && finalValidator?.hasUniqueAnswer === true) {
+                  summaryStats.validatorPass += 1
+                }
+                if (Array.isArray(finalValidator?.failure_tags)) {
+                  const uniqueTags = new Set(finalValidator.failure_tags.filter(Boolean))
+                  for (const tag of uniqueTags) {
+                    summaryStats.failureTagCounts[tag] = (summaryStats.failureTagCounts[tag] || 0) + 1
+                  }
+                }
+              }
+
+              const row = {
+                verb_infinitive: verb.infinitive,
+                verb_meaning: meaning,
+                conjugation_mood: conjugation.mood,
+                conjugation_tense: conjugation.tense,
+                conjugation_person: conjugation.person,
+                conjugation_form: conjugation.conjugated_form,
+                question_sentence: question?.sentence || '',
+                question_answer: question?.answer || '',
+                question_translation: question?.translation || '',
+                question_hint: fixedHint,
+                question_error: questionError,
+                revised_sentence: revisedQuestion?.sentence || '',
+                revisor_reason: revisorResult?.revisor_reason || '',
+                revised_question_error: revisedQuestionError || revisorError,
+                generator_prompt_index: String(promptIndex),
+                generator_model: model,
+                generator_temperature: String(temperature),
+                validator_used: String(useValidatorFlag),
+                validator_prompt_index: String(validatorPromptIndex),
+                revisor_used: String(useRevisorFlag),
+                revisor_prompt_index: String(revisorPromptIndex),
+                revisor_temperature: String(revisorTemperature),
+                validator_1_is_valid: validator1Result?.isValid ?? '',
+                validator_1_has_unique_answer: validator1Result?.hasUniqueAnswer ?? '',
+                validator_1_reason: validator1Result?.reason || validator1Error,
+                validator_1_rewrite_advice: Array.isArray(validator1Result?.rewrite_advice)
+                  ? validator1Result.rewrite_advice.join(' | ')
+                  : (validator1Result?.rewrite_advice || ''),
+                validator_2_is_valid: validator2Result?.isValid ?? '',
+                validator_2_has_unique_answer: validator2Result?.hasUniqueAnswer ?? '',
+                validator_2_reason: validator2Result?.reason || validator2Error,
+                validator_2_rewrite_advice: Array.isArray(validator2Result?.rewrite_advice)
+                  ? validator2Result.rewrite_advice.join(' | ')
+                  : (validator2Result?.rewrite_advice || ''),
+                validator_is_valid: finalValidator?.isValid ?? '',
+                validator_has_unique_answer: finalValidator?.hasUniqueAnswer ?? '',
+                validator_reason: finalValidator?.reason || validator2Error || validator1Error,
+                validator_rewrite_advice: Array.isArray(finalValidator?.rewrite_advice)
+                  ? finalValidator.rewrite_advice.join(' | ')
+                  : (finalValidator?.rewrite_advice || '')
+              }
+              writeLine(headers.map(key => escapeCsv(row[key])).join(','))
             }
-            writeLine(headers.map(key => escapeCsv(row[key])).join(','))
           }
         }
       }
@@ -631,7 +806,7 @@ async function main() {
     prompt_index: '',
     request_chars: '',
     response_chars: '',
-    error: `cases=${testCases} models=${models.length} generator_prompts=${generatorPromptIndexes.length} validator_prompts=${validatorPromptIndexes.length} validator_used=${useValidatorFlag}`
+    error: `cases=${testCases} models=${models.length} generator_prompts=${generatorPromptIndexes.length} validator_prompts=${validatorPromptIndexes.length} revisor_prompts=${activeRevisorPromptIndexes.length} validator_used=${useValidatorFlag} revisor_used=${useRevisorFlag}`
   })
   if (outputStream) {
     outputStream.end()
