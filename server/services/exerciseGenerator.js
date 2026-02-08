@@ -8,6 +8,13 @@ const QuestionValidatorService = require('./questionValidator')
  * 题目生成服务（带题库和AI混合模式）
  */
 class ExerciseGeneratorService {
+  static buildHint(person, tense) {
+    if (person && tense) return `${person}，${tense}`
+    if (person) return String(person)
+    if (tense) return String(tense)
+    return null
+  }
+
   /**
    * 生成单个题目（保留向后兼容）
    */
@@ -312,7 +319,7 @@ class ExerciseGeneratorService {
     if (question.question_type === 'sentence') {
       exercise.sentence = question.question_text
       exercise.translation = question.translation
-      exercise.hint = question.hint
+      exercise.hint = question.hint || this.buildHint(question.person, question.tense)
     }
 
     return exercise
@@ -429,6 +436,7 @@ class ExerciseGeneratorService {
     }
 
     const randomConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
+    const generatedHint = this.buildHint(randomConjugation.person, randomConjugation.tense)
 
     // 重试循环：最多尝试3次生成和验证
     let aiResult = null
@@ -461,7 +469,7 @@ class ExerciseGeneratorService {
           correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
           exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
           translation: aiResult.translation || null,
-          hint: aiResult.hint || null,
+          hint: generatedHint,
           verb: verb
         })
 
@@ -512,7 +520,7 @@ class ExerciseGeneratorService {
         correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
         exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
         translation: aiResult.translation || null,
-        hint: aiResult.hint || null,
+        hint: generatedHint,
         tense: randomConjugation.tense,
         mood: randomConjugation.mood,
         person: randomConjugation.person,
@@ -559,7 +567,7 @@ class ExerciseGeneratorService {
     if (exerciseType === 'sentence') {
       exercise.sentence = aiResult.sentence
       exercise.translation = aiResult.translation
-      exercise.hint = aiResult.hint
+      exercise.hint = generatedHint
     }
 
     return exercise
@@ -633,6 +641,7 @@ class ExerciseGeneratorService {
     }
 
     const randomConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
+    const generatedHint = this.buildHint(randomConjugation.person, randomConjugation.tense)
 
     // 重试循环
     let aiResult = null
@@ -662,7 +671,7 @@ class ExerciseGeneratorService {
           correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
           exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
           translation: aiResult.translation || null,
-          hint: aiResult.hint || null,
+          hint: generatedHint,
           verb: verb
         })
 
@@ -700,7 +709,7 @@ class ExerciseGeneratorService {
         correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
         exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
         translation: aiResult.translation || null,
-        hint: aiResult.hint || null,
+        hint: generatedHint,
         tense: randomConjugation.tense,
         mood: randomConjugation.mood,
         person: randomConjugation.person,
@@ -745,7 +754,7 @@ class ExerciseGeneratorService {
     if (exerciseType === 'sentence') {
       exercise.sentence = aiResult.sentence
       exercise.translation = aiResult.translation
-      exercise.hint = aiResult.hint
+      exercise.hint = generatedHint
     }
 
     return exercise

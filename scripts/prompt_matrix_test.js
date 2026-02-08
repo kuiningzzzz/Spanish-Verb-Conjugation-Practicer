@@ -235,6 +235,13 @@ function cleanJsonText(text) {
   return cleaned.trim()
 }
 
+function buildHint(person, tense) {
+  if (person && tense) return `${person}，${tense}`
+  if (person) return String(person)
+  if (tense) return String(tense)
+  return ''
+}
+
 async function main() {
   const verbs = JSON.parse(fs.readFileSync(VERB_SOURCE, 'utf8'))
   if (!Array.isArray(verbs) || verbs.length === 0) {
@@ -444,6 +451,7 @@ async function main() {
 
             let validatorResult = null
             let validatorError = ''
+            const fixedHint = buildHint(conjugation.person, conjugation.tense)
 
             if (useValidatorFlag) {
               const validatorPromptBuilder = validatorPrompts[validatorPromptIndex]
@@ -455,7 +463,7 @@ async function main() {
                   correctAnswer: question?.answer || conjugation.conjugated_form,
                   exampleSentence: question?.sentence || '',
                   translation: question?.translation || '',
-                  hint: question?.hint || '',
+                  hint: fixedHint,
                   verb: { infinitive: verb.infinitive, meaning }
                 })
 
@@ -548,7 +556,7 @@ async function main() {
               question_sentence: question?.sentence || '',
               question_answer: question?.answer || '',
               question_translation: question?.translation || '',
-              question_hint: question?.hint || '',
+              question_hint: fixedHint,
               question_error: questionError,
               generator_prompt_index: String(promptIndex),
               generator_model: model,

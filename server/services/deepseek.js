@@ -134,8 +134,7 @@ class DeepSeekService {
 {
   "sentence": "完整的西班牙语句子，用 __?__ 表示要填空的位置",
   "answer": "${conjugation.conjugated_form}",
-  "translation": "句子的中文翻译",
-  "hint": "简短的提示（如陈述式现在时、虚拟式过去时等，可包含人称但不直接暴露答案）"
+  "translation": "句子的中文翻译"
 }
 `
 

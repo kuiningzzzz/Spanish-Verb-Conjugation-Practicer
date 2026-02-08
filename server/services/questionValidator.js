@@ -13,7 +13,7 @@ class QuestionValidatorService {
    * 调用 AI API 进行题目验证
    */
   static async validateQuestion(questionData) {
-    const { questionType, questionText, correctAnswer, exampleSentence, translation, hint, verb } = questionData
+    const { questionType, questionText, correctAnswer, exampleSentence, translation, verb } = questionData
 
     let prompt = ''
 
@@ -33,7 +33,6 @@ class QuestionValidatorService {
 例句：${exampleSentence}
 正确答案：${correctAnswer}${answerNote}
 翻译：${translation || '无'}
-提示：${hint || '无'}
 
 请验证：
 1. 句子的语法是否正确
@@ -41,7 +40,6 @@ class QuestionValidatorService {
 3. 如果答案包含多个形式（用 | 分隔），这是同一变位的不同表达，都应该被接受
 4. 句子是否自然、地道
 5. 翻译是否准确
-6. 提示可以指出需要什么形式，但是不直接暴露答案是什么
 
 请严格按照以下JSON格式返回（不要包含markdown标记）：
 {
