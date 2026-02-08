@@ -13,6 +13,7 @@
         <RouterLink v-if="isDev" to="/announcements">公告管理</RouterLink>
         <RouterLink v-if="isDev" to="/versions">版本管理</RouterLink>
         <RouterLink v-if="isDev" to="/database">数据库管理</RouterLink>
+        <RouterLink v-if="isDev" to="/experiment-results">实验结果分析</RouterLink>
       </nav>
     </aside>
     <div class="main">
@@ -53,7 +54,8 @@ const titles = {
   PracticeRecords: '用户数据',
   Announcements: '公告管理',
   VersionManagement: '版本管理',
-  DatabaseManagement: '数据库管理'
+  DatabaseManagement: '数据库管理',
+  ExperimentResults: '实验结果分析'
 };
 
 const title = computed(() => titles[route.name] || 'Admin');
