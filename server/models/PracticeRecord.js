@@ -507,8 +507,15 @@ class PracticeRecord {
         `)
         const data = stmt.get(userId, startStr, endStr)
         
-        // 标签格式：M/D
-        const label = `${startDate.getMonth() + 1}/${startDate.getDate()}`
+        // 标签格式：显示日期区间
+        let label
+        if (i === 0) {
+          // 最新的一组，显示"D-今"（显示起始日期）
+          label = `${startDate.getDate()}-今`
+        } else {
+          // 其他组，显示"D1-D2"
+          label = `${startDate.getDate()}-${endDate.getDate()}`
+        }
         
         result.push({
           dateRange: `${startStr} ~ ${endStr}`,
