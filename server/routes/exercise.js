@@ -212,7 +212,11 @@ router.post('/generate', authMiddleware, async (req, res) => {
               const aiSentence = await QuestionGeneratorService.generateSentenceExercise(verb, randomConjugation)
               exercise.sentence = aiSentence.sentence
               exercise.translation = aiSentence.translation
-              exercise.hint = ExerciseGeneratorService.buildHint(randomConjugation.person, randomConjugation.tense)
+              exercise.hint = ExerciseGeneratorService.buildHint(
+                randomConjugation.person,
+                randomConjugation.tense,
+                randomConjugation.mood
+              )
             } else {
               exercise.sentence = generateSentence(verb, randomConjugation)
             }

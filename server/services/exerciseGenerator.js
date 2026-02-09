@@ -3,6 +3,7 @@ const Conjugation = require('../models/Conjugation')
 const Question = require('../models/Question')
 const QuestionGeneratorService = require('./traditional_conjugation/questionGenerator')
 const QuestionValidatorService = require('./traditional_conjugation/questionValidator')
+const QuestionRevisorService = require('./traditional_conjugation/questionRevisor')
 
 /**
  * 题目生成服务（带题库和AI混合模式）
@@ -82,8 +83,11 @@ class ExerciseGeneratorService {
     return candidates[Math.floor(Math.random() * candidates.length)]
   }
 
-  static buildHint(person, tense) {
+  static buildHint(person, tense, mood = null) {
+    if (mood && tense && person) return `${mood}，${tense}，${person}`
     if (person && tense) return `${person}，${tense}`
+    if (mood && tense) return `${mood}，${tense}`
+    if (mood) return String(mood)
     if (person) return String(person)
     if (tense) return String(tense)
     return null
@@ -395,7 +399,7 @@ class ExerciseGeneratorService {
     if (question.question_type === 'sentence') {
       exercise.sentence = question.question_text
       exercise.translation = question.translation
-      exercise.hint = question.hint || this.buildHint(question.person, question.tense)
+      exercise.hint = question.hint || this.buildHint(question.person, question.tense, question.mood)
     }
 
     return exercise
@@ -423,6 +427,130 @@ class ExerciseGeneratorService {
     }
 
     return { valid: true }
+  }
+
+  /**
+   * 例句题 AI 生成流水线：
+   * generator -> validator_v1 -> (可选) revisor -> validator_v2
+   * 单次请求最多重试 maxRetries 次；任一轮通过即停止。
+   */
+  static async runSentenceAIPipeline({ verb, conjugation, generatedHint, maxRetries = 3 }) {
+    let lastError = ''
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(
+        `[AI生成][pipeline] attempt=${attempt}/${maxRetries} verb=${verb.infinitive} slot=${conjugation.mood}/${conjugation.tense}/${conjugation.person}`
+      )
+
+      try {
+        const generated = await QuestionGeneratorService.generateSentenceExercise(verb, conjugation)
+        const normalizedGenerated = {
+          ...generated,
+          answer: generated?.answer || conjugation.conjugated_form
+        }
+
+        const generatedCheck = this.validateAIResultData(normalizedGenerated, 'sentence')
+        if (!generatedCheck.valid) {
+          lastError = generatedCheck.reason
+          console.log(`[AI生成][pipeline] generator数据不合法: ${lastError}`)
+          continue
+        }
+
+        const validatorInputV1 = {
+          questionType: 'sentence',
+          questionText: normalizedGenerated.sentence,
+          correctAnswer: normalizedGenerated.answer,
+          exampleSentence: normalizedGenerated.sentence,
+          translation: normalizedGenerated.translation || '',
+          hint: generatedHint,
+          verb
+        }
+        const validationV1 = await QuestionValidatorService.validateQuestion(validatorInputV1)
+        console.log(
+          `[AI生成][validator_v1] isValid=${validationV1.isValid} hasUniqueAnswer=${validationV1.hasUniqueAnswer} reason=${validationV1.reason || ''}`
+        )
+
+        if (validationV1.isValid && validationV1.hasUniqueAnswer) {
+          return {
+            passed: true,
+            aiResult: normalizedGenerated,
+            validation: validationV1,
+            attempt,
+            usedRevisor: false
+          }
+        }
+
+        let revisedQuestion = null
+        try {
+          const revised = await QuestionRevisorService.reviseQuestion({
+            verb,
+            conjugation,
+            originalQuestion: normalizedGenerated,
+            validatorResult: validationV1,
+            fixedHint: generatedHint
+          })
+
+          revisedQuestion = {
+            ...normalizedGenerated,
+            sentence: revised.sentence || normalizedGenerated.sentence,
+            translation: revised.translation || normalizedGenerated.translation || ''
+          }
+
+          const revisedCheck = this.validateAIResultData(revisedQuestion, 'sentence')
+          if (!revisedCheck.valid) {
+            lastError = `revisor产物无效: ${revisedCheck.reason}`
+            console.log(`[AI生成][pipeline] ${lastError}`)
+            continue
+          }
+        } catch (error) {
+          lastError = `revisor失败: ${error.message}`
+          console.log(`[AI生成][pipeline] ${lastError}`)
+          continue
+        }
+
+        const validatorInputV2 = {
+          questionType: 'sentence',
+          questionText: revisedQuestion.sentence,
+          correctAnswer: revisedQuestion.answer,
+          exampleSentence: revisedQuestion.sentence,
+          translation: revisedQuestion.translation || '',
+          hint: generatedHint,
+          verb
+        }
+        const validationV2 = await QuestionValidatorService.validateQuestion(validatorInputV2)
+        console.log(
+          `[AI生成][validator_v2] isValid=${validationV2.isValid} hasUniqueAnswer=${validationV2.hasUniqueAnswer} reason=${validationV2.reason || ''}`
+        )
+
+        if (validationV2.isValid && validationV2.hasUniqueAnswer) {
+          return {
+            passed: true,
+            aiResult: revisedQuestion,
+            validation: validationV2,
+            attempt,
+            usedRevisor: true
+          }
+        }
+
+        lastError = validationV2.reason || validationV1.reason || 'validator_v2未通过'
+      } catch (error) {
+        lastError = error.message
+        console.log(`[AI生成][pipeline] attempt=${attempt} 异常: ${lastError}`)
+      }
+
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 800))
+      }
+    }
+
+    return {
+      passed: false,
+      aiResult: null,
+      validation: null,
+      attempt: maxRetries,
+      usedRevisor: false,
+      lastError: lastError || '达到最大重试次数'
+    }
   }
 
   /**
@@ -515,79 +643,30 @@ class ExerciseGeneratorService {
       filteredConjugations,
       options.reduceRareTenseFrequency
     )
-    const generatedHint = this.buildHint(randomConjugation.person, randomConjugation.tense)
+    const generatedHint = this.buildHint(
+      randomConjugation.person,
+      randomConjugation.tense,
+      randomConjugation.mood
+    )
 
-    // 重试循环：最多尝试3次生成和验证
-    let aiResult = null
-    let validation = null
-    let lastError = null
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`[AI生成] 为${verb.infinitive}第${attempt}次尝试生成题目 (类型: ${exerciseType})`)
-
-        // 使用AI生成题目
-        if (exerciseType === 'sentence') {
-          aiResult = await QuestionGeneratorService.generateSentenceExercise(verb, randomConjugation)
-        } else {
-          throw new Error('不支持的AI生成题型')
-        }
-
-        // 数据完整性检查
-        const dataCheck = this.validateAIResultData(aiResult, exerciseType)
-        if (!dataCheck.valid) {
-          console.log(`[AI生成] 第${attempt}次数据验证失败: ${dataCheck.reason}`)
-          lastError = dataCheck.reason
-          continue  // 重试
-        }
-
-        // 验证AI生成的题目质量
-        validation = await QuestionValidatorService.quickValidate({
-          questionType: exerciseType,
-          questionText: exerciseType === 'sentence' ? aiResult.sentence : aiResult.question,
-          correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
-          exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
-          translation: aiResult.translation || null,
-          hint: generatedHint,
-          verb: verb
-        })
-
-        // 如果验证通过，跳出循环
-        if (validation.passed) {
-          console.log(`[AI生成] 第${attempt}次尝试成功，题目通过验证`)
-          break
-        } else {
-          console.log(`[AI生成] 第${attempt}次质量验证未通过: ${validation.reason}`)
-          lastError = validation.reason
-          
-          // 如果不是最后一次尝试，继续重试（短延迟）
-          if (attempt < maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, 1000))
-          }
-        }
-      } catch (error) {
-        console.error(`[AI生成] 第${attempt}次尝试出错:`, error.message)
-        lastError = error.message
-        
-        // 如果不是最后一次尝试，继续重试
-        // 对于服务繁忙错误，使用更长的延迟
-        if (attempt < maxRetries) {
-          const isServiceBusy = error.message.includes('繁忙') || error.message.includes('频繁')
-          const delay = isServiceBusy ? 3000 : 1500
-          console.log(`[AI生成] ${delay/1000}秒后重试...`)
-          await new Promise(resolve => setTimeout(resolve, delay))
-        }
-      }
+    if (exerciseType !== 'sentence') {
+      throw new Error('不支持的AI生成题型')
     }
 
-    // 3次尝试后的处理
-    if (!validation || !validation.passed || !aiResult) {
-      console.log(`[AI生成] 经过${maxRetries}次尝试仍未生成合格题目，最后错误: ${lastError}`)
-      
-      // 例句填空无法用传统方法生成，直接返回错误
+    const pipeline = await this.runSentenceAIPipeline({
+      verb,
+      conjugation: randomConjugation,
+      generatedHint,
+      maxRetries
+    })
+    const aiResult = pipeline.aiResult
+
+    if (!pipeline.passed || !aiResult) {
+      console.log(`[AI生成] 经过${maxRetries}次尝试仍未生成合格题目，最后错误: ${pipeline.lastError}`)
       console.log(`[AI生成] 例句填空无法降级，返回null`)
       return null
     }
+    console.log(`[AI生成] 流水线成功 attempt=${pipeline.attempt} usedRevisor=${pipeline.usedRevisor}`)
 
     // 验证通过，保存到公共题库（统一初始置信度为50）
     let savedQuestionId = null
@@ -723,63 +802,29 @@ class ExerciseGeneratorService {
       filteredConjugations,
       options.reduceRareTenseFrequency
     )
-    const generatedHint = this.buildHint(randomConjugation.person, randomConjugation.tense)
+    const generatedHint = this.buildHint(
+      randomConjugation.person,
+      randomConjugation.tense,
+      randomConjugation.mood
+    )
 
-    // 重试循环
-    let aiResult = null
-    let validation = null
-    let lastError = null
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`[AI生成] 为${verb.infinitive}第${attempt}次尝试生成题目 (类型: ${exerciseType})`)
-
-        if (exerciseType === 'sentence') {
-          aiResult = await QuestionGeneratorService.generateSentenceExercise(verb, randomConjugation)
-        } else {
-          throw new Error('不支持的AI生成题型')
-        }
-
-        const dataCheck = this.validateAIResultData(aiResult, exerciseType)
-        if (!dataCheck.valid) {
-          console.log(`[AI生成] 第${attempt}次数据验证失败: ${dataCheck.reason}`)
-          lastError = dataCheck.reason
-          continue
-        }
-
-        validation = await QuestionValidatorService.quickValidate({
-          questionType: exerciseType,
-          questionText: exerciseType === 'sentence' ? aiResult.sentence : aiResult.question,
-          correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
-          exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
-          translation: aiResult.translation || null,
-          hint: generatedHint,
-          verb: verb
-        })
-
-        if (validation.passed) {
-          console.log(`[AI生成] 第${attempt}次尝试成功`)
-          break
-        } else {
-          console.log(`[AI生成] 第${attempt}次质量验证未通过: ${validation.reason}`)
-          lastError = validation.reason
-          if (attempt < maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, 500))
-          }
-        }
-      } catch (error) {
-        console.error(`[AI生成] 第${attempt}次尝试出错:`, error.message)
-        lastError = error.message
-        if (attempt < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 1000))
-        }
-      }
+    if (exerciseType !== 'sentence') {
+      throw new Error('不支持的AI生成题型')
     }
 
-    if (!validation || !validation.passed || !aiResult) {
-      console.log(`[AI生成] ${verb.infinitive}经过${maxRetries}次尝试仍未生成合格题目`)
+    const pipeline = await this.runSentenceAIPipeline({
+      verb,
+      conjugation: randomConjugation,
+      generatedHint,
+      maxRetries
+    })
+    const aiResult = pipeline.aiResult
+
+    if (!pipeline.passed || !aiResult) {
+      console.log(`[AI生成] ${verb.infinitive}经过${maxRetries}次尝试仍未生成合格题目: ${pipeline.lastError}`)
       return null
     }
+    console.log(`[AI生成] ${verb.infinitive}流水线成功 attempt=${pipeline.attempt} usedRevisor=${pipeline.usedRevisor}`)
 
     // 保存到公共题库
     let savedQuestionId = null
