@@ -585,10 +585,17 @@ async function main() {
                   const revisedSentence = typeof revisorResult?.sentence === 'string'
                     ? revisorResult.sentence.trim()
                     : ''
+                  const revisedTranslation = typeof revisorResult?.translation === 'string'
+                    ? revisorResult.translation.trim()
+                    : ''
                   if (!revisedSentence) {
                     revisedQuestionError = 'revisor returned empty sentence'
                   } else {
-                    revisedQuestion = { ...question, sentence: revisedSentence }
+                    revisedQuestion = {
+                      ...question,
+                      sentence: revisedSentence,
+                      translation: revisedTranslation || question?.translation || ''
+                    }
                   }
                 } catch (error) {
                   revisorError = error.message
@@ -698,7 +705,7 @@ async function main() {
                 conjugation_form: conjugation.conjugated_form,
                 question_sentence: question?.sentence || '',
                 question_answer: question?.answer || '',
-                question_translation: question?.translation || '',
+                question_translation: revisedQuestion?.translation || question?.translation || '',
                 question_hint: fixedHint,
                 question_error: questionError,
                 revised_sentence: revisedQuestion?.sentence || '',

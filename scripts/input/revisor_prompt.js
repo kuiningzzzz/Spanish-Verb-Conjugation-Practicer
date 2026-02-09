@@ -73,10 +73,12 @@ ${fixedHint}
 3) 目标动词只能在 __?__ 出现一次，不得在其他位置出现同一动词任何变位或不定式。
 4) 避免模板化句首（Mañana/Ayer/Hoy/Ahora/Siempre/Nunca/Todos los días/Cada día）。
 5) 若无法在不改其他字段前提下完全消除歧义，返回“最接近可用且更优”的 sentence。
+6) 需要同步输出新的 translation，并与修订后的 sentence 严格对齐，替代原题 translation。
 
 请只输出一个 JSON 对象（禁止 markdown）：
 {
   "sentence": "修订后的句子，含且仅含一个 __?__",
+  "translation": "修订后 sentence 的中文翻译（用于替换原 translation）",
   "revisor_reason": "简短说明如何解决了歧义"
 }
 `
