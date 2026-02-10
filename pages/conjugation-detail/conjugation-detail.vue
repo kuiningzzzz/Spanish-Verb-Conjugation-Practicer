@@ -279,6 +279,7 @@ export default {
           '将来时': 5,
           '过去完成时': 6,
           '将来完成时': 7,
+          '前过去时': 8,
           '先过去时': 8
         },
         '虚拟式': {
@@ -286,6 +287,7 @@ export default {
           '虚拟过去时': 2,
           '虚拟现在完成时': 3,
           '虚拟过去完成时': 4,
+          '虚拟将来未完成时': 5,
           '虚拟将来时': 5,
           '虚拟将来完成时': 6
         },
@@ -349,12 +351,14 @@ export default {
           '过去完成时': { es: 'Pretérito Pluscuamperfecto', cn: '陈述式 过去完成时' },
           '将来时': { es: 'Futuro Imperfecto', cn: '陈述式 将来未完成时' },
           '将来完成时': { es: 'Futuro Perfecto', cn: '陈述式 将来完成时' },
-          '先过去时': { es: 'Pretérito Anterior', cn: '陈述式 近逾过去时' }
+          '前过去时': { es: 'Pretérito Anterior', cn: '陈述式 前过去时' },
+          '先过去时': { es: 'Pretérito Anterior', cn: '陈述式 前过去时' }
         },
         '虚拟式': {
           '虚拟现在时': { es: 'Presente', cn: '虚拟式 现在时' },
           '虚拟过去时': { es: 'Pretérito Imperfecto', cn: '虚拟式 过去未完成时' },
-          '虚拟将来时': { es: 'Futuro', cn: '虚拟式 将来时' },
+          '虚拟将来未完成时': { es: 'Futuro', cn: '虚拟式 将来未完成时' },
+          '虚拟将来时': { es: 'Futuro', cn: '虚拟式 将来未完成时' },
           '虚拟现在完成时': { es: 'Pretérito Perfecto', cn: '虚拟式 现在完成时' },
           '虚拟过去完成时': { es: 'Pretérito Pluscuamperfecto', cn: '虚拟式 过去完成时' },
           '虚拟将来完成时': { es: 'Futuro Perfecto', cn: '虚拟式 将来完成时' }
@@ -376,10 +380,11 @@ export default {
       }
 
       const dimmedKeys = new Set([
+        '陈述式|前过去时',
         '陈述式|先过去时',
+        '虚拟式|虚拟将来未完成时',
         '虚拟式|虚拟将来时',
         '虚拟式|虚拟过去完成时',
-        '虚拟式|虚拟现在完成时',
         '虚拟式|虚拟将来完成时'
       ])
       const dimmed = dimmedKeys.has(`${mood}|${tense}`)

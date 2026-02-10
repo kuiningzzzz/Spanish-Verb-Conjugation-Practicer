@@ -45,7 +45,7 @@ function buildLatestGeneratorPrompt({ verb, conjugation }) {
   "answer_variants": ${answerVariantsJson},
   "answer": "${answerText}",
   "translation": "覆盖全部句子的中文翻译",
-  "hint": "必须明确写出语气+时态+人称槽位（例如：陈述式现在时 + 第三人称单数）"
+  "hint": "必须明确写出语气-时态-人称槽位（例如：陈述式-现在时-第三人称单数）"
 }
 
 【槽位锚定规则（强制）】

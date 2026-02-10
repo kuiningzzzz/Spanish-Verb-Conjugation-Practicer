@@ -196,7 +196,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
         verbId: verb.id,
         infinitive: verb.infinitive,
         meaning: verb.meaning,
-        tense: randomConjugation.tense,
+        tense: ExerciseGeneratorService.normalizeTenseName(randomConjugation.tense),
         mood: randomConjugation.mood,
         person: randomConjugation.person,
         correctAnswer: randomConjugation.conjugated_form,
@@ -226,14 +226,18 @@ router.post('/generate', authMiddleware, async (req, res) => {
             // 快变快填：不使用AI
             const givenConjugation = conjugations[Math.floor(Math.random() * conjugations.length)]
             exercise.givenForm = givenConjugation.conjugated_form
-            exercise.givenDesc = `${givenConjugation.mood} - ${givenConjugation.tense} - ${givenConjugation.person}`
+            exercise.givenDesc = ExerciseGeneratorService.buildHint(
+              givenConjugation.person,
+              givenConjugation.tense,
+              givenConjugation.mood
+            )
             break
             
           case 'combo-fill':
             // 组合填空：不使用AI
             const selectedConjugations = conjugations.sort(() => Math.random() - 0.5).slice(0, Math.min(6, conjugations.length))
             exercise.comboItems = selectedConjugations.map(c => ({
-              tense: c.tense,
+              tense: ExerciseGeneratorService.normalizeTenseName(c.tense),
               mood: c.mood,
               person: c.person,
               correctAnswer: c.conjugated_form

@@ -50,14 +50,14 @@ function importFromVerbsJson(filePath) {
     'pluperfect': '过去完成时',             // había hablado
     'future_perfect': '将来完成时',         // habré hablado
     'conditional_perfect': '条件完成时',    // habría hablado
-    'preterite_anterior': '先过去时'        // hube hablado
+    'preterite_anterior': '前过去时'        // hube hablado
   }
 
   // 虚拟式时态映射
   const subjunctiveTenseMapping = {
     'present': '虚拟现在时',
     'imperfect': '虚拟过去时',
-    'future': '虚拟将来时'
+    'future': '虚拟将来未完成时'
   }
 
   // 复合虚拟式时态映射

@@ -36,14 +36,14 @@ const secondClassTenseKeys = [
   'pluscuamperfecto',
   'futuro_perfecto',
   'condicional_perfecto',
-  'subjuntivo_imperfecto'
+  'subjuntivo_imperfecto',
+  'subjuntivo_perfecto'
 ]
 
 const thirdClassTenseKeys = [
   'preterito_anterior',
   'subjuntivo_futuro',
   'subjuntivo_pluscuamperfecto',
-  'subjuntivo_perfecto',
   'subjuntivo_futuro_perfecto'
 ]
 

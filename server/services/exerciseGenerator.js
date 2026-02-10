@@ -9,14 +9,111 @@ const QuestionRevisorService = require('./traditional_conjugation/questionReviso
  * 题目生成服务（带题库和AI混合模式）
  */
 class ExerciseGeneratorService {
+  static normalizeTenseName(tense) {
+    const tenseAliasMap = {
+      '先过去时': '前过去时',
+      '虚拟将来时': '虚拟将来未完成时'
+    }
+    return tenseAliasMap[tense] || tense
+  }
+
+  static normalizePersonLabel(person) {
+    const personLabelMap = {
+      'yo': '第一人称单数',
+      'tú': '第二人称单数',
+      'vos': '第二人称单数',
+      'él': '第三人称单数',
+      'ella': '第三人称单数',
+      'usted': '第三人称单数',
+      'él/ella/usted': '第三人称单数',
+      'nosotros': '第一人称复数',
+      'nosotras': '第一人称复数',
+      'nosotros/nosotras': '第一人称复数',
+      'vosotros': '第二人称复数',
+      'vosotras': '第二人称复数',
+      'vosotros/vosotras': '第二人称复数',
+      'ellos': '第三人称复数',
+      'ellas': '第三人称复数',
+      'ustedes': '第三人称复数',
+      'ellos/ellas/ustedes': '第三人称复数',
+      'tú (afirmativo)': '第二人称单数',
+      'tú (negativo)': '第二人称单数'
+    }
+    return personLabelMap[person] || person
+  }
+
+  static getTenseMap() {
+    return {
+      // 简单陈述式（5个）
+      'presente': '现在时',
+      'preterito': '简单过去时',
+      'imperfecto': '未完成过去时',
+      'futuro': '将来时',
+      'condicional': '条件式',
+      // 虚拟式（3个）
+      'subjuntivo_presente': '虚拟现在时',
+      'subjuntivo_imperfecto': '虚拟过去时',
+      'subjuntivo_futuro': '虚拟将来未完成时',
+      // 命令式（2个）
+      'imperativo_afirmativo': '肯定命令式',
+      'imperativo_negativo': '否定命令式',
+      // 复合陈述式（5个）
+      'perfecto': '现在完成时',
+      'pluscuamperfecto': '过去完成时',
+      'futuro_perfecto': '将来完成时',
+      'condicional_perfecto': '条件完成时',
+      'preterito_anterior': '前过去时',
+      // 复合虚拟式（3个）
+      'subjuntivo_perfecto': '虚拟现在完成时',
+      'subjuntivo_pluscuamperfecto': '虚拟过去完成时',
+      'subjuntivo_futuro_perfecto': '虚拟将来完成时'
+    }
+  }
+
+  static getMoodMap() {
+    return {
+      'indicativo': '陈述式',
+      'subjuntivo': '虚拟式',
+      'imperativo': '命令式',
+      'indicativo_compuesto': '复合陈述式',
+      'subjuntivo_compuesto': '复合虚拟式'
+    }
+  }
+
+  static filterConjugationsByMoodAndTense(conjugations, moods = [], tenses = []) {
+    let filteredConjugations = Array.isArray(conjugations) ? conjugations : []
+
+    if (Array.isArray(moods) && moods.length > 0) {
+      const moodMap = this.getMoodMap()
+      const selectedMoodNames = moods.map(m => moodMap[m]).filter(Boolean)
+      filteredConjugations = filteredConjugations.filter(c => selectedMoodNames.includes(c.mood))
+    }
+
+    if (Array.isArray(tenses) && tenses.length > 0) {
+      const tenseMap = this.getTenseMap()
+      const selectedTenseSet = new Set(
+        tenses
+          .map(t => tenseMap[t])
+          .filter(Boolean)
+          .map(t => this.normalizeTenseName(t))
+      )
+      filteredConjugations = filteredConjugations.filter(
+        c => selectedTenseSet.has(this.normalizeTenseName(c.tense))
+      )
+    }
+
+    return filteredConjugations
+  }
+
   static getTenseCategory(tense) {
+    const normalizedTense = this.normalizeTenseName(tense)
+
     if ([
-      '先过去时',
-      '虚拟将来时',
+      '前过去时',
+      '虚拟将来未完成时',
       '虚拟过去完成时',
-      '虚拟现在完成时',
       '虚拟将来完成时'
-    ].includes(tense)) {
+    ].includes(normalizedTense)) {
       return 3
     }
 
@@ -24,8 +121,9 @@ class ExerciseGeneratorService {
       '过去完成时',
       '将来完成时',
       '条件完成时',
-      '虚拟过去时'
-    ].includes(tense)) {
+      '虚拟过去时',
+      '虚拟现在完成时'
+    ].includes(normalizedTense)) {
       return 2
     }
 
@@ -84,12 +182,20 @@ class ExerciseGeneratorService {
   }
 
   static buildHint(person, tense, mood = null) {
-    if (mood && tense && person) return `${mood}，${tense}，${person}`
-    if (person && tense) return `${person}，${tense}`
-    if (mood && tense) return `${mood}，${tense}`
-    if (mood) return String(mood)
-    if (person) return String(person)
-    if (tense) return String(tense)
+    const normalizedMood = mood ? String(mood).trim() : ''
+    const normalizedTense = tense ? this.normalizeTenseName(String(tense).trim()) : ''
+    const normalizedPerson = person
+      ? this.normalizePersonLabel(String(person).trim())
+      : ''
+
+    if (normalizedMood && normalizedTense && normalizedPerson) {
+      return `${normalizedMood}-${normalizedTense}-${normalizedPerson}`
+    }
+    if (normalizedMood && normalizedTense) return `${normalizedMood}-${normalizedTense}`
+    if (normalizedTense && normalizedPerson) return `${normalizedTense}-${normalizedPerson}`
+    if (normalizedMood) return normalizedMood
+    if (normalizedPerson) return normalizedPerson
+    if (normalizedTense) return normalizedTense
     return null
   }
 
@@ -385,7 +491,7 @@ class ExerciseGeneratorService {
       verbId: question.verb_id,
       infinitive: question.infinitive,
       meaning: question.meaning,
-      tense: question.tense,
+      tense: this.normalizeTenseName(question.tense),
       mood: question.mood,
       person: question.person,
       correctAnswer: question.correct_answer,
@@ -399,7 +505,7 @@ class ExerciseGeneratorService {
     if (question.question_type === 'sentence') {
       exercise.sentence = question.question_text
       exercise.translation = question.translation
-      exercise.hint = question.hint || this.buildHint(question.person, question.tense, question.mood)
+      exercise.hint = this.buildHint(question.person, question.tense, question.mood) || question.hint
     }
 
     return exercise
@@ -584,56 +690,12 @@ class ExerciseGeneratorService {
       throw new Error('该动词没有变位数据')
     }
 
-    // 扩展的时态映射（支持所有18种时态）
-    const tenseMap = {
-      // 简单陈述式（5个）
-      'presente': '现在时',
-      'preterito': '简单过去时',
-      'imperfecto': '未完成过去时',
-      'futuro': '将来时',
-      'condicional': '条件式',
-      // 虚拟式（3个）
-      'subjuntivo_presente': '虚拟现在时',
-      'subjuntivo_imperfecto': '虚拟过去时',
-      'subjuntivo_futuro': '虚拟将来时',
-      // 命令式（2个）
-      'imperativo_afirmativo': '肯定命令式',
-      'imperativo_negativo': '否定命令式',
-      // 复合陈述式（5个）
-      'perfecto': '现在完成时',
-      'pluscuamperfecto': '过去完成时',
-      'futuro_perfecto': '将来完成时',
-      'condicional_perfecto': '条件完成时',
-      'preterito_anterior': '先过去时',
-      // 复合虚拟式（3个）
-      'subjuntivo_perfecto': '虚拟现在完成时',
-      'subjuntivo_pluscuamperfecto': '虚拟过去完成时',
-      'subjuntivo_futuro_perfecto': '虚拟将来完成时'
-    }
-
-    // 语气映射
-    const moodMap = {
-      'indicativo': '陈述式',
-      'subjuntivo': '虚拟式',
-      'imperativo': '命令式',
-      'indicativo_compuesto': '复合陈述式',
-      'subjuntivo_compuesto': '复合虚拟式'
-    }
-
     // 根据时态和语气筛选
-    let filteredConjugations = conjugations
-    
-    // 优先按语气筛选（如果指定了moods参数）
-    if (options.moods && options.moods.length > 0) {
-      const selectedMoodNames = options.moods.map(m => moodMap[m]).filter(Boolean)
-      filteredConjugations = filteredConjugations.filter(c => selectedMoodNames.includes(c.mood))
-    }
-    
-    // 再按时态筛选
-    if (tenses && tenses.length > 0) {
-      const selectedTenseNames = tenses.map(t => tenseMap[t]).filter(Boolean)
-      filteredConjugations = filteredConjugations.filter(c => selectedTenseNames.includes(c.tense))
-    }
+    let filteredConjugations = this.filterConjugationsByMoodAndTense(
+      conjugations,
+      options.moods,
+      tenses
+    )
 
     if (filteredConjugations.length === 0) {
       throw new Error('没有符合所选时态和语气的变位数据')
@@ -679,7 +741,7 @@ class ExerciseGeneratorService {
         exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
         translation: aiResult.translation || null,
         hint: generatedHint,
-        tense: randomConjugation.tense,
+        tense: this.normalizeTenseName(randomConjugation.tense),
         mood: randomConjugation.mood,
         person: randomConjugation.person,
         confidenceScore: 50  // 所有新生成题目的初始置信度统一为50
@@ -710,7 +772,7 @@ class ExerciseGeneratorService {
       verbId: verb.id,
       infinitive: verb.infinitive,
       meaning: verb.meaning,
-      tense: randomConjugation.tense,
+      tense: this.normalizeTenseName(randomConjugation.tense),
       mood: randomConjugation.mood,
       person: randomConjugation.person,
       correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
@@ -743,56 +805,12 @@ class ExerciseGeneratorService {
       throw new Error('该动词没有变位数据')
     }
 
-    // 扩展的时态映射（支持所有18种时态）
-    const tenseMap = {
-      // 简单陈述式（5个）
-      'presente': '现在时',
-      'preterito': '简单过去时',
-      'imperfecto': '未完成过去时',
-      'futuro': '将来时',
-      'condicional': '条件式',
-      // 虚拟式（3个）
-      'subjuntivo_presente': '虚拟现在时',
-      'subjuntivo_imperfecto': '虚拟过去时',
-      'subjuntivo_futuro': '虚拟将来时',
-      // 命令式（2个）
-      'imperativo_afirmativo': '肯定命令式',
-      'imperativo_negativo': '否定命令式',
-      // 复合陈述式（5个）
-      'perfecto': '现在完成时',
-      'pluscuamperfecto': '过去完成时',
-      'futuro_perfecto': '将来完成时',
-      'condicional_perfecto': '条件完成时',
-      'preterito_anterior': '先过去时',
-      // 复合虚拟式（3个）
-      'subjuntivo_perfecto': '虚拟现在完成时',
-      'subjuntivo_pluscuamperfecto': '虚拟过去完成时',
-      'subjuntivo_futuro_perfecto': '虚拟将来完成时'
-    }
-
-    // 语气映射
-    const moodMap = {
-      'indicativo': '陈述式',
-      'subjuntivo': '虚拟式',
-      'imperativo': '命令式',
-      'indicativo_compuesto': '复合陈述式',
-      'subjuntivo_compuesto': '复合虚拟式'
-    }
-
     // 根据时态和语气筛选
-    let filteredConjugations = conjugations
-    
-    // 优先按语气筛选（如果指定了moods参数）
-    if (options.moods && options.moods.length > 0) {
-      const selectedMoodNames = options.moods.map(m => moodMap[m]).filter(Boolean)
-      filteredConjugations = filteredConjugations.filter(c => selectedMoodNames.includes(c.mood))
-    }
-    
-    // 再按时态筛选
-    if (tenses && tenses.length > 0) {
-      const selectedTenseNames = tenses.map(t => tenseMap[t]).filter(Boolean)
-      filteredConjugations = filteredConjugations.filter(c => selectedTenseNames.includes(c.tense))
-    }
+    let filteredConjugations = this.filterConjugationsByMoodAndTense(
+      conjugations,
+      options.moods,
+      tenses
+    )
 
     if (filteredConjugations.length === 0) {
       throw new Error('没有符合所选时态和语气的变位数据')
@@ -837,7 +855,7 @@ class ExerciseGeneratorService {
         exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
         translation: aiResult.translation || null,
         hint: generatedHint,
-        tense: randomConjugation.tense,
+        tense: this.normalizeTenseName(randomConjugation.tense),
         mood: randomConjugation.mood,
         person: randomConjugation.person,
         confidenceScore: 50
@@ -866,7 +884,7 @@ class ExerciseGeneratorService {
       verbId: verb.id,
       infinitive: verb.infinitive,
       meaning: verb.meaning,
-      tense: randomConjugation.tense,
+      tense: this.normalizeTenseName(randomConjugation.tense),
       mood: randomConjugation.mood,
       person: randomConjugation.person,
       correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
@@ -1000,56 +1018,12 @@ class ExerciseGeneratorService {
       throw new Error('该动词没有变位数据')
     }
 
-    // 扩展的时态映射（支持所有18种时态）
-    const tenseMap = {
-      // 简单陈述式（5个）
-      'presente': '现在时',
-      'preterito': '简单过去时',
-      'imperfecto': '未完成过去时',
-      'futuro': '将来时',
-      'condicional': '条件式',
-      // 虚拟式（3个）
-      'subjuntivo_presente': '虚拟现在时',
-      'subjuntivo_imperfecto': '虚拟过去时',
-      'subjuntivo_futuro': '虚拟将来时',
-      // 命令式（2个）
-      'imperativo_afirmativo': '肯定命令式',
-      'imperativo_negativo': '否定命令式',
-      // 复合陈述式（5个）
-      'perfecto': '现在完成时',
-      'pluscuamperfecto': '过去完成时',
-      'futuro_perfecto': '将来完成时',
-      'condicional_perfecto': '条件完成时',
-      'preterito_anterior': '先过去时',
-      // 复合虚拟式（3个）
-      'subjuntivo_perfecto': '虚拟现在完成时',
-      'subjuntivo_pluscuamperfecto': '虚拟过去完成时',
-      'subjuntivo_futuro_perfecto': '虚拟将来完成时'
-    }
-
-    // 语气映射
-    const moodMap = {
-      'indicativo': '陈述式',
-      'subjuntivo': '虚拟式',
-      'imperativo': '命令式',
-      'indicativo_compuesto': '复合陈述式',
-      'subjuntivo_compuesto': '复合虚拟式'
-    }
-
     // 根据时态和语气筛选
-    let filteredConjugations = conjugations
-    
-    // 优先按语气筛选（如果指定了moods参数）
-    if (options.moods && options.moods.length > 0) {
-      const selectedMoodNames = options.moods.map(m => moodMap[m]).filter(Boolean)
-      filteredConjugations = filteredConjugations.filter(c => selectedMoodNames.includes(c.mood))
-    }
-    
-    // 再按时态筛选
-    if (tenses && tenses.length > 0) {
-      const selectedTenseNames = tenses.map(t => tenseMap[t]).filter(Boolean)
-      filteredConjugations = filteredConjugations.filter(c => selectedTenseNames.includes(c.tense))
-    }
+    let filteredConjugations = this.filterConjugationsByMoodAndTense(
+      conjugations,
+      options.moods,
+      tenses
+    )
     
     // 根据人称选项筛选
     if (options.includeVos === false) {
@@ -1083,7 +1057,7 @@ class ExerciseGeneratorService {
         infinitive: verb.infinitive,
         meaning: verb.meaning,
         mood: targetConjugation.mood,
-        tense: targetConjugation.tense,
+        tense: this.normalizeTenseName(targetConjugation.tense),
         person: targetConjugation.person,
         correctAnswer: targetConjugation.conjugated_form,
         exerciseType: 'quick-fill',
@@ -1092,7 +1066,11 @@ class ExerciseGeneratorService {
         fromQuestionBank: false,
         aiGenerated: false,
         givenForm: givenConjugation.conjugated_form,
-        givenDesc: `${givenConjugation.mood} - ${givenConjugation.tense} - ${givenConjugation.person}`
+        givenDesc: this.buildHint(
+          givenConjugation.person,
+          givenConjugation.tense,
+          givenConjugation.mood
+        )
       }
       
       return exercise
@@ -1120,7 +1098,7 @@ class ExerciseGeneratorService {
       
       // 构建组合填空题目
       const comboItems = selectedConjugations.map(c => ({
-        tense: c.tense,
+        tense: this.normalizeTenseName(c.tense),
         mood: c.mood,
         person: c.person,
         correctAnswer: c.conjugated_form
@@ -1153,7 +1131,7 @@ class ExerciseGeneratorService {
       verbId: verb.id,
       infinitive: verb.infinitive,
       meaning: verb.meaning,
-      tense: randomConjugation.tense,
+      tense: this.normalizeTenseName(randomConjugation.tense),
       mood: randomConjugation.mood,
       person: randomConjugation.person,
       correctAnswer: randomConjugation.conjugated_form,

@@ -224,10 +224,13 @@ function cleanJsonText(text) {
   return cleaned.trim()
 }
 
-function buildHint(person, tense) {
-  if (person && tense) return `${person}，${tense}`
-  if (person) return String(person)
+function buildHint(person, tense, mood) {
+  if (mood && tense && person) return `${mood}-${tense}-${person}`
+  if (mood && tense) return `${mood}-${tense}`
+  if (tense && person) return `${tense}-${person}`
+  if (mood) return String(mood)
   if (tense) return String(tense)
+  if (person) return String(person)
   return ''
 }
 
@@ -424,7 +427,7 @@ async function main() {
               let validator2Result = null
               let validator2Error = ''
               let rawValidator2Text = ''
-              const fixedHint = buildHint(conjugation.person, conjugation.tense)
+              const fixedHint = buildHint(conjugation.person, conjugation.tense, conjugation.mood)
 
               try {
                 const requestText = `${promptPayload.system}\n${promptPayload.user}`

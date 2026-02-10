@@ -187,12 +187,12 @@ export default {
         { value: 'futuro', label: 'Futuro Imperfecto（陈述式 将来未完成时）', mood: 'indicativo' },
         { value: 'pluscuamperfecto', label: 'Pretérito Pluscuamperfecto（陈述式 过去完成时）', mood: 'indicativo' },
         { value: 'futuro_perfecto', label: 'Futuro Perfecto（陈述式 将来完成时）', mood: 'indicativo' },
-        { value: 'preterito_anterior', label: 'Pretérito Anterior（陈述式 近逾过去时）', mood: 'indicativo' },
+        { value: 'preterito_anterior', label: 'Pretérito Anterior（陈述式 前过去时）', mood: 'indicativo' },
         { value: 'subjuntivo_presente', label: 'Presente（虚拟式 现在时）', mood: 'subjuntivo' },
         { value: 'subjuntivo_imperfecto', label: 'Pretérito Imperfecto（虚拟式 过去未完成时）', mood: 'subjuntivo' },
         { value: 'subjuntivo_perfecto', label: 'Pretérito Perfecto（虚拟式 现在完成时）', mood: 'subjuntivo' },
         { value: 'subjuntivo_pluscuamperfecto', label: 'Pretérito Pluscuamperfecto（虚拟式 过去完成时）', mood: 'subjuntivo' },
-        { value: 'subjuntivo_futuro', label: 'Futuro（虚拟式 将来时）', mood: 'subjuntivo' },
+        { value: 'subjuntivo_futuro', label: 'Futuro（虚拟式 将来未完成时）', mood: 'subjuntivo' },
         { value: 'subjuntivo_futuro_perfecto', label: 'Futuro Perfecto（虚拟式 将来完成时）', mood: 'subjuntivo' },
         { value: 'condicional', label: 'Condicional Simple（简单条件式）', mood: 'condicional' },
         { value: 'condicional_perfecto', label: 'Condicional Compuesto（复合条件式）', mood: 'condicional' },
@@ -238,7 +238,6 @@ export default {
         'preterito_anterior',
         'subjuntivo_futuro',
         'subjuntivo_pluscuamperfecto',
-        'subjuntivo_perfecto',
         'subjuntivo_futuro_perfecto'
       ].includes(tense)
     },
