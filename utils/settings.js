@@ -48,7 +48,7 @@ const thirdClassTenseKeys = [
 ]
 
 const defaultPracticeSelectedTenses = allPracticeTenseKeys.filter(
-  key => !secondClassTenseKeys.includes(key) && !thirdClassTenseKeys.includes(key)
+  key => !thirdClassTenseKeys.includes(key)
 )
 
 const defaultPracticeTenseSelectionSettings = {

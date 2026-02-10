@@ -38,8 +38,13 @@
 
         <view class="setting-item">
           <view class="item-info">
-            <text class="item-title">减少罕见时态的出现</text>
-            <text class="item-desc">关闭后，所有选择练习的时态都将以同等概率出现</text>
+            <view class="item-title-row">
+              <text class="item-title">减少罕见时态的出现</text>
+              <view class="mode-info-button" @click.stop="openRareTenseInfoModal">
+                <text class="mode-info-button-text">i</text>
+              </view>
+            </view>
+            <text class="item-desc">关闭后，所有选择练习的时态都将以同等频率出现</text>
           </view>
           <switch :checked="practiceGenerationSettings.reduceRareTenseFrequency" @change="onReduceRareTenseFrequencyChange" color="#8B0012" />
         </view>
@@ -148,6 +153,40 @@
         </view>
       </view>
     </view>
+
+    <view class="modal" v-if="showRareTenseInfoModal" @click="closeRareTenseInfoModal">
+      <view class="modal-content rare-tense-modal" @click.stop>
+        <text class="rare-tense-modal-title">出现频率说明</text>
+
+        <view class="rare-tense-section">
+          <text class="rare-tense-section-title">根据经验，我们将适当减少以下时态出现的频率：</text>
+          <view class="rare-tense-list">
+            <text
+              v-for="tense in secondClassTenseLabels"
+              :key="`second-${tense}`"
+              class="rare-tense-item"
+            >
+              {{ tense }}
+            </text>
+          </view>
+        </view>
+
+        <view class="rare-tense-section">
+          <text class="rare-tense-section-title">我们将大幅减少以下时态出现的频率：</text>
+          <view class="rare-tense-list">
+            <text
+              v-for="tense in thirdClassTenseLabels"
+              :key="`third-${tense}`"
+              class="rare-tense-item"
+            >
+              {{ tense }}
+            </text>
+          </view>
+        </view>
+
+        <button class="selector-btn rare-tense-close-btn" @click="closeRareTenseInfoModal">我知道了</button>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -171,8 +210,22 @@ export default {
       pronounSettings: getPronounSettings(),
       practiceGenerationSettings: getPracticeGenerationSettings(),
       showDefaultTenseSelector: false,
+      showRareTenseInfoModal: false,
       selectedDefaultTenses: [],
       expandedTenseMoodPanels: {},
+      secondClassTenseKeys: [
+        'pluscuamperfecto',
+        'futuro_perfecto',
+        'condicional_perfecto',
+        'subjuntivo_imperfecto',
+        'subjuntivo_perfecto'
+      ],
+      thirdClassTenseKeys: [
+        'preterito_anterior',
+        'subjuntivo_futuro',
+        'subjuntivo_pluscuamperfecto',
+        'subjuntivo_futuro_perfecto'
+      ],
       tenseMoodOptions: [
         { value: 'indicativo', label: 'Indicativo 陈述式' },
         { value: 'subjuntivo', label: 'Subjuntivo 虚拟式' },
@@ -210,7 +263,29 @@ export default {
     this.selectedDefaultTenses = getPracticeTenseSelectionSettings().selectedTenses
     this.loadUserSettings()
   },
+  computed: {
+    secondClassTenseLabels() {
+      return this.secondClassTenseKeys
+        .map(key => this.getTenseLabelByValue(key))
+        .filter(Boolean)
+    },
+    thirdClassTenseLabels() {
+      return this.thirdClassTenseKeys
+        .map(key => this.getTenseLabelByValue(key))
+        .filter(Boolean)
+    }
+  },
   methods: {
+    openRareTenseInfoModal() {
+      this.showRareTenseInfoModal = true
+    },
+    closeRareTenseInfoModal() {
+      this.showRareTenseInfoModal = false
+    },
+    getTenseLabelByValue(tenseValue) {
+      const target = this.defaultTenseOptions.find(item => item.value === tenseValue)
+      return target ? target.label : tenseValue
+    },
     openDefaultTenseSelector() {
       this.selectedDefaultTenses = [...getPracticeTenseSelectionSettings().selectedTenses]
       const allExpanded = {}
@@ -432,6 +507,35 @@ export default {
   margin-bottom: 4rpx;
 }
 
+.item-title-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4rpx;
+}
+
+.item-title-row .item-title {
+  margin-bottom: 0;
+}
+
+.mode-info-button {
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  border: 2rpx solid #8B0012;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 10rpx;
+  background: #fff;
+}
+
+.mode-info-button-text {
+  font-size: 22rpx;
+  line-height: 1;
+  color: #8B0012;
+  font-weight: 600;
+}
+
 .item-desc {
   display: block;
   font-size: 24rpx;
@@ -627,5 +731,77 @@ export default {
 
 .selector-btn::after {
   border: none;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.modal-content {
+  width: 72%;
+  max-width: 620rpx;
+  background: #fff;
+  border-radius: 18rpx;
+  padding: 42rpx 30rpx;
+  box-sizing: border-box;
+}
+
+.rare-tense-modal-title {
+  display: block;
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #8B0012;
+  text-align: center;
+  margin-bottom: 24rpx;
+}
+
+.rare-tense-modal {
+  max-height: 82vh;
+  overflow-y: auto;
+}
+
+.rare-tense-section {
+  margin-bottom: 18rpx;
+}
+
+.rare-tense-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.rare-tense-section-title {
+  display: block;
+  font-size: 26rpx;
+  line-height: 1.55;
+  color: #2d2f33;
+  margin-bottom: 12rpx;
+}
+
+.rare-tense-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.rare-tense-item {
+  display: block;
+  font-size: 24rpx;
+  color: #465067;
+  line-height: 1.45;
+  padding: 8rpx 12rpx;
+  background: #fff8f8;
+  border: 1rpx solid #f0d0d0;
+  border-radius: 10rpx;
+}
+
+.rare-tense-close-btn {
+  margin-top: 20rpx;
 }
 </style>
