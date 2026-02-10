@@ -105,6 +105,28 @@ class ExerciseGeneratorService {
     return filteredConjugations
   }
 
+  static filterConjugationsByPronounSettings(
+    conjugations,
+    includeVos = false,
+    includeVosotros = true
+  ) {
+    let filteredConjugations = Array.isArray(conjugations) ? conjugations : []
+
+    if (includeVos === false) {
+      filteredConjugations = filteredConjugations.filter(c => c.person !== 'vos')
+    }
+
+    if (includeVosotros === false) {
+      filteredConjugations = filteredConjugations.filter(c => (
+        c.person !== 'vosotros' &&
+        c.person !== 'vosotras' &&
+        c.person !== 'vosotros/vosotras'
+      ))
+    }
+
+    return filteredConjugations
+  }
+
   static getTenseCategory(tense) {
     const normalizedTense = this.normalizeTenseName(tense)
 
@@ -663,7 +685,16 @@ class ExerciseGeneratorService {
    * 使用AI生成新题目（带重试机制）
    */
   static async generateWithAI(options) {
-    const { userId, exerciseType, tenses, conjugationTypes, includeRegular, verbIds } = options
+    const {
+      userId,
+      exerciseType,
+      tenses,
+      conjugationTypes,
+      includeRegular,
+      includeVos = false,
+      includeVosotros = true,
+      verbIds
+    } = options
     const maxRetries = 3  // 最多重试3次
 
     // 获取动词
@@ -695,6 +726,11 @@ class ExerciseGeneratorService {
       conjugations,
       options.moods,
       tenses
+    )
+    filteredConjugations = this.filterConjugationsByPronounSettings(
+      filteredConjugations,
+      includeVos,
+      includeVosotros
     )
 
     if (filteredConjugations.length === 0) {
@@ -797,7 +833,14 @@ class ExerciseGeneratorService {
    * 为指定动词使用AI生成题目（批量生成专用）
    */
   static async generateWithAIForVerb(verb, options) {
-    const { exerciseType, tenses, userId } = options
+    const {
+      exerciseType,
+      tenses,
+      userId,
+      includeVos = false,
+      includeVosotros = true,
+      reduceRareTenseFrequency = true
+    } = options
     const maxRetries = 3
 
     const conjugations = Conjugation.getByVerbId(verb.id)
@@ -811,6 +854,11 @@ class ExerciseGeneratorService {
       options.moods,
       tenses
     )
+    filteredConjugations = this.filterConjugationsByPronounSettings(
+      filteredConjugations,
+      includeVos,
+      includeVosotros
+    )
 
     if (filteredConjugations.length === 0) {
       throw new Error('没有符合所选时态和语气的变位数据')
@@ -818,7 +866,7 @@ class ExerciseGeneratorService {
 
     const randomConjugation = this.pickConjugationByTenseWeight(
       filteredConjugations,
-      options.reduceRareTenseFrequency
+      reduceRareTenseFrequency
     )
     const generatedHint = this.buildHint(
       randomConjugation.person,
@@ -917,6 +965,7 @@ class ExerciseGeneratorService {
       includeRegular,
       includeVos,
       includeVosotros,
+      reduceRareTenseFrequency = true,
       verbIds,
       excludeVerbIds = []
     } = options
@@ -953,7 +1002,10 @@ class ExerciseGeneratorService {
           exerciseType,
           tenses,
           moods: options.moods,  // 修复：使用 options.moods 而不是未定义的 moods
-          userId
+          userId,
+          includeVos,
+          includeVosotros,
+          reduceRareTenseFrequency
         })
         
         if (aiExercise) {
@@ -1025,16 +1077,11 @@ class ExerciseGeneratorService {
       tenses
     )
     
-    // 根据人称选项筛选
-    if (options.includeVos === false) {
-      // 排除 vos（拉美第二人称单数）
-      filteredConjugations = filteredConjugations.filter(c => c.person !== 'vos')
-    }
-    
-    if (options.includeVosotros === false) {
-      // 排除 vosotros（西班牙第二人称复数）
-      filteredConjugations = filteredConjugations.filter(c => c.person !== 'vosotros' && c.person !== 'vosotras')
-    }
+    filteredConjugations = this.filterConjugationsByPronounSettings(
+      filteredConjugations,
+      options.includeVos,
+      options.includeVosotros
+    )
 
     if (filteredConjugations.length === 0) {
       throw new Error('没有符合所选时态和语气的变位数据')
