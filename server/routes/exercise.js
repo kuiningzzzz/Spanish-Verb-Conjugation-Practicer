@@ -21,6 +21,7 @@ router.post('/generate-batch', authMiddleware, async (req, res) => {
       includeRegular = true,
       includeVos = false,
       includeVosotros = true,
+      reduceRareTenseFrequency = true,
       practiceMode = 'normal',
       verbIds = null  // 从请求体接收 verbIds（课程模式会传递）
     } = req.body
@@ -38,6 +39,7 @@ router.post('/generate-batch', authMiddleware, async (req, res) => {
       includeRegular,
       includeVos,
       includeVosotros,
+      reduceRareTenseFrequency,
       practiceMode,
       verbIds  // 直接使用前端传递的 verbIds
     }
@@ -92,6 +94,7 @@ router.post('/generate-one', authMiddleware, async (req, res) => {
       includeRegular = true,
       includeVos = false,
       includeVosotros = true,
+      reduceRareTenseFrequency = true,
       practiceMode = 'normal'
     } = req.body
 
@@ -107,6 +110,7 @@ router.post('/generate-one', authMiddleware, async (req, res) => {
       includeRegular,
       includeVos,
       includeVosotros,
+      reduceRareTenseFrequency,
       practiceMode
     }
 
@@ -169,7 +173,15 @@ router.post('/generate-single-ai', authMiddleware, async (req, res) => {
 // 生成练习题（批量模式，保留向后兼容）
 router.post('/generate', authMiddleware, async (req, res) => {
   try {
-    const { exerciseType, count = 10, lessonNumber, textbookVolume, useAI = true } = req.body
+    const {
+      exerciseType,
+      count = 10,
+      lessonNumber,
+      textbookVolume,
+      useAI = true,
+      includeVos = false,
+      includeVosotros = true
+    } = req.body
 
     // 获取动词
     const verbs = Verb.getRandom(count, { lessonNumber, textbookVolume })
@@ -185,14 +197,21 @@ router.post('/generate', authMiddleware, async (req, res) => {
       
       if (conjugations.length === 0) continue
 
-      const randomConjugation = conjugations[Math.floor(Math.random() * conjugations.length)]
+      const filteredConjugations = ExerciseGeneratorService.filterConjugationsByPronounSettings(
+        conjugations,
+        includeVos,
+        includeVosotros
+      )
+      if (filteredConjugations.length === 0) continue
+
+      const randomConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
 
       let exercise = {
         id: exercises.length + 1,
         verbId: verb.id,
         infinitive: verb.infinitive,
         meaning: verb.meaning,
-        tense: randomConjugation.tense,
+        tense: ExerciseGeneratorService.normalizeTenseName(randomConjugation.tense),
         mood: randomConjugation.mood,
         person: randomConjugation.person,
         correctAnswer: randomConjugation.conjugated_form,
@@ -208,7 +227,11 @@ router.post('/generate', authMiddleware, async (req, res) => {
               const aiSentence = await QuestionGeneratorService.generateSentenceExercise(verb, randomConjugation)
               exercise.sentence = aiSentence.sentence
               exercise.translation = aiSentence.translation
-              exercise.hint = ExerciseGeneratorService.buildHint(randomConjugation.person, randomConjugation.tense)
+              exercise.hint = ExerciseGeneratorService.buildHint(
+                randomConjugation.person,
+                randomConjugation.tense,
+                randomConjugation.mood
+              )
             } else {
               exercise.sentence = generateSentence(verb, randomConjugation)
             }
@@ -216,16 +239,22 @@ router.post('/generate', authMiddleware, async (req, res) => {
             
           case 'quick-fill':
             // 快变快填：不使用AI
-            const givenConjugation = conjugations[Math.floor(Math.random() * conjugations.length)]
+            const givenConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
             exercise.givenForm = givenConjugation.conjugated_form
-            exercise.givenDesc = `${givenConjugation.mood} - ${givenConjugation.tense} - ${givenConjugation.person}`
+            exercise.givenDesc = ExerciseGeneratorService.buildHint(
+              givenConjugation.person,
+              givenConjugation.tense,
+              givenConjugation.mood
+            )
             break
             
           case 'combo-fill':
             // 组合填空：不使用AI
-            const selectedConjugations = conjugations.sort(() => Math.random() - 0.5).slice(0, Math.min(6, conjugations.length))
+            const selectedConjugations = filteredConjugations
+              .sort(() => Math.random() - 0.5)
+              .slice(0, Math.min(6, filteredConjugations.length))
             exercise.comboItems = selectedConjugations.map(c => ({
-              tense: c.tense,
+              tense: ExerciseGeneratorService.normalizeTenseName(c.tense),
               mood: c.mood,
               person: c.person,
               correctAnswer: c.conjugated_form

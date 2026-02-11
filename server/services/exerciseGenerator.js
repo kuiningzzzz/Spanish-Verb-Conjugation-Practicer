@@ -3,15 +3,221 @@ const Conjugation = require('../models/Conjugation')
 const Question = require('../models/Question')
 const QuestionGeneratorService = require('./traditional_conjugation/questionGenerator')
 const QuestionValidatorService = require('./traditional_conjugation/questionValidator')
+const QuestionRevisorService = require('./traditional_conjugation/questionRevisor')
 
 /**
  * 题目生成服务（带题库和AI混合模式）
  */
 class ExerciseGeneratorService {
-  static buildHint(person, tense) {
-    if (person && tense) return `${person}，${tense}`
-    if (person) return String(person)
-    if (tense) return String(tense)
+  static normalizeTenseName(tense) {
+    const tenseAliasMap = {
+      '先过去时': '前过去时',
+      '虚拟将来时': '虚拟将来未完成时'
+    }
+    return tenseAliasMap[tense] || tense
+  }
+
+  static normalizePersonLabel(person) {
+    const personLabelMap = {
+      'yo': '第一人称单数',
+      'tú': '第二人称单数',
+      'vos': '第二人称单数',
+      'él': '第三人称单数',
+      'ella': '第三人称单数',
+      'usted': '第三人称单数',
+      'él/ella/usted': '第三人称单数',
+      'nosotros': '第一人称复数',
+      'nosotras': '第一人称复数',
+      'nosotros/nosotras': '第一人称复数',
+      'vosotros': '第二人称复数',
+      'vosotras': '第二人称复数',
+      'vosotros/vosotras': '第二人称复数',
+      'ellos': '第三人称复数',
+      'ellas': '第三人称复数',
+      'ustedes': '第三人称复数',
+      'ellos/ellas/ustedes': '第三人称复数',
+      'tú (afirmativo)': '第二人称单数',
+      'tú (negativo)': '第二人称单数'
+    }
+    return personLabelMap[person] || person
+  }
+
+  static getTenseMap() {
+    return {
+      // 简单陈述式（5个）
+      'presente': '现在时',
+      'preterito': '简单过去时',
+      'imperfecto': '未完成过去时',
+      'futuro': '将来时',
+      'condicional': '条件式',
+      // 虚拟式（3个）
+      'subjuntivo_presente': '虚拟现在时',
+      'subjuntivo_imperfecto': '虚拟过去时',
+      'subjuntivo_futuro': '虚拟将来未完成时',
+      // 命令式（2个）
+      'imperativo_afirmativo': '肯定命令式',
+      'imperativo_negativo': '否定命令式',
+      // 复合陈述式（5个）
+      'perfecto': '现在完成时',
+      'pluscuamperfecto': '过去完成时',
+      'futuro_perfecto': '将来完成时',
+      'condicional_perfecto': '条件完成时',
+      'preterito_anterior': '前过去时',
+      // 复合虚拟式（3个）
+      'subjuntivo_perfecto': '虚拟现在完成时',
+      'subjuntivo_pluscuamperfecto': '虚拟过去完成时',
+      'subjuntivo_futuro_perfecto': '虚拟将来完成时'
+    }
+  }
+
+  static getMoodMap() {
+    return {
+      'indicativo': '陈述式',
+      'subjuntivo': '虚拟式',
+      'imperativo': '命令式',
+      'indicativo_compuesto': '复合陈述式',
+      'subjuntivo_compuesto': '复合虚拟式'
+    }
+  }
+
+  static filterConjugationsByMoodAndTense(conjugations, moods = [], tenses = []) {
+    let filteredConjugations = Array.isArray(conjugations) ? conjugations : []
+
+    if (Array.isArray(moods) && moods.length > 0) {
+      const moodMap = this.getMoodMap()
+      const selectedMoodNames = moods.map(m => moodMap[m]).filter(Boolean)
+      filteredConjugations = filteredConjugations.filter(c => selectedMoodNames.includes(c.mood))
+    }
+
+    if (Array.isArray(tenses) && tenses.length > 0) {
+      const tenseMap = this.getTenseMap()
+      const selectedTenseSet = new Set(
+        tenses
+          .map(t => tenseMap[t])
+          .filter(Boolean)
+          .map(t => this.normalizeTenseName(t))
+      )
+      filteredConjugations = filteredConjugations.filter(
+        c => selectedTenseSet.has(this.normalizeTenseName(c.tense))
+      )
+    }
+
+    return filteredConjugations
+  }
+
+  static filterConjugationsByPronounSettings(
+    conjugations,
+    includeVos = false,
+    includeVosotros = true
+  ) {
+    let filteredConjugations = Array.isArray(conjugations) ? conjugations : []
+
+    if (includeVos === false) {
+      filteredConjugations = filteredConjugations.filter(c => c.person !== 'vos')
+    }
+
+    if (includeVosotros === false) {
+      filteredConjugations = filteredConjugations.filter(c => (
+        c.person !== 'vosotros' &&
+        c.person !== 'vosotras' &&
+        c.person !== 'vosotros/vosotras'
+      ))
+    }
+
+    return filteredConjugations
+  }
+
+  static getTenseCategory(tense) {
+    const normalizedTense = this.normalizeTenseName(tense)
+
+    if ([
+      '前过去时',
+      '虚拟将来未完成时',
+      '虚拟过去完成时',
+      '虚拟将来完成时'
+    ].includes(normalizedTense)) {
+      return 3
+    }
+
+    if ([
+      '过去完成时',
+      '将来完成时',
+      '条件完成时',
+      '虚拟过去时',
+      '虚拟现在完成时'
+    ].includes(normalizedTense)) {
+      return 2
+    }
+
+    return 1
+  }
+
+  static chooseTenseCategoryByWeight(availableCategorySet) {
+    const weighted = [
+      { category: 1, weight: 0.70 },
+      { category: 2, weight: 0.25 },
+      { category: 3, weight: 0.05 }
+    ].filter(item => availableCategorySet.has(item.category))
+
+    if (weighted.length === 0) return null
+    if (weighted.length === 1) return weighted[0].category
+
+    const total = weighted.reduce((sum, item) => sum + item.weight, 0)
+    let random = Math.random() * total
+    for (const item of weighted) {
+      if (random < item.weight) return item.category
+      random -= item.weight
+    }
+    return weighted[weighted.length - 1].category
+  }
+
+  static pickConjugationByTenseWeight(conjugations, reduceRareTenseFrequency = true) {
+    if (!Array.isArray(conjugations) || conjugations.length === 0) return null
+    if (!reduceRareTenseFrequency) {
+      return conjugations[Math.floor(Math.random() * conjugations.length)]
+    }
+
+    const tenseGroups = new Map()
+    conjugations.forEach((item) => {
+      if (!tenseGroups.has(item.tense)) tenseGroups.set(item.tense, [])
+      tenseGroups.get(item.tense).push(item)
+    })
+
+    const tenses = Array.from(tenseGroups.keys())
+    const availableCategorySet = new Set(tenses.map(tense => this.getTenseCategory(tense)))
+    const pickedCategory = this.chooseTenseCategoryByWeight(availableCategorySet)
+    if (!pickedCategory) {
+      return conjugations[Math.floor(Math.random() * conjugations.length)]
+    }
+
+    const tensesInCategory = tenses.filter(tense => this.getTenseCategory(tense) === pickedCategory)
+    if (tensesInCategory.length === 0) {
+      return conjugations[Math.floor(Math.random() * conjugations.length)]
+    }
+
+    const pickedTense = tensesInCategory[Math.floor(Math.random() * tensesInCategory.length)]
+    const candidates = tenseGroups.get(pickedTense) || []
+    if (candidates.length === 0) {
+      return conjugations[Math.floor(Math.random() * conjugations.length)]
+    }
+    return candidates[Math.floor(Math.random() * candidates.length)]
+  }
+
+  static buildHint(person, tense, mood = null) {
+    const normalizedMood = mood ? String(mood).trim() : ''
+    const normalizedTense = tense ? this.normalizeTenseName(String(tense).trim()) : ''
+    const normalizedPerson = person
+      ? this.normalizePersonLabel(String(person).trim())
+      : ''
+
+    if (normalizedMood && normalizedTense && normalizedPerson) {
+      return `${normalizedMood}-${normalizedTense}-${normalizedPerson}`
+    }
+    if (normalizedMood && normalizedTense) return `${normalizedMood}-${normalizedTense}`
+    if (normalizedTense && normalizedPerson) return `${normalizedTense}-${normalizedPerson}`
+    if (normalizedMood) return normalizedMood
+    if (normalizedPerson) return normalizedPerson
+    if (normalizedTense) return normalizedTense
     return null
   }
 
@@ -41,6 +247,7 @@ class ExerciseGeneratorService {
       includeRegular = true,
       includeVos = false,
       includeVosotros = true,
+      reduceRareTenseFrequency = true,
       practiceMode = 'normal',
       verbIds = null
     } = options
@@ -207,6 +414,7 @@ class ExerciseGeneratorService {
           includeRegular,
           includeVos,
           includeVosotros,
+          reduceRareTenseFrequency,
           verbIds,
           moods: options.moods
         }
@@ -305,7 +513,7 @@ class ExerciseGeneratorService {
       verbId: question.verb_id,
       infinitive: question.infinitive,
       meaning: question.meaning,
-      tense: question.tense,
+      tense: this.normalizeTenseName(question.tense),
       mood: question.mood,
       person: question.person,
       correctAnswer: question.correct_answer,
@@ -319,7 +527,7 @@ class ExerciseGeneratorService {
     if (question.question_type === 'sentence') {
       exercise.sentence = question.question_text
       exercise.translation = question.translation
-      exercise.hint = question.hint || this.buildHint(question.person, question.tense)
+      exercise.hint = this.buildHint(question.person, question.tense, question.mood) || question.hint
     }
 
     return exercise
@@ -350,10 +558,143 @@ class ExerciseGeneratorService {
   }
 
   /**
+   * 例句题 AI 生成流水线：
+   * generator -> validator_v1 -> (可选) revisor -> validator_v2
+   * 单次请求最多重试 maxRetries 次；任一轮通过即停止。
+   */
+  static async runSentenceAIPipeline({ verb, conjugation, generatedHint, maxRetries = 3 }) {
+    let lastError = ''
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(
+        `[AI生成][pipeline] attempt=${attempt}/${maxRetries} verb=${verb.infinitive} slot=${conjugation.mood}/${conjugation.tense}/${conjugation.person}`
+      )
+
+      try {
+        const generated = await QuestionGeneratorService.generateSentenceExercise(verb, conjugation)
+        const normalizedGenerated = {
+          ...generated,
+          answer: generated?.answer || conjugation.conjugated_form
+        }
+
+        const generatedCheck = this.validateAIResultData(normalizedGenerated, 'sentence')
+        if (!generatedCheck.valid) {
+          lastError = generatedCheck.reason
+          console.log(`[AI生成][pipeline] generator数据不合法: ${lastError}`)
+          continue
+        }
+
+        const validatorInputV1 = {
+          questionType: 'sentence',
+          questionText: normalizedGenerated.sentence,
+          correctAnswer: normalizedGenerated.answer,
+          exampleSentence: normalizedGenerated.sentence,
+          translation: normalizedGenerated.translation || '',
+          hint: generatedHint,
+          verb
+        }
+        const validationV1 = await QuestionValidatorService.validateQuestion(validatorInputV1)
+        console.log(
+          `[AI生成][validator_v1] isValid=${validationV1.isValid} hasUniqueAnswer=${validationV1.hasUniqueAnswer} reason=${validationV1.reason || ''}`
+        )
+
+        if (validationV1.isValid && validationV1.hasUniqueAnswer) {
+          return {
+            passed: true,
+            aiResult: normalizedGenerated,
+            validation: validationV1,
+            attempt,
+            usedRevisor: false
+          }
+        }
+
+        let revisedQuestion = null
+        try {
+          const revised = await QuestionRevisorService.reviseQuestion({
+            verb,
+            conjugation,
+            originalQuestion: normalizedGenerated,
+            validatorResult: validationV1,
+            fixedHint: generatedHint
+          })
+
+          revisedQuestion = {
+            ...normalizedGenerated,
+            sentence: revised.sentence || normalizedGenerated.sentence,
+            translation: revised.translation || normalizedGenerated.translation || ''
+          }
+
+          const revisedCheck = this.validateAIResultData(revisedQuestion, 'sentence')
+          if (!revisedCheck.valid) {
+            lastError = `revisor产物无效: ${revisedCheck.reason}`
+            console.log(`[AI生成][pipeline] ${lastError}`)
+            continue
+          }
+        } catch (error) {
+          lastError = `revisor失败: ${error.message}`
+          console.log(`[AI生成][pipeline] ${lastError}`)
+          continue
+        }
+
+        const validatorInputV2 = {
+          questionType: 'sentence',
+          questionText: revisedQuestion.sentence,
+          correctAnswer: revisedQuestion.answer,
+          exampleSentence: revisedQuestion.sentence,
+          translation: revisedQuestion.translation || '',
+          hint: generatedHint,
+          verb
+        }
+        const validationV2 = await QuestionValidatorService.validateQuestion(validatorInputV2)
+        console.log(
+          `[AI生成][validator_v2] isValid=${validationV2.isValid} hasUniqueAnswer=${validationV2.hasUniqueAnswer} reason=${validationV2.reason || ''}`
+        )
+
+        if (validationV2.isValid && validationV2.hasUniqueAnswer) {
+          return {
+            passed: true,
+            aiResult: revisedQuestion,
+            validation: validationV2,
+            attempt,
+            usedRevisor: true
+          }
+        }
+
+        lastError = validationV2.reason || validationV1.reason || 'validator_v2未通过'
+      } catch (error) {
+        lastError = error.message
+        console.log(`[AI生成][pipeline] attempt=${attempt} 异常: ${lastError}`)
+      }
+
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 800))
+      }
+    }
+
+    return {
+      passed: false,
+      aiResult: null,
+      validation: null,
+      attempt: maxRetries,
+      usedRevisor: false,
+      lastError: lastError || '达到最大重试次数'
+    }
+  }
+
+  /**
    * 使用AI生成新题目（带重试机制）
    */
   static async generateWithAI(options) {
-    const { userId, exerciseType, tenses, conjugationTypes, includeRegular, verbIds } = options
+    const {
+      userId,
+      exerciseType,
+      tenses,
+      conjugationTypes,
+      includeRegular,
+      includeVos = false,
+      includeVosotros = true,
+      verbIds
+    } = options
     const maxRetries = 3  // 最多重试3次
 
     // 获取动词
@@ -380,135 +721,50 @@ class ExerciseGeneratorService {
       throw new Error('该动词没有变位数据')
     }
 
-    // 扩展的时态映射（支持所有18种时态）
-    const tenseMap = {
-      // 简单陈述式（5个）
-      'presente': '现在时',
-      'preterito': '简单过去时',
-      'imperfecto': '未完成过去时',
-      'futuro': '将来时',
-      'condicional': '条件式',
-      // 虚拟式（3个）
-      'subjuntivo_presente': '虚拟现在时',
-      'subjuntivo_imperfecto': '虚拟过去时',
-      'subjuntivo_futuro': '虚拟将来时',
-      // 命令式（2个）
-      'imperativo_afirmativo': '肯定命令式',
-      'imperativo_negativo': '否定命令式',
-      // 复合陈述式（5个）
-      'perfecto': '现在完成时',
-      'pluscuamperfecto': '过去完成时',
-      'futuro_perfecto': '将来完成时',
-      'condicional_perfecto': '条件完成时',
-      'preterito_anterior': '先过去时',
-      // 复合虚拟式（3个）
-      'subjuntivo_perfecto': '虚拟现在完成时',
-      'subjuntivo_pluscuamperfecto': '虚拟过去完成时',
-      'subjuntivo_futuro_perfecto': '虚拟将来完成时'
-    }
-
-    // 语气映射
-    const moodMap = {
-      'indicativo': '陈述式',
-      'subjuntivo': '虚拟式',
-      'imperativo': '命令式',
-      'indicativo_compuesto': '复合陈述式',
-      'subjuntivo_compuesto': '复合虚拟式'
-    }
-
     // 根据时态和语气筛选
-    let filteredConjugations = conjugations
-    
-    // 优先按语气筛选（如果指定了moods参数）
-    if (options.moods && options.moods.length > 0) {
-      const selectedMoodNames = options.moods.map(m => moodMap[m]).filter(Boolean)
-      filteredConjugations = filteredConjugations.filter(c => selectedMoodNames.includes(c.mood))
-    }
-    
-    // 再按时态筛选
-    if (tenses && tenses.length > 0) {
-      const selectedTenseNames = tenses.map(t => tenseMap[t]).filter(Boolean)
-      filteredConjugations = filteredConjugations.filter(c => selectedTenseNames.includes(c.tense))
-    }
+    let filteredConjugations = this.filterConjugationsByMoodAndTense(
+      conjugations,
+      options.moods,
+      tenses
+    )
+    filteredConjugations = this.filterConjugationsByPronounSettings(
+      filteredConjugations,
+      includeVos,
+      includeVosotros
+    )
 
     if (filteredConjugations.length === 0) {
       throw new Error('没有符合所选时态和语气的变位数据')
     }
 
-    const randomConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
-    const generatedHint = this.buildHint(randomConjugation.person, randomConjugation.tense)
+    const randomConjugation = this.pickConjugationByTenseWeight(
+      filteredConjugations,
+      options.reduceRareTenseFrequency
+    )
+    const generatedHint = this.buildHint(
+      randomConjugation.person,
+      randomConjugation.tense,
+      randomConjugation.mood
+    )
 
-    // 重试循环：最多尝试3次生成和验证
-    let aiResult = null
-    let validation = null
-    let lastError = null
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`[AI生成] 为${verb.infinitive}第${attempt}次尝试生成题目 (类型: ${exerciseType})`)
-
-        // 使用AI生成题目
-        if (exerciseType === 'sentence') {
-          aiResult = await QuestionGeneratorService.generateSentenceExercise(verb, randomConjugation)
-        } else {
-          throw new Error('不支持的AI生成题型')
-        }
-
-        // 数据完整性检查
-        const dataCheck = this.validateAIResultData(aiResult, exerciseType)
-        if (!dataCheck.valid) {
-          console.log(`[AI生成] 第${attempt}次数据验证失败: ${dataCheck.reason}`)
-          lastError = dataCheck.reason
-          continue  // 重试
-        }
-
-        // 验证AI生成的题目质量
-        validation = await QuestionValidatorService.quickValidate({
-          questionType: exerciseType,
-          questionText: exerciseType === 'sentence' ? aiResult.sentence : aiResult.question,
-          correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
-          exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
-          translation: aiResult.translation || null,
-          hint: generatedHint,
-          verb: verb
-        })
-
-        // 如果验证通过，跳出循环
-        if (validation.passed) {
-          console.log(`[AI生成] 第${attempt}次尝试成功，题目通过验证`)
-          break
-        } else {
-          console.log(`[AI生成] 第${attempt}次质量验证未通过: ${validation.reason}`)
-          lastError = validation.reason
-          
-          // 如果不是最后一次尝试，继续重试（短延迟）
-          if (attempt < maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, 1000))
-          }
-        }
-      } catch (error) {
-        console.error(`[AI生成] 第${attempt}次尝试出错:`, error.message)
-        lastError = error.message
-        
-        // 如果不是最后一次尝试，继续重试
-        // 对于服务繁忙错误，使用更长的延迟
-        if (attempt < maxRetries) {
-          const isServiceBusy = error.message.includes('繁忙') || error.message.includes('频繁')
-          const delay = isServiceBusy ? 3000 : 1500
-          console.log(`[AI生成] ${delay/1000}秒后重试...`)
-          await new Promise(resolve => setTimeout(resolve, delay))
-        }
-      }
+    if (exerciseType !== 'sentence') {
+      throw new Error('不支持的AI生成题型')
     }
 
-    // 3次尝试后的处理
-    if (!validation || !validation.passed || !aiResult) {
-      console.log(`[AI生成] 经过${maxRetries}次尝试仍未生成合格题目，最后错误: ${lastError}`)
-      
-      // 例句填空无法用传统方法生成，直接返回错误
+    const pipeline = await this.runSentenceAIPipeline({
+      verb,
+      conjugation: randomConjugation,
+      generatedHint,
+      maxRetries
+    })
+    const aiResult = pipeline.aiResult
+
+    if (!pipeline.passed || !aiResult) {
+      console.log(`[AI生成] 经过${maxRetries}次尝试仍未生成合格题目，最后错误: ${pipeline.lastError}`)
       console.log(`[AI生成] 例句填空无法降级，返回null`)
       return null
     }
+    console.log(`[AI生成] 流水线成功 attempt=${pipeline.attempt} usedRevisor=${pipeline.usedRevisor}`)
 
     // 验证通过，保存到公共题库（统一初始置信度为50）
     let savedQuestionId = null
@@ -521,7 +777,7 @@ class ExerciseGeneratorService {
         exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
         translation: aiResult.translation || null,
         hint: generatedHint,
-        tense: randomConjugation.tense,
+        tense: this.normalizeTenseName(randomConjugation.tense),
         mood: randomConjugation.mood,
         person: randomConjugation.person,
         confidenceScore: 50  // 所有新生成题目的初始置信度统一为50
@@ -552,7 +808,7 @@ class ExerciseGeneratorService {
       verbId: verb.id,
       infinitive: verb.infinitive,
       meaning: verb.meaning,
-      tense: randomConjugation.tense,
+      tense: this.normalizeTenseName(randomConjugation.tense),
       mood: randomConjugation.mood,
       person: randomConjugation.person,
       correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
@@ -577,7 +833,14 @@ class ExerciseGeneratorService {
    * 为指定动词使用AI生成题目（批量生成专用）
    */
   static async generateWithAIForVerb(verb, options) {
-    const { exerciseType, tenses, userId } = options
+    const {
+      exerciseType,
+      tenses,
+      userId,
+      includeVos = false,
+      includeVosotros = true,
+      reduceRareTenseFrequency = true
+    } = options
     const maxRetries = 3
 
     const conjugations = Conjugation.getByVerbId(verb.id)
@@ -585,119 +848,49 @@ class ExerciseGeneratorService {
       throw new Error('该动词没有变位数据')
     }
 
-    // 扩展的时态映射（支持所有18种时态）
-    const tenseMap = {
-      // 简单陈述式（5个）
-      'presente': '现在时',
-      'preterito': '简单过去时',
-      'imperfecto': '未完成过去时',
-      'futuro': '将来时',
-      'condicional': '条件式',
-      // 虚拟式（3个）
-      'subjuntivo_presente': '虚拟现在时',
-      'subjuntivo_imperfecto': '虚拟过去时',
-      'subjuntivo_futuro': '虚拟将来时',
-      // 命令式（2个）
-      'imperativo_afirmativo': '肯定命令式',
-      'imperativo_negativo': '否定命令式',
-      // 复合陈述式（5个）
-      'perfecto': '现在完成时',
-      'pluscuamperfecto': '过去完成时',
-      'futuro_perfecto': '将来完成时',
-      'condicional_perfecto': '条件完成时',
-      'preterito_anterior': '先过去时',
-      // 复合虚拟式（3个）
-      'subjuntivo_perfecto': '虚拟现在完成时',
-      'subjuntivo_pluscuamperfecto': '虚拟过去完成时',
-      'subjuntivo_futuro_perfecto': '虚拟将来完成时'
-    }
-
-    // 语气映射
-    const moodMap = {
-      'indicativo': '陈述式',
-      'subjuntivo': '虚拟式',
-      'imperativo': '命令式',
-      'indicativo_compuesto': '复合陈述式',
-      'subjuntivo_compuesto': '复合虚拟式'
-    }
-
     // 根据时态和语气筛选
-    let filteredConjugations = conjugations
-    
-    // 优先按语气筛选（如果指定了moods参数）
-    if (options.moods && options.moods.length > 0) {
-      const selectedMoodNames = options.moods.map(m => moodMap[m]).filter(Boolean)
-      filteredConjugations = filteredConjugations.filter(c => selectedMoodNames.includes(c.mood))
-    }
-    
-    // 再按时态筛选
-    if (tenses && tenses.length > 0) {
-      const selectedTenseNames = tenses.map(t => tenseMap[t]).filter(Boolean)
-      filteredConjugations = filteredConjugations.filter(c => selectedTenseNames.includes(c.tense))
-    }
+    let filteredConjugations = this.filterConjugationsByMoodAndTense(
+      conjugations,
+      options.moods,
+      tenses
+    )
+    filteredConjugations = this.filterConjugationsByPronounSettings(
+      filteredConjugations,
+      includeVos,
+      includeVosotros
+    )
 
     if (filteredConjugations.length === 0) {
       throw new Error('没有符合所选时态和语气的变位数据')
     }
 
-    const randomConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
-    const generatedHint = this.buildHint(randomConjugation.person, randomConjugation.tense)
+    const randomConjugation = this.pickConjugationByTenseWeight(
+      filteredConjugations,
+      reduceRareTenseFrequency
+    )
+    const generatedHint = this.buildHint(
+      randomConjugation.person,
+      randomConjugation.tense,
+      randomConjugation.mood
+    )
 
-    // 重试循环
-    let aiResult = null
-    let validation = null
-    let lastError = null
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`[AI生成] 为${verb.infinitive}第${attempt}次尝试生成题目 (类型: ${exerciseType})`)
-
-        if (exerciseType === 'sentence') {
-          aiResult = await QuestionGeneratorService.generateSentenceExercise(verb, randomConjugation)
-        } else {
-          throw new Error('不支持的AI生成题型')
-        }
-
-        const dataCheck = this.validateAIResultData(aiResult, exerciseType)
-        if (!dataCheck.valid) {
-          console.log(`[AI生成] 第${attempt}次数据验证失败: ${dataCheck.reason}`)
-          lastError = dataCheck.reason
-          continue
-        }
-
-        validation = await QuestionValidatorService.quickValidate({
-          questionType: exerciseType,
-          questionText: exerciseType === 'sentence' ? aiResult.sentence : aiResult.question,
-          correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
-          exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
-          translation: aiResult.translation || null,
-          hint: generatedHint,
-          verb: verb
-        })
-
-        if (validation.passed) {
-          console.log(`[AI生成] 第${attempt}次尝试成功`)
-          break
-        } else {
-          console.log(`[AI生成] 第${attempt}次质量验证未通过: ${validation.reason}`)
-          lastError = validation.reason
-          if (attempt < maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, 500))
-          }
-        }
-      } catch (error) {
-        console.error(`[AI生成] 第${attempt}次尝试出错:`, error.message)
-        lastError = error.message
-        if (attempt < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 1000))
-        }
-      }
+    if (exerciseType !== 'sentence') {
+      throw new Error('不支持的AI生成题型')
     }
 
-    if (!validation || !validation.passed || !aiResult) {
-      console.log(`[AI生成] ${verb.infinitive}经过${maxRetries}次尝试仍未生成合格题目`)
+    const pipeline = await this.runSentenceAIPipeline({
+      verb,
+      conjugation: randomConjugation,
+      generatedHint,
+      maxRetries
+    })
+    const aiResult = pipeline.aiResult
+
+    if (!pipeline.passed || !aiResult) {
+      console.log(`[AI生成] ${verb.infinitive}经过${maxRetries}次尝试仍未生成合格题目: ${pipeline.lastError}`)
       return null
     }
+    console.log(`[AI生成] ${verb.infinitive}流水线成功 attempt=${pipeline.attempt} usedRevisor=${pipeline.usedRevisor}`)
 
     // 保存到公共题库
     let savedQuestionId = null
@@ -710,7 +903,7 @@ class ExerciseGeneratorService {
         exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
         translation: aiResult.translation || null,
         hint: generatedHint,
-        tense: randomConjugation.tense,
+        tense: this.normalizeTenseName(randomConjugation.tense),
         mood: randomConjugation.mood,
         person: randomConjugation.person,
         confidenceScore: 50
@@ -739,7 +932,7 @@ class ExerciseGeneratorService {
       verbId: verb.id,
       infinitive: verb.infinitive,
       meaning: verb.meaning,
-      tense: randomConjugation.tense,
+      tense: this.normalizeTenseName(randomConjugation.tense),
       mood: randomConjugation.mood,
       person: randomConjugation.person,
       correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
@@ -772,6 +965,7 @@ class ExerciseGeneratorService {
       includeRegular,
       includeVos,
       includeVosotros,
+      reduceRareTenseFrequency = true,
       verbIds,
       excludeVerbIds = []
     } = options
@@ -808,7 +1002,10 @@ class ExerciseGeneratorService {
           exerciseType,
           tenses,
           moods: options.moods,  // 修复：使用 options.moods 而不是未定义的 moods
-          userId
+          userId,
+          includeVos,
+          includeVosotros,
+          reduceRareTenseFrequency
         })
         
         if (aiExercise) {
@@ -873,67 +1070,18 @@ class ExerciseGeneratorService {
       throw new Error('该动词没有变位数据')
     }
 
-    // 扩展的时态映射（支持所有18种时态）
-    const tenseMap = {
-      // 简单陈述式（5个）
-      'presente': '现在时',
-      'preterito': '简单过去时',
-      'imperfecto': '未完成过去时',
-      'futuro': '将来时',
-      'condicional': '条件式',
-      // 虚拟式（3个）
-      'subjuntivo_presente': '虚拟现在时',
-      'subjuntivo_imperfecto': '虚拟过去时',
-      'subjuntivo_futuro': '虚拟将来时',
-      // 命令式（2个）
-      'imperativo_afirmativo': '肯定命令式',
-      'imperativo_negativo': '否定命令式',
-      // 复合陈述式（5个）
-      'perfecto': '现在完成时',
-      'pluscuamperfecto': '过去完成时',
-      'futuro_perfecto': '将来完成时',
-      'condicional_perfecto': '条件完成时',
-      'preterito_anterior': '先过去时',
-      // 复合虚拟式（3个）
-      'subjuntivo_perfecto': '虚拟现在完成时',
-      'subjuntivo_pluscuamperfecto': '虚拟过去完成时',
-      'subjuntivo_futuro_perfecto': '虚拟将来完成时'
-    }
-
-    // 语气映射
-    const moodMap = {
-      'indicativo': '陈述式',
-      'subjuntivo': '虚拟式',
-      'imperativo': '命令式',
-      'indicativo_compuesto': '复合陈述式',
-      'subjuntivo_compuesto': '复合虚拟式'
-    }
-
     // 根据时态和语气筛选
-    let filteredConjugations = conjugations
+    let filteredConjugations = this.filterConjugationsByMoodAndTense(
+      conjugations,
+      options.moods,
+      tenses
+    )
     
-    // 优先按语气筛选（如果指定了moods参数）
-    if (options.moods && options.moods.length > 0) {
-      const selectedMoodNames = options.moods.map(m => moodMap[m]).filter(Boolean)
-      filteredConjugations = filteredConjugations.filter(c => selectedMoodNames.includes(c.mood))
-    }
-    
-    // 再按时态筛选
-    if (tenses && tenses.length > 0) {
-      const selectedTenseNames = tenses.map(t => tenseMap[t]).filter(Boolean)
-      filteredConjugations = filteredConjugations.filter(c => selectedTenseNames.includes(c.tense))
-    }
-    
-    // 根据人称选项筛选
-    if (options.includeVos === false) {
-      // 排除 vos（拉美第二人称单数）
-      filteredConjugations = filteredConjugations.filter(c => c.person !== 'vos')
-    }
-    
-    if (options.includeVosotros === false) {
-      // 排除 vosotros（西班牙第二人称复数）
-      filteredConjugations = filteredConjugations.filter(c => c.person !== 'vosotros' && c.person !== 'vosotras')
-    }
+    filteredConjugations = this.filterConjugationsByPronounSettings(
+      filteredConjugations,
+      options.includeVos,
+      options.includeVosotros
+    )
 
     if (filteredConjugations.length === 0) {
       throw new Error('没有符合所选时态和语气的变位数据')
@@ -945,15 +1093,18 @@ class ExerciseGeneratorService {
     if (exerciseType === 'quick-fill') {
       // 随机选择一个变位作为给定形式
       const givenConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
-      // 再随机选择一个不同的变位作为目标形式
-      const targetConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
+      // 目标形式按时态类别加权抽样
+      const targetConjugation = this.pickConjugationByTenseWeight(
+        filteredConjugations,
+        options.reduceRareTenseFrequency
+      )
       
       const exercise = {
         verbId: verb.id,
         infinitive: verb.infinitive,
         meaning: verb.meaning,
         mood: targetConjugation.mood,
-        tense: targetConjugation.tense,
+        tense: this.normalizeTenseName(targetConjugation.tense),
         person: targetConjugation.person,
         correctAnswer: targetConjugation.conjugated_form,
         exerciseType: 'quick-fill',
@@ -962,7 +1113,11 @@ class ExerciseGeneratorService {
         fromQuestionBank: false,
         aiGenerated: false,
         givenForm: givenConjugation.conjugated_form,
-        givenDesc: `${givenConjugation.mood} - ${givenConjugation.tense} - ${givenConjugation.person}`
+        givenDesc: this.buildHint(
+          givenConjugation.person,
+          givenConjugation.tense,
+          givenConjugation.mood
+        )
       }
       
       return exercise
@@ -974,15 +1129,23 @@ class ExerciseGeneratorService {
         throw new Error('该动词在所选范围内的变位数少于6个，无法生成组合填空题')
       }
       
-      // 随机打乱所有可用变位
-      const shuffled = [...filteredConjugations].sort(() => Math.random() - 0.5)
-      
-      // 选择前6个
-      const selectedConjugations = shuffled.slice(0, 6)
+      // 逐个按时态类别加权抽样，且不重复
+      const pool = [...filteredConjugations]
+      const selectedConjugations = []
+      while (selectedConjugations.length < 6 && pool.length > 0) {
+        const picked = this.pickConjugationByTenseWeight(pool, options.reduceRareTenseFrequency)
+        if (!picked) break
+        selectedConjugations.push(picked)
+        const idx = pool.indexOf(picked)
+        if (idx > -1) pool.splice(idx, 1)
+      }
+      if (selectedConjugations.length < 6) {
+        throw new Error('该动词在所选范围内的变位数少于6个，无法生成组合填空题')
+      }
       
       // 构建组合填空题目
       const comboItems = selectedConjugations.map(c => ({
-        tense: c.tense,
+        tense: this.normalizeTenseName(c.tense),
         mood: c.mood,
         person: c.person,
         correctAnswer: c.conjugated_form
@@ -1006,13 +1169,16 @@ class ExerciseGeneratorService {
     }
 
     // 如果是其他题型，返回基本结构
-    const randomConjugation = filteredConjugations[Math.floor(Math.random() * filteredConjugations.length)]
+    const randomConjugation = this.pickConjugationByTenseWeight(
+      filteredConjugations,
+      options.reduceRareTenseFrequency
+    )
     
     const exercise = {
       verbId: verb.id,
       infinitive: verb.infinitive,
       meaning: verb.meaning,
-      tense: randomConjugation.tense,
+      tense: this.normalizeTenseName(randomConjugation.tense),
       mood: randomConjugation.mood,
       person: randomConjugation.person,
       correctAnswer: randomConjugation.conjugated_form,
