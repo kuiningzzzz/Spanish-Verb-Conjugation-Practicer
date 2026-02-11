@@ -77,6 +77,7 @@ app.use('/api/feedback', require('./routes/feedback'))  // 用户反馈路由
 app.use('/api/question-feedback', require('./routes/questionFeedback'))  // 题目反馈路由
 app.use('/api/version', require('./routes/version'))  // 版本更新路由
 app.use('/api/announcement', require('./routes/announcement'))  // 公告路由
+app.use('/api/friend', require('./routes/friend'))  // 好友系统路由
 app.use('/admin', require('./routes/admin'))
 
 // Prometheus metrics

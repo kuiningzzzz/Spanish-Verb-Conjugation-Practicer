@@ -157,5 +157,18 @@ export default {
 
   // 公告相关
   getAnnouncements: (requestOptions = {}) => request({ url: '/announcement', ...requestOptions }),
-  getAnnouncementById: (id) => request({ url: `/announcement/${id}` })
+  getAnnouncementById: (id) => request({ url: `/announcement/${id}` }),
+
+  // 好友系统相关
+  checkUniqueId: (uniqueId) => request({ url: '/friend/check-unique-id', method: 'POST', data: { uniqueId } }),
+  setUniqueId: (uniqueId) => request({ url: '/friend/set-unique-id', method: 'POST', data: { uniqueId } }),
+  searchUsers: (keyword) => request({ url: '/friend/search', data: { keyword } }),
+  sendFriendRequest: (toUserId, message) => request({ url: '/friend/request', method: 'POST', data: { toUserId, message } }),
+  getFriendRequests: () => request({ url: '/friend/requests' }),
+  handleFriendRequest: (requestId, accept) => request({ url: '/friend/handle-request', method: 'POST', data: { requestId, accept } }),
+  getFriendsList: () => request({ url: '/friend/list' }),
+  getFriendDetails: (friendId) => request({ url: `/friend/detail/${friendId}` }),
+  setFriendRemark: (friendId, remark) => request({ url: '/friend/remark', method: 'POST', data: { friendId, remark } }),
+  setFriendStar: (friendId, isStarred) => request({ url: '/friend/star', method: 'POST', data: { friendId, isStarred } }),
+  removeFriend: (friendId) => request({ url: `/friend/${friendId}`, method: 'DELETE' })
 }

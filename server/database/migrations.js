@@ -18,6 +18,10 @@ function runMigrations() {
     {
       name: '添加排行榜参与设置',
       script: './migration_scripts/add_participate_in_leaderboard.js'
+    },
+    {
+      name: '添加好友系统',
+      script: './migration_scripts/add_friend_system.js'
     }
     // 在此添加更多迁移脚本
     // { name: '迁移名称', script: './migration_script.js' }

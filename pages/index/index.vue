@@ -257,10 +257,8 @@ export default {
       })
     },
     goToFriends() {
-      uni.showToast({
-        title: '好友功能正在火热施工中！',
-        icon: 'none',
-        duration: 2000
+      uni.navigateTo({
+        url: '/pages/friends/friends'
       })
     },
     goToClass() {
