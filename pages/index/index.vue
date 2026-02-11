@@ -62,6 +62,14 @@
         <text class="quick-icon">📊</text>
         <text class="quick-label">学习统计</text>
       </view>
+      <view class="quick-item" @click="goToFriends">
+        <text class="quick-icon">👥</text>
+        <text class="quick-label">好友</text>
+      </view>
+      <view class="quick-item" @click="goToClass">
+        <text class="quick-icon">🎓</text>
+        <text class="quick-label">班级</text>
+      </view>
     </view>
   </view>
 </template>
@@ -248,6 +256,20 @@ export default {
         url: '/pages/announcement/announcement'
       })
     },
+    goToFriends() {
+      uni.showToast({
+        title: '好友功能正在火热施工中！',
+        icon: 'none',
+        duration: 2000
+      })
+    },
+    goToClass() {
+      uni.showToast({
+        title: '班级功能正在火热施工中！',
+        icon: 'none',
+        duration: 2000
+      })
+    },
     
     // 检查是否有新公告
     async checkNewAnnouncements() {
@@ -427,16 +449,19 @@ export default {
 
 .quick-access {
   display: flex;
-  gap: 20rpx;
+  flex-wrap: wrap;
+  justify-content: space-between;
 }
 
 .quick-item {
-  flex: 1;
+  width: 49%;
   background: #fff;
   border-radius: 16rpx;
   padding: 30rpx;
   text-align: center;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+  margin-bottom: 20rpx;
+  box-sizing: border-box;
 }
 
 .quick-icon {
