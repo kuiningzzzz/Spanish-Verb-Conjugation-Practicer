@@ -22,7 +22,7 @@ function migrate() {
     const fieldExists = tableInfo.some(col => col.name === 'participate_in_leaderboard')
     
     if (fieldExists) {
-      console.log('     ℹ️  字段已存在，跳过')
+      console.log('     ℹ️  字段 participate_in_leaderboard 已存在，跳过')
       db.close()
       return
     }
