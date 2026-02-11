@@ -10,11 +10,11 @@ const path = require('path')
 const Database = require('better-sqlite3')
 
 function migrate() {
-  console.log('\n📊 开始数据库迁移：添加排行榜参与设置...')
+  console.log('   • 检查迁移: 添加排行榜参与设置...')
   
   try {
     // 连接用户数据库
-    const dbPath = path.join(__dirname, '../../data/user.db')
+    const dbPath = path.join(__dirname, '../data/user_data.db')
     const db = new Database(dbPath)
     
     // 检查字段是否已存在
@@ -22,13 +22,13 @@ function migrate() {
     const fieldExists = tableInfo.some(col => col.name === 'participate_in_leaderboard')
     
     if (fieldExists) {
-      console.log('   ℹ️  字段 participate_in_leaderboard 已存在，跳过迁移')
+      console.log('     ℹ️  字段已存在，跳过')
       db.close()
       return
     }
     
     // 添加字段（默认值为 1，表示参与排行榜）
-    console.log('   ➕ 添加字段 participate_in_leaderboard...')
+    console.log('     ➕ 添加字段 participate_in_leaderboard...')
     db.exec(`
       ALTER TABLE users 
       ADD COLUMN participate_in_leaderboard INTEGER DEFAULT 1
@@ -41,12 +41,11 @@ function migrate() {
       WHERE participate_in_leaderboard IS NULL
     `).run()
     
-    console.log(`   ✓ 字段添加成功，已更新 ${updateResult.changes} 个用户记录`)
-    console.log('   ✓ 迁移完成！\n')
+    console.log(`     ✓ 字段添加成功，已更新 ${updateResult.changes} 个用户记录`)
     
     db.close()
   } catch (error) {
-    console.error('\n   ✗ 迁移失败:', error.message)
+    console.error('     ✗ 迁移失败:', error.message)
     throw error
   }
 }

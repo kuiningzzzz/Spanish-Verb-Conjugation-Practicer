@@ -32,6 +32,14 @@ app.use(apiLogger)
 // 初始化数据库
 initDatabase()
 
+// 运行数据库迁移
+try {
+  const runMigrations = require('./database/migrations')
+  runMigrations()
+} catch (error) {
+  console.log('\x1b[33m   ⚠ 数据库迁移失败:\x1b[0m', error.message)
+}
+
 // 检查是否需要初始化示例数据
 try {
   initSampleData()
