@@ -14,7 +14,7 @@ function migrate() {
   
   try {
     // 连接用户数据库
-    const dbPath = path.join(__dirname, '../data/user_data.db')
+    const dbPath = path.join(__dirname, '../../data/user_data.db')
     const db = new Database(dbPath)
     
     // 检查字段是否已存在

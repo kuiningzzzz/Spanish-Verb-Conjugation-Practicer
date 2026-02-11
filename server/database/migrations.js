@@ -17,7 +17,7 @@ function runMigrations() {
   const migrations = [
     {
       name: '添加排行榜参与设置',
-      script: './add_participate_in_leaderboard.js'
+      script: './migration_scripts/add_participate_in_leaderboard.js'
     }
     // 在此添加更多迁移脚本
     // { name: '迁移名称', script: './migration_script.js' }
