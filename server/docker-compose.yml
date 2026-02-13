@@ -77,13 +77,13 @@ services:
       context: ../admin-web
       dockerfile: Dockerfile
       args:
-        - VUE_APP_ADMIN_API_BASE_URL=https://conjugamos.top
+        - VUE_APP_ADMIN_API_BASE_URL=https://conjugamos.top/admin-api
     env_file:
       - .env
     expose:
       - "80"
     environment:
-      - VUE_APP_ADMIN_API_BASE_URL=https://conjugamos.top
+      - VUE_APP_ADMIN_API_BASE_URL=https://conjugamos.top/admin-api
     networks:
       - spanish-verb-network
 

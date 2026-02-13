@@ -15,10 +15,10 @@ services:
       - "3001:80"
     build:
       args:
-        - VUE_APP_ADMIN_API_BASE_URL=http://localhost:3000
+        - VUE_APP_ADMIN_API_BASE_URL=http://localhost:3000/admin
         - NODE_ENV=development
     environment:
-      - VUE_APP_ADMIN_API_BASE_URL=http://localhost:3000
+      - VUE_APP_ADMIN_API_BASE_URL=http://localhost:3000/admin
       - NODE_ENV=development
 
   # 开发环境可选择性禁用 Nginx（如果不需要测试反向代理）
