@@ -1,0 +1,29 @@
+# 开发环境配置 - 覆盖 docker-compose.yml 的部分配置
+# 使用方法: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+services:
+  # 开发环境暴露 API 端口，方便本地调试
+  spanish-verb-api:
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+
+  # 开发环境暴露管理前端端口，独立访问
+  admin-web:
+    ports:
+      - "3001:80"
+    build:
+      args:
+        - VUE_APP_ADMIN_API_BASE_URL=http://localhost:3000
+        - NODE_ENV=development
+    environment:
+      - VUE_APP_ADMIN_API_BASE_URL=http://localhost:3000
+      - NODE_ENV=development
+
+  # 开发环境可选择性禁用 Nginx（如果不需要测试反向代理）
+  # 取消下面的注释可以禁用 Nginx
+  # nginx:
+  #   profiles:
+  #     - production
+
