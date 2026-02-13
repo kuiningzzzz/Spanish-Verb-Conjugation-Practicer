@@ -456,6 +456,109 @@ class PracticeRecord {
     
     return []
   }
+
+  // 获取学习趋势数据
+  static getTrendData(userId, type = 'week') {
+    const now = new Date()
+    
+    if (type === 'week') {
+      // 本周：显示包括今天在内的7天
+      const result = []
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now)
+        date.setDate(date.getDate() - i)
+        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+        
+        const stmt = userDb.prepare(`
+          SELECT COUNT(*) as count
+          FROM practice_records
+          WHERE user_id = ? AND DATE(created_at) = ?
+        `)
+        const data = stmt.get(userId, dateStr)
+        
+        // 标签格式：周几
+        const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+        const label = weekdays[date.getDay()]
+        
+        result.push({
+          date: dateStr,
+          label: label,
+          count: data?.count || 0
+        })
+      }
+      return result
+      
+    } else if (type === 'month') {
+      // 本月：显示近30天，分成10组，每组3天
+      const result = []
+      for (let i = 9; i >= 0; i--) {
+        const endDate = new Date(now)
+        endDate.setDate(endDate.getDate() - (i * 3))
+        const startDate = new Date(endDate)
+        startDate.setDate(startDate.getDate() - 2)
+        
+        const startStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`
+        const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`
+        
+        const stmt = userDb.prepare(`
+          SELECT COUNT(*) as count
+          FROM practice_records
+          WHERE user_id = ? AND DATE(created_at) BETWEEN ? AND ?
+        `)
+        const data = stmt.get(userId, startStr, endStr)
+        
+        // 标签格式：显示日期区间
+        let label
+        if (i === 0) {
+          // 最新的一组，显示"D-今"（显示起始日期）
+          label = `${startDate.getDate()}-今`
+        } else {
+          // 其他组，显示"D1-D2"
+          label = `${startDate.getDate()}-${endDate.getDate()}`
+        }
+        
+        result.push({
+          dateRange: `${startStr} ~ ${endStr}`,
+          label: label,
+          count: data?.count || 0
+        })
+      }
+      return result
+      
+    } else if (type === 'year') {
+      // 本年：显示包括当前月份在内的近12个月
+      const result = []
+      for (let i = 11; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        const year = date.getFullYear()
+        const month = date.getMonth() + 1
+        
+        // 计算该月的第一天和最后一天
+        const firstDay = `${year}-${String(month).padStart(2, '0')}-01`
+        const lastDay = new Date(year, month, 0) // 下个月的第0天就是这个月的最后一天
+        const lastDayStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`
+        
+        const stmt = userDb.prepare(`
+          SELECT COUNT(*) as count
+          FROM practice_records
+          WHERE user_id = ? AND DATE(created_at) BETWEEN ? AND ?
+        `)
+        const data = stmt.get(userId, firstDay, lastDayStr)
+        
+        // 标签格式：M月
+        const label = `${month}月`
+        
+        result.push({
+          month: `${year}-${String(month).padStart(2, '0')}`,
+          label: label,
+          count: data?.count || 0
+        })
+      }
+      return result
+    }
+    
+    return []
+  }
 }
 
 module.exports = PracticeRecord

@@ -9,13 +9,44 @@
     <!-- 总体统计 -->
     <view class="overview-section">
       <view class="stats-grid">
-        <view class="stat-card" v-for="stat in mainStats" :key="stat.key">
-          <view class="stat-icon" :style="{ background: stat.color }">
-            <text>{{ stat.icon }}</text>
+        <view class="stats-row">
+          <view class="stat-card">
+            <view class="stat-icon" :style="{ background: '#8B0012' }">
+              <text>📝</text>
+            </view>
+            <view class="stat-content">
+              <text class="stat-value">{{ totalStats.total_exercises || 0 }}</text>
+              <text class="stat-label">总练习题数</text>
+            </view>
           </view>
-          <view class="stat-content">
-            <text class="stat-value">{{ stat.value }}</text>
-            <text class="stat-label">{{ stat.label }}</text>
+          <view class="stat-card">
+            <view class="stat-icon" :style="{ background: '#D4A04A' }">
+              <text>🎯</text>
+            </view>
+            <view class="stat-content">
+              <text class="stat-value">{{ masteredVerbs.length || 0 }}</text>
+              <text class="stat-label">掌握动词</text>
+            </view>
+          </view>
+        </view>
+        <view class="stats-row">
+          <view class="stat-card">
+            <view class="stat-icon" :style="{ background: '#4CAF50' }">
+              <text>📚</text>
+            </view>
+            <view class="stat-content">
+              <text class="stat-value">{{ totalStats.practiced_verbs || 0 }}</text>
+              <text class="stat-label">练习动词</text>
+            </view>
+          </view>
+          <view class="stat-card">
+            <view class="stat-icon" :style="{ background: '#FF9800' }">
+              <text>📅</text>
+            </view>
+            <view class="stat-content">
+              <text class="stat-value">{{ totalStats.practice_days || 0 }}</text>
+              <text class="stat-label">练习天数</text>
+            </view>
           </view>
         </view>
       </view>
@@ -69,11 +100,29 @@
           </view>
         </view>
         <view class="trend-chart">
-          <!-- 这里可以集成图表组件 -->
-          <view class="chart-placeholder">
+          <view class="chart-container" v-if="trendData.length > 0">
+            <view class="chart-bars">
+              <view 
+                class="bar-item" 
+                v-for="(item, index) in trendData" 
+                :key="index"
+              >
+                <view class="bar-wrapper">
+                  <view class="bar-count">{{ item.count }}</view>
+                  <view 
+                    class="bar" 
+                    :style="{ height: getBarHeight(item.count) + '%', background: '#8B0012' }"
+                  >
+                  </view>
+                </view>
+                <view class="bar-label">{{ item.label }}</view>
+              </view>
+            </view>
+          </view>
+          <view class="chart-placeholder" v-else>
             <text class="chart-icon">📊</text>
-            <text class="chart-text">学习趋势图表</text>
-            <text class="chart-desc">展示最近学习进度和正确率变化</text>
+            <text class="chart-text">暂无数据</text>
+            <text class="chart-desc">开始练习后将显示学习趋势</text>
           </view>
         </view>
       </view>
@@ -92,8 +141,8 @@
         <view class="mastered-list">
           <view 
             class="mastered-item" 
-            v-for="verb in masteredVerbs.slice(0, 6)" 
-            :key="verb.id"
+            v-for="(verb, index) in masteredVerbs.slice(0, 6)" 
+            :key="getVerbKey(verb, index)"
           >
             <view class="verb-avatar" :style="{ background: verb.bgColor }">
               <text class="verb-icon">📖</text>
@@ -139,8 +188,8 @@
         <view class="records-list">
           <view 
             class="record-item record-clickable" 
-            v-for="record in recentRecords.slice(0, 10)" 
-            :key="record.id"
+            v-for="(record, index) in recentRecords.slice(0, 10)" 
+            :key="getRecordKey(record, index)"
             @click="viewVerbDetail(record)"
           >
             <view class="record-icon" :class="record.is_correct ? 'correct' : 'wrong'">
@@ -157,17 +206,6 @@
           <text class="empty-icon">📝</text>
           <text class="empty-text">还没有练习记录</text>
           <text class="empty-desc">开始你的第一次练习吧！</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 学习建议 -->
-    <view class="suggestion-section">
-      <view class="suggestion-card">
-        <text class="suggestion-icon">💡</text>
-        <view class="suggestion-content">
-          <text class="suggestion-title">学习建议</text>
-          <text class="suggestion-text">{{ learningSuggestion }}</text>
         </view>
       </view>
     </view>
@@ -246,11 +284,11 @@ export default {
       recentRecords: [],
       activeTimeFilter: 'week',
       timeFilters: [
-        { value: 'week', label: '本周' },
-        { value: 'month', label: '本月' },
-        { value: 'all', label: '全部' }
+        { value: 'week', label: '近7天' },
+        { value: 'month', label: '近30天' },
+        { value: 'year', label: '近一年' }
       ],
-      learningSuggestion: '',
+      trendData: [],  // 趋势数据
       showCriteria: false  // 是否显示评判标准弹窗
     }
   },
@@ -265,38 +303,6 @@ export default {
       return {
         'background': `conic-gradient(#8B0012 ${this.accuracy}%, #f0f0f0 ${this.accuracy}% 100%)`
       }
-    },
-    mainStats() {
-      return [
-        {
-          key: 'total',
-          icon: '📝',
-          label: '总练习题数',
-          value: this.totalStats.total_exercises || 0,
-          color: '#8B0012'
-        },
-        {
-          key: 'mastered',
-          icon: '🎯',
-          label: '掌握动词',
-          value: this.masteredVerbs.length || 0,
-          color: '#D4A04A'
-        },
-        {
-          key: 'verbs',
-          icon: '📚',
-          label: '练习动词',
-          value: this.totalStats.practiced_verbs || 0,
-          color: '#4CAF50'
-        },
-        {
-          key: 'days',
-          icon: '📅',
-          label: '练习天数',
-          value: this.totalStats.practice_days || 0,
-          color: '#FF9800'
-        }
-      ]
     }
   },
   onShow() {
@@ -306,7 +312,6 @@ export default {
       return
     }
     this.loadData()
-    this.generateSuggestion()
   },
   methods: {
     async loadData() {
@@ -325,18 +330,35 @@ export default {
         if (recordsRes.success) {
           this.recentRecords = recordsRes.records || []
         }
+        
+        // 加载趋势数据
+        await this.loadTrendData()
       } catch (error) {
         showToast('加载数据失败')
       }
     },
+    async loadTrendData() {
+      try {
+        const res = await api.getStudyTrend(this.activeTimeFilter)
+        if (res.success) {
+          this.trendData = res.trend || []
+        }
+      } catch (error) {
+        console.error('加载趋势数据失败:', error)
+      }
+    },
     switchTimeFilter(filter) {
       this.activeTimeFilter = filter
-      uni.showToast({
-        title: `已切换到${filter === 'week' ? '本周' : filter === 'month' ? '本月' : '全部'}数据`,
-        icon: 'none',
-        duration: 1500
-      })
-      // TODO: 未来可以加载对应时间范围的详细趋势数据
+      this.loadTrendData()
+    },
+    getMaxValue() {
+      if (this.trendData.length === 0) return 10
+      const max = Math.max(...this.trendData.map(d => d.count))
+      return max > 0 ? max : 10
+    },
+    getBarHeight(count) {
+      const max = this.getMaxValue()
+      return Math.max((count / max) * 100, 2) // 最小高度2%，避免为0时看不见
     },
     getVerbColor(level) {
       const colors = [
@@ -347,6 +369,14 @@ export default {
         '#66bb6a'
       ]
       return colors[level - 1] || colors[0]
+    },
+    getVerbKey(verb, index) {
+      if (!verb) return `verb-${index}`
+      return verb.id || verb.verb_id || verb.infinitive || `verb-${index}`
+    },
+    getRecordKey(record, index) {
+      if (!record) return `record-${index}`
+      return record.id || record.record_id || record.created_at || record.verb_id || `record-${index}`
     },
     formatTime(timeStr) {
       if (!timeStr) return ''
@@ -380,17 +410,6 @@ export default {
       uni.navigateTo({
         url: `/pages/conjugation-detail/conjugation-detail?verbId=${record.verb_id}`
       })
-    },
-    generateSuggestion() {
-      const accuracy = this.accuracy
-      const suggestions = [
-        '继续保持当前的学习节奏，每天坚持练习！',
-        '正确率不错，可以尝试挑战更高难度的题目！',
-        '多练习错题，巩固薄弱环节，提升会更快！',
-        '每天坚持打卡，养成良好的学习习惯！',
-        '尝试不同类型的练习，全面提升动词变位能力！'
-      ]
-      this.learningSuggestion = suggestions[Math.floor(Math.random() * suggestions.length)]
     },
     showCriteriaModal() {
       this.showCriteria = true
@@ -435,33 +454,29 @@ export default {
 }
 
 .stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: block;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
   gap: 20rpx;
+  margin-bottom: 20rpx;
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
+  width: 48%;
+  background: #ffffff;
   border-radius: 20rpx;
   padding: 30rpx;
   display: flex;
   align-items: center;
   gap: 20rpx;
-  box-shadow: 0 15rpx 30rpx rgba(0, 0, 0, 0.1);
-  border: 1rpx solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10rpx 20rpx rgba(0, 0, 0, 0.08);
+  border: 1rpx solid #f0f0f0;
   position: relative;
-  overflow: hidden;
-}
-
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4rpx;
-  background: inherit;
+  box-sizing: border-box;
+  margin-bottom: 0;
 }
 
 .stat-icon {
@@ -633,17 +648,84 @@ export default {
 }
 
 .trend-chart {
-  height: 300rpx;
+  min-height: 300rpx;
   background: #f8f9fa;
   border-radius: 15rpx;
+  padding: 30rpx 20rpx 60rpx;
+  overflow: hidden;
+}
+
+.chart-container {
+  width: 100%;
+  height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-end;
+}
+
+.chart-bars {
+  width: 100%;
+  height: 240rpx;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6rpx;
+  padding-bottom: 50rpx;
+  position: relative;
+}
+
+.bar-item {
+  flex: 1;
+  min-width: 30rpx;
+  max-width: 80rpx;
+  display: flex;
   flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.bar-wrapper {
+  width: 100%;
+  height: 180rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.bar-count {
+  position: absolute;
+  top: -25rpx;
+  font-size: 18rpx;
+  color: #666;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.bar {
+  width: 100%;
+  min-height: 4rpx;
+  background: #8B0012;
+  border-radius: 4rpx 4rpx 0 0;
+  transition: all 0.3s ease;
+  box-shadow: 0 -2rpx 8rpx rgba(139, 0, 18, 0.2);
+}
+
+.bar-label {
+  position: absolute;
+  bottom: -45rpx;
+  left: 50%;
+  font-size: 18rpx;
+  color: #666;
+  white-space: nowrap;
+  transform: translateX(-50%) rotate(-45deg);
+  transform-origin: center center;
+  text-align: center;
 }
 
 .chart-placeholder {
   text-align: center;
+  padding: 60rpx 0;
 }
 
 .chart-icon {
@@ -913,48 +995,6 @@ export default {
 .record-time {
   font-size: 22rpx;
   color: #999;
-}
-
-/* 学习建议 */
-.suggestion-section {
-  padding: 0 40rpx 40rpx;
-}
-
-.suggestion-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 25rpx;
-  padding: 30rpx;
-  display: flex;
-  align-items: flex-start;
-  gap: 20rpx;
-  box-shadow: 0 15rpx 30rpx rgba(0, 0, 0, 0.1);
-  border: 1rpx solid rgba(255, 255, 255, 0.2);
-  border-left: 6rpx solid #8B0012;
-}
-
-.suggestion-icon {
-  font-size: 36rpx;
-  margin-top: 5rpx;
-}
-
-.suggestion-content {
-  flex: 1;
-}
-
-.suggestion-title {
-  display: block;
-  font-size: 26rpx;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 10rpx;
-}
-
-.suggestion-text {
-  display: block;
-  font-size: 24rpx;
-  color: #666;
-  line-height: 1.5;
 }
 
 /* 掌握度评判标准弹窗 */

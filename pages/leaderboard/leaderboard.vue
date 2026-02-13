@@ -26,43 +26,23 @@
       </view>
     </view>
 
+    <!-- 时间范围切换（仅在老资历榜和数值怪榜显示） -->
+    <view class="time-range-container" v-if="activeTab === 'veteran' || activeTab === 'exercise'">
+      <view 
+        v-for="range in timeRanges"
+        :key="range.value"
+        :class="['range-item', activeTimeRange === range.value ? 'active' : '']"
+        @click="switchTimeRange(range.value)"
+      >
+        <text class="range-text">{{ range.label }}</text>
+      </view>
+    </view>
+
     <!-- 排行榜内容 -->
     <view class="leaderboard-content">
-      <!-- 前三名奖台 -->
-      <view class="podium" v-if="leaderboard.length >= 3">
-        <view class="podium-item second">
-          <view class="podium-avatar">
-            <image v-if="leaderboard[1].avatar" :src="leaderboard[1].avatar" class="avatar-image" mode="aspectFill"></image>
-            <text v-else class="avatar-text">{{ leaderboard[1].avatarText }}</text>
-          </view>
-          <view class="podium-medal">🥈</view>
-          <text class="podium-name">{{ leaderboard[1].username }}</text>
-          <text class="podium-school" v-if="leaderboard[1].school">{{ leaderboard[1].school }}</text>
-          <text class="podium-stats">{{ leaderboard[1].check_in_days }}天 · {{ leaderboard[1].total_exercises }}题</text>
-        </view>
-
-        <view class="podium-item first">
-          <view class="podium-avatar champion">
-            <image v-if="leaderboard[0].avatar" :src="leaderboard[0].avatar" class="avatar-image" mode="aspectFill"></image>
-            <text v-else class="avatar-text">{{ leaderboard[0].avatarText }}</text>
-            <view class="crown">👑</view>
-          </view>
-          <view class="podium-medal">🥇</view>
-          <text class="podium-name">{{ leaderboard[0].username }}</text>
-          <text class="podium-school" v-if="leaderboard[0].school">{{ leaderboard[0].school }}</text>
-          <text class="podium-stats">{{ leaderboard[0].check_in_days }}天 · {{ leaderboard[0].total_exercises }}题</text>
-        </view>
-
-        <view class="podium-item third">
-          <view class="podium-avatar">
-            <image v-if="leaderboard[2].avatar" :src="leaderboard[2].avatar" class="avatar-image" mode="aspectFill"></image>
-            <text v-else class="avatar-text">{{ leaderboard[2].avatarText }}</text>
-          </view>
-          <view class="podium-medal">🥉</view>
-          <text class="podium-name">{{ leaderboard[2].username }}</text>
-          <text class="podium-school" v-if="leaderboard[2].school">{{ leaderboard[2].school }}</text>
-          <text class="podium-stats">{{ leaderboard[2].check_in_days }}天 · {{ leaderboard[2].total_exercises }}题</text>
-        </view>
+      <!-- 榜单描述 -->
+      <view class="leaderboard-desc">
+        <text class="desc-text">{{ getCurrentTabDesc() }}</text>
       </view>
 
       <!-- 排行榜列表 -->
@@ -94,13 +74,17 @@
           </view>
 
           <view class="user-stats">
-            <view class="stat-item">
+            <view class="stat-item" v-if="activeTab === 'veteran'">
               <text class="stat-icon">📅</text>
               <text class="stat-value">{{ user.check_in_days }}天</text>
             </view>
-            <view class="stat-item">
+            <view class="stat-item" v-else-if="activeTab === 'exercise'">
               <text class="stat-icon">📝</text>
               <text class="stat-value">{{ user.total_exercises }}题</text>
+            </view>
+            <view class="stat-item" v-else-if="activeTab === 'streak'">
+              <text class="stat-icon">🔥</text>
+              <text class="stat-value">{{ user.consecutive_days }}天</text>
             </view>
           </view>
         </view>
@@ -130,11 +114,17 @@ export default {
   data() {
     return {
       tabs: [
+        { value: 'veteran', label: '老资历榜', desc: '累计练习天数排行\n积极出勤才能成为老资历噢！' },
+        { value: 'exercise', label: '数值怪榜', desc: '累计练习题数排行\n增加数值的最佳手段肯定还是打副本啦！' },
+        { value: 'streak', label: '焊武帝榜', desc: '连续练习天数排行\n我就焊死在这儿不走啦！' }
+      ],
+      activeTab: 'veteran',
+      timeRanges: [
         { value: 'week', label: '周榜' },
         { value: 'month', label: '月榜' },
         { value: 'all', label: '总榜' }
       ],
-      activeTab: 'week',
+      activeTimeRange: 'week',
       leaderboard: [],
       refreshing: false,
       currentUser: null
@@ -150,8 +140,17 @@ export default {
     this.loadLeaderboard()
   },
   methods: {
+    getCurrentTabDesc() {
+      const tab = this.tabs.find(t => t.value === this.activeTab)
+      return tab ? tab.desc : ''
+    },
     switchTab(tab) {
       this.activeTab = tab
+      this.activeTimeRange = 'week' // 切换tab时重置为周榜
+      this.loadLeaderboard()
+    },
+    switchTimeRange(range) {
+      this.activeTimeRange = range
       this.loadLeaderboard()
     },
     async loadLeaderboard() {
@@ -159,7 +158,7 @@ export default {
       showLoading('加载中...')
 
       try {
-        const res = await api.getLeaderboard(this.activeTab)
+        const res = await api.getLeaderboard(this.activeTab, this.activeTimeRange)
         hideLoading()
         this.refreshing = false
 
@@ -308,152 +307,64 @@ export default {
   100% { opacity: 1; }
 }
 
+/* 时间范围切换 */
+.time-range-container {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  margin: 0 40rpx 30rpx;
+  border-radius: 25rpx;
+  padding: 8rpx;
+  display: flex;
+  box-shadow: 0 15rpx 30rpx rgba(0, 0, 0, 0.1);
+  border: 1rpx solid rgba(255, 255, 255, 0.2);
+}
+
+.range-item {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx;
+  font-size: 28rpx;
+  color: #666;
+  border-radius: 20rpx;
+  position: relative;
+  transition: all 0.3s ease;
+  z-index: 1;
+  line-height: 1;
+}
+
+.range-item.active {
+  color: #fff;
+  font-weight: bold;
+  background: #8B0012;
+}
+
+.range-item:active {
+  transform: scale(0.95);
+}
+
+.range-text {
+  display: block;
+}
+
 .leaderboard-content {
   padding: 0 20rpx 120rpx;
 }
 
-/* 前三名奖台 */
-.podium {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 15rpx;
-  margin-bottom: 40rpx;
-  padding: 0 20rpx;
-  max-width: 720rpx;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.podium-item {
-  flex: none;
-  width: 190rpx;
+/* 榜单描述 */
+.leaderboard-desc {
   text-align: center;
+  padding: 20rpx 40rpx;
+  margin: 0 20rpx 30rpx;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   border-radius: 20rpx;
-  padding: 30rpx 20rpx;
-  box-shadow: 0 15rpx 30rpx rgba(0, 0, 0, 0.1);
-  border: 1rpx solid rgba(255, 255, 255, 0.2);
-  position: relative;
-  min-height: 320rpx;
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.08);
 }
 
-.podium-item.first {
-  order: 2;
-  margin-bottom: -20rpx;
-  z-index: 3;
-  width: 220rpx;
-}
-
-.podium-item.second {
-  order: 1;
-  margin-bottom: -10rpx;
-  z-index: 2;
-  width: 180rpx;
-}
-
-.podium-item.third {
-  order: 3;
-  margin-bottom: -10rpx;
-  z-index: 2;
-  width: 180rpx;
-}
-
-.podium-avatar {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 50%;
-  background: #f6d365;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 15rpx;
-  font-size: 36rpx;
-  font-weight: bold;
-  color: #fff;
-  position: relative;
-  overflow: hidden;
-}
-
-.podium-item.first .podium-avatar {
-  background: #ffd700;
-  width: 120rpx;
-  height: 120rpx;
-  font-size: 42rpx;
-}
-
-.podium-item.second .podium-avatar {
-  background: #c0c0c0;
-}
-
-.podium-item.third .podium-avatar {
-  background: #cd7f32;
-}
-
-.champion {
-  background: #ffd700;
-}
-
-.avatar-image {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-}
-
-.crown {
-  position: absolute;
-  top: -10rpx;
-  right: -10rpx;
-  font-size: 24rpx;
-  animation: crownGlow 2s ease-in-out infinite;
-}
-
-@keyframes crownGlow {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-}
-
-.podium-medal {
-  font-size: 48rpx;
-  margin-bottom: 10rpx;
-}
-
-.podium-name {
-  display: block;
-  font-size: 30rpx;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 5rpx;
-  max-width: 180rpx;
-  margin-left: auto;
-  margin-right: auto;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.podium-item.first .podium-name {
-  max-width: 200rpx;
-  font-size: 32rpx;
-}
-
-.podium-item.second .podium-name,
-.podium-item.third .podium-name {
-  max-width: 170rpx;
-}
-
-.podium-school {
-  display: block;
-  font-size: 22rpx;
+.desc-text {
+  font-size: 26rpx;
   color: #666;
-  margin-bottom: 10rpx;
-}
-
-.podium-stats {
-  display: block;
-  font-size: 20rpx;
-  color: #999;
+  line-height: 1.5;
 }
 
 /* 排行榜列表 */
@@ -537,6 +448,18 @@ export default {
   overflow: hidden;
 }
 
+.user-avatar .avatar-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.user-avatar .avatar-text {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #fff;
+}
+
 .user-info {
   flex: 1;
   min-width: 0;
@@ -584,7 +507,7 @@ export default {
   gap: 5rpx;
   margin-right: 20rpx;
   flex-shrink: 0;
-  width: 170rpx;
+  width: 120rpx;
   margin-left: auto;
   align-items: flex-end;
   text-align: right;
@@ -597,12 +520,13 @@ export default {
 }
 
 .stat-icon {
-  font-size: 20rpx;
+  font-size: 24rpx;
 }
 
 .stat-value {
-  font-size: 22rpx;
-  color: #666;
+  font-size: 26rpx;
+  font-weight: bold;
+  color: #8B0012;
 }
 
 /* 空状态 */

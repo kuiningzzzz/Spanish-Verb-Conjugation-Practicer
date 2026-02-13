@@ -59,7 +59,7 @@
                   class="btn-small btn-study" 
                   @click.stop="startLessonPractice(lesson)"
                 >
-                  {{ lesson.isCompleted ? '继续练习' : '开始练习' }}
+                  {{ lesson.isCompleted ? '再次练习' : '开始练习' }}
                 </button>
                 <button 
                   class="btn-small btn-review" 

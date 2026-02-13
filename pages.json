@@ -97,6 +97,30 @@
       "style": {
         "navigationBarTitleText": "系统公告"
       }
+    },
+    {
+      "path": "pages/friends/friends",
+      "style": {
+        "navigationBarTitleText": "好友"
+      }
+    },
+    {
+      "path": "pages/friends/add-friend",
+      "style": {
+        "navigationBarTitleText": "添加好友"
+      }
+    },
+    {
+      "path": "pages/friends/requests",
+      "style": {
+        "navigationBarTitleText": "好友申请"
+      }
+    },
+    {
+      "path": "pages/friends/friend-card",
+      "style": {
+        "navigationBarTitleText": "好友信息"
+      }
     }
   ],
   "globalStyle": {

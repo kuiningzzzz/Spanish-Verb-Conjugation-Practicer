@@ -66,73 +66,83 @@
 
     <!-- 收藏列表 -->
     <view v-if="activeTab === 'favorite'" class="word-list">
-      <view v-if="favoriteList.length === 0" class="empty-placeholder">
+      <view v-if="listLoadFailed" class="empty-placeholder load-failed-placeholder">
+        <text class="load-failed-text">加载失败，请检查您的网络连接</text>
+      </view>
+      <view v-else-if="favoriteList.length === 0" class="empty-placeholder">
         <text class="empty-icon">📚</text>
         <text class="empty-text">还没有收藏单词</text>
         <text class="empty-hint">在练习时点击星标收藏</text>
       </view>
 
-      <view
-        v-for="item in favoriteList"
-        :key="item.id"
-        class="word-item card"
-      >
-        <view class="word-header">
-          <view class="word-main">
-            <text class="word-infinitive">{{ formatInfinitive(item) }}</text>
-            <text class="word-meaning">{{ item.meaning }}</text>
-            <view class="word-badges">
-              <view class="word-tag">{{ item.conjugationType }}</view>
-              <view v-if="item.isReflexive" class="word-tag reflexive">Prnl.</view>
-              <view v-if="item.isIrregular" class="word-tag irregular">Irreg.</view>
+      <template v-else>
+        <view
+          v-for="item in favoriteList"
+          :key="item.id"
+          class="word-item card"
+        >
+          <view class="word-header">
+            <view class="word-main">
+              <text class="word-infinitive">{{ formatInfinitive(item) }}</text>
+              <text class="word-meaning">{{ item.meaning }}</text>
+              <view class="word-badges">
+                <view class="word-tag">{{ item.conjugationType }}</view>
+                <view v-if="item.isReflexive" class="word-tag reflexive">Prnl.</view>
+                <view v-if="item.isIrregular" class="word-tag irregular">Irreg.</view>
+              </view>
+            </view>
+          </view>
+          <view class="word-meta">
+            <text class="meta-item">收藏于 {{ formatDate(item.created_at) }}</text>
+            <view class="word-actions">
+              <text class="detail-btn" @click="viewConjugations(item.verb_id)">查看全变位</text>
+              <text class="remove-btn" @click="removeFavorite(item.verb_id)">删除</text>
             </view>
           </view>
         </view>
-        <view class="word-meta">
-          <text class="meta-item">收藏于 {{ formatDate(item.created_at) }}</text>
-          <view class="word-actions">
-            <text class="detail-btn" @click="viewConjugations(item.verb_id)">查看全变位</text>
-            <text class="remove-btn" @click="removeFavorite(item.verb_id)">删除</text>
-          </view>
-        </view>
-      </view>
+      </template>
     </view>
 
     <!-- 错题列表 -->
     <view v-if="activeTab === 'wrong'" class="word-list">
-      <view v-if="wrongList.length === 0" class="empty-placeholder">
+      <view v-if="listLoadFailed" class="empty-placeholder load-failed-placeholder">
+        <text class="load-failed-text">加载失败，请检查您的网络连接</text>
+      </view>
+      <view v-else-if="wrongList.length === 0" class="empty-placeholder">
         <text class="empty-icon">✅</text>
         <text class="empty-text">还没有错题记录</text>
         <text class="empty-hint">继续加油！</text>
       </view>
 
-      <view 
-        v-for="item in wrongList" 
-        :key="item.id" 
-        class="word-item card"
-      >
-        <view class="word-header">
-          <view class="word-main">
-            <text class="word-infinitive">{{ formatInfinitive(item) }}</text>
-            <text class="word-meaning">{{ item.meaning }}</text>
-            <view class="word-badges">
-              <view class="word-tag">{{ item.conjugationType }}</view>
-              <view v-if="item.isReflexive" class="word-tag reflexive">Prnl.</view>
-              <view v-if="item.isIrregular" class="word-tag irregular">Irreg.</view>
+      <template v-else>
+        <view 
+          v-for="item in wrongList" 
+          :key="item.id" 
+          class="word-item card"
+        >
+          <view class="word-header">
+            <view class="word-main">
+              <text class="word-infinitive">{{ formatInfinitive(item) }}</text>
+              <text class="word-meaning">{{ item.meaning }}</text>
+              <view class="word-badges">
+                <view class="word-tag">{{ item.conjugationType }}</view>
+                <view v-if="item.isReflexive" class="word-tag reflexive">Prnl.</view>
+                <view v-if="item.isIrregular" class="word-tag irregular">Irreg.</view>
+              </view>
+            </view>
+            <view class="word-header-extra">
+              <view class="wrong-count">错 {{ item.wrong_count }} 次</view>
             </view>
           </view>
-          <view class="word-header-extra">
-            <view class="wrong-count">错 {{ item.wrong_count }} 次</view>
+          <view class="word-meta">
+            <text class="meta-item">最近错误: {{ formatDate(item.last_wrong_at) }}</text>
+            <view class="word-actions">
+              <text class="detail-btn" @click="viewConjugations(item.verb_id)">查看全变位</text>
+              <text class="remove-btn" @click="removeWrong(item.verb_id)">删除</text>
+            </view>
           </view>
         </view>
-        <view class="word-meta">
-          <text class="meta-item">最近错误: {{ formatDate(item.last_wrong_at) }}</text>
-          <view class="word-actions">
-            <text class="detail-btn" @click="viewConjugations(item.verb_id)">查看全变位</text>
-            <text class="remove-btn" @click="removeWrong(item.verb_id)">删除</text>
-          </view>
-        </view>
-      </view>
+      </template>
     </view>
   </view>
 </template>
@@ -149,7 +159,8 @@ export default {
       wrongCount: 0,
       questionCount: 0,
       favoriteList: [],
-      wrongList: []
+      wrongList: [],
+      listLoadFailed: false
     }
   },
   onShow() {
@@ -160,14 +171,14 @@ export default {
   methods: {
     async loadStats() {
       try {
-        const res = await api.getVocabularyStats()
+        const res = await api.getVocabularyStats({ silentFailToast: true })
         if (res.success) {
           this.favoriteCount = res.stats.favoriteCount
           this.wrongCount = res.stats.wrongCount
         }
 
         // 加载题目统计
-        const questionRes = await api.getQuestionStats()
+        const questionRes = await api.getQuestionStats({ silentFailToast: true })
         if (questionRes.success) {
           this.questionCount = questionRes.stats.totalCount
         }
@@ -186,8 +197,9 @@ export default {
 
     async loadFavoriteList() {
       try {
+        this.listLoadFailed = false
         showLoading('加载中...')
-        const res = await api.getFavoriteList()
+        const res = await api.getFavoriteList({ silentFailToast: true })
         hideLoading()
         
         if (res.success) {
@@ -195,14 +207,18 @@ export default {
         }
       } catch (error) {
         hideLoading()
+        this.listLoadFailed = true
+        this.favoriteList = []
+        this.wrongList = []
         console.error('加载收藏列表失败:', error)
       }
     },
 
     async loadWrongList() {
       try {
+        this.listLoadFailed = false
         showLoading('加载中...')
-        const res = await api.getWrongList()
+        const res = await api.getWrongList({ silentFailToast: true })
         hideLoading()
         
         if (res.success) {
@@ -210,6 +226,9 @@ export default {
         }
       } catch (error) {
         hideLoading()
+        this.listLoadFailed = true
+        this.favoriteList = []
+        this.wrongList = []
         console.error('加载错题列表失败:', error)
       }
     },
@@ -566,5 +585,19 @@ export default {
   display: block;
   font-size: 26rpx;
   color: #999;
+}
+
+.load-failed-placeholder {
+  min-height: 360rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+}
+
+.load-failed-text {
+  font-size: 32rpx;
+  color: #d93025;
+  font-weight: 600;
 }
 </style>

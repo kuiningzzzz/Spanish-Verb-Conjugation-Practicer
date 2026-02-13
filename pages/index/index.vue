@@ -1,12 +1,14 @@
 <template>
   <view class="container">
+    <view v-if="loadFailed" class="network-error-tip">加载失败，请检查您的网络连接</view>
     <view class="header">
       <text class="title">Con-jugamos</text>
       <text class="title">西班牙语动词变位</text>
       <text class="subtitle">每天练习，轻松掌握</text>
       <!-- 公告按钮 -->
       <view class="announcement-btn" @click="goToAnnouncement">
-        <text class="announcement-icon" :class="{ 'ring-animation': hasNewAnnouncement }">📢</text>
+        <text class="announcement-icon">📢</text>
+        <view v-if="hasNewAnnouncement" class="announcement-dot"></view>
       </view>
     </view>
 
@@ -60,6 +62,14 @@
         <text class="quick-icon">📊</text>
         <text class="quick-label">学习统计</text>
       </view>
+      <view class="quick-item" @click="goToFriends">
+        <text class="quick-icon">👥</text>
+        <text class="quick-label">好友</text>
+      </view>
+      <view class="quick-item" @click="goToClass">
+        <text class="quick-icon">🎓</text>
+        <text class="quick-label">班级</text>
+      </view>
     </view>
   </view>
 </template>
@@ -80,7 +90,8 @@ export default {
       streakDays: 0,
       studyDays: 0,
       hasCheckedInToday: false,
-      hasNewAnnouncement: false  // 是否有新公告
+      hasNewAnnouncement: false,  // 是否有新公告
+      loadFailed: false
     }
   },
   onLoad() {
@@ -109,33 +120,36 @@ export default {
       }
     },
     async loadData() {
+      this.loadFailed = false
       try {
         // 获取最新用户信息
         try {
-          const userRes = await api.getUserInfo()
+          const userRes = await api.getUserInfo({ silentFailToast: true })
           if (userRes.success) {
             this.userInfo = userRes.user
             // 更新本地缓存
             uni.setStorageSync('userInfo', userRes.user)
           }
         } catch (error) {
+          if (this.isNetworkError(error)) this.loadFailed = true
           console.error('获取用户信息失败:', error)
         }
 
         // 获取统计数据
         try {
-          const statsRes = await api.getStatistics()
+          const statsRes = await api.getStatistics({ silentFailToast: true })
           if (statsRes.success) {
             this.todayStats = statsRes.statistics.today || { total: 0, correct: 0 }
             this.totalStats = statsRes.statistics || {}
           }
         } catch (error) {
+          if (this.isNetworkError(error)) this.loadFailed = true
           console.error('获取统计数据失败:', error)
         }
 
         // 获取打卡信息
         try {
-          const checkInRes = await api.getCheckInHistory()
+          const checkInRes = await api.getCheckInHistory({ silentFailToast: true })
           console.log('📅 打卡信息返回:', checkInRes)
           if (checkInRes.success) {
             // 使用类型检查，避免0被误判为falsy
@@ -146,6 +160,7 @@ export default {
             console.error('❌ 获取打卡信息失败:', checkInRes)
           }
         } catch (error) {
+          if (this.isNetworkError(error)) this.loadFailed = true
           console.error('获取打卡信息异常:', error)
         }
 
@@ -191,8 +206,12 @@ export default {
           this.studyDays = 1
         }
       } catch (error) {
+        if (this.isNetworkError(error)) this.loadFailed = true
         console.error('加载数据失败:', error)
       }
+    },
+    isNetworkError(error) {
+      return Boolean(error && typeof error.errMsg === 'string' && error.errMsg.includes('request:fail'))
     },
     startPractice() {
       uni.navigateTo({
@@ -233,17 +252,27 @@ export default {
       })
     },
     goToAnnouncement() {
-      // 进入公告页面前，先获取当前公告列表，标记为已读
-      this.markAnnouncementsAsRead()
       uni.navigateTo({
         url: '/pages/announcement/announcement'
+      })
+    },
+    goToFriends() {
+      uni.navigateTo({
+        url: '/pages/friends/friends'
+      })
+    },
+    goToClass() {
+      uni.showToast({
+        title: '班级功能正在火热施工中！',
+        icon: 'none',
+        duration: 2000
       })
     },
     
     // 检查是否有新公告
     async checkNewAnnouncements() {
       try {
-        const res = await api.getAnnouncements()
+        const res = await api.getAnnouncements({ silentFailToast: true })
         if (res.success && res.data) {
           const currentIds = res.data.map(a => a.id)
           const readIds = uni.getStorageSync('readAnnouncementIds') || []
@@ -259,21 +288,8 @@ export default {
           }
         }
       } catch (error) {
+        if (this.isNetworkError(error)) this.loadFailed = true
         console.error('检查新公告失败:', error)
-      }
-    },
-    
-    // 标记当前所有公告为已读
-    async markAnnouncementsAsRead() {
-      try {
-        const res = await api.getAnnouncements()
-        if (res.success && res.data) {
-          const currentIds = res.data.map(a => a.id)
-          uni.setStorageSync('readAnnouncementIds', currentIds)
-          this.hasNewAnnouncement = false
-        }
-      } catch (error) {
-        console.error('标记公告已读失败:', error)
       }
     }
   }
@@ -281,6 +297,14 @@ export default {
 </script>
 
 <style scoped>
+.network-error-tip {
+  text-align: center;
+  color: #d93025;
+  font-size: 28rpx;
+  font-weight: 600;
+  padding-top: 12rpx;
+}
+
 .header {
   text-align: center;
   padding: 60rpx 0 40rpx;
@@ -326,24 +350,14 @@ export default {
   font-size: 36rpx;
 }
 
-/* 只有当有ring-animation class时才播放动画 */
-.ring-animation {
-  animation: ring 2s ease-in-out infinite;
-}
-
-@keyframes ring {
-  0%, 100% {
-    transform: rotate(0deg);
-  }
-  10%, 30% {
-    transform: rotate(-10deg);
-  }
-  20%, 40% {
-    transform: rotate(10deg);
-  }
-  50% {
-    transform: rotate(0deg);
-  }
+.announcement-dot {
+  position: absolute;
+  top: 4rpx;
+  right: 4rpx;
+  width: 14rpx;
+  height: 14rpx;
+  background: #FF0000;
+  border-radius: 50%;
 }
 
 .welcome-card {
@@ -433,16 +447,19 @@ export default {
 
 .quick-access {
   display: flex;
-  gap: 20rpx;
+  flex-wrap: wrap;
+  justify-content: space-between;
 }
 
 .quick-item {
-  flex: 1;
+  width: 49%;
   background: #fff;
   border-radius: 16rpx;
   padding: 30rpx;
   text-align: center;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+  margin-bottom: 20rpx;
+  box-sizing: border-box;
 }
 
 .quick-icon {

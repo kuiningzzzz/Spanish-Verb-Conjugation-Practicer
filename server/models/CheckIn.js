@@ -149,7 +149,123 @@ class CheckIn {
     return result ? result.rank : 0
   }
 
-  // 获取打卡排行榜
+  // 老资历榜：按总签到天数排名（不考虑题目数）
+  static getVeteranLeaderboard(limit = 50, timeRange = 'all') {
+    let dateFilter = ''
+    
+    switch(timeRange) {
+      case 'week':
+        dateFilter = "AND c.check_in_date >= DATE('now', 'localtime', '-7 days')"
+        break
+      case 'month':
+        dateFilter = "AND c.check_in_date >= DATE('now', 'localtime', '-30 days')"
+        break
+      case 'all':
+      default:
+        dateFilter = ''
+    }
+    
+    const stmt = db.prepare(`
+      SELECT 
+        u.id,
+        u.username,
+        u.school,
+        u.avatar,
+        COUNT(DISTINCT c.check_in_date) as check_in_days,
+        SUM(c.exercise_count) as total_exercises,
+        SUM(c.correct_count) as total_correct
+      FROM users u
+      JOIN check_ins c ON u.id = c.user_id
+      WHERE u.participate_in_leaderboard = 1 ${dateFilter}
+      GROUP BY u.id
+      ORDER BY check_in_days DESC
+      LIMIT ?
+    `)
+    
+    return stmt.all(limit)
+  }
+
+  // 数值怪榜：按总题目数排名（不考虑天数）
+  static getExerciseLeaderboard(limit = 50, timeRange = 'all') {
+    let dateFilter = ''
+    
+    switch(timeRange) {
+      case 'week':
+        dateFilter = "AND c.check_in_date >= DATE('now', 'localtime', '-7 days')"
+        break
+      case 'month':
+        dateFilter = "AND c.check_in_date >= DATE('now', 'localtime', '-30 days')"
+        break
+      case 'all':
+      default:
+        dateFilter = ''
+    }
+    
+    const stmt = db.prepare(`
+      SELECT 
+        u.id,
+        u.username,
+        u.school,
+        u.avatar,
+        COUNT(DISTINCT c.check_in_date) as check_in_days,
+        SUM(c.exercise_count) as total_exercises,
+        SUM(c.correct_count) as total_correct
+      FROM users u
+      JOIN check_ins c ON u.id = c.user_id
+      WHERE u.participate_in_leaderboard = 1 ${dateFilter}
+      GROUP BY u.id
+      ORDER BY total_exercises DESC
+      LIMIT ?
+    `)
+    
+    return stmt.all(limit)
+  }
+
+  // 焊武帝榜：按连续签到天数排名
+  static getStreakLeaderboard(limit = 50) {
+    // 获取所有参与排行榜的用户
+    const usersStmt = db.prepare(`
+      SELECT id, username, school, avatar
+      FROM users
+      WHERE participate_in_leaderboard = 1
+    `)
+    const users = usersStmt.all()
+
+    // 计算每个用户的连续签到天数
+    const leaderboard = users.map(user => {
+      const streakDays = this.getStreakDays(user.id)
+      const totalDays = this.getTotalStudyDays(user.id)
+      
+      // 获取总题目数
+      const statsStmt = db.prepare(`
+        SELECT 
+          SUM(exercise_count) as total_exercises,
+          SUM(correct_count) as total_correct
+        FROM check_ins
+        WHERE user_id = ?
+      `)
+      const stats = statsStmt.get(user.id)
+
+      return {
+        id: user.id,
+        username: user.username,
+        school: user.school,
+        avatar: user.avatar,
+        consecutive_days: streakDays,
+        check_in_days: totalDays,
+        total_exercises: stats?.total_exercises || 0,
+        total_correct: stats?.total_correct || 0
+      }
+    })
+
+    // 只保留连续天数大于0的用户，并按连续天数降序排序
+    return leaderboard
+      .filter(user => user.consecutive_days > 0)
+      .sort((a, b) => b.consecutive_days - a.consecutive_days)
+      .slice(0, limit)
+  }
+
+  // 获取打卡排行榜（保留旧接口以兼容）
   static getLeaderboard(type = 'month', limit = 50) {
     let dateFilter = ''
     

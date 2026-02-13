@@ -1,13 +1,17 @@
-# 使用Node.js 22.14.0官方镜像作为基础镜像
-FROM node:22.14.0-alpine
+# 使用 Alpine 基础镜像并安装 Node.js
+FROM alpine:3.19
 
 # 设置工作目录
 WORKDIR /app
 
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+# 更换为阿里云镜像源并安装 Node.js 和依赖
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
+    apk add --no-cache nodejs npm python3 make g++ tzdata
 
-# 安装better-sqlite3所需的构建依赖
-RUN apk add --no-cache python3 make g++
+# 设置时区为上海
+ENV TZ=Asia/Shanghai
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone
 
 # 复制package.json（项目根目录的）
 COPY package.json ./

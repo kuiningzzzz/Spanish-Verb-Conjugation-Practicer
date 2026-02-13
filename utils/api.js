@@ -45,11 +45,13 @@ const request = (options) => {
       },
       fail: (err) => {
         console.error('API请求失败:', err)
-        uni.showToast({
-          title: '网络请求失败: ' + (err.errMsg || '未知错误'),
-          icon: 'none',
-          duration: 3000
-        })
+        if (!options.silentFailToast) {
+          uni.showToast({
+            title: '网络请求失败: ' + (err.errMsg || '未知错误'),
+            icon: 'none',
+            duration: 3000
+          })
+        }
         reject(err)
       }
     })
@@ -64,7 +66,7 @@ export default {
   register: (data) => request({ url: '/user/register', method: 'POST', data }),
   login: (data) => request({ url: '/user/login', method: 'POST', data }),
   loginWithEmailCode: (data) => request({ url: '/user/login/email-code', method: 'POST', data }),
-  getUserInfo: () => request({ url: '/user/info' }),
+  getUserInfo: (requestOptions = {}) => request({ url: '/user/info', ...requestOptions }),
   checkUsername: (data) => request({ url: '/user/check-username', method: 'POST', data }),
   updateProfile: (data) => request({ url: '/user/profile', method: 'PUT', data }),
   uploadAvatar: (data) => request({ url: '/user/avatar', method: 'POST', data }),
@@ -84,36 +86,37 @@ export default {
 
   // 学习记录
   getStudyRecords: (params) => request({ url: '/record/list', data: params }),
-  getStatistics: () => request({ url: '/record/statistics' }),
+  getStatistics: (requestOptions = {}) => request({ url: '/record/statistics', ...requestOptions }),
+  getStudyTrend: (type) => request({ url: `/record/trend/${type}` }),
 
   // 打卡
   checkIn: () => request({ url: '/checkin', method: 'POST' }),
-  getCheckInHistory: () => request({ url: '/checkin/history' }),
-  getUserRank: () => request({ url: '/checkin/rank' }),
+  getCheckInHistory: (requestOptions = {}) => request({ url: '/checkin/history', ...requestOptions }),
+  getUserRank: (requestOptions = {}) => request({ url: '/checkin/rank', ...requestOptions }),
 
   // 排行榜
-  getLeaderboard: (type) => request({ url: `/leaderboard/${type}` }),
+  getLeaderboard: (type, timeRange = 'all') => request({ url: `/leaderboard/${type}`, data: { range: timeRange } }),
 
   // 单词本相关
-  getVocabularyStats: () => request({ url: '/vocabulary/stats' }),
+  getVocabularyStats: (requestOptions = {}) => request({ url: '/vocabulary/stats', ...requestOptions }),
   searchVerbs: (keyword) => request({ url: `/verb/search/${keyword}` }),
 
   // 收藏
   addFavorite: (data) => request({ url: '/vocabulary/favorite/add', method: 'POST', data }),
   removeFavorite: (data) => request({ url: '/vocabulary/favorite/remove', method: 'POST', data }),
   checkFavorite: (verbId) => request({ url: `/vocabulary/favorite/check/${verbId}` }),
-  getFavoriteList: () => request({ url: '/vocabulary/favorite/list' }),
+  getFavoriteList: (requestOptions = {}) => request({ url: '/vocabulary/favorite/list', ...requestOptions }),
 
   // 错题
   addWrongVerb: (data) => request({ url: '/vocabulary/wrong/add', method: 'POST', data }),
   removeWrongVerb: (data) => request({ url: '/vocabulary/wrong/remove', method: 'POST', data }),
-  getWrongList: () => request({ url: '/vocabulary/wrong/list' }),
+  getWrongList: (requestOptions = {}) => request({ url: '/vocabulary/wrong/list', ...requestOptions }),
 
   // 题库相关
   favoriteQuestion: (data) => request({ url: '/question/favorite', method: 'POST', data }),
   unfavoriteQuestion: (data) => request({ url: '/question/unfavorite', method: 'POST', data }),
   getMyQuestions: (params) => request({ url: '/question/my-questions', data: params }),
-  getQuestionStats: () => request({ url: '/question/stats' }),
+  getQuestionStats: (requestOptions = {}) => request({ url: '/question/stats', ...requestOptions }),
   rateQuestion: (data) => request({ url: '/question/rate', method: 'POST', data }),
 
   // 课程相关
@@ -153,6 +156,19 @@ export default {
   }),
 
   // 公告相关
-  getAnnouncements: () => request({ url: '/announcement' }),
-  getAnnouncementById: (id) => request({ url: `/announcement/${id}` })
+  getAnnouncements: (requestOptions = {}) => request({ url: '/announcement', ...requestOptions }),
+  getAnnouncementById: (id) => request({ url: `/announcement/${id}` }),
+
+  // 好友系统相关
+  checkUniqueId: (uniqueId) => request({ url: '/friend/check-unique-id', method: 'POST', data: { uniqueId } }),
+  setUniqueId: (uniqueId) => request({ url: '/friend/set-unique-id', method: 'POST', data: { uniqueId } }),
+  searchUsers: (keyword) => request({ url: '/friend/search', data: { keyword } }),
+  sendFriendRequest: (toUserId, message) => request({ url: '/friend/request', method: 'POST', data: { toUserId, message } }),
+  getFriendRequests: () => request({ url: '/friend/requests' }),
+  handleFriendRequest: (requestId, accept) => request({ url: '/friend/handle-request', method: 'POST', data: { requestId, accept } }),
+  getFriendsList: () => request({ url: '/friend/list' }),
+  getFriendDetails: (friendId) => request({ url: `/friend/detail/${friendId}` }),
+  setFriendRemark: (friendId, remark) => request({ url: '/friend/remark', method: 'POST', data: { friendId, remark } }),
+  setFriendStar: (friendId, isStarred) => request({ url: '/friend/star', method: 'POST', data: { friendId, isStarred } }),
+  removeFriend: (friendId) => request({ url: `/friend/${friendId}`, method: 'DELETE' })
 }

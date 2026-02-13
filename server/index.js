@@ -32,6 +32,14 @@ app.use(apiLogger)
 // 初始化数据库
 initDatabase()
 
+// 运行数据库迁移
+try {
+  const runMigrations = require('./database/migrations')
+  runMigrations()
+} catch (error) {
+  console.log('\x1b[33m   ⚠ 数据库迁移失败:\x1b[0m', error.message)
+}
+
 // 检查是否需要初始化示例数据
 try {
   initSampleData()
@@ -69,6 +77,7 @@ app.use('/api/feedback', require('./routes/feedback'))  // 用户反馈路由
 app.use('/api/question-feedback', require('./routes/questionFeedback'))  // 题目反馈路由
 app.use('/api/version', require('./routes/version'))  // 版本更新路由
 app.use('/api/announcement', require('./routes/announcement'))  // 公告路由
+app.use('/api/friend', require('./routes/friend'))  // 好友系统路由
 app.use('/admin', require('./routes/admin'))
 
 // Prometheus metrics
@@ -111,21 +120,24 @@ const startServer = async () => {
       console.log('\x1b[33m   ⚠ 邮件服务测试失败:\x1b[0m', error.message)
     }
     
-    // 检查 DeepSeek API 配置
+    // 检查出题模型配置
     try {
-      const DeepSeekService = require('./services/deepseek')
-      const config = DeepSeekService.checkConfig()
+      const QuestionGeneratorService = require('./services/traditional_conjugation/questionGenerator')
+      const config = QuestionGeneratorService.checkConfig()
       if (config.configured) {
-        console.log('\n   \x1b[32m✓ DeepSeek API 已配置\x1b[0m')
+        console.log('\n   \x1b[32m✓ 出题模型已配置\x1b[0m')
+        console.log(`     • Provider: ${config.provider}`)
+        console.log(`     • Model: ${config.model}`)
         console.log(`     • API Key: ${config.apiKey}`)
         console.log(`     • API URL: ${config.apiUrl}`)
+        console.log(`     • Prompt Strategy: ${config.promptStrategy} (index=${config.latestPromptIndex})`)
       } else {
-        console.log('\n   \x1b[33m⚠️  DeepSeek API 未配置\x1b[0m')
+        console.log('\n   \x1b[33m⚠️  出题模型未配置\x1b[0m')
         console.log('     AI 生成题目功能将不可用')
-        console.log('     请在 .env 文件中配置 DEEPSEEK_API_KEY')
+        console.log('     请在 .env 文件中配置 EXERCISE_GENERATOR_API_KEY')
       }
     } catch (error) {
-      console.log('\n   \x1b[33m⚠️  DeepSeek 配置检查失败:\x1b[0m', error.message)
+      console.log('\n   \x1b[33m⚠️  出题模型配置检查失败:\x1b[0m', error.message)
     }
   })
 }
