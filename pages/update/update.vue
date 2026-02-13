@@ -136,11 +136,15 @@ export default {
       }
     },
     disableBack() {
-      // 禁用返回键（仅Android）
+      // 禁用返回键（仅Android APP）
       // #ifdef APP-PLUS
       plus.key.addEventListener('backbutton', function(e) {
         // 不做任何操作，阻止返回
       }, false)
+      // #endif
+      
+      // #ifdef MP-WEIXIN
+      // 小程序中无需禁用返回，微信会自动处理
       // #endif
     },
     hasSkippedCurrentVersion() {
@@ -200,6 +204,15 @@ export default {
       return `${currentSize.toFixed(1)} ${units[index]}`
     },
     startDownload() {
+      // #ifdef MP-WEIXIN
+      uni.showModal({
+        title: '提示',
+        content: '小程序版本由微信自动更新，无需手动下载安装。如需使用最新功能，请退出小程序后重新进入。',
+        showCancel: false
+      })
+      return
+      // #endif
+      
       if (!this.updateInfo.packageUrl || this.downloading) return
       
       // 检查packageUrl是否完整

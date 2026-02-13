@@ -98,13 +98,13 @@
                 :key="`${tense.tense}-${conj.person}-${index}`" 
               >
                 <!-- vos人称前添加分隔标签 -->
-                <view v-if="isVosPerson(conj.person)" class="vos-divider">
+                <view v-if="conj.isVos" class="vos-divider">
                   <view class="divider-line"></view>
                   <text class="divider-text">特殊变位</text>
                   <view class="divider-line"></view>
                 </view>
                 
-                <view :class="['conjugation-row', isVosPerson(conj.person) ? 'vos-row' : '']">
+                <view :class="['conjugation-row', conj.isVos ? 'vos-row' : '']">
                   <view class="person-label">{{ getPersonLabel(conj.person) }}</view>
                   <view class="conjugated-form">{{ conj.conjugated_form }}</view>
                 </view>
@@ -211,10 +211,14 @@ export default {
         // 检查是否已存在该人称
         const existingConj = groups[moodKey].tenses[tenseKey].conjugations.find(c => c.person === conj.person)
         if (existingConj) {
-          // 合并多个变位形式，用 / 分隔
+          // 合并多个变位形式,用 / 分隔
           existingConj.conjugated_form += ' / ' + conj.conjugated_form
         } else {
-          groups[moodKey].tenses[tenseKey].conjugations.push(conj)
+          // 预处理isVosPerson的结果
+          groups[moodKey].tenses[tenseKey].conjugations.push({
+            ...conj,
+            isVos: conj.person === 'vos'
+          })
         }
       })
       

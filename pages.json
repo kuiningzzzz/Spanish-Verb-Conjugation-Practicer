@@ -134,7 +134,6 @@
     "selectedColor": "#8B0012",
     "borderStyle": "white",
     "backgroundColor": "#ffffff",
-    "fontSize": "14px",
     "list": [
       {
         "pagePath": "pages/index/index",

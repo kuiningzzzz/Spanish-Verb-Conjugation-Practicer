@@ -17,6 +17,7 @@ export default {
       await this.checkForUpdates()
     },
     async checkForUpdates() {
+      // #ifdef APP-PLUS
       try {
         console.log('检查应用版本更新...')
         const baseInfo = uni.getAppBaseInfo ? uni.getAppBaseInfo() : {}
@@ -34,6 +35,35 @@ export default {
       } catch (error) {
         console.error('版本检查失败:', error)
       }
+      // #endif
+      
+      // #ifdef MP-WEIXIN
+      // 小程序使用微信内置的更新机制
+      try {
+        const updateManager = uni.getUpdateManager()
+        updateManager.onCheckForUpdate((res) => {
+          if (res.hasUpdate) {
+            console.log('小程序有新版本')
+          }
+        })
+        updateManager.onUpdateReady(() => {
+          uni.showModal({
+            title: '更新提示',
+            content: '新版本已经准备好，是否重启应用？',
+            success: (res) => {
+              if (res.confirm) {
+                updateManager.applyUpdate()
+              }
+            }
+          })
+        })
+        updateManager.onUpdateFailed(() => {
+          console.log('新版本下载失败')
+        })
+      } catch (error) {
+        console.error('小程序版本检查失败:', error)
+      }
+      // #endif
     }
   }
 }
