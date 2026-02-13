@@ -381,7 +381,13 @@
     </view>
 
     <!-- 配置面板 -->
-    <view class="settings-card card" v-if="!hasStarted">
+    <view
+      class="settings-card card"
+      v-if="!hasStarted"
+      @touchstart="handleExerciseTypeSwipeStart"
+      @touchend="handleExerciseTypeSwipeEnd"
+      @touchcancel="resetExerciseTypeSwipeState"
+    >
       <!-- 课程模式提示 -->
       <view v-if="isCourseMode" class="course-mode-tip">
         <text class="tip-icon">{{ isRollingReview ? '🔄' : '📚' }}</text>
@@ -416,32 +422,25 @@
         </view>
       </view>
 
-      <view v-if="exerciseType === 'sentence'" class="form-item theme-practice-item">
-        <view class="theme-header" @click="!isCourseMode && toggleSentenceModeSettings()">
-          <view class="theme-header-left">
-            <text class="label theme-label">模式选择</text>
+      <view v-if="exerciseType === 'sentence'" class="form-item theme-practice-item sentence-mode-practice-item">
+        <view class="sentence-mode-header">
+          <view class="sentence-mode-header-left">
+            <text class="label theme-label sentence-mode-title">模式选择：</text>
             <view class="mode-info-button" @click.stop="openSentenceModeInfoModal">
               <text class="mode-info-button-text">i</text>
             </view>
-            <text v-if="isCourseMode" class="locked-badge">🔒 已锁定</text>
           </view>
-          <view class="theme-header-right">
-            <text class="mode-current-text">当前模式：{{ currentSentenceModeLabel }}</text>
-            <text v-if="!isCourseMode" class="expand-icon">{{ sentenceModeSettingsExpanded ? '▲' : '▼' }}</text>
-          </view>
+          <text v-if="isCourseMode" class="locked-badge sentence-mode-locked">🔒 已锁定</text>
         </view>
-
-        <view class="theme-details" v-show="sentenceModeSettingsExpanded || isCourseMode">
-          <view class="sentence-mode-list">
-            <view
-              v-for="mode in sentenceModeOptions"
-              :key="mode.value"
-              :class="['sentence-mode-item', selectedSentenceMode === mode.value ? 'active' : '', isCourseMode ? 'disabled' : '']"
-              @click="!isCourseMode && selectSentenceMode(mode.value)"
-            >
-              <text class="sentence-mode-check">{{ selectedSentenceMode === mode.value ? '◉' : '○' }}</text>
-              <text class="sentence-mode-label">{{ mode.label }}</text>
-            </view>
+        <view class="exercise-type-navbar sentence-mode-navbar" :class="{ 'disabled': isCourseMode }">
+          <view
+            v-for="mode in sentenceModeOptions"
+            :key="mode.value"
+            class="navbar-item sentence-mode-navbar-item"
+            :class="{ active: selectedSentenceMode === mode.value, disabled: isCourseMode }"
+            @click="!isCourseMode && selectSentenceMode(mode.value)"
+          >
+            <text class="navbar-item-text sentence-mode-navbar-item-text">{{ mode.label }}</text>
           </view>
         </view>
       </view>
@@ -604,6 +603,7 @@
         <button class="btn-primary mt-20" @click="closeSentenceModeInfoModal">我知道了</button>
       </view>
     </view>
+
   </view>
   <InAppKeyboardHost
     @height-change="onImeHeightChange"
@@ -640,6 +640,9 @@ export default {
       imeLift: 0,
       focusedInputId: '',
       focusedComboIndex: null,
+      exerciseTypeSwipeStartX: 0,
+      exerciseTypeSwipeStartY: 0,
+      isExerciseTypeSwipeTracking: false,
       statusBarHeight: 0, // 状态栏高度
       hasStarted: false,
       exerciseTypes: [
@@ -738,7 +741,6 @@ export default {
       reduceRareTenseFrequency: true, // 是否减少罕见时态出现
       
       // 专项练习折叠状态
-      sentenceModeSettingsExpanded: false, // 例句填空模式设置折叠
       themeSettingsExpanded: false,  // 默认折叠
       otherSettingsExpanded: false, // 其他选项默认折叠
       
@@ -943,9 +945,6 @@ export default {
       canSkipCurrent() {
         return this.hasStarted && this.currentExercise && !this.showFeedback
       },
-      currentSentenceModeLabel() {
-        return this.sentenceModeOptions.find((mode) => mode.value === this.selectedSentenceMode)?.label || ''
-      },
       currentExerciseModeInfo() {
         return this.exerciseModeDescriptions.find((mode) => mode.value === this.exerciseType) || {
           label: '',
@@ -1077,6 +1076,58 @@ export default {
       this.exerciseType = this.exerciseTypes[index].value
     },
 
+    handleExerciseTypeSwipeStart(e) {
+      if (this.isCourseMode || !Array.isArray(this.exerciseTypes) || this.exerciseTypes.length <= 1) return
+      const touch = e && e.touches && e.touches[0]
+      if (!touch) return
+      this.exerciseTypeSwipeStartX = touch.clientX
+      this.exerciseTypeSwipeStartY = touch.clientY
+      this.isExerciseTypeSwipeTracking = true
+    },
+
+    handleExerciseTypeSwipeEnd(e) {
+      if (this.isCourseMode || !Array.isArray(this.exerciseTypes) || this.exerciseTypes.length <= 1) {
+        this.resetExerciseTypeSwipeState()
+        return
+      }
+      if (!this.isExerciseTypeSwipeTracking) return
+      const touch = e && e.changedTouches && e.changedTouches[0]
+      if (!touch) {
+        this.resetExerciseTypeSwipeState()
+        return
+      }
+
+      const deltaX = touch.clientX - this.exerciseTypeSwipeStartX
+      const deltaY = touch.clientY - this.exerciseTypeSwipeStartY
+      const absX = Math.abs(deltaX)
+      const absY = Math.abs(deltaY)
+      const minSwipeDistance = 60
+
+      if (absX < minSwipeDistance || absX <= absY) {
+        this.resetExerciseTypeSwipeState()
+        return
+      }
+
+      if (deltaX < 0) {
+        this.switchExerciseTypeByStep(1)
+      } else {
+        this.switchExerciseTypeByStep(-1)
+      }
+      this.resetExerciseTypeSwipeState()
+    },
+
+    resetExerciseTypeSwipeState() {
+      this.exerciseTypeSwipeStartX = 0
+      this.exerciseTypeSwipeStartY = 0
+      this.isExerciseTypeSwipeTracking = false
+    },
+
+    switchExerciseTypeByStep(step) {
+      const nextIndex = this.exerciseTypeIndex + step
+      if (nextIndex < 0 || nextIndex >= this.exerciseTypes.length) return
+      this.selectExerciseType(nextIndex)
+    },
+
     openExerciseModeModal() {
       this.showExerciseModeModal = true
     },
@@ -1091,10 +1142,6 @@ export default {
 
     closeSentenceModeInfoModal() {
       this.showSentenceModeInfoModal = false
-    },
-
-    toggleSentenceModeSettings() {
-      this.sentenceModeSettingsExpanded = !this.sentenceModeSettingsExpanded
     },
 
     selectSentenceMode(mode) {
@@ -3302,6 +3349,29 @@ export default {
   color: #8B0012;
 }
 
+.sentence-mode-practice-item {
+  padding-bottom: 18rpx;
+}
+
+.sentence-mode-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+  padding-bottom: 14rpx;
+  border-bottom: 2rpx solid #e0e7ff;
+}
+
+.sentence-mode-header-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.sentence-mode-title {
+  margin-bottom: 0;
+}
+
 .mode-info-button {
   width: 38rpx;
   height: 38rpx;
@@ -3321,46 +3391,21 @@ export default {
   font-weight: 600;
 }
 
-.mode-current-text {
+.sentence-mode-navbar {
+  margin-bottom: 0;
+}
+
+.sentence-mode-navbar-item {
+  padding: 18rpx 8rpx;
+}
+
+.sentence-mode-navbar-item-text {
   font-size: 24rpx;
-  color: #666;
-  margin-right: 16rpx;
-  text-align: right;
 }
 
-.sentence-mode-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-}
-
-.sentence-mode-item {
-  display: flex;
-  align-items: center;
-  padding: 16rpx 18rpx;
-  border-radius: 10rpx;
-  border: 2rpx solid #e9ecef;
-  background: #fff;
-}
-
-.sentence-mode-item.active {
-  border-color: #8B0012;
-  background: #fff8f8;
-}
-
-.sentence-mode-item.disabled {
-  opacity: 0.6;
-}
-
-.sentence-mode-check {
-  font-size: 30rpx;
-  color: #8B0012;
-  margin-right: 10rpx;
-}
-
-.sentence-mode-label {
-  font-size: 25rpx;
-  color: #333;
+.sentence-mode-locked {
+  flex-shrink: 0;
+  margin-left: 12rpx;
 }
 
 .exercise-mode-modal {
