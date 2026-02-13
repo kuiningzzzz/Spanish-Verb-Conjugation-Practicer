@@ -66,7 +66,7 @@ class WrongVerb {
       const verbIds = wrongs.map(w => w.verb_id)
       const placeholders = verbIds.map(() => '?').join(',')
       const verbStmt = vocabularyDb.prepare(`
-        SELECT id, infinitive, meaning, conjugation_type, is_irregular, is_reflexive, gerund, participle, participle_forms
+        SELECT id, infinitive, meaning, conjugation_type, is_irregular, is_reflexive, has_tr_use, has_intr_use, gerund, participle, participle_forms
         FROM verbs WHERE id IN (${placeholders})
       `)
       const verbs = verbStmt.all(...verbIds)
@@ -82,6 +82,8 @@ class WrongVerb {
           w.conjugation_type = verb.conjugation_type
           w.is_irregular = verb.is_irregular
           w.is_reflexive = verb.is_reflexive
+          w.has_tr_use = verb.has_tr_use
+          w.has_intr_use = verb.has_intr_use
           w.gerund = verb.gerund
           w.participle = verb.participle
           w.participle_forms = verb.participle_forms

@@ -9,6 +9,8 @@
             <view class="badge badge-type">{{ verbInfo.conjugationType }}</view>
             <view v-if="verbInfo.isIrregular" class="badge badge-irregular">Irreg.</view>
             <view v-if="verbInfo.isReflexive" class="badge badge-reflexive">Prnl.</view>
+            <view v-if="verbInfo.hasTrUse" class="badge badge-transitive">tr.</view>
+            <view v-if="verbInfo.hasIntrUse" class="badge badge-intransitive">intr.</view>
           </view>
         </view>
         <view class="favorite-icon" @click="toggleFavorite">
@@ -132,6 +134,8 @@ export default {
         conjugationType: '',
         isIrregular: false,
         isReflexive: false,
+        hasTrUse: false,
+        hasIntrUse: false,
         gerund: '',
         participle: '',
         participleForms: []
@@ -567,6 +571,16 @@ export default {
 .badge-reflexive {
   background-color: #f3e5f5;
   color: #7b1fa2;
+}
+
+.badge-transitive {
+  background-color: #e8f4ff;
+  color: #1e88e5;
+}
+
+.badge-intransitive {
+  background-color: #e8f5e9;
+  color: #43a047;
 }
 
 .verb-meaning {
