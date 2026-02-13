@@ -4,7 +4,11 @@ function normalizeApiBase(base) {
   const fallback = '/admin';
   if (!base) return fallback;
   const trimmed = base.replace(/\/$/, '');
-  return trimmed.endsWith('/admin') ? trimmed : `${trimmed}/admin`;
+  // 如果已经包含 /admin-api 或 /admin 路径，直接返回
+  if (trimmed.endsWith('/admin-api') || trimmed.endsWith('/admin')) {
+    return trimmed;
+  }
+  return `${trimmed}/admin`;
 }
 
 const API_BASE = normalizeApiBase(process.env.VUE_APP_ADMIN_API_BASE_URL);
