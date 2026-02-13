@@ -4,7 +4,7 @@
       <view v-if="popup.visible" class="ime-popup">
         <view
           v-for="(variant, index) in popup.variants"
-          :key="`variant-${index}`"
+          :key="index"
           class="ime-variant"
           :class="{ 'is-highlight': index === popup.highlightIndex }"
           @tap.stop="handleVariantSelect(variant)"
@@ -14,12 +14,22 @@
       </view>
 
       <view class="ime-rows">
-        <view v-for="(row, rowIndex) in rows" :key="`row-${rowIndex}`" class="ime-row">
+        <view v-for="(row, rowIndex) in renderRows" :key="rowIndex" class="ime-row">
           <view
-            v-for="key in row"
-            :key="key.id"
+            v-for="(key, keyIndex) in row"
+            :key="keyIndex"
             class="ime-key"
-            :class="keyClass(key)"
+            :class="{
+              'is-func': key.type === 'FUNC',
+              'is-wide': key.wide,
+              'is-narrow': key.narrow,
+              'is-numsym': key.isNumSym,
+              'is-num': key.isNumber,
+              'is-aux': key.isAux,
+              'is-space': key.isSpace,
+              'is-shift-active': key.action === 'SHIFT' && shiftState !== 'OFF',
+              'is-shift-lock': key.action === 'SHIFT' && shiftState === 'LOCK'
+            }"
             @touchstart.stop="onKeyTouchStart(key)"
             @touchend.stop="onKeyTouchEnd(key)"
             @touchcancel.stop="onKeyTouchCancel"
@@ -48,6 +58,7 @@ export default {
     return {
       visible: false,
       rows: [],
+      renderRows: [],
       shiftState: 'OFF',
       layoutMode: 'alpha',
       longPressTimer: null,
@@ -67,10 +78,25 @@ export default {
     }
   },
   created() {
-    this.rows = getSpanishLayout(this.shiftState)
+    try {
+      const initialRows = getSpanishLayout(this.shiftState)
+      this.rows = initialRows || []
+      this.updateRenderRows()
+    } catch (error) {
+      console.error('[InAppKeyboard] Error loading initial layout:', error)
+      this.rows = []
+      this.updateRenderRows()
+    }
     this.unsubscribeCore = imeCore.subscribe((snapshot) => {
       this.shiftState = snapshot.shiftState
-      this.rows = this.layoutMode === 'alpha' ? getSpanishLayout(this.shiftState) : getNumSymbolLayout()
+      try {
+        this.rows = (this.layoutMode === 'alpha' ? getSpanishLayout(this.shiftState) : getNumSymbolLayout()) || []
+        this.updateRenderRows()
+      } catch (error) {
+        console.error('[InAppKeyboard] Error updating layout:', error)
+        this.rows = []
+        this.updateRenderRows()
+      }
     })
     this.unsubscribeFocus = subscribeActiveTarget((target) => {
       if (!getUseInAppIME()) {
@@ -81,7 +107,14 @@ export default {
         imeCore.attachTarget(target)
         this.visible = true
         this.layoutMode = 'alpha'
-        this.rows = getSpanishLayout(this.shiftState)
+        try {
+          this.rows = getSpanishLayout(this.shiftState) || []
+          this.updateRenderRows()
+        } catch (error) {
+          console.error('[InAppKeyboard] Error in subscribeActiveTarget:', error)
+          this.rows = []
+          this.updateRenderRows()
+        }
         this.$emit('visibility-change', true)
         this.updateKeyboardHeight()
       } else {
@@ -101,18 +134,16 @@ export default {
     this.clearLongPressTimer()
   },
   methods: {
-    keyClass(key) {
-      return {
-        'is-func': key.type === 'FUNC',
-        'is-wide': key.wide,
-        'is-narrow': key.narrow,
-        'is-numsym': key.isNumSym,
-        'is-num': key.isNumber,
-        'is-aux': key.isAux,
-        'is-space': key.isSpace,
-        'is-shift-active': key.action === 'SHIFT' && this.shiftState !== 'OFF',
-        'is-shift-lock': key.action === 'SHIFT' && this.shiftState === 'LOCK'
+    updateRenderRows() {
+      // 过滤并更新渲染用的数组
+      if (!Array.isArray(this.rows)) {
+        this.renderRows = []
+        return
       }
+      
+      this.renderRows = this.rows
+        .filter(row => row && Array.isArray(row))
+        .map(row => row.filter(key => key && key.id))
     },
     handleMaskTap() {
       this.hideKeyboard()
@@ -131,6 +162,7 @@ export default {
       this.$emit('popup-height-change', 0)
     },
     onKeyTouchStart(key) {
+      if (!key) return
       this.pressedKey = key
       this.longPressTriggered = false
       this.clearLongPressTimer()
@@ -143,7 +175,10 @@ export default {
       }
     },
     onKeyTouchEnd(key) {
+      if (!key) return
       this.clearLongPressTimer()
+      
+      // 处理弹出框可见的情况
       if (this.popup.visible) {
         if (key && key.type === 'FUNC') {
           this.handleKeyPress(key)
@@ -151,10 +186,21 @@ export default {
         this.longPressTriggered = false
         return
       }
+      
+      // 处理 tapConsumed
       if (this.tapConsumed) {
         this.tapConsumed = false
         return
       }
+      
+      // 小程序中在 touchend 处理短按（因为 tap 事件可能不触发）
+      // 如果没有触发长按，则处理为短按
+      if (!this.longPressTriggered && key) {
+        this.handleKeyPress(key)
+        // 设置标记，防止 tap 事件重复处理
+        this.suppressNextTap = true
+      }
+      
       this.longPressTriggered = false
       this.pressedKey = null
     },
@@ -167,6 +213,7 @@ export default {
       this.suppressNextTap = false
     },
     onKeyTap(key) {
+      if (!key) return
       if (this.longPressTriggered) return
       if (this.suppressNextTap) {
         this.suppressNextTap = false
@@ -230,12 +277,26 @@ export default {
           break
         case 'NUMSYM':
           this.layoutMode = 'num'
-          this.rows = getNumSymbolLayout()
+          try {
+            this.rows = getNumSymbolLayout() || []
+            this.updateRenderRows()
+          } catch (error) {
+            console.error('[InAppKeyboard] Error switching to num layout:', error)
+            this.rows = []
+            this.updateRenderRows()
+          }
           this.updateKeyboardHeight()
           break
         case 'RETURN':
           this.layoutMode = 'alpha'
-          this.rows = getSpanishLayout(this.shiftState)
+          try {
+            this.rows = getSpanishLayout(this.shiftState) || []
+            this.updateRenderRows()
+          } catch (error) {
+            console.error('[InAppKeyboard] Error switching to alpha layout:', error)
+            this.rows = []
+            this.updateRenderRows()
+          }
           this.updateKeyboardHeight()
           break
         default:
@@ -250,11 +311,11 @@ export default {
       }
     },
     showVariants(key) {
-      if (!key || !key.variants || key.variants.length === 0) return
+      if (!key || !key.variants || !Array.isArray(key.variants) || key.variants.length === 0) return
       const shiftActive = this.shiftState !== 'OFF'
       const highlightIndex = this.getVariantHighlightIndex(key.variants, shiftActive)
       this.popup.visible = true
-      this.popup.variants = key.variants
+      this.popup.variants = key.variants.filter(v => v !== undefined && v !== null)
       this.popup.highlightIndex = highlightIndex
       this.updatePopupHeight()
     },
