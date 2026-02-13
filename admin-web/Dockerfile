@@ -5,7 +5,9 @@ COPY package.json package-lock.json* ./
 RUN npm install
 COPY . .
 ARG VUE_APP_ADMIN_API_BASE_URL
+ARG NODE_ENV=production
 ENV VUE_APP_ADMIN_API_BASE_URL=${VUE_APP_ADMIN_API_BASE_URL}
+ENV NODE_ENV=${NODE_ENV}
 RUN npm run build
 
 FROM alpine:3.19
