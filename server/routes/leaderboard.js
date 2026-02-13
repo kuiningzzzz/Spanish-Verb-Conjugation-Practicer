@@ -7,16 +7,17 @@ const { authMiddleware } = require('../middleware/auth')
 router.get('/:type', authMiddleware, (req, res) => {
   try {
     const { type } = req.params // veteran, exercise, streak
+    const timeRange = req.query.range || 'all' // week, month, all
     const limit = parseInt(req.query.limit) || 50
 
     let leaderboard
 
     switch(type) {
       case 'veteran': // 老资历榜
-        leaderboard = CheckIn.getVeteranLeaderboard(limit)
+        leaderboard = CheckIn.getVeteranLeaderboard(limit, timeRange)
         break
       case 'exercise': // 数值怪榜
-        leaderboard = CheckIn.getExerciseLeaderboard(limit)
+        leaderboard = CheckIn.getExerciseLeaderboard(limit, timeRange)
         break
       case 'streak': // 焊武帝榜
         leaderboard = CheckIn.getStreakLeaderboard(limit)
@@ -28,6 +29,7 @@ router.get('/:type', authMiddleware, (req, res) => {
     res.json({
       success: true,
       type,
+      timeRange,
       leaderboard
     })
   } catch (error) {

@@ -1,12 +1,36 @@
 services:
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx.Dockerfile
+    container_name: spanish-verb-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/http.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - spanish-verb-api
+      - admin-web
+    networks:
+      - spanish-verb-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
   spanish-verb-api:
     build:
       context: ..
       dockerfile: server/Dockerfile
     container_name: spanish-verb-api
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     env_file:
       - .env
     environment:
@@ -18,8 +42,17 @@ services:
       - EMAIL_PORT=${EMAIL_PORT:-587}
       - EMAIL_USER=${EMAIL_USER}
       - EMAIL_PASS=${EMAIL_PASS}
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-      - DEEPSEEK_API_URL=${DEEPSEEK_API_URL:-https://api.deepseek.com/v1/chat/completions}
+      - EXERCISE_GENERATOR_PROVIDER=${EXERCISE_GENERATOR_PROVIDER:-deepseek}
+      - EXERCISE_GENERATOR_API_KEY=${EXERCISE_GENERATOR_API_KEY}
+      - EXERCISE_GENERATOR_API_URL=${EXERCISE_GENERATOR_API_URL:-https://api.deepseek.com/v1/chat/completions}
+      - EXERCISE_GENERATOR_MODEL=${EXERCISE_GENERATOR_MODEL:-deepseek-chat}
+      - EXERCISE_GENERATOR_TIMEOUT_MS=${EXERCISE_GENERATOR_TIMEOUT_MS:-45000}
+      - EXERCISE_GENERATOR_GENERATOR_MAX_TOKENS=${EXERCISE_GENERATOR_GENERATOR_MAX_TOKENS:-1000}
+      - EXERCISE_GENERATOR_VALIDATOR_MAX_TOKENS=${EXERCISE_GENERATOR_VALIDATOR_MAX_TOKENS:-700}
+      - EXERCISE_GENERATOR_REVISOR_MAX_TOKENS=${EXERCISE_GENERATOR_REVISOR_MAX_TOKENS:-500}
+      - EXERCISE_GENERATOR_GENERATOR_TEMPERATURE=${EXERCISE_GENERATOR_GENERATOR_TEMPERATURE:-0.7}
+      - EXERCISE_GENERATOR_VALIDATOR_TEMPERATURE=${EXERCISE_GENERATOR_VALIDATOR_TEMPERATURE:-0.3}
+      - EXERCISE_GENERATOR_REVISOR_TEMPERATURE=${EXERCISE_GENERATOR_REVISOR_TEMPERATURE:-0.4}
       - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET:-change-admin-secret}
       - ADMIN_JWT_EXPIRES_IN=${ADMIN_JWT_EXPIRES_IN:-1d}
       - INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL}
@@ -44,13 +77,13 @@ services:
       context: ../admin-web
       dockerfile: Dockerfile
       args:
-        - VUE_APP_ADMIN_API_BASE_URL=${ADMIN_API_BASE_URL:-http://localhost:3000}
+        - VUE_APP_ADMIN_API_BASE_URL=https://conjugamos.top
     env_file:
       - .env
-    ports:
-      - "3001:80"
+    expose:
+      - "80"
     environment:
-      - VUE_APP_ADMIN_API_BASE_URL=${ADMIN_API_BASE_URL:-http://localhost:3000}
+      - VUE_APP_ADMIN_API_BASE_URL=https://conjugamos.top
     networks:
       - spanish-verb-network
 

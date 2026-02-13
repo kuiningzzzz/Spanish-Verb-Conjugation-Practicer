@@ -20,6 +20,13 @@ yarn-error.log*
 # API配置文件（包含敏感信息）
 utils/base_url.js
 
+# SSL证书文件（敏感信息）
+server/certs/
+*.key
+*.crt
+*.pem
+*.ca-bundle
+
 # 编辑器
 .vscode/
 .idea/

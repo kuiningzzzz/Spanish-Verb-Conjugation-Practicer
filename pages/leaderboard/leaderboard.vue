@@ -26,6 +26,18 @@
       </view>
     </view>
 
+    <!-- 时间范围切换（仅在老资历榜和数值怪榜显示） -->
+    <view class="time-range-container" v-if="activeTab === 'veteran' || activeTab === 'exercise'">
+      <view 
+        v-for="range in timeRanges"
+        :key="range.value"
+        :class="['range-item', activeTimeRange === range.value ? 'active' : '']"
+        @click="switchTimeRange(range.value)"
+      >
+        <text class="range-text">{{ range.label }}</text>
+      </view>
+    </view>
+
     <!-- 排行榜内容 -->
     <view class="leaderboard-content">
       <!-- 榜单描述 -->
@@ -107,6 +119,12 @@ export default {
         { value: 'streak', label: '焊武帝榜', desc: '连续练习天数排行\n我就焊死在这儿不走啦！' }
       ],
       activeTab: 'veteran',
+      timeRanges: [
+        { value: 'week', label: '周榜' },
+        { value: 'month', label: '月榜' },
+        { value: 'all', label: '总榜' }
+      ],
+      activeTimeRange: 'week',
       leaderboard: [],
       refreshing: false,
       currentUser: null
@@ -128,6 +146,11 @@ export default {
     },
     switchTab(tab) {
       this.activeTab = tab
+      this.activeTimeRange = 'week' // 切换tab时重置为周榜
+      this.loadLeaderboard()
+    },
+    switchTimeRange(range) {
+      this.activeTimeRange = range
       this.loadLeaderboard()
     },
     async loadLeaderboard() {
@@ -135,7 +158,7 @@ export default {
       showLoading('加载中...')
 
       try {
-        const res = await api.getLeaderboard(this.activeTab)
+        const res = await api.getLeaderboard(this.activeTab, this.activeTimeRange)
         hideLoading()
         this.refreshing = false
 
@@ -279,6 +302,45 @@ export default {
 @keyframes tabGlow {
   0% { opacity: 0.9; }
   100% { opacity: 1; }
+}
+
+/* 时间范围切换 */
+.time-range-container {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  margin: 0 40rpx 30rpx;
+  border-radius: 25rpx;
+  padding: 8rpx;
+  display: flex;
+  box-shadow: 0 15rpx 30rpx rgba(0, 0, 0, 0.1);
+  border: 1rpx solid rgba(255, 255, 255, 0.2);
+}
+
+.range-item {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx;
+  font-size: 28rpx;
+  color: #666;
+  border-radius: 20rpx;
+  position: relative;
+  transition: all 0.3s ease;
+  z-index: 1;
+  line-height: 1;
+}
+
+.range-item.active {
+  color: #fff;
+  font-weight: bold;
+  background: #8B0012;
+}
+
+.range-item:active {
+  transform: scale(0.95);
+}
+
+.range-text {
+  display: block;
 }
 
 .leaderboard-content {

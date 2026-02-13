@@ -15,6 +15,11 @@
         </select>
         <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
         <button @click="openCreate">发布公告</button>
+        <div v-if="totalPages > 0" class="pagination-inline">
+          <button class="ghost" :disabled="currentPage <= 1" @click="goPrevPage">上一页</button>
+          <span class="page-info">共 {{ currentPage }} / {{ totalPages }} 页</span>
+          <button class="ghost" :disabled="currentPage >= totalPages" @click="goNextPage">下一页</button>
+        </div>
       </div>
     </div>
 
@@ -48,7 +53,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="announcement in filteredAnnouncements" :key="announcement.id">
+            <tr v-for="announcement in pagedAnnouncements" :key="announcement.id">
               <td>{{ announcement.id }}</td>
               <td>
                 <span class="ellipsis" :title="announcement.title">
@@ -154,7 +159,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { apiRequest, ApiError } from '../utils/apiClient';
 import { useAuth } from '../composables/useAuth';
@@ -169,6 +174,8 @@ const keyword = ref('');
 const statusFilter = ref('all');
 const sortKey = ref('id');
 const sortOrder = ref('desc');
+const pageSize = ref(5);
+const currentPage = ref(1);
 
 const drawerOpen = ref(false);
 const drawerMode = ref('create');
@@ -215,6 +222,20 @@ const filteredAnnouncements = computed(() => {
     return title.includes(term) || content.includes(term) || publisher.includes(term);
   });
 });
+
+const totalPages = computed(() => Math.ceil(filteredAnnouncements.value.length / pageSize.value));
+
+const pagedAnnouncements = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  return filteredAnnouncements.value.slice(start, start + pageSize.value);
+});
+
+watch(
+  () => [keyword.value, statusFilter.value, sortKey.value, sortOrder.value, announcements.value.length],
+  () => {
+    currentPage.value = 1;
+  }
+);
 
 function showToast(message, type = 'info') {
   toast.message = message;
@@ -334,6 +355,16 @@ function toggleSort(key) {
 function sortIndicator(key) {
   if (sortKey.value !== key) return '↕';
   return sortOrder.value === 'asc' ? '↑' : '↓';
+}
+
+function goPrevPage() {
+  if (currentPage.value <= 1) return;
+  currentPage.value -= 1;
+}
+
+function goNextPage() {
+  if (currentPage.value >= totalPages.value) return;
+  currentPage.value += 1;
 }
 
 async function fetchAnnouncements() {
@@ -464,3 +495,18 @@ async function submitDelete() {
 
 onMounted(fetchAnnouncements);
 </script>
+
+<style scoped>
+.pagination-inline {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-info {
+  color: #6b7280;
+  font-size: 14px;
+  white-space: nowrap;
+}
+</style>
