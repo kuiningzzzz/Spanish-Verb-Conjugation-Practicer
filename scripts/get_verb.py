@@ -10,6 +10,8 @@
     - gerund: string（第一分词）
     - participle: ["regular_past_participle", "irregular/adjectival?"]（最多两个，第二个为不规则）
     - is_reflexive: bool（最终也由脚本覆盖）
+    - has_tr_use: bool（是否存在及物用法）
+    - has_intr_use: bool（是否存在不及物用法）
   - 简单时态（均含 regular 字段 + 所有人称为 list）：
     - Indicative:   present, imperfect, preterite, future, conditional
     - Subjunctive:  present, imperfect, future
@@ -47,6 +49,8 @@
 - 最终输出是一个 JSON 数组。
 - 采用流式写入：每处理完一个动词立即写入文件，方便中途查看。
 - dict 使用缩进多行；所有 list 都压成一行：["forma1","forma2"]。
+- 顶层字段顺序固定为：
+  infinitive, gerund, participle, is_reflexive, has_tr_use, has_intr_use, ...
 """
 
 import os
@@ -71,6 +75,20 @@ PERSON_KEYS = [
     "first_plural",
     "second_plural",
     "third_plural",
+]
+
+TOP_LEVEL_KEY_ORDER = [
+    "infinitive",
+    "gerund",
+    "participle",
+    "is_reflexive",
+    "has_tr_use",
+    "has_intr_use",
+    "indicative",
+    "subjunctive",
+    "imperative",
+    "compound_indicative",
+    "compound_subjunctive",
 ]
 
 # haber 的简单时态（不含 vos），用于复合时态强规则生成
@@ -165,6 +183,8 @@ Top-level fields:
 - "gerund": string
 - "participle": array of strings
 - "is_reflexive": boolean
+- "has_tr_use": boolean
+- "has_intr_use": boolean
 
 - "indicative": object with EXACTLY these tenses:
     - "present"
@@ -244,6 +264,47 @@ def _ensure_list(value):
     return [value]
 
 
+def _coerce_bool(value):
+    """把各种布尔表达统一转为 bool，无法识别时返回 None。"""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in ("true", "1", "yes", "y"):
+            return True
+        if normalized in ("false", "0", "no", "n"):
+            return False
+    return None
+
+
+def normalize_transitivity_flags(data: dict) -> dict:
+    """
+    规范化及物/不及物标签。
+    若模型未返回可识别值，默认回退为 False。
+    """
+    has_tr_use = _coerce_bool(data.get("has_tr_use"))
+    has_intr_use = _coerce_bool(data.get("has_intr_use"))
+    data["has_tr_use"] = has_tr_use if has_tr_use is not None else False
+    data["has_intr_use"] = has_intr_use if has_intr_use is not None else False
+    return data
+
+
+def reorder_top_level_fields(data: dict) -> dict:
+    """固定顶层字段顺序，方便 verbs.json 稳定对比。"""
+    ordered = {}
+    for key in TOP_LEVEL_KEY_ORDER:
+        if key in data:
+            ordered[key] = data[key]
+
+    for key, value in data.items():
+        if key not in ordered:
+            ordered[key] = value
+
+    return ordered
+
+
 def _normalize_mood_block(mood_obj: dict) -> dict:
     """
     规范化一个语气（indicative / subjunctive / imperative / compound_*）下的所有时态：
@@ -284,6 +345,7 @@ def normalize_verb_data(data: dict) -> dict:
     规范化一个动词的 JSON：
     - gerund 保证为 string
     - participle 保证为 list
+    - has_tr_use / has_intr_use 保证为 bool（默认 False）
     - 各语气的人称字段 -> list，regular 补全，vos 补齐
     """
 
@@ -301,6 +363,9 @@ def normalize_verb_data(data: dict) -> dict:
         data["participle"] = _ensure_list(data["participle"])
     else:
         data["participle"] = []
+
+    # 及物/不及物标签规范化
+    data = normalize_transitivity_flags(data)
 
     # 各语气规范化
     for mood_name in [
@@ -573,6 +638,9 @@ def call_qwen_for_verb(raw_verb: str) -> dict:
 
     # 再跑一遍 normalize，把 compound_* 里的人称也转成 list + regular 补全
     data = normalize_verb_data(data)
+
+    # 固定顶层输出顺序，确保 has_tr_use/has_intr_use 位于 is_reflexive 后
+    data = reorder_top_level_fields(data)
 
     return data
 
