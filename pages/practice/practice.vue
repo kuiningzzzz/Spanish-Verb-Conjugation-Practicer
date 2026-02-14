@@ -472,7 +472,7 @@
       </view>
 
       <!-- 语气与时态设置 -->
-      <view class="form-item theme-practice-item">
+      <view v-if="showThemeTenseSelector" class="form-item theme-practice-item">
         <view class="theme-header" @click="!isCourseMode && toggleThemeSettings()">
           <view class="theme-header-left">
             <text class="label theme-label">语气与时态选择</text>
@@ -545,8 +545,36 @@
         <!-- 结束 theme-details -->
       </view>
 
+      <!-- 变位形式设置 -->
+      <view v-if="showConjugationFormSelector" class="form-item theme-practice-item">
+        <view class="theme-header" @click="!isCourseMode && toggleConjugationFormSettings()">
+          <view class="theme-header-left">
+            <text class="label theme-label">带代词变位形式选择</text>
+            <text v-if="isCourseMode" class="locked-badge">🔒 已锁定</text>
+          </view>
+          <view class="theme-header-right" v-if="!isCourseMode">
+            <text class="expand-icon">{{ conjugationFormSettingsExpanded ? '▲' : '▼' }}</text>
+          </view>
+        </view>
+        <view class="theme-details" v-show="conjugationFormSettingsExpanded || isCourseMode">
+          <view class="theme-section">
+            <view class="checkbox-group">
+              <view
+                v-for="form in conjugationFormOptions"
+                :key="form.value"
+                :class="['checkbox-item', selectedConjugationForms.includes(form.value) ? 'checked' : '', isCourseMode ? 'disabled' : '']"
+                @click="!isCourseMode && toggleConjugationForm(form.value)"
+              >
+                <text class="checkbox-icon">{{ selectedConjugationForms.includes(form.value) ? '☑' : '☐' }}</text>
+                <text class="checkbox-label">{{ form.label }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
       <!-- 其他选项 -->
-      <view class="form-item theme-practice-item">
+      <view v-if="showOtherOptionsSelector" class="form-item theme-practice-item">
         <view class="theme-header" @click="!isCourseMode && toggleOtherSettings()">
           <view class="theme-header-left">
             <text class="label theme-label">其他选项</text>
@@ -678,6 +706,14 @@ export default {
       showExerciseModeModal: false,
       showSentenceModeInfoModal: false,
       selectedSentenceMode: 'verb-only',
+      conjugationFormOptions: [
+        { value: 'general', label: '一般变位' },
+        { value: 'imperative', label: '命令式' },
+        { value: 'infinitive', label: '动词原形' },
+        { value: 'gerund', label: '副动词' },
+        { value: 'reflexive', label: '自反动词' }
+      ],
+      selectedConjugationForms: ['general', 'imperative', 'infinitive', 'gerund', 'reflexive'],
       exerciseCount: 10,
       minExerciseCount: 5,
       maxExerciseCount: 50,
@@ -743,6 +779,7 @@ export default {
       
       // 专项练习折叠状态
       themeSettingsExpanded: false,  // 默认折叠
+      conjugationFormSettingsExpanded: false,  // 带代词变位形式默认折叠
       otherSettingsExpanded: false, // 其他选项默认折叠
       
       exercises: [],
@@ -960,6 +997,19 @@ export default {
       exerciseTypeText() {
         const types = { sentence: '例句填空', 'quick-fill': '快变快填', 'combo-fill': '组合填空' }
         return types[this.exerciseType] || ''
+      },
+      isSentenceWithPronounMode() {
+        return this.exerciseType === 'sentence' && this.selectedSentenceMode === 'with-pronoun'
+      },
+      showThemeTenseSelector() {
+        return !this.isSentenceWithPronounMode
+      },
+      showConjugationFormSelector() {
+        return this.exerciseType === 'sentence'
+          && (this.selectedSentenceMode === 'with-pronoun' || this.selectedSentenceMode === 'mixed')
+      },
+      showOtherOptionsSelector() {
+        return !this.isSentenceWithPronounMode
       }
     },
   watch: {
@@ -1160,6 +1210,19 @@ export default {
 
     selectSentenceMode(mode) {
       this.selectedSentenceMode = mode
+    },
+
+    toggleConjugationForm(form) {
+      const index = this.selectedConjugationForms.indexOf(form)
+      if (index > -1) {
+        if (this.selectedConjugationForms.length === 1) {
+          showToast('请至少选择一个变位形式', 'none')
+          return
+        }
+        this.selectedConjugationForms.splice(index, 1)
+      } else {
+        this.selectedConjugationForms.push(form)
+      }
     },
 
     createStateForExercise(exercise) {
@@ -1414,6 +1477,10 @@ export default {
       this.themeSettingsExpanded = !this.themeSettingsExpanded
     },
 
+    toggleConjugationFormSettings() {
+      this.conjugationFormSettingsExpanded = !this.conjugationFormSettingsExpanded
+    },
+
     toggleOtherSettings() {
       this.otherSettingsExpanded = !this.otherSettingsExpanded
     },
@@ -1542,9 +1609,15 @@ export default {
         return
       }
       
-      // 验证是否至少选择了一个语气或时态
-      if (this.selectedMoods.length === 0 && this.selectedTenses.length === 0) {
+      // 非“带代词变位”模式下，验证是否至少选择了一个语气或时态
+      if (this.showThemeTenseSelector && this.selectedMoods.length === 0 && this.selectedTenses.length === 0) {
         showToast('请至少选择一个语气或时态', 'none')
+        return
+      }
+
+      // 带代词相关模式下，验证是否至少选择一个变位形式
+      if (this.showConjugationFormSelector && this.selectedConjugationForms.length === 0) {
+        showToast('请至少选择一个变位形式', 'none')
         return
       }
       
