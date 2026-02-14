@@ -132,7 +132,7 @@
         
         <InAppInput
           v-if="useInAppIME"
-          :key="`sentence-${currentIndex}`"
+          :key="`sentence-inapp-${currentIndex}`"
           class="answer-input"
           v-model="userAnswer"
           placeholder="请填入正确的动词变位"
@@ -144,7 +144,7 @@
         />
         <input
           v-else
-          :key="`sentence-${currentIndex}`"
+          :key="`sentence-native-${currentIndex}`"
           class="answer-input"
           v-model="userAnswer"
           placeholder="请填入正确的动词变位"
@@ -157,7 +157,7 @@
       <view v-if="exerciseType === 'quick-fill'" class="input-container">
         <InAppInput
           v-if="useInAppIME"
-          :key="`quick-${currentIndex}`"
+          :key="`quick-inapp-${currentIndex}`"
           class="answer-input"
           v-model="userAnswer"
           placeholder="请输入目标变位形式"
@@ -169,7 +169,7 @@
         />
         <input
           v-else
-          :key="`quick-${currentIndex}`"
+          :key="`quick-native-${currentIndex}`"
           class="answer-input"
           v-model="userAnswer"
           placeholder="请输入目标变位形式"
