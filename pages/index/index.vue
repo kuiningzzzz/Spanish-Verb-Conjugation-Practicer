@@ -16,10 +16,14 @@
       <view class="flex-between">
         <view>
           <text class="welcome-text">欢迎回来, {{ userInfo.username }}</text>
-          <text class="study-days">已学习 {{ studyDays }} 天</text>
+          <text class="welcome-checkin-tip" v-if="hasCheckedInToday">已完成今日打卡，再接再厉哦！</text>
+          <text class="welcome-checkin-tip" v-else>你今天还没有打卡哟～完成任意练习即可续火</text>
         </view>
         <view class="streak-badge">
-          <text class="streak-number">{{ streakDays }}</text>
+          <view class="streak-number-row">
+            <text class="streak-status-icon">{{ hasCheckedInToday ? '🔥' : '⏰' }}</text>
+            <text class="streak-number" :class="{ 'streak-number-checked': hasCheckedInToday }">{{ streakDays }}</text>
+          </view>
           <text class="streak-label">连续打卡</text>
         </view>
       </view>
@@ -47,10 +51,6 @@
         <button class="btn-primary half-width" @click="goToCourse">课程练习</button>
         <button class="btn-primary half-width" @click="startPractice">单词练习</button>
       </view>
-      <button class="btn-secondary mt-20" @click="checkIn" v-if="!hasCheckedInToday">每日打卡</button>
-      <view class="checked-in-tip mt-20" v-else>
-        <text>✓ 今日已打卡</text>
-      </view>
     </view>
 
     <view class="quick-access mt-20">
@@ -76,7 +76,6 @@
 
 <script>
 import api from '@/utils/api.js'
-import { formatDate, showToast } from '@/utils/common.js'
 
 export default {
   data() {
@@ -88,7 +87,6 @@ export default {
       },
       totalStats: {},
       streakDays: 0,
-      studyDays: 0,
       hasCheckedInToday: false,
       hasNewAnnouncement: false,  // 是否有新公告
       loadFailed: false
@@ -164,47 +162,6 @@ export default {
           console.error('获取打卡信息异常:', error)
         }
 
-        // 计算学习天数
-        if (this.userInfo.created_at) {
-          console.log('📅 原始created_at:', this.userInfo.created_at)
-          
-          // 修复时区问题：SQLite存储格式为 'YYYY-MM-DD HH:MM:SS'，需要手动解析为本地时间
-          const dateStr = this.userInfo.created_at
-          let start
-          
-          // 尝试解析日期时间格式
-          if (dateStr.includes(' ')) {
-            // 格式：'2025-11-20 15:30:00'
-            const [datePart, timePart] = dateStr.split(' ')
-            const [year, month, day] = datePart.split('-').map(Number)
-            const [hour = 0, minute = 0, second = 0] = timePart ? timePart.split(':').map(Number) : [0, 0, 0]
-            start = new Date(year, month - 1, day, hour, minute, second)
-          } else if (dateStr.includes('-')) {
-            // 格式：'2025-11-20'
-            const [year, month, day] = dateStr.split('-').map(Number)
-            start = new Date(year, month - 1, day)
-          } else {
-            // 其他格式，尝试直接解析
-            start = new Date(dateStr)
-          }
-          
-          const now = new Date()
-          console.log('🕐 解析后的日期:', start)
-          console.log('🕐 当前日期:', now)
-          
-          // 验证日期是否有效
-          if (!isNaN(start.getTime())) {
-            const days = Math.floor((now - start) / (1000 * 60 * 60 * 24))
-            this.studyDays = Math.max(1, days + 1) // 从1开始计数，今天注册显示1天
-            console.log('📊 学习天数:', this.studyDays, '天')
-          } else {
-            console.error('❌ 无效的创建日期:', this.userInfo.created_at)
-            this.studyDays = 1
-          }
-        } else {
-          console.warn('⚠️ 用户信息中没有created_at字段')
-          this.studyDays = 1
-        }
       } catch (error) {
         if (this.isNetworkError(error)) this.loadFailed = true
         console.error('加载数据失败:', error)
@@ -217,24 +174,6 @@ export default {
       uni.navigateTo({
         url: '/pages/practice/practice'
       })
-    },
-    async checkIn() {
-      // 检查今日是否有练习记录
-      if (!this.todayStats.total || this.todayStats.total === 0) {
-        showToast('你今天还没练习哦！', 'none')
-        return
-      }
-
-      try {
-        const res = await api.checkIn()
-        if (res.success) {
-          showToast(res.message || '打卡成功', 'success')
-          this.hasCheckedInToday = true
-          this.streakDays = res.streakDays || this.streakDays + 1
-        }
-      } catch (error) {
-        showToast('打卡失败')
-      }
     },
     goToLeaderboard() {
       uni.navigateTo({
@@ -372,10 +311,12 @@ export default {
   margin-bottom: 10rpx;
 }
 
-.study-days {
+.welcome-checkin-tip {
   display: block;
   font-size: 24rpx;
+  line-height: 1.5;
   opacity: 0.9;
+  max-width: 480rpx;
 }
 
 .streak-badge {
@@ -386,9 +327,25 @@ export default {
 }
 
 .streak-number {
-  display: block;
   font-size: 40rpx;
   font-weight: bold;
+}
+
+.streak-number-checked {
+  color: #ff6a1a;
+}
+
+.streak-number-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  height: 52rpx;
+}
+
+.streak-status-icon {
+  font-size: 32rpx;
+  line-height: 1;
 }
 
 .streak-label {
@@ -437,12 +394,6 @@ export default {
 .half-width {
   flex: 1;
   margin: 0;
-}
-
-.checked-in-tip {
-  text-align: center;
-  color: #52c41a;
-  font-size: 28rpx;
 }
 
 .quick-access {
