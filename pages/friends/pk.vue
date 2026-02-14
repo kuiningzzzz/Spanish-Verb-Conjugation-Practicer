@@ -3,12 +3,6 @@
     <view v-if="loading" class="loading">加载中...</view>
     
     <view v-else class="pk-content">
-      <!-- 标题 -->
-      <view class="pk-header">
-        <text class="pk-title">数值对决</text>
-        <text class="pk-subtitle">五项数据巅峰对决</text>
-      </view>
-
       <!-- 雷达图区域 -->
       <view class="radar-section">
         <view class="radar-container">
@@ -368,26 +362,6 @@ export default {
 
 .pk-content {
   padding-bottom: 40rpx;
-}
-
-.pk-header {
-  text-align: center;
-  padding: 40rpx 0 60rpx;
-}
-
-.pk-title {
-  display: block;
-  font-size: 48rpx;
-  font-weight: bold;
-  color: #fff;
-  margin-bottom: 16rpx;
-  text-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.3);
-}
-
-.pk-subtitle {
-  display: block;
-  font-size: 26rpx;
-  color: rgba(255, 255, 255, 0.8);
 }
 
 .radar-section {
