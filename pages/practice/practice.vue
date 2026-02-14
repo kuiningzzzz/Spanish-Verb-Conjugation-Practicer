@@ -85,7 +85,12 @@
         class="pronoun-meta"
       >
         <text class="pronoun-meta-item">形式：{{ currentExercise.hostFormZh || '未知' }}</text>
-        <text class="pronoun-meta-item">代词模式：{{ formatPronounPattern(currentExercise.pronounPattern) || '—' }}</text>
+        <text
+          v-if="currentExercise.hostForm !== 'prnl'"
+          class="pronoun-meta-item"
+        >
+          代词模式：{{ formatPronounPattern(currentExercise.pronounPattern) || '—' }}
+        </text>
       </view>
 
       <!-- 组合填空题不需要顶部提示，每个题目都有详细要求 -->
@@ -1003,6 +1008,15 @@ export default {
       },
       exerciseTypeText() {
         const types = { sentence: '例句填空', 'quick-fill': '快变快填', 'combo-fill': '组合填空' }
+        if (this.exerciseType === 'sentence') {
+          if (this.currentExercise && this.currentExercise.hostForm) return '带代词变位'
+          const questionBank = this.currentExercise && this.currentExercise.questionBank
+          if (questionBank === 'pronoun') return '带代词变位'
+          if (questionBank === 'traditional') return '传统变位'
+          if (this.currentExercise) return '传统变位'
+          if (this.selectedSentenceMode === 'with-pronoun') return '带代词变位'
+          if (this.selectedSentenceMode === 'verb-only') return '传统变位'
+        }
         return types[this.exerciseType] || ''
       },
       isSentenceWithPronounMode() {
