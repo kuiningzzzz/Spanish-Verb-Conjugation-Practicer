@@ -420,7 +420,6 @@ router.get('/info', require('../middleware/auth').authMiddleware, (req, res) => 
         userType: user.user_type,
         subscriptionEndDate: user.subscription_end_date,
         avatar: user.avatar,
-        unique_id: user.unique_id,
         participate_in_leaderboard: user.participate_in_leaderboard !== undefined ? user.participate_in_leaderboard : 1,
         created_at: user.created_at
       }

@@ -19,7 +19,6 @@
             <text class="username">{{ displayName }}</text>
             <text v-if="friend.is_starred" class="star-badge">⭐</text>
           </view>
-          <text class="unique-id">ID: {{ friend.unique_id || '未设置' }}</text>
           <text class="friend-since">成为好友：{{ formatDate(friend.created_at) }}</text>
         </view>
       </view>

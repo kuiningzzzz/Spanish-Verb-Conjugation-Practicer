@@ -160,8 +160,6 @@ export default {
   getAnnouncementById: (id) => request({ url: `/announcement/${id}` }),
 
   // 好友系统相关
-  checkUniqueId: (uniqueId) => request({ url: '/friend/check-unique-id', method: 'POST', data: { uniqueId } }),
-  setUniqueId: (uniqueId) => request({ url: '/friend/set-unique-id', method: 'POST', data: { uniqueId } }),
   searchUsers: (keyword) => request({ url: '/friend/search', data: { keyword } }),
   sendFriendRequest: (toUserId, message) => request({ url: '/friend/request', method: 'POST', data: { toUserId, message } }),
   getFriendRequests: () => request({ url: '/friend/requests' }),
