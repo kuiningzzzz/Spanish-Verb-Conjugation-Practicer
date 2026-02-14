@@ -630,7 +630,7 @@
 
     <view class="modal" v-if="showSentenceModeInfoModal" @click="closeSentenceModeInfoModal">
       <view class="modal-content exercise-mode-modal" @click.stop>
-        <text class="exercise-mode-modal-title">模式说明</text>
+        <text class="exercise-mode-modal-title">例句填空模式说明</text>
         <view class="exercise-mode-list">
           <view
             v-for="mode in sentenceModeOptions"
@@ -638,6 +638,7 @@
             class="exercise-mode-item"
           >
             <text class="exercise-mode-item-title">{{ mode.label }}</text>
+            <text class="exercise-mode-item-desc">{{ mode.description }}</text>
           </view>
         </view>
         <button class="btn-primary mt-20" @click="closeSentenceModeInfoModal">我知道了</button>
@@ -709,9 +710,21 @@ export default {
         }
       ],
       sentenceModeOptions: [
-        { value: 'verb-only', label: '纯动词变位' },
-        { value: 'with-pronoun', label: '带代词变位' },
-        { value: 'mixed', label: '混合模式' }
+        {
+          value: 'verb-only',
+          label: '纯动词变位',
+          description: '纯动词例句填空，请根据例句上下文判断你要填入的时态和人称变位。'
+        },
+        {
+          value: 'with-pronoun',
+          label: '带代词变位',
+          description: '“动词+代词”组合填空，支持一般/命令式/原形/副动词/自反等形式，并按上下文判断格、性、数与位置。'
+        },
+        {
+          value: 'mixed',
+          label: '混合模式',
+          description: '纯动词变位与带代词变位混合出题。'
+        }
       ],
       exerciseTypeIndex: 0,
       exerciseType: 'sentence',
@@ -1012,10 +1025,10 @@ export default {
           if (this.currentExercise && this.currentExercise.hostForm) return '带代词变位'
           const questionBank = this.currentExercise && this.currentExercise.questionBank
           if (questionBank === 'pronoun') return '带代词变位'
-          if (questionBank === 'traditional') return '传统变位'
-          if (this.currentExercise) return '传统变位'
+          if (questionBank === 'traditional') return '纯动词变位'
+          if (this.currentExercise) return '纯动词变位'
           if (this.selectedSentenceMode === 'with-pronoun') return '带代词变位'
-          if (this.selectedSentenceMode === 'verb-only') return '传统变位'
+          if (this.selectedSentenceMode === 'verb-only') return '纯动词变位'
         }
         return types[this.exerciseType] || ''
       },
