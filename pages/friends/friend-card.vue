@@ -54,14 +54,6 @@
           </view>
         </view>
       </view>
-
-      <!-- 操作按钮 -->
-      <view class="actions">
-        <button class="btn-secondary" @click="sendMessage">
-          <text class="icon">💬</text>
-          <text>发消息</text>
-        </button>
-      </view>
     </view>
   </view>
 </template>
@@ -118,9 +110,6 @@ export default {
       const month = (date.getMonth() + 1).toString().padStart(2, '0')
       const day = date.getDate().toString().padStart(2, '0')
       return `${year}-${month}-${day}`
-    },
-    sendMessage() {
-      showToast('消息功能开发中', 'none')
     },
     getAvatarText(username) {
       if (!username) return '?'
@@ -252,27 +241,5 @@ export default {
   display: block;
   font-size: 24rpx;
   color: #999;
-}
-
-.actions {
-  padding: 0 20rpx;
-}
-
-.btn-secondary {
-  width: 100%;
-  background: #fff;
-  color: #8B0012;
-  border: 2rpx solid #8B0012;
-  border-radius: 50rpx;
-  padding: 24rpx 48rpx;
-  font-size: 32rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10rpx;
-}
-
-.icon {
-  font-size: 32rpx;
 }
 </style>
