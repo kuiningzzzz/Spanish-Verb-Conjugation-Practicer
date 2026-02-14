@@ -6,7 +6,6 @@
         <view class="verb-left">
           <text class="verb-infinitive">{{ verbInfo.infinitive }}{{ verbInfo.isReflexive ? '(se)' : '' }}</text>
           <view class="verb-badges">
-            <view class="badge badge-type">{{ verbInfo.conjugationType }}</view>
             <view v-if="verbInfo.isIrregular" class="badge badge-irregular">Irreg.</view>
             <view v-if="verbInfo.isReflexive" class="badge badge-reflexive">Prnl.</view>
             <view v-if="verbInfo.hasTrUse" class="badge badge-transitive">tr.</view>
@@ -21,13 +20,18 @@
       
       <!-- 动词形式 -->
       <view class="verb-forms">
-        <view v-if="verbInfo.gerund" class="verb-form-item">
-          <text class="form-label">Gerundio（副动词）:</text>
-          <text class="form-value">{{ verbInfo.gerund }}</text>
+        <view class="verb-forms-main">
+          <view v-if="verbInfo.gerund" class="verb-form-item">
+            <text class="form-label">Gerundio（副动词）:</text>
+            <text class="form-value">{{ verbInfo.gerund }}</text>
+          </view>
+          <view v-if="verbInfo.participle" class="verb-form-item">
+            <text class="form-label">Participio（过去分词）:</text>
+            <text class="form-value">{{ getParticipleForms() }}</text>
+          </view>
         </view>
-        <view v-if="verbInfo.participle" class="verb-form-item">
-          <text class="form-label">Participio（过去分词）:</text>
-          <text class="form-value">{{ getParticipleForms() }}</text>
+        <view v-if="verbInfo.conjugationType" class="verb-forms-type">
+          <view class="badge badge-type">{{ verbInfo.conjugationType }}</view>
         </view>
       </view>
     </view>
@@ -595,10 +599,26 @@ export default {
 
 .verb-forms {
   display: flex;
-  flex-direction: column;
-  gap: 15rpx;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
   padding-top: 20rpx;
   border-top: 1rpx solid #f0f0f0;
+}
+
+.verb-forms-main {
+  display: flex;
+  flex-direction: column;
+  gap: 15rpx;
+  flex: 1;
+  min-width: 0;
+}
+
+.verb-forms-type {
+  min-width: 160rpx;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
 }
 
 .verb-form-item {
