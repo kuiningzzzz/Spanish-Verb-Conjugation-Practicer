@@ -51,6 +51,8 @@
             <view class="verb-badges">
               <text v-if="verb.isReflexive" class="badge reflexive">Prnl.</text>
               <text v-if="verb.isIrregular" class="badge irregular">Irreg.</text>
+              <text v-if="verb.hasTrUse" class="badge transitive">tr.</text>
+              <text v-if="verb.hasIntrUse" class="badge intransitive">intr.</text>
             </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
@@ -71,6 +73,8 @@
             <view class="verb-badges">
               <text v-if="verb.isReflexive" class="badge reflexive">Prnl.</text>
               <text v-if="verb.isIrregular" class="badge irregular">Irreg.</text>
+              <text v-if="verb.hasTrUse" class="badge transitive">tr.</text>
+              <text v-if="verb.hasIntrUse" class="badge intransitive">intr.</text>
             </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
@@ -108,6 +112,8 @@
             <view class="verb-badges">
               <text v-if="verb.isReflexive" class="badge reflexive">Prnl.</text>
               <text v-if="verb.isIrregular" class="badge irregular">Irreg.</text>
+              <text v-if="verb.hasTrUse" class="badge transitive">tr.</text>
+              <text v-if="verb.hasIntrUse" class="badge intransitive">intr.</text>
             </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
@@ -128,6 +134,8 @@
             <view class="verb-badges">
               <text v-if="verb.isReflexive" class="badge reflexive">Prnl.</text>
               <text v-if="verb.isIrregular" class="badge irregular">Irreg.</text>
+              <text v-if="verb.hasTrUse" class="badge transitive">tr.</text>
+              <text v-if="verb.hasIntrUse" class="badge intransitive">intr.</text>
             </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
@@ -172,6 +180,8 @@
             <view class="verb-badges">
               <text v-if="verb.isReflexive" class="badge reflexive">Prnl.</text>
               <text v-if="verb.isIrregular" class="badge irregular">Irreg.</text>
+              <text v-if="verb.hasTrUse" class="badge transitive">tr.</text>
+              <text v-if="verb.hasIntrUse" class="badge intransitive">intr.</text>
             </view>
           </view>
           <text class="verb-meaning">{{ verb.meaning }}</text>
@@ -666,6 +676,16 @@ export default {
 
 .badge.irregular {
   background: #ff8c00;
+  color: white;
+}
+
+.badge.transitive {
+  background: #1e88e5;
+  color: white;
+}
+
+.badge.intransitive {
+  background: #43a047;
   color: white;
 }
 

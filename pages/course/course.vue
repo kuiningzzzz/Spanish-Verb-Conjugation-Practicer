@@ -97,6 +97,8 @@
                   <view class="vocab-badges">
                     <text v-if="word.is_reflexive" class="vocab-badge reflexive">Prnl.</text>
                     <text v-if="word.is_irregular" class="vocab-badge irregular">Irreg.</text>
+                    <text v-if="word.has_tr_use || word.hasTrUse" class="vocab-badge transitive">tr.</text>
+                    <text v-if="word.has_intr_use || word.hasIntrUse" class="vocab-badge intransitive">intr.</text>
                   </view>
                   <text class="vocab-detail-btn" @click="viewConjugations(word.id)">查看全变位</text>
                 </view>
@@ -656,6 +658,16 @@ export default {
 .vocab-badge.irregular {
   color: #ff8c00;
   background: #fff4e6;
+}
+
+.vocab-badge.transitive {
+  color: #1e88e5;
+  background: #e8f4ff;
+}
+
+.vocab-badge.intransitive {
+  color: #43a047;
+  background: #e8f5e9;
 }
 
 .vocab-type {

@@ -257,6 +257,8 @@ function initVocabularyDatabase() {
       conjugation_type INTEGER NOT NULL,
       is_irregular INTEGER DEFAULT 0,
       is_reflexive INTEGER DEFAULT 0,
+      has_tr_use INTEGER DEFAULT 0,
+      has_intr_use INTEGER DEFAULT 0,
       gerund TEXT,
       participle TEXT,
       participle_forms TEXT,
@@ -266,6 +268,10 @@ function initVocabularyDatabase() {
       created_at TEXT DEFAULT (datetime('now', 'localtime'))
     )
   `)
+
+  // 兼容旧数据库，补充列
+  ensureColumn(vocabularyDb, 'verbs', 'has_tr_use', 'has_tr_use INTEGER DEFAULT 0')
+  ensureColumn(vocabularyDb, 'verbs', 'has_intr_use', 'has_intr_use INTEGER DEFAULT 0')
 
   // 动词变位表
   vocabularyDb.exec(`

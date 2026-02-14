@@ -89,6 +89,8 @@
                 <view class="word-tag">{{ item.conjugationType }}</view>
                 <view v-if="item.isReflexive" class="word-tag reflexive">Prnl.</view>
                 <view v-if="item.isIrregular" class="word-tag irregular">Irreg.</view>
+                <view v-if="item.hasTrUse" class="word-tag transitive">tr.</view>
+                <view v-if="item.hasIntrUse" class="word-tag intransitive">intr.</view>
               </view>
             </view>
           </view>
@@ -128,6 +130,8 @@
                 <view class="word-tag">{{ item.conjugationType }}</view>
                 <view v-if="item.isReflexive" class="word-tag reflexive">Prnl.</view>
                 <view v-if="item.isIrregular" class="word-tag irregular">Irreg.</view>
+                <view v-if="item.hasTrUse" class="word-tag transitive">tr.</view>
+                <view v-if="item.hasIntrUse" class="word-tag intransitive">intr.</view>
               </view>
             </view>
             <view class="word-header-extra">
@@ -524,6 +528,16 @@ export default {
 .word-tag.irregular {
   background: #fff4e6;
   color: #ff8c00;
+}
+
+.word-tag.transitive {
+  background: #e8f4ff;
+  color: #1e88e5;
+}
+
+.word-tag.intransitive {
+  background: #e8f5e9;
+  color: #43a047;
 }
 
 .wrong-count {
