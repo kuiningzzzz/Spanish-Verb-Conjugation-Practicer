@@ -63,6 +63,11 @@ services:
       - ./data:/app/server/data
       # 挂载动词词库，修改后无需重新构建镜像即可生效
       - ./src/verbs.json:/app/server/src/verbs.json:ro
+      # 挂载版本信息和公告信息，支持admin端实时修改
+      - ./src/version.json:/app/server/src/version.json
+      - ./src/announcement.json:/app/server/src/announcement.json
+      # 挂载更新包目录，支持admin端上传和管理APK文件
+      - ./src/updates:/app/server/src/updates
     networks:
       - spanish-verb-network
     healthcheck:

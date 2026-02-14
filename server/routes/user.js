@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const User = require('../models/User')
+const Friend = require('../models/Friend')
 const VerificationCode = require('../models/VerificationCode')
 const emailService = require('../services/emailService')
 const { generateToken } = require('../middleware/auth')
@@ -420,7 +421,6 @@ router.get('/info', require('../middleware/auth').authMiddleware, (req, res) => 
         userType: user.user_type,
         subscriptionEndDate: user.subscription_end_date,
         avatar: user.avatar,
-        unique_id: user.unique_id,
         participate_in_leaderboard: user.participate_in_leaderboard !== undefined ? user.participate_in_leaderboard : 1,
         created_at: user.created_at
       }
@@ -428,6 +428,21 @@ router.get('/info', require('../middleware/auth').authMiddleware, (req, res) => 
   } catch (error) {
     console.error('获取用户信息错误:', error)
     res.status(500).json({ error: '获取用户信息失败' })
+  }
+})
+
+// 获取用户统计数据（用于PK等场景）
+router.get('/stats', require('../middleware/auth').authMiddleware, (req, res) => {
+  try {
+    const stats = Friend.getFriendStats(req.userId)
+    
+    res.json({
+      success: true,
+      stats
+    })
+  } catch (error) {
+    console.error('获取用户统计数据错误:', error)
+    res.status(500).json({ error: '获取用户统计数据失败' })
   }
 })
 

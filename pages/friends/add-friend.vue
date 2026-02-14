@@ -6,12 +6,12 @@
         <input 
           class="search-input"
           v-model="keyword"
-          placeholder="输入ID/用户名/邮箱搜索"
+          placeholder="输入用户名/邮箱搜索"
           @confirm="searchUsers"
         />
         <button class="search-btn" @click="searchUsers">搜索</button>
       </view>
-      <text class="search-hint">支持通过唯一ID、用户名或邮箱进行搜索</text>
+      <text class="search-hint">支持通过用户名或邮箱进行搜索</text>
     </view>
 
     <!-- 搜索结果 -->
@@ -38,7 +38,6 @@
           </view>
           <view class="user-info">
             <text class="username">{{ user.username }}</text>
-            <text class="user-id">ID: {{ user.unique_id || '未设置' }}</text>
           </view>
           <button class="btn-add-friend" @click="sendFriendRequest(user)">
             <text>添加</text>
@@ -72,7 +71,6 @@
             </view>
             <view class="preview-info">
               <text class="preview-name">{{ selectedUser.username }}</text>
-              <text class="preview-id">ID: {{ selectedUser.unique_id || '未设置' }}</text>
             </view>
           </view>
           <text class="input-label">附加消息（选填）</text>

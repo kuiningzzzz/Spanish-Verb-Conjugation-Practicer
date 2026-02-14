@@ -90,6 +90,16 @@ router.post('/submit', authMiddleware, async (req, res) => {
       questionSource
     })
 
+    // 如果是公共题库的题目，降低置信度3分
+    if (questionId && questionSource === 'public') {
+      const updated = Question.updateConfidence(questionId, -3)
+      if (updated) {
+        console.log(`✓ 收到题目反馈，公共题库题目 ${questionId} 置信度-3`)
+      } else {
+        console.log(`⚠ 公共题库题目 ${questionId} 不存在，无法更新置信度`)
+      }
+    }
+
     res.json({
       success: true,
       message: '感谢您的反馈！我们会尽快处理',

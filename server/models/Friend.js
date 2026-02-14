@@ -2,42 +2,17 @@ const { userDb } = require('../database/db')
 
 class Friend {
   /**
-   * 检查唯一ID是否可用
-   */
-  static isUniqueIdAvailable(uniqueId, excludeUserId = null) {
-    const sql = excludeUserId
-      ? `SELECT id FROM users WHERE unique_id = ? AND id != ?`
-      : `SELECT id FROM users WHERE unique_id = ?`
-    
-    const params = excludeUserId ? [uniqueId, excludeUserId] : [uniqueId]
-    const user = userDb.prepare(sql).get(...params)
-    return !user
-  }
-
-  /**
-   * 设置用户唯一ID
-   */
-  static setUniqueId(userId, uniqueId) {
-    const stmt = userDb.prepare(`
-      UPDATE users 
-      SET unique_id = ?, updated_at = datetime('now', 'localtime')
-      WHERE id = ?
-    `)
-    return stmt.run(uniqueId, userId)
-  }
-
-  /**
-   * 搜索用户（通过唯一ID、用户名或邮箱）
+   * 搜索用户（通过用户名或邮箱）
    */
   static searchUsers(keyword, currentUserId) {
     const stmt = userDb.prepare(`
-      SELECT id, username, unique_id, email, avatar
+      SELECT id, username, email, avatar
       FROM users 
-      WHERE (unique_id = ? OR username LIKE ? OR email = ?)
+      WHERE (username LIKE ? OR email = ?)
         AND id != ?
       LIMIT 20
     `)
-    return stmt.all(keyword, `%${keyword}%`, keyword, currentUserId)
+    return stmt.all(`%${keyword}%`, keyword, currentUserId)
   }
 
   /**
@@ -82,7 +57,7 @@ class Friend {
     const stmt = userDb.prepare(`
       SELECT 
         fr.id, fr.from_user_id, fr.message, fr.created_at,
-        u.username, u.unique_id, u.avatar
+        u.username, u.avatar
       FROM friend_requests fr
       JOIN users u ON fr.from_user_id = u.id
       WHERE fr.to_user_id = ? AND fr.status = 'pending'
@@ -151,7 +126,7 @@ class Friend {
   static getFriendsList(userId) {
     const stmt = userDb.prepare(`
       SELECT 
-        u.id, u.username, u.unique_id, u.avatar,
+        u.id, u.username, u.avatar,
         fs.remark, fs.is_starred,
         f.created_at as friend_since
       FROM friends f
@@ -175,7 +150,7 @@ class Friend {
     // 获取好友基本信息
     const friend = userDb.prepare(`
       SELECT 
-        u.id, u.username, u.unique_id, u.avatar,
+        u.id, u.username, u.avatar,
         f.created_at,
         fs.remark, fs.is_starred
       FROM users u

@@ -24,7 +24,6 @@
         </view>
         <view class="request-info">
           <text class="username">{{ request.username }}</text>
-          <text class="user-id" v-if="request.unique_id">ID: {{ request.unique_id }}</text>
           <text class="message" v-if="request.message">{{ request.message }}</text>
           <text class="time">{{ formatTime(request.created_at) }}</text>
         </view>

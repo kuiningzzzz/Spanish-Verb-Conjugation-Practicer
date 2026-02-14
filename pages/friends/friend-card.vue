@@ -19,7 +19,6 @@
             <text class="username">{{ displayName }}</text>
             <text v-if="friend.is_starred" class="star-badge">⭐</text>
           </view>
-          <text class="unique-id">ID: {{ friend.unique_id || '未设置' }}</text>
           <text class="friend-since">成为好友：{{ formatDate(friend.created_at) }}</text>
         </view>
       </view>
@@ -57,9 +56,9 @@
 
       <!-- 操作按钮 -->
       <view class="actions">
-        <button class="btn-secondary" @click="sendMessage">
-          <text class="icon">💬</text>
-          <text>发消息</text>
+        <button class="btn-pk" @click="goToPK">
+          <text class="icon">⚔️</text>
+          <text>数值PK</text>
         </button>
       </view>
     </view>
@@ -119,8 +118,10 @@ export default {
       const day = date.getDate().toString().padStart(2, '0')
       return `${year}-${month}-${day}`
     },
-    sendMessage() {
-      showToast('消息功能开发中', 'none')
+    goToPK() {
+      uni.navigateTo({
+        url: `/pages/friends/pk?friendId=${this.friendId}`
+      })
     },
     getAvatarText(username) {
       if (!username) return '?'
@@ -196,13 +197,6 @@ export default {
   font-size: 32rpx;
 }
 
-.unique-id {
-  display: block;
-  font-size: 24rpx;
-  opacity: 0.9;
-  margin-bottom: 8rpx;
-}
-
 .friend-since {
   display: block;
   font-size: 22rpx;
@@ -255,21 +249,28 @@ export default {
 }
 
 .actions {
-  padding: 0 20rpx;
+  padding: 0;
+  margin-top: 20rpx;
 }
 
-.btn-secondary {
+.btn-pk {
   width: 100%;
-  background: #fff;
-  color: #8B0012;
-  border: 2rpx solid #8B0012;
+  background: #8B0012;
+  color: #fff;
+  border: none;
   border-radius: 50rpx;
-  padding: 24rpx 48rpx;
+  padding: 28rpx;
   font-size: 32rpx;
+  font-weight: bold;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10rpx;
+  gap: 12rpx;
+}
+
+.btn-pk:active {
+  background: #750010;
+  transform: scale(0.98);
 }
 
 .icon {

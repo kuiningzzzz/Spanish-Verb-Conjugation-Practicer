@@ -2,6 +2,17 @@ const { vocabularyDb: db } = require('./db')
 const fs = require('fs')
 const path = require('path')
 
+function toBooleanInt(value, fallback = 0) {
+  if (typeof value === 'boolean') return value ? 1 : 0
+  if (typeof value === 'number') return value === 0 ? 0 : 1
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (['true', '1', 'yes', 'y'].includes(normalized)) return 1
+    if (['false', '0', 'no', 'n'].includes(normalized)) return 0
+  }
+  return fallback
+}
+
 // 初始化示例数据
 function initSampleData() {
   // 检查是否已有数据
@@ -97,8 +108,12 @@ function importFromVerbsJson(filePath) {
   }
 
   const insertVerb = db.prepare(`
-    INSERT INTO verbs (infinitive, meaning, conjugation_type, is_irregular, is_reflexive, gerund, participle, participle_forms, frequency_level, textbook_volume)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    INSERT INTO verbs (
+      infinitive, meaning, conjugation_type, is_irregular, is_reflexive,
+      has_tr_use, has_intr_use, gerund, participle, participle_forms,
+      frequency_level, textbook_volume
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
   `)
 
   const insertConjugation = db.prepare(`
@@ -140,6 +155,10 @@ function importFromVerbsJson(filePath) {
       
       // 是否自反动词
       const isReflexive = verbData.is_reflexive ? 1 : 0
+
+      // 是否包含及物/不及物用法
+      const hasTrUse = toBooleanInt(verbData.has_tr_use, 0)
+      const hasIntrUse = toBooleanInt(verbData.has_intr_use, 0)
       
       // 副动词（gerund）
       const gerund = verbData.gerund || null
@@ -173,6 +192,8 @@ function importFromVerbsJson(filePath) {
         conjugationType, 
         isIrregular, 
         isReflexive, 
+        hasTrUse,
+        hasIntrUse,
         gerund, 
         participle,
         participleForms,

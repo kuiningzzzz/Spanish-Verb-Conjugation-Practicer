@@ -6,6 +6,8 @@
       "sido"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -471,6 +473,8 @@
       "llamado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -937,6 +941,8 @@
       "conocido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -1402,6 +1408,8 @@
       "presentado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -1867,6 +1875,8 @@
       "enseñado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -2331,6 +2341,8 @@
       "estudiado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -2795,6 +2807,8 @@
       "preguntado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -3259,6 +3273,8 @@
       "trabajado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -3725,6 +3741,8 @@
       "estado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -4191,6 +4209,8 @@
       "tenido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -4656,6 +4676,8 @@
       "encargado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -5121,6 +5143,8 @@
       "vivido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -5587,6 +5611,8 @@
       "ido"
     ],
     "is_reflexive": true,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -6053,6 +6079,8 @@
       "levantado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -6519,6 +6547,8 @@
       "bañado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -6983,6 +7013,8 @@
       "cepillado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -7447,6 +7479,8 @@
       "peinado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -7911,6 +7945,8 @@
       "desayunado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -8374,6 +8410,8 @@
       "llevado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -8840,6 +8878,8 @@
       "tomado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -9306,6 +9346,8 @@
       "regresado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -9770,6 +9812,8 @@
       "parecido"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -10235,6 +10279,8 @@
       "supuesto"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -10699,6 +10745,8 @@
       "hablado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -11164,6 +11212,8 @@
       "respirado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -11627,6 +11677,8 @@
       "organizado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -12092,6 +12144,8 @@
       "descansado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -12557,6 +12611,8 @@
       "terminado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -13022,6 +13078,8 @@
       "comenzado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -13487,6 +13545,8 @@
       "dicho"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -13953,6 +14013,8 @@
       "hecho"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -14419,6 +14481,8 @@
       "salido"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -14885,6 +14949,8 @@
       "venido"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -15350,6 +15416,8 @@
       "vuelto"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -15815,6 +15883,8 @@
       "almorzado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -16278,6 +16348,8 @@
       "preparado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -16744,6 +16816,8 @@
       "quedado"
     ],
     "is_reflexive": true,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -17210,6 +17284,8 @@
       "acostado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -17674,6 +17750,8 @@
       "invitado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -18138,6 +18216,8 @@
       "cenado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -18602,6 +18682,8 @@
       "comprado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -19066,6 +19148,8 @@
       "temido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -19530,6 +19614,8 @@
       "llegado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -19995,6 +20081,8 @@
       "cerrado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -20461,6 +20549,8 @@
       "podido"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -20925,6 +21015,8 @@
       "querido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -21389,6 +21481,8 @@
       "alegrado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -21853,6 +21947,8 @@
       "celebrado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -22318,6 +22414,8 @@
       "entrado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -22783,6 +22881,8 @@
       "sentado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -23248,6 +23348,8 @@
       "recomendado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -23713,6 +23815,8 @@
       "pedido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -24178,6 +24282,8 @@
       "bebido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -24642,6 +24748,8 @@
       "cumplido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -25107,6 +25215,8 @@
       "empezado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -25572,6 +25682,8 @@
       "ayudado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -26037,6 +26149,8 @@
       "recibido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -26502,6 +26616,8 @@
       "felicitado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -26966,6 +27082,8 @@
       "charlado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -27430,6 +27548,8 @@
       "brindado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -27895,6 +28015,8 @@
       "comido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -28358,6 +28480,8 @@
       "gustado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -28823,6 +28947,8 @@
       "encantado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -29287,6 +29413,8 @@
       "mirado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -29752,6 +29880,8 @@
       "metido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -30216,6 +30346,8 @@
       "acabado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -30680,6 +30812,8 @@
       "retirado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -31145,6 +31279,8 @@
       "lavado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -31609,6 +31745,8 @@
       "barrido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -32073,6 +32211,8 @@
       "sacado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -32539,6 +32679,8 @@
       "pasado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -33005,6 +33147,8 @@
       "recogido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -33471,6 +33615,8 @@
       "cogido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -33936,6 +34082,8 @@
       "puesto"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -34402,6 +34550,8 @@
       "fregado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -34866,6 +35016,8 @@
       "encontrado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -35332,6 +35484,8 @@
       "visto"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -35798,6 +35952,8 @@
       "sentido"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -36263,6 +36419,8 @@
       "despedido"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -36728,6 +36886,8 @@
       "molestado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -37192,6 +37352,8 @@
       "pensado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -37657,6 +37819,8 @@
       "prestado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -38122,6 +38286,8 @@
       "escrito"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -38587,6 +38753,8 @@
       "necesitado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -39051,6 +39219,8 @@
       "ganado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -39516,6 +39686,8 @@
       "traído"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -39981,6 +40153,8 @@
       "esperado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -40446,6 +40620,8 @@
       "pagado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -40911,6 +41087,8 @@
       "resistido"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -41375,6 +41553,8 @@
       "usado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -41840,6 +42020,8 @@
       "estafado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -42305,6 +42487,8 @@
       "ofrecido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -42771,6 +42955,8 @@
       "servido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -43244,6 +43430,8 @@
       "adquirido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -43710,6 +43898,8 @@
       "tecleado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -44174,6 +44364,8 @@
       "sólido"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -44638,6 +44830,8 @@
       "devuelto"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -45102,6 +45296,8 @@
       "perdido"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -45575,6 +45771,8 @@
       "entregado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -46040,6 +46238,8 @@
       "subido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -46506,6 +46706,8 @@
       "gritado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -46970,6 +47172,8 @@
       "besado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -47433,6 +47637,8 @@
       "abierto"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -47899,6 +48105,8 @@
       "roto"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -48365,6 +48573,8 @@
       "bajado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -48830,6 +49040,8 @@
       "oído"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -49294,6 +49506,8 @@
       "dado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -49759,6 +49973,8 @@
       "sabido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -50224,6 +50440,8 @@
       "indicado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -50690,6 +50908,8 @@
       "dejado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -51156,6 +51376,8 @@
       "encendido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -51621,6 +51843,8 @@
       "apagado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -52086,6 +52310,8 @@
       "corrido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -52552,6 +52778,8 @@
       "alcanzado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -53017,6 +53245,8 @@
       "apeado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -53481,6 +53711,8 @@
       "creído"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -53945,6 +54177,8 @@
       "descuidado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -54410,6 +54644,8 @@
       "avanzado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -54875,6 +55111,8 @@
       "seguido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -55341,6 +55579,8 @@
       "utilizado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -55805,6 +56045,8 @@
       "limpiado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -56269,6 +56511,8 @@
       "debido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -56733,6 +56977,8 @@
       "apuntado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -57198,6 +57444,8 @@
       "mostrado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -57662,6 +57910,8 @@
       "elegido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -58134,6 +58384,8 @@
       "sonado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -58598,6 +58850,8 @@
       "recordado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -59063,6 +59317,8 @@
       "abrigado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -59528,6 +59784,8 @@
       "probado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -59993,6 +60251,8 @@
       "precipitado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -60458,6 +60718,8 @@
       "interesado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -60921,6 +61183,8 @@
       "mejorado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -61385,6 +61649,8 @@
       "comprendido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -61849,6 +62115,8 @@
       "entendido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -62315,6 +62583,8 @@
       "pronunciado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -62780,6 +63050,8 @@
       "significado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -63245,6 +63517,8 @@
       "confundido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -63710,6 +63984,8 @@
       "catado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -64173,6 +64449,8 @@
       "dotado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -64638,6 +64916,8 @@
       "causado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -65103,6 +65383,8 @@
       "buscado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -65568,6 +65850,8 @@
       "contado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -66033,6 +66317,8 @@
       "jugado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -66498,6 +66784,8 @@
       "regado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -66962,6 +67250,8 @@
       "ensuciado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -67425,6 +67715,8 @@
       "estorbado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -67890,6 +68182,8 @@
       "leído"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -68354,6 +68648,8 @@
       "vestido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -68819,6 +69115,8 @@
       "variado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -69283,6 +69581,8 @@
       "considerado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -69749,6 +70049,8 @@
       "resultado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -70213,6 +70515,8 @@
       "casado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -70676,6 +70980,8 @@
       "telefoneado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -71139,6 +71445,8 @@
       "elogiado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -71604,6 +71912,8 @@
       "olvidado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -72068,6 +72378,8 @@
       "evitado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -72533,6 +72845,8 @@
       "asustado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -72998,6 +73312,8 @@
       "amenazado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -73462,6 +73778,8 @@
       "protegido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -73927,6 +74245,8 @@
       "arrojado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -74393,6 +74713,8 @@
       "observado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -74859,6 +75181,8 @@
       "agradecido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -75323,6 +75647,8 @@
       "atravesado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -75788,6 +76114,8 @@
       "enfurecido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -76253,6 +76581,8 @@
       "limitado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -76717,6 +77047,8 @@
       "acercado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -77181,6 +77513,8 @@
       "asomado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -77645,6 +77979,8 @@
       "detenido"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -78110,6 +78446,8 @@
       "pertenecido"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -78354,7 +78692,7 @@
           "no pertenecéis"
         ],
         "third_plural": [
-          "no pertenézcan"
+          "no pertenezcan"
         ],
         "regular": false
       }
@@ -78574,6 +78912,8 @@
       "incluido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -79039,6 +79379,8 @@
       "caracterizado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -79510,6 +79852,8 @@
       "añadido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -79975,6 +80319,8 @@
       "sobrepasado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -80440,6 +80786,8 @@
       "cuidado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -80906,6 +81254,8 @@
       "informado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -81372,6 +81722,8 @@
       "visitado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -81836,6 +82188,8 @@
       "conversado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -82300,6 +82654,8 @@
       "salvado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -82765,6 +83121,8 @@
       "tratado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -83230,6 +83588,8 @@
       "dispuesto"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -83695,6 +84055,8 @@
       "acompañado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -84161,6 +84523,8 @@
       "saludado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -84625,6 +84989,8 @@
       "escuchado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -85089,6 +85455,8 @@
       "graduado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -85553,6 +85921,8 @@
       "envidiado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -86016,6 +86386,8 @@
       "iniciado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -86481,6 +86853,8 @@
       "animado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -86946,6 +87320,8 @@
       "prometido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -87410,6 +87786,8 @@
       "mandado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -87875,6 +88253,8 @@
       "anunciado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -88340,6 +88720,8 @@
       "prolongado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -88804,6 +89186,8 @@
       "preocupado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -89269,6 +89653,8 @@
       "instalado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -89734,6 +90120,8 @@
       "tocado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -90201,6 +90589,8 @@
       "despierto"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -90665,6 +91055,8 @@
       "aseado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -91129,6 +91521,8 @@
       "asistido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -91594,6 +91988,8 @@
       "contestado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -92058,6 +92454,8 @@
       "madrugado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -92521,6 +92919,8 @@
       "habido"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -92986,6 +93386,8 @@
       "exigido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -93450,6 +93852,8 @@
       "discutido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -93914,6 +94318,8 @@
       "proporcionado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -94378,6 +94784,8 @@
       "producido"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -94843,6 +95251,8 @@
       "durado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -95307,6 +95717,8 @@
       "aparcado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -95770,6 +96182,8 @@
       "aparecido"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -96234,6 +96648,8 @@
       "avisado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -96698,6 +97114,8 @@
       "decidido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -97161,6 +97579,8 @@
       "logrado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -97626,6 +98046,8 @@
       "abrazado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -98089,6 +98511,8 @@
       "entablado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -98553,6 +98977,8 @@
       "conectado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -99017,6 +99443,8 @@
       "paralizado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -99481,6 +99909,8 @@
       "tardado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -99945,6 +100375,8 @@
       "cultivado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -100409,6 +100841,8 @@
       "nadado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -100872,6 +101306,8 @@
       "atardecido"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -101336,6 +101772,8 @@
       "alojado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -101800,6 +102238,8 @@
       "compartido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -102264,6 +102704,8 @@
       "repartido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -102728,6 +103170,8 @@
       "permitido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -103192,6 +103636,8 @@
       "funcionado"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -103657,6 +104103,8 @@
       "obligado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -104121,6 +104569,8 @@
       "intensificado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -104585,6 +105035,8 @@
       "advertido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -105050,6 +105502,8 @@
       "notado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -105514,6 +105968,8 @@
       "realizado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -105979,6 +106435,8 @@
       "efectuado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -106444,6 +106902,8 @@
       "obtenido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -106908,6 +107368,8 @@
       "fijado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -107373,6 +107835,8 @@
       "ampliado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -107838,6 +108302,8 @@
       "reservado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -108302,6 +108768,8 @@
       "requerido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": false,
@@ -108766,6 +109234,8 @@
       "resuelto"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -109230,6 +109700,8 @@
       "separado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -109694,6 +110166,8 @@
       "despegado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -110158,6 +110632,8 @@
       "ocurrido"
     ],
     "is_reflexive": false,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -110622,6 +111098,8 @@
       "partido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -111087,6 +111565,8 @@
       "aterrizado"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -111551,6 +112031,8 @@
       "aproximado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -112015,6 +112497,8 @@
       "alejado"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -112479,6 +112963,8 @@
       "atrevido"
     ],
     "is_reflexive": true,
+    "has_tr_use": false,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -112943,6 +113429,8 @@
       "referido"
     ],
     "is_reflexive": true,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": true,
@@ -113408,6 +113896,8 @@
       "preferido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
@@ -113872,6 +114362,8 @@
       "recorrido"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": false,
     "indicative": {
       "present": {
         "regular": true,
@@ -114337,6 +114829,8 @@
       "reído"
     ],
     "is_reflexive": false,
+    "has_tr_use": true,
+    "has_intr_use": true,
     "indicative": {
       "present": {
         "regular": false,
