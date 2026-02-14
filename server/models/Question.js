@@ -1,5 +1,63 @@
 const { userDb, questionDb, vocabularyDb } = require('../database/db')
 
+const PUBLIC_SOURCE_TRADITIONAL = 'public_traditional'
+const PUBLIC_SOURCE_PRONOUN = 'public_pronoun'
+const PRIVATE_SOURCE = 'private'
+
+const QUESTION_BANK_TRADITIONAL = 'traditional'
+const QUESTION_BANK_PRONOUN = 'pronoun'
+
+const PUBLIC_TABLES = {
+  [PUBLIC_SOURCE_TRADITIONAL]: 'public_traditional_conjugation',
+  [PUBLIC_SOURCE_PRONOUN]: 'public_conjugation_with_pronoun'
+}
+
+const TENSE_MAP = {
+  presente: '现在时',
+  preterito: '简单过去时',
+  futuro: '将来时',
+  imperfecto: '过去未完成时',
+  condicional: '条件式',
+  subjuntivo_presente: '虚拟现在时',
+  subjuntivo_imperfecto: '虚拟过去时',
+  subjuntivo_futuro: '虚拟将来未完成时',
+  imperativo_afirmativo: '肯定命令式',
+  imperativo_negativo: '否定命令式',
+  perfecto: '现在完成时',
+  pluscuamperfecto: '过去完成时',
+  futuro_perfecto: '将来完成时',
+  condicional_perfecto: '条件完成时',
+  preterito_anterior: '前过去时',
+  subjuntivo_perfecto: '虚拟现在完成时',
+  subjuntivo_pluscuamperfecto: '虚拟过去完成时',
+  subjuntivo_futuro_perfecto: '虚拟将来完成时'
+}
+
+const MOOD_MAP = {
+  indicativo: '陈述式',
+  subjuntivo: '虚拟式',
+  imperativo: '命令式',
+  indicativo_compuesto: '复合陈述式',
+  subjuntivo_compuesto: '复合虚拟式'
+}
+
+const CONJ_FORM_TO_HOST_FORM = {
+  general: 'finite',
+  imperative: 'imperative',
+  infinitive: 'infinitive',
+  gerund: 'gerund',
+  reflexive: 'prnl'
+}
+
+function tableExists(dbInstance, tableName) {
+  const row = dbInstance.prepare(`
+    SELECT name
+    FROM sqlite_master
+    WHERE type = 'table' AND name = ?
+  `).get(tableName)
+  return !!row
+}
+
 function isPersonAllowed(person, includeVos = false, includeVosotros = true) {
   if (!person) return true
 
@@ -14,27 +72,118 @@ function isPersonAllowed(person, includeVos = false, includeVosotros = true) {
   return true
 }
 
-function attachVerbInfinitives(rows) {
-  if (!rows.length) return rows
+function normalizePublicSource(source, fallback = PUBLIC_SOURCE_TRADITIONAL) {
+  if (!source) return fallback
+  const value = String(source).trim().toLowerCase()
+  if (value === PUBLIC_SOURCE_TRADITIONAL || value === 'traditional') return PUBLIC_SOURCE_TRADITIONAL
+  if (value === PUBLIC_SOURCE_PRONOUN || value === 'pronoun') return PUBLIC_SOURCE_PRONOUN
+  if (value === 'public') return fallback
+  return fallback
+}
+
+function normalizeQuestionSource(questionSource, fallbackPublicSource = PUBLIC_SOURCE_TRADITIONAL) {
+  if (!questionSource) return fallbackPublicSource
+  const value = String(questionSource).trim().toLowerCase()
+  if (value === PRIVATE_SOURCE) return PRIVATE_SOURCE
+  if (value === 'public') return fallbackPublicSource
+  if (value === PUBLIC_SOURCE_TRADITIONAL || value === 'traditional') return PUBLIC_SOURCE_TRADITIONAL
+  if (value === PUBLIC_SOURCE_PRONOUN || value === 'pronoun') return PUBLIC_SOURCE_PRONOUN
+  return fallbackPublicSource
+}
+
+function normalizeQuestionBank(bank, fallback = QUESTION_BANK_TRADITIONAL) {
+  if (!bank) return fallback
+  const value = String(bank).trim().toLowerCase()
+  if (value === QUESTION_BANK_TRADITIONAL) return QUESTION_BANK_TRADITIONAL
+  if (value === QUESTION_BANK_PRONOUN) return QUESTION_BANK_PRONOUN
+  return fallback
+}
+
+function getPublicSourceByQuestionBank(questionBank) {
+  const normalizedBank = normalizeQuestionBank(questionBank)
+  return normalizedBank === QUESTION_BANK_PRONOUN
+    ? PUBLIC_SOURCE_PRONOUN
+    : PUBLIC_SOURCE_TRADITIONAL
+}
+
+function getQuestionBankByPublicSource(source) {
+  const normalizedSource = normalizePublicSource(source)
+  return normalizedSource === PUBLIC_SOURCE_PRONOUN
+    ? QUESTION_BANK_PRONOUN
+    : QUESTION_BANK_TRADITIONAL
+}
+
+function getPublicTableBySource(source) {
+  const normalized = normalizePublicSource(source)
+  return PUBLIC_TABLES[normalized]
+}
+
+function toRecordType(questionSource) {
+  const normalized = normalizeQuestionSource(questionSource)
+  if (normalized === PRIVATE_SOURCE) return PRIVATE_SOURCE
+  return normalizePublicSource(normalized)
+}
+
+function normalizeConjugationFormsToHostForms(conjugationForms = []) {
+  if (!Array.isArray(conjugationForms) || conjugationForms.length === 0) return []
+  const result = []
+  conjugationForms.forEach((form) => {
+    const normalized = String(form || '').trim().toLowerCase()
+    const mapped = CONJ_FORM_TO_HOST_FORM[normalized]
+    if (mapped && !result.includes(mapped)) {
+      result.push(mapped)
+    }
+  })
+  return result
+}
+
+function normalizePronounPatterns(patterns = []) {
+  if (!Array.isArray(patterns) || patterns.length === 0) return []
+  const allowed = new Set(['DO', 'IO', 'DO_IO'])
+  const result = []
+  patterns.forEach((pattern) => {
+    const normalized = String(pattern || '').trim().toUpperCase()
+    if (allowed.has(normalized) && !result.includes(normalized)) {
+      result.push(normalized)
+    }
+  })
+  return result
+}
+
+function attachVerbInfo(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return rows
+
   const verbIds = [...new Set(rows.map(row => row.verb_id).filter(Boolean))]
-  if (!verbIds.length) {
-    return rows.map(row => ({ ...row, infinitive: null }))
+  if (verbIds.length === 0) {
+    return rows.map(row => ({ ...row }))
   }
 
   const placeholders = verbIds.map(() => '?').join(',')
   const verbs = vocabularyDb.prepare(`
-    SELECT id, infinitive FROM verbs WHERE id IN (${placeholders})
+    SELECT *
+    FROM verbs
+    WHERE id IN (${placeholders})
   `).all(...verbIds)
 
   const verbMap = {}
-  verbs.forEach(verb => {
-    verbMap[verb.id] = verb.infinitive
+  verbs.forEach((verb) => {
+    verbMap[verb.id] = verb
   })
 
-  return rows.map(row => ({
-    ...row,
-    infinitive: verbMap[row.verb_id] || null
-  }))
+  return rows.map((row) => {
+    const verb = verbMap[row.verb_id]
+    if (!verb) return { ...row }
+    return {
+      ...row,
+      infinitive: verb.infinitive,
+      meaning: verb.meaning,
+      conjugation_type: verb.conjugation_type,
+      is_irregular: verb.is_irregular,
+      is_reflexive: verb.is_reflexive,
+      has_tr_use: verb.has_tr_use,
+      has_intr_use: verb.has_intr_use
+    }
+  })
 }
 
 function sortRows(rows, sortBy, sortOrder) {
@@ -64,329 +213,366 @@ function sortRows(rows, sortBy, sortOrder) {
   })
 }
 
+function buildTraditionalWhereClause(filters = {}) {
+  const {
+    tenses = [],
+    moods = [],
+    verbIds = null,
+    includeVos = false,
+    includeVosotros = true
+  } = filters
+
+  let query = ' WHERE 1=1'
+  const params = []
+
+  if (Array.isArray(tenses) && tenses.length > 0) {
+    const chineseTenses = tenses.map(t => TENSE_MAP[t]).filter(Boolean)
+    if (chineseTenses.length > 0) {
+      const placeholders = chineseTenses.map(() => '?').join(',')
+      query += ` AND tense IN (${placeholders})`
+      params.push(...chineseTenses)
+    }
+  }
+
+  if (Array.isArray(moods) && moods.length > 0) {
+    const chineseMoods = moods.map(m => MOOD_MAP[m]).filter(Boolean)
+    if (chineseMoods.length > 0) {
+      const placeholders = chineseMoods.map(() => '?').join(',')
+      query += ` AND mood IN (${placeholders})`
+      params.push(...chineseMoods)
+    }
+  }
+
+  if (verbIds && Array.isArray(verbIds) && verbIds.length > 0) {
+    const placeholders = verbIds.map(() => '?').join(',')
+    query += ` AND verb_id IN (${placeholders})`
+    params.push(...verbIds)
+  }
+
+  return {
+    query,
+    params,
+    includeVos,
+    includeVosotros
+  }
+}
+
+function buildPronounWhereClause(filters = {}) {
+  const {
+    hostForms = [],
+    conjugationForms = [],
+    pronounPatterns = [],
+    verbIds = null,
+    includeVos = false,
+    includeVosotros = true
+  } = filters
+
+  let query = ' WHERE 1=1'
+  const params = []
+
+  const normalizedHostForms = Array.isArray(hostForms) && hostForms.length > 0
+    ? hostForms
+    : normalizeConjugationFormsToHostForms(conjugationForms)
+
+  if (normalizedHostForms.length > 0) {
+    const placeholders = normalizedHostForms.map(() => '?').join(',')
+    query += ` AND host_form IN (${placeholders})`
+    params.push(...normalizedHostForms)
+  }
+
+  const normalizedPatterns = normalizePronounPatterns(pronounPatterns)
+  if (normalizedPatterns.length > 0) {
+    const placeholders = normalizedPatterns.map(() => '?').join(',')
+    query += ` AND pronoun_pattern IN (${placeholders})`
+    params.push(...normalizedPatterns)
+  }
+
+  if (verbIds && Array.isArray(verbIds) && verbIds.length > 0) {
+    const placeholders = verbIds.map(() => '?').join(',')
+    query += ` AND verb_id IN (${placeholders})`
+    params.push(...verbIds)
+  }
+
+  return {
+    query,
+    params,
+    includeVos,
+    includeVosotros
+  }
+}
+
+function enrichPublicRows(rows, source) {
+  const bank = getQuestionBankByPublicSource(source)
+  return rows.map(row => ({
+    ...row,
+    question_type: 'sentence',
+    question_bank: bank,
+    public_question_source: normalizePublicSource(source)
+  }))
+}
+
+function resolvePublicLocationById(id, preferredSource = null) {
+  const preferred = preferredSource
+    ? normalizePublicSource(preferredSource, null)
+    : null
+
+  if (preferred) {
+    const table = getPublicTableBySource(preferred)
+    const row = questionDb.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id)
+    if (row) {
+      return { source: preferred, table, row }
+    }
+  }
+
+  for (const source of [PUBLIC_SOURCE_TRADITIONAL, PUBLIC_SOURCE_PRONOUN]) {
+    const table = getPublicTableBySource(source)
+    const row = questionDb.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id)
+    if (row) {
+      return { source, table, row }
+    }
+  }
+
+  return null
+}
+
 class Question {
-  // ==================== 公共题库操作 ====================
-  
-  /**
-   * 添加题目到公共题库
-   */
+  static normalizePublicSource(source, fallback = PUBLIC_SOURCE_TRADITIONAL) {
+    return normalizePublicSource(source, fallback)
+  }
+
+  static normalizeQuestionSource(source, fallbackPublicSource = PUBLIC_SOURCE_TRADITIONAL) {
+    return normalizeQuestionSource(source, fallbackPublicSource)
+  }
+
+  static isPublicSource(source) {
+    const normalized = normalizeQuestionSource(source, null)
+    return normalized === PUBLIC_SOURCE_TRADITIONAL || normalized === PUBLIC_SOURCE_PRONOUN
+  }
+
   static addToPublic(questionData) {
-    const {
-      verbId,
-      questionType,
-      questionText,
-      correctAnswer,
-      exampleSentence,
-      translation,
-      hint,
-      tense,
-      mood,
-      person,
-      confidenceScore = 50
-    } = questionData
+    const questionBank = normalizeQuestionBank(
+      questionData.questionBank,
+      questionData.hostForm ? QUESTION_BANK_PRONOUN : QUESTION_BANK_TRADITIONAL
+    )
+    const source = normalizePublicSource(
+      questionData.publicQuestionSource || questionData.questionSource || getPublicSourceByQuestionBank(questionBank)
+    )
+
+    if (source === PUBLIC_SOURCE_PRONOUN) {
+      const stmt = questionDb.prepare(`
+        INSERT INTO public_conjugation_with_pronoun (
+          verb_id,
+          host_form,
+          host_form_zh,
+          pronoun_pattern,
+          question_text,
+          correct_answer,
+          example_sentence,
+          translation,
+          hint,
+          tense,
+          mood,
+          person,
+          io_pronoun,
+          do_pronoun,
+          confidence_score
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+
+      const result = stmt.run(
+        questionData.verbId,
+        questionData.hostForm || 'finite',
+        questionData.hostFormZh || '',
+        questionData.pronounPattern || null,
+        questionData.questionText,
+        questionData.correctAnswer,
+        questionData.exampleSentence || null,
+        questionData.translation || null,
+        questionData.hint || null,
+        questionData.tense || '不适用',
+        questionData.mood || '不适用',
+        questionData.person || '不适用',
+        questionData.ioPronoun || null,
+        questionData.doPronoun || null,
+        questionData.confidenceScore ?? 50
+      )
+      return result.lastInsertRowid
+    }
 
     const stmt = questionDb.prepare(`
-      INSERT INTO public_questions (
-        verb_id, question_type, question_text, correct_answer,
-        example_sentence, translation, hint, tense, mood, person, confidence_score
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO public_traditional_conjugation (
+        verb_id,
+        question_text,
+        correct_answer,
+        example_sentence,
+        translation,
+        hint,
+        tense,
+        mood,
+        person,
+        confidence_score
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
     const result = stmt.run(
-      verbId, questionType, questionText, correctAnswer,
-      exampleSentence, translation, hint, tense, mood, person, confidenceScore
+      questionData.verbId,
+      questionData.questionText,
+      questionData.correctAnswer,
+      questionData.exampleSentence || null,
+      questionData.translation || null,
+      questionData.hint || null,
+      questionData.tense,
+      questionData.mood,
+      questionData.person,
+      questionData.confidenceScore ?? 50
     )
-
     return result.lastInsertRowid
   }
 
-  /**
-   * 从公共题库智能获取题目（基于置信度和用户历史）
-   * @param {number} userId - 用户ID
-   * @param {object} filters - 筛选条件
-   * @param {number} limit - 需要的题目数量
-   * @returns {Array} 返回排序后的前limit个题目（供题目池使用）
-   */
   static getSmartFromPublic(userId, filters = {}, limit = 1) {
-    const {
-      questionType,
-      tenses = [],
-      moods = [],
-      verbIds = null,
-      includeVos = false,
-      includeVosotros = true
-    } = filters
+    const questionBank = normalizeQuestionBank(filters.questionBank)
+    const source = normalizePublicSource(
+      filters.publicQuestionSource || filters.questionSource || getPublicSourceByQuestionBank(questionBank)
+    )
+    const table = getPublicTableBySource(source)
+    const recordType = toRecordType(source)
 
-    // 时态名称映射：前端英文 -> 数据库中文
-    const tenseMap = {
-      'presente': '现在时',
-      'preterito': '简单过去时',
-      'futuro': '将来时',
-      'imperfecto': '过去未完成时',
-      'condicional': '条件式'
-    }
+    const where = source === PUBLIC_SOURCE_PRONOUN
+      ? buildPronounWhereClause(filters)
+      : buildTraditionalWhereClause(filters)
 
-    const moodMap = {
-      'indicativo': '陈述式',
-      'subjuntivo': '虚拟式',
-      'imperativo': '命令式',
-      'indicativo_compuesto': '复合陈述式',
-      'subjuntivo_compuesto': '复合虚拟式'
-    }
+    const query = `SELECT * FROM ${table}${where.query} ORDER BY RANDOM() LIMIT ?`
+    const candidateLimit = Math.max(limit * 3, limit)
+    const allCandidates = questionDb.prepare(query).all(...where.params, candidateLimit)
+    const filteredCandidates = allCandidates.filter(q => isPersonAllowed(q.person, where.includeVos, where.includeVosotros))
 
-    // 第一步：从题库中随机选出3倍数量的候选题目
-    let query = `SELECT * FROM public_questions WHERE 1=1`
-    const params = []
-
-    if (questionType) {
-      query += ` AND question_type = ?`
-      params.push(questionType)
-    }
-
-    if (tenses.length > 0) {
-      // 将前端的英文时态名转换为中文
-      const chineseTenses = tenses.map(t => tenseMap[t]).filter(Boolean)
-      if (chineseTenses.length > 0) {
-        const placeholders = chineseTenses.map(() => '?').join(',')
-        query += ` AND tense IN (${placeholders})`
-        params.push(...chineseTenses)
-      }
-    }
-
-    if (moods.length > 0) {
-      const chineseMoods = moods.map(m => moodMap[m]).filter(Boolean)
-      if (chineseMoods.length > 0) {
-        const placeholders = chineseMoods.map(() => '?').join(',')
-        query += ` AND mood IN (${placeholders})`
-        params.push(...chineseMoods)
-      }
-    }
-
-    // 添加verbIds筛选（用于收藏专练和错题专练）
-    if (verbIds && verbIds.length > 0) {
-      const placeholders = verbIds.map(() => '?').join(',')
-      query += ` AND verb_id IN (${placeholders})`
-      params.push(...verbIds)
-    }
-
-    query += ` ORDER BY RANDOM() LIMIT ?`
-    params.push(limit * 3)
-
-    const stmt = questionDb.prepare(query)
-    const allCandidates = stmt.all(...params)
-    
-    // 去重：如果有重复的题目ID，只保留第一个
-    const seenIds = new Set()
-    const candidates = allCandidates.filter(q => {
-      if (seenIds.has(q.id)) {
-        console.warn(`发现重复题目ID: ${q.id}，已过滤`)
-        return false
-      }
-      seenIds.add(q.id)
-      return isPersonAllowed(q.person, includeVos, includeVosotros)
-    })
-    
-    console.log(`智能推荐 - 获取候选题目:`, {
-      userId,
-      questionType,
-      limit,
-      verbIdsFilter: verbIds?.length || 0,
-      totalCandidates: allCandidates.length,
-      uniqueCandidates: candidates.length,
-      candidateIds: candidates.map(c => c.id)
-    })
-    
-    if (candidates.length === 0) {
+    if (filteredCandidates.length === 0) {
       return []
     }
 
-    // 第二步：获取用户对这些题目的练习记录
-    const questionIds = candidates.map(q => q.id)
+    const questionIds = filteredCandidates.map(q => q.id)
     const placeholders = questionIds.map(() => '?').join(',')
-    
-    const recordStmt = userDb.prepare(`
-      SELECT question_id, practice_count, rating 
+    const records = userDb.prepare(`
+      SELECT question_id, practice_count, rating
       FROM user_question_records
-      WHERE user_id = ? AND question_type = 'public' AND question_id IN (${placeholders})
-    `)
-    const records = recordStmt.all(userId, ...questionIds)
-    
-    // 创建记录映射
+      WHERE user_id = ? AND question_type = ? AND question_id IN (${placeholders})
+    `).all(userId, recordType, ...questionIds)
+
     const recordMap = {}
-    records.forEach(r => {
-      recordMap[r.question_id] = r
+    records.forEach((record) => {
+      recordMap[record.question_id] = record
     })
 
-    // 第三步：计算每个题目的排序分数
-    // 分数 = 置信度 - 5 * 练习次数 + 随机值(-5到5) + 评价影响
-    const scoredQuestions = candidates.map(q => {
-      const record = recordMap[q.id] || { practice_count: 0, rating: 0 }
-      const randomValue = Math.floor(Math.random() * 11) - 5 // -5 到 5
-      const ratingBonus = record.rating * 10 // 好题+10，坏题-10
-      const score = q.confidence_score - 5 * record.practice_count + randomValue + ratingBonus
-      
+    const scored = filteredCandidates.map((question) => {
+      const record = recordMap[question.id] || { practice_count: 0, rating: 0 }
+      const randomValue = Math.floor(Math.random() * 11) - 5
+      const ratingBonus = (record.rating || 0) * 10
+      const score = (question.confidence_score || 50) - 5 * (record.practice_count || 0) + randomValue + ratingBonus
       return {
-        ...q,
-        _score: score,
-        _practice_count: record.practice_count
+        ...question,
+        _score: score
       }
     })
 
-    // 第四步：按分数降序排序，返回前limit个题目
-    scoredQuestions.sort((a, b) => b._score - a._score)
-    
-    // 第四步半：再次去重（防止万一）
-    const uniqueScoredQuestions = []
-    const finalSeenIds = new Set()
-    for (const q of scoredQuestions) {
-      if (!finalSeenIds.has(q.id)) {
-        finalSeenIds.add(q.id)
-        uniqueScoredQuestions.push(q)
-      } else {
-        console.warn(`排序后发现重复题目ID: ${q.id}，已过滤`)
-      }
-    }
-    
-    // 返回前N个结果（供调用方随机抽取）
-    const selectedQuestions = uniqueScoredQuestions.slice(0, Math.min(limit, uniqueScoredQuestions.length))
-
-    // 第五步：获取动词信息
-    if (selectedQuestions.length > 0) {
-      const verbIds = [...new Set(selectedQuestions.map(q => q.verb_id))]
-      const verbPlaceholders = verbIds.map(() => '?').join(',')
-      const verbStmt = vocabularyDb.prepare(`
-        SELECT * FROM verbs WHERE id IN (${verbPlaceholders})
-      `)
-      const verbs = verbStmt.all(...verbIds)
-      const verbMap = {}
-      verbs.forEach(v => verbMap[v.id] = v)
-      
-      selectedQuestions.forEach(q => {
-        const verb = verbMap[q.verb_id]
-        if (verb) {
-          q.infinitive = verb.infinitive
-          q.meaning = verb.meaning
-          q.conjugation_type = verb.conjugation_type
-          q.is_irregular = verb.is_irregular
-        }
-        // 清理内部属性
-        delete q._score
-        delete q._practice_count
-      })
-    }
-
-    console.log(`智能推荐 - 最终返回:`, {
-      count: selectedQuestions.length,
-      questionIds: selectedQuestions.map(q => q.id),
-      hasDuplicateIds: selectedQuestions.length !== new Set(selectedQuestions.map(q => q.id)).size,
-      questions: selectedQuestions.map(q => ({
-        id: q.id,
-        verb: q.infinitive,
-        tense: q.tense
-      }))
+    scored.sort((a, b) => b._score - a._score)
+    const selected = scored.slice(0, Math.min(limit, scored.length)).map((row) => {
+      const copied = { ...row }
+      delete copied._score
+      return copied
     })
 
-    return selectedQuestions
+    return attachVerbInfo(enrichPublicRows(selected, source))
   }
 
-  /**
-   * 从公共题库随机获取题目（旧方法，保留兼容性）
-   */
   static getRandomFromPublic(filters = {}) {
-    const {
-      questionType,
-      tenses = [],
-      conjugationTypes = [],
-      includeRegular = true,
-      includeVos = false,
-      includeVosotros = true,
-      limit = 1
-    } = filters
+    const questionBank = normalizeQuestionBank(filters.questionBank)
+    const source = normalizePublicSource(
+      filters.publicQuestionSource || filters.questionSource || getPublicSourceByQuestionBank(questionBank)
+    )
+    const table = getPublicTableBySource(source)
+    const limit = Number(filters.limit) > 0 ? Number(filters.limit) : 1
 
-    let query = `SELECT * FROM public_questions WHERE 1=1`
-    const params = []
+    const where = source === PUBLIC_SOURCE_PRONOUN
+      ? buildPronounWhereClause(filters)
+      : buildTraditionalWhereClause(filters)
 
-    if (questionType) {
-      query += ` AND question_type = ?`
-      params.push(questionType)
-    }
+    const query = `SELECT * FROM ${table}${where.query} ORDER BY RANDOM() LIMIT ?`
+    const rows = questionDb.prepare(query).all(...where.params, limit)
+      .filter(row => isPersonAllowed(row.person, where.includeVos, where.includeVosotros))
 
-    if (tenses.length > 0) {
-      const placeholders = tenses.map(() => '?').join(',')
-      query += ` AND tense IN (${placeholders})`
-      params.push(...tenses)
-    }
-
-    query += ` ORDER BY RANDOM() LIMIT ?`
-    params.push(limit)
-
-    const stmt = questionDb.prepare(query)
-    const rawQuestions = limit === 1 ? [stmt.get(...params)].filter(Boolean) : stmt.all(...params)
-    const questions = rawQuestions.filter(q => isPersonAllowed(q?.person, includeVos, includeVosotros))
-    
-    // 如果需要动词信息，从词库数据库获取
-    if (questions.length > 0) {
-      const verbIds = questions.map(q => q.verb_id)
-      const placeholders = verbIds.map(() => '?').join(',')
-      const verbStmt = vocabularyDb.prepare(`
-        SELECT * FROM verbs WHERE id IN (${placeholders})
-      `)
-      const verbs = verbStmt.all(...verbIds)
-      const verbMap = {}
-      verbs.forEach(v => verbMap[v.id] = v)
-      
-      questions.forEach(q => {
-        const verb = verbMap[q.verb_id]
-        if (verb) {
-          q.infinitive = verb.infinitive
-          q.meaning = verb.meaning
-          q.conjugation_type = verb.conjugation_type
-          q.is_irregular = verb.is_irregular
-        }
-      })
-    }
-
-    return limit === 1 ? questions[0] : questions
+    const normalizedRows = attachVerbInfo(enrichPublicRows(rows, source))
+    return limit === 1 ? normalizedRows[0] || null : normalizedRows
   }
 
-  /**
-   * 管理后台：分页获取公共题库列表
-   */
-  static listPublic({ limit = 50, offset = 0, keyword = '', sortBy = 'created_at', sortOrder = 'desc' } = {}) {
-    let query = `SELECT * FROM public_questions WHERE 1=1`
-    const params = []
-
-    if (keyword) {
-      const like = `%${keyword}%`
-      const conditions = [
-        `question_text LIKE ?`,
-        `correct_answer LIKE ?`,
-        `example_sentence LIKE ?`,
-        `translation LIKE ?`,
-        `hint LIKE ?`,
-        `tense LIKE ?`,
-        `mood LIKE ?`,
-        `person LIKE ?`,
-        `question_type LIKE ?`,
-        `CAST(id AS TEXT) LIKE ?`
-      ]
-
-      params.push(like, like, like, like, like, like, like, like, like, like)
-
-      const verbMatches = vocabularyDb.prepare(`
-        SELECT id FROM verbs WHERE infinitive LIKE ?
-      `).all(like)
-      const verbIds = verbMatches.map(match => match.id)
-
-      if (verbIds.length > 0) {
-        const placeholders = verbIds.map(() => '?').join(',')
-        conditions.push(`verb_id IN (${placeholders})`)
-        params.push(...verbIds)
-      }
-
-      query += ` AND (${conditions.join(' OR ')})`
+  static listPublic({
+    limit = 50,
+    offset = 0,
+    keyword = '',
+    sortBy = 'created_at',
+    sortOrder = 'desc',
+    questionBank = ''
+  } = {}) {
+    const banks = []
+    const normalizedBank = questionBank ? normalizeQuestionBank(questionBank, null) : null
+    if (normalizedBank === QUESTION_BANK_TRADITIONAL) {
+      banks.push(QUESTION_BANK_TRADITIONAL)
+    } else if (normalizedBank === QUESTION_BANK_PRONOUN) {
+      banks.push(QUESTION_BANK_PRONOUN)
+    } else {
+      banks.push(QUESTION_BANK_TRADITIONAL, QUESTION_BANK_PRONOUN)
     }
 
+    const like = keyword ? `%${keyword}%` : null
+    const rows = []
+    const verbIdsFromKeyword = keyword
+      ? vocabularyDb.prepare('SELECT id FROM verbs WHERE infinitive LIKE ?').all(like).map(item => item.id)
+      : []
+
+    banks.forEach((bank) => {
+      const source = getPublicSourceByQuestionBank(bank)
+      const table = getPublicTableBySource(source)
+      if (!tableExists(questionDb, table)) return
+
+      let query = `SELECT * FROM ${table} WHERE 1=1`
+      const params = []
+
+      if (keyword) {
+        const conditions = [
+          'question_text LIKE ?',
+          'correct_answer LIKE ?',
+          'example_sentence LIKE ?',
+          'translation LIKE ?',
+          'hint LIKE ?',
+          'tense LIKE ?',
+          'mood LIKE ?',
+          'person LIKE ?',
+          'CAST(id AS TEXT) LIKE ?'
+        ]
+        params.push(like, like, like, like, like, like, like, like, like)
+
+        if (bank === QUESTION_BANK_PRONOUN) {
+          conditions.push('host_form LIKE ?')
+          conditions.push('host_form_zh LIKE ?')
+          conditions.push('pronoun_pattern LIKE ?')
+          conditions.push('io_pronoun LIKE ?')
+          conditions.push('do_pronoun LIKE ?')
+          params.push(like, like, like, like, like)
+        }
+
+        if (verbIdsFromKeyword.length > 0) {
+          const placeholders = verbIdsFromKeyword.map(() => '?').join(',')
+          conditions.push(`verb_id IN (${placeholders})`)
+          params.push(...verbIdsFromKeyword)
+        }
+
+        query += ` AND (${conditions.join(' OR ')})`
+      }
+
+      const tableRows = questionDb.prepare(query).all(...params)
+      rows.push(...enrichPublicRows(tableRows, source))
+    })
+
+    let normalizedRows = attachVerbInfo(rows)
     const allowedSort = new Set([
       'id',
       'verb_id',
@@ -400,45 +586,83 @@ class Question {
       'created_at'
     ])
     const safeSortBy = allowedSort.has(sortBy) ? sortBy : 'created_at'
-    const safeOrder = sortOrder === 'asc' ? 'asc' : 'desc'
+    const safeSortOrder = sortOrder === 'asc' ? 'asc' : 'desc'
+    normalizedRows = sortRows(normalizedRows, safeSortBy, safeSortOrder)
 
-    let rows = questionDb.prepare(query).all(...params)
-    rows = attachVerbInfinitives(rows)
-    rows = sortRows(rows, safeSortBy, safeOrder)
-
-    const total = rows.length
-    const pagedRows = rows.slice(offset, offset + limit)
-
+    const total = normalizedRows.length
+    const pagedRows = normalizedRows.slice(offset, offset + limit)
     return { rows: pagedRows, total }
   }
 
-  /**
-   * 管理后台：获取公共题库详情
-   */
-  static findPublicById(id) {
-    const question = questionDb.prepare('SELECT * FROM public_questions WHERE id = ?').get(id)
-    if (!question) return null
-    const verb = vocabularyDb.prepare('SELECT id, infinitive FROM verbs WHERE id = ?').get(question.verb_id)
-    return {
-      ...question,
-      infinitive: verb?.infinitive || null
-    }
+  static findPublicById(id, source = null) {
+    const location = resolvePublicLocationById(id, source)
+    if (!location) return null
+    const enriched = attachVerbInfo(enrichPublicRows([location.row], location.source))
+    return enriched[0] || null
   }
 
-  /**
-   * 管理后台：更新公共题库题目
-   */
-  static updatePublic(id, data) {
-    const stmt = questionDb.prepare(`
-      UPDATE public_questions
-      SET verb_id = ?, question_type = ?, question_text = ?, correct_answer = ?,
-          example_sentence = ?, translation = ?, hint = ?, tense = ?, mood = ?, person = ?,
+  static updatePublic(id, data, source = null) {
+    const location = resolvePublicLocationById(id, source)
+    if (!location) return null
+
+    if (location.source === PUBLIC_SOURCE_PRONOUN) {
+      const stmt = questionDb.prepare(`
+        UPDATE public_conjugation_with_pronoun
+        SET
+          verb_id = ?,
+          host_form = ?,
+          host_form_zh = ?,
+          pronoun_pattern = ?,
+          question_text = ?,
+          correct_answer = ?,
+          example_sentence = ?,
+          translation = ?,
+          hint = ?,
+          tense = ?,
+          mood = ?,
+          person = ?,
+          io_pronoun = ?,
+          do_pronoun = ?,
           confidence_score = ?
+        WHERE id = ?
+      `)
+      return stmt.run(
+        data.verb_id,
+        data.host_form,
+        data.host_form_zh,
+        data.pronoun_pattern || null,
+        data.question_text,
+        data.correct_answer,
+        data.example_sentence || null,
+        data.translation || null,
+        data.hint || null,
+        data.tense || '不适用',
+        data.mood || '不适用',
+        data.person || '不适用',
+        data.io_pronoun || null,
+        data.do_pronoun || null,
+        data.confidence_score ?? 50,
+        id
+      )
+    }
+
+    const stmt = questionDb.prepare(`
+      UPDATE public_traditional_conjugation
+      SET
+        verb_id = ?,
+        question_text = ?,
+        correct_answer = ?,
+        example_sentence = ?,
+        translation = ?,
+        hint = ?,
+        tense = ?,
+        mood = ?,
+        person = ?,
+        confidence_score = ?
       WHERE id = ?
     `)
     return stmt.run(
       data.verb_id,
-      data.question_type,
       data.question_text,
       data.correct_answer,
       data.example_sentence || null,
@@ -452,82 +676,71 @@ class Question {
     )
   }
 
-  /**
-   * 管理后台：删除公共题库题目
-   */
-  static deletePublic(id) {
-    return questionDb.prepare('DELETE FROM public_questions WHERE id = ?').run(id)
+  static deletePublic(id, source = null) {
+    const location = resolvePublicLocationById(id, source)
+    if (!location) return { changes: 0 }
+    return questionDb.prepare(`DELETE FROM ${location.table} WHERE id = ?`).run(id)
   }
 
-  /**
-   * 更新公共题库题目的置信度
-   * @param {number} questionId - 公共题库题目ID
-   * @param {number} delta - 置信度变化值（可正可负）
-   * @returns {boolean} 是否成功更新
-   */
-  static updateConfidence(questionId, delta) {
-    const stmt = questionDb.prepare(`
-      UPDATE public_questions
+  static updateConfidence(questionId, delta, source = null) {
+    const questionSource = normalizeQuestionSource(source, null)
+    if (questionSource === PUBLIC_SOURCE_TRADITIONAL || questionSource === PUBLIC_SOURCE_PRONOUN) {
+      const table = getPublicTableBySource(questionSource)
+      const result = questionDb.prepare(`
+        UPDATE ${table}
+        SET confidence_score = MIN(100, MAX(0, confidence_score + ?))
+        WHERE id = ?
+      `).run(delta, questionId)
+      return result.changes > 0
+    }
+
+    const location = resolvePublicLocationById(questionId, null)
+    if (!location) return false
+    const result = questionDb.prepare(`
+      UPDATE ${location.table}
       SET confidence_score = MIN(100, MAX(0, confidence_score + ?))
       WHERE id = ?
-    `)
-    const result = stmt.run(delta, questionId)
-    const updated = result.changes > 0
-    
-    if (!updated) {
-      console.log(`[警告] 公共题库中不存在ID为 ${questionId} 的题目，无法更新置信度`)
-    }
-    
-    return updated
+    `).run(delta, questionId)
+    return result.changes > 0
   }
 
-  /**
-   * 根据动词ID和题目文本查找题目
-   */
-  static findByVerbAndText(verbId, questionText) {
-    const stmt = questionDb.prepare(`
-      SELECT * FROM public_questions
+  static findByVerbAndText(verbId, questionText, source = PUBLIC_SOURCE_TRADITIONAL) {
+    const table = getPublicTableBySource(source)
+    return questionDb.prepare(`
+      SELECT *
+      FROM ${table}
       WHERE verb_id = ? AND question_text = ?
       LIMIT 1
-    `)
-    return stmt.get(verbId, questionText)
+    `).get(verbId, questionText)
   }
 
-  /**
-   * 删除超过30天的公共题库题目
-   */
   static deleteOldPublicQuestions(daysOld = 30) {
-    const stmt = questionDb.prepare(`
-      DELETE FROM public_questions
+    const traditionalDeleted = questionDb.prepare(`
+      DELETE FROM public_traditional_conjugation
       WHERE datetime(created_at) <= datetime('now', '-' || ? || ' days')
-    `)
-    const result = stmt.run(daysOld)
-    return result.changes
+    `).run(daysOld).changes
+
+    const pronounDeleted = questionDb.prepare(`
+      DELETE FROM public_conjugation_with_pronoun
+      WHERE datetime(created_at) <= datetime('now', '-' || ? || ' days')
+    `).run(daysOld).changes
+
+    return traditionalDeleted + pronounDeleted
   }
 
-  /**
-   * 获取公共题库题目总数
-   */
   static getPublicCount(filters = {}) {
-    const { questionType } = filters
-    let query = `SELECT COUNT(*) as count FROM public_questions WHERE 1=1`
-    const params = []
-
-    if (questionType) {
-      query += ` AND question_type = ?`
-      params.push(questionType)
+    const questionBank = filters.questionBank ? normalizeQuestionBank(filters.questionBank, null) : null
+    if (questionBank === QUESTION_BANK_TRADITIONAL) {
+      return questionDb.prepare('SELECT COUNT(*) AS count FROM public_traditional_conjugation').get().count
     }
-
-    const stmt = questionDb.prepare(query)
-    const result = stmt.get(...params)
-    return result.count
+    if (questionBank === QUESTION_BANK_PRONOUN) {
+      return questionDb.prepare('SELECT COUNT(*) AS count FROM public_conjugation_with_pronoun').get().count
+    }
+    const traditional = questionDb.prepare('SELECT COUNT(*) AS count FROM public_traditional_conjugation').get().count
+    const pronoun = questionDb.prepare('SELECT COUNT(*) AS count FROM public_conjugation_with_pronoun').get().count
+    return traditional + pronoun
   }
 
-  // ==================== 私人题库操作 ====================
-
-  /**
-   * 添加题目到私人题库（收藏）
-   */
   static addToPrivate(userId, questionData) {
     const {
       verbId,
@@ -540,207 +753,212 @@ class Question {
       tense,
       mood,
       person,
-      publicQuestionId  // 公共题库ID（如果来自公共题库）
+      publicQuestionId,
+      publicQuestionSource,
+      questionBank,
+      hostForm,
+      hostFormZh,
+      pronounPattern,
+      ioPronoun,
+      doPronoun
     } = questionData
 
-    // 检查是否已存在
-    const existStmt = userDb.prepare(`
-      SELECT id FROM private_questions 
-      WHERE user_id = ? AND verb_id = ? AND question_type = ? AND question_text = ?
-    `)
-    const existing = existStmt.get(userId, verbId, questionType, questionText)
-    
+    const normalizedBank = normalizeQuestionBank(
+      questionBank,
+      hostForm ? QUESTION_BANK_PRONOUN : QUESTION_BANK_TRADITIONAL
+    )
+    const normalizedPublicSource = publicQuestionSource
+      ? normalizePublicSource(publicQuestionSource)
+      : null
+
+    const existing = userDb.prepare(`
+      SELECT id
+      FROM private_questions
+      WHERE user_id = ? AND verb_id = ? AND question_type = ? AND question_bank = ? AND question_text = ?
+      LIMIT 1
+    `).get(userId, verbId, questionType, normalizedBank, questionText)
+
     if (existing) {
       return existing.id
     }
 
     const stmt = userDb.prepare(`
       INSERT INTO private_questions (
-        user_id, verb_id, question_type, question_text, correct_answer,
-        example_sentence, translation, hint, tense, mood, person, public_question_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        user_id,
+        verb_id,
+        question_type,
+        question_bank,
+        question_text,
+        correct_answer,
+        example_sentence,
+        translation,
+        hint,
+        tense,
+        mood,
+        person,
+        public_question_id,
+        public_question_source,
+        host_form,
+        host_form_zh,
+        pronoun_pattern,
+        io_pronoun,
+        do_pronoun
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
     const result = stmt.run(
-      userId, verbId, questionType, questionText, correctAnswer,
-      exampleSentence, translation, hint, tense, mood, person, publicQuestionId || null
+      userId,
+      verbId,
+      questionType,
+      normalizedBank,
+      questionText,
+      correctAnswer,
+      exampleSentence || null,
+      translation || null,
+      hint || null,
+      tense || '不适用',
+      mood || '不适用',
+      person || '不适用',
+      publicQuestionId || null,
+      normalizedPublicSource,
+      hostForm || null,
+      hostFormZh || null,
+      pronounPattern || null,
+      ioPronoun || null,
+      doPronoun || null
     )
 
     return result.lastInsertRowid
   }
 
-  /**
-   * 从私人题库删除题目
-   * @returns {Object|null} { removed: boolean, publicQuestionId: number|null }
-   */
   static removeFromPrivate(userId, questionId) {
-    console.log('执行删除操作:', { userId, questionId })
-    
-    // 先查询是否有关联的公共题库ID
-    const queryStmt = userDb.prepare(`
-      SELECT public_question_id FROM private_questions
+    const question = userDb.prepare(`
+      SELECT public_question_id, public_question_source
+      FROM private_questions
       WHERE id = ? AND user_id = ?
-    `)
-    const question = queryStmt.get(questionId, userId)
-    const publicQuestionId = question ? question.public_question_id : null
-    
-    // 执行删除
-    const deleteStmt = userDb.prepare(`
+    `).get(questionId, userId)
+
+    const result = userDb.prepare(`
       DELETE FROM private_questions
       WHERE id = ? AND user_id = ?
-    `)
-    const result = deleteStmt.run(questionId, userId)
-    const removed = result.changes > 0
-    
-    console.log('SQL执行结果:', { removed, publicQuestionId })
-    
-    return { removed, publicQuestionId }
+    `).run(questionId, userId)
+
+    return {
+      removed: result.changes > 0,
+      publicQuestionId: question ? question.public_question_id : null,
+      publicQuestionSource: question ? question.public_question_source : null
+    }
   }
 
-  /**
-   * 获取用户的私人题库列表
-   */
   static getPrivateByUser(userId, filters = {}) {
-    const { questionType } = filters
-    let query = `SELECT * FROM private_questions WHERE user_id = ?`
+    const { questionType, questionBank } = filters
+    let query = 'SELECT * FROM private_questions WHERE user_id = ?'
     const params = [userId]
 
     if (questionType) {
-      query += ` AND question_type = ?`
+      query += ' AND question_type = ?'
       params.push(questionType)
     }
 
-    query += ` ORDER BY created_at DESC`
-
-    const stmt = userDb.prepare(query)
-    const questions = stmt.all(...params)
-    
-    console.log(`获取用户 ${userId} 的私人题库，共 ${questions.length} 道题`)
-    if (questions.length > 0) {
-      console.log('第一道题的ID:', questions[0].id)
-    }
-    
-    // 获取动词信息
-    if (questions.length > 0) {
-      const verbIds = [...new Set(questions.map(q => q.verb_id))]
-      const placeholders = verbIds.map(() => '?').join(',')
-      const verbStmt = vocabularyDb.prepare(`
-        SELECT * FROM verbs WHERE id IN (${placeholders})
-      `)
-      const verbs = verbStmt.all(...verbIds)
-      const verbMap = {}
-      verbs.forEach(v => verbMap[v.id] = v)
-      
-      questions.forEach(q => {
-        const verb = verbMap[q.verb_id]
-        if (verb) {
-          q.infinitive = verb.infinitive
-          q.meaning = verb.meaning
-          q.conjugation_type = verb.conjugation_type
-          q.is_irregular = verb.is_irregular
-        }
-      })
+    if (questionBank) {
+      query += ' AND question_bank = ?'
+      params.push(normalizeQuestionBank(questionBank))
     }
 
-    return questions
+    query += ' ORDER BY created_at DESC'
+    const rows = userDb.prepare(query).all(...params)
+    return attachVerbInfo(rows)
   }
 
-  /**
-   * 从私人题库随机获取题目
-   */
   static getRandomFromPrivate(userId, filters = {}) {
-    const { questionType, limit = 1 } = filters
-
-    let query = `SELECT * FROM private_questions WHERE user_id = ?`
+    const { questionType, limit = 1, questionBank } = filters
+    let query = 'SELECT * FROM private_questions WHERE user_id = ?'
     const params = [userId]
 
     if (questionType) {
-      query += ` AND question_type = ?`
+      query += ' AND question_type = ?'
       params.push(questionType)
     }
 
-    query += ` ORDER BY RANDOM() LIMIT ?`
+    if (questionBank) {
+      query += ' AND question_bank = ?'
+      params.push(normalizeQuestionBank(questionBank))
+    }
+
+    query += ' ORDER BY RANDOM() LIMIT ?'
     params.push(limit)
 
-    const stmt = userDb.prepare(query)
-    const questions = limit === 1 ? [stmt.get(...params)].filter(Boolean) : stmt.all(...params)
-    
-    // 获取动词信息
-    if (questions.length > 0) {
-      const verbIds = [...new Set(questions.map(q => q.verb_id))]
-      const placeholders = verbIds.map(() => '?').join(',')
-      const verbStmt = vocabularyDb.prepare(`
-        SELECT * FROM verbs WHERE id IN (${placeholders})
-      `)
-      const verbs = verbStmt.all(...verbIds)
-      const verbMap = {}
-      verbs.forEach(v => verbMap[v.id] = v)
-      
-      questions.forEach(q => {
-        const verb = verbMap[q.verb_id]
-        if (verb) {
-          q.infinitive = verb.infinitive
-          q.meaning = verb.meaning
-          q.conjugation_type = verb.conjugation_type
-          q.is_irregular = verb.is_irregular
-        }
-      })
-    }
-
-    return limit === 1 ? questions[0] : questions
+    const rows = userDb.prepare(query).all(...params)
+    const enrichedRows = attachVerbInfo(rows)
+    return limit === 1 ? (enrichedRows[0] || null) : enrichedRows
   }
 
-  /**
-   * 获取私人题库题目总数
-   */
   static getPrivateCount(userId, filters = {}) {
-    const { questionType } = filters
-    let query = `SELECT COUNT(*) as count FROM private_questions WHERE user_id = ?`
+    const { questionType, questionBank } = filters
+    let query = 'SELECT COUNT(*) AS count FROM private_questions WHERE user_id = ?'
     const params = [userId]
 
     if (questionType) {
-      query += ` AND question_type = ?`
+      query += ' AND question_type = ?'
       params.push(questionType)
     }
 
-    const stmt = userDb.prepare(query)
-    const result = stmt.get(...params)
-    return result.count
+    if (questionBank) {
+      query += ' AND question_bank = ?'
+      params.push(normalizeQuestionBank(questionBank))
+    }
+
+    return userDb.prepare(query).get(...params).count
   }
 
-  /**
-   * 根据题目ID与来源获取正确答案
-   */
   static findAnswerById(questionId, source, userId) {
     if (!questionId) return null
-    if (source === 'private') {
-      const stmt = userDb.prepare(`
-        SELECT correct_answer FROM private_questions
+    const rawSource = String(source || '').trim().toLowerCase()
+
+    if (rawSource === 'public') {
+      const traditional = questionDb.prepare(`
+        SELECT correct_answer FROM public_traditional_conjugation WHERE id = ?
+      `).get(questionId)
+      if (traditional) return traditional.correct_answer
+      const pronoun = questionDb.prepare(`
+        SELECT correct_answer FROM public_conjugation_with_pronoun WHERE id = ?
+      `).get(questionId)
+      return pronoun ? pronoun.correct_answer : null
+    }
+
+    const normalizedSource = normalizeQuestionSource(source)
+
+    if (normalizedSource === PRIVATE_SOURCE) {
+      const question = userDb.prepare(`
+        SELECT correct_answer
+        FROM private_questions
         WHERE id = ? AND user_id = ?
-      `)
-      const question = stmt.get(questionId, userId)
+      `).get(questionId, userId)
       return question ? question.correct_answer : null
     }
 
-    const stmt = questionDb.prepare(`
-      SELECT correct_answer FROM public_questions
-      WHERE id = ?
-    `)
-    const question = stmt.get(questionId)
-    return question ? question.correct_answer : null
+    if (normalizedSource === PUBLIC_SOURCE_TRADITIONAL || normalizedSource === PUBLIC_SOURCE_PRONOUN) {
+      const table = getPublicTableBySource(normalizedSource)
+      const question = questionDb.prepare(`
+        SELECT correct_answer
+        FROM ${table}
+        WHERE id = ?
+      `).get(questionId)
+      return question ? question.correct_answer : null
+    }
+
+    const traditional = questionDb.prepare(`
+      SELECT correct_answer FROM public_traditional_conjugation WHERE id = ?
+    `).get(questionId)
+    if (traditional) return traditional.correct_answer
+
+    const pronoun = questionDb.prepare(`
+      SELECT correct_answer FROM public_conjugation_with_pronoun WHERE id = ?
+    `).get(questionId)
+    return pronoun ? pronoun.correct_answer : null
   }
 
-  // ==================== 用户答题记录操作 ====================
-
-  /**
-   * 记录用户练习题目
-   * @param {number} userId - 用户ID
-   * @param {number} questionId - 题目ID
-   * @param {string} questionType - 题目类型 ('public' 或 'private')
-   * @param {boolean} isCorrect - 是否答对
-   */
   static recordPractice(userId, questionId, questionType, isCorrect) {
-    // 获取当前本地时间
     const now = new Date()
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, '0')
@@ -749,128 +967,128 @@ class Question {
     const minute = String(now.getMinutes()).padStart(2, '0')
     const second = String(now.getSeconds()).padStart(2, '0')
     const lastPracticedAt = `${year}-${month}-${day} ${hour}:${minute}:${second}`
-    
+    const recordType = toRecordType(questionType)
+
     const stmt = userDb.prepare(`
-      INSERT INTO user_question_records (user_id, question_id, question_type, practice_count, correct_count, last_practiced_at)
+      INSERT INTO user_question_records (
+        user_id,
+        question_id,
+        question_type,
+        practice_count,
+        correct_count,
+        last_practiced_at
+      )
       VALUES (?, ?, ?, 1, ?, ?)
-      ON CONFLICT(user_id, question_id, question_type) 
-      DO UPDATE SET 
+      ON CONFLICT(user_id, question_id, question_type)
+      DO UPDATE SET
         practice_count = practice_count + 1,
         correct_count = correct_count + ?,
         last_practiced_at = ?
     `)
+
     const correctIncrement = isCorrect ? 1 : 0
-    const result = stmt.run(userId, questionId, questionType, correctIncrement, lastPracticedAt, correctIncrement, lastPracticedAt)
+    const result = stmt.run(
+      userId,
+      questionId,
+      recordType,
+      correctIncrement,
+      lastPracticedAt,
+      correctIncrement,
+      lastPracticedAt
+    )
     return result.changes > 0
   }
 
-  /**
-   * 用户对题目进行评价
-   * @param {number} userId - 用户ID
-   * @param {number} questionId - 题目ID
-   * @param {string} questionType - 题目类型
-   * @param {number} rating - 评价 (1=好题, -1=坏题, 0=无评价)
-   */
   static rateQuestion(userId, questionId, questionType, rating) {
-    // 先检查是否已经练习过这道题
-    const checkStmt = userDb.prepare(`
-      SELECT id FROM user_question_records
+    const recordType = toRecordType(questionType)
+    const existing = userDb.prepare(`
+      SELECT id
+      FROM user_question_records
       WHERE user_id = ? AND question_id = ? AND question_type = ?
-    `)
-    const existing = checkStmt.get(userId, questionId, questionType)
-    
+    `).get(userId, questionId, recordType)
+
     if (existing) {
-      // 已存在记录，更新评价
-      const updateStmt = userDb.prepare(`
+      userDb.prepare(`
         UPDATE user_question_records
         SET rating = ?
         WHERE user_id = ? AND question_id = ? AND question_type = ?
-      `)
-      updateStmt.run(rating, userId, questionId, questionType)
+      `).run(rating, userId, questionId, recordType)
     } else {
-      // 不存在记录，创建新记录
-      const insertStmt = userDb.prepare(`
+      userDb.prepare(`
         INSERT INTO user_question_records (user_id, question_id, question_type, rating)
         VALUES (?, ?, ?, ?)
-      `)
-      insertStmt.run(userId, questionId, questionType, rating)
+      `).run(userId, questionId, recordType, rating)
     }
 
-    // 如果是公共题库的题目，同时更新题目的置信度
-    if (questionType === 'public') {
+    if (recordType === PUBLIC_SOURCE_TRADITIONAL || recordType === PUBLIC_SOURCE_PRONOUN) {
       if (rating === 1) {
-        // 好题：置信度 +1
-        const updated = this.updateConfidence(questionId, 1)
-        if (!updated) {
-          console.log(`[警告] 评价好题时，公共题库题目 ${questionId} 不存在`)
-        }
+        this.updateConfidence(questionId, 1, recordType)
       } else if (rating === -1) {
-        // 坏题：置信度 -2
-        const updated = this.updateConfidence(questionId, -2)
-        if (!updated) {
-          console.log(`[警告] 评价坏题时，公共题库题目 ${questionId} 不存在`)
-        }
+        this.updateConfidence(questionId, -2, recordType)
       }
     }
 
     return true
   }
 
-  /**
-   * 记录用户答对题目（旧方法，保留兼容性）
-   */
   static recordCorrectAnswer(userId, questionId, questionType) {
     return this.recordPractice(userId, questionId, questionType, true)
   }
 
-  /**
-   * 获取用户对某题的答对次数
-   */
   static getCorrectCount(userId, questionId, questionType) {
-    const stmt = userDb.prepare(`
-      SELECT correct_count FROM user_question_records
+    const recordType = toRecordType(questionType)
+    const result = userDb.prepare(`
+      SELECT correct_count
+      FROM user_question_records
       WHERE user_id = ? AND question_id = ? AND question_type = ?
-    `)
-    const result = stmt.get(userId, questionId, questionType)
+    `).get(userId, questionId, recordType)
     return result ? result.correct_count : 0
   }
 
-  /**
-   * 删除超过30天公共题目的相关记录
-   */
   static deleteOldQuestionRecords(daysOld = 30) {
-    // 先从题库数据库获取要删除的题目ID
-    const questionStmt = questionDb.prepare(`
-      SELECT id FROM public_questions
+    const traditionalIds = questionDb.prepare(`
+      SELECT id
+      FROM public_traditional_conjugation
       WHERE datetime(created_at) <= datetime('now', '-' || ? || ' days')
-    `)
-    const oldQuestions = questionStmt.all(daysOld)
-    
-    if (oldQuestions.length === 0) {
-      return 0
+    `).all(daysOld).map(item => item.id)
+
+    const pronounIds = questionDb.prepare(`
+      SELECT id
+      FROM public_conjugation_with_pronoun
+      WHERE datetime(created_at) <= datetime('now', '-' || ? || ' days')
+    `).all(daysOld).map(item => item.id)
+
+    let deleted = 0
+
+    if (traditionalIds.length > 0) {
+      const placeholders = traditionalIds.map(() => '?').join(',')
+      const result = userDb.prepare(`
+        DELETE FROM user_question_records
+        WHERE question_type = ? AND question_id IN (${placeholders})
+      `).run(PUBLIC_SOURCE_TRADITIONAL, ...traditionalIds)
+      deleted += result.changes
     }
 
-    const questionIds = oldQuestions.map(q => q.id)
-    const placeholders = questionIds.map(() => '?').join(',')
-    
-    // 从用户数据库删除相关记录
-    const stmt = userDb.prepare(`
-      DELETE FROM user_question_records
-      WHERE question_type = 'public' AND question_id IN (${placeholders})
-    `)
-    const result = stmt.run(...questionIds)
-    return result.changes
+    if (pronounIds.length > 0) {
+      const placeholders = pronounIds.map(() => '?').join(',')
+      const result = userDb.prepare(`
+        DELETE FROM user_question_records
+        WHERE question_type = ? AND question_id IN (${placeholders})
+      `).run(PUBLIC_SOURCE_PRONOUN, ...pronounIds)
+      deleted += result.changes
+    }
+
+    return deleted
   }
 
-  /**
-   * 检查题目是否存在于公共题库
-   */
-  static existsInPublic(verbId, questionText) {
-    const stmt = questionDb.prepare(`
-      SELECT id FROM public_questions
+  static existsInPublic(verbId, questionText, source = PUBLIC_SOURCE_TRADITIONAL) {
+    const table = getPublicTableBySource(source)
+    const result = questionDb.prepare(`
+      SELECT id
+      FROM ${table}
       WHERE verb_id = ? AND question_text = ?
-    `)
-    const result = stmt.get(verbId, questionText)
+      LIMIT 1
+    `).get(verbId, questionText)
     return !!result
   }
 }

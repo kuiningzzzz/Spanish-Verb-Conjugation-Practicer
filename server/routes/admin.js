@@ -618,11 +618,13 @@ router.get('/questions', requireAdmin, (req, res) => {
   const keyword = req.query.keyword ? String(req.query.keyword).trim() : ''
   const sortBy = req.query.sortBy ? String(req.query.sortBy).trim() : 'created_at'
   const sortOrder = req.query.sortOrder ? String(req.query.sortOrder).trim() : 'desc'
-  res.json(Question.listPublic({ limit, offset, keyword, sortBy, sortOrder }))
+  const questionBank = req.query.questionBank ? String(req.query.questionBank).trim() : ''
+  res.json(Question.listPublic({ limit, offset, keyword, sortBy, sortOrder, questionBank }))
 })
 
 router.get('/questions/:id', requireAdmin, (req, res) => {
-  const item = Question.findPublicById(req.params.id)
+  const source = req.query.source ? String(req.query.source).trim() : null
+  const item = Question.findPublicById(req.params.id, source)
   if (!item) return res.status(404).json({ error: '记录不存在' })
   res.json(item)
 })
@@ -645,12 +647,17 @@ router.get('/verbs/:id', requireAdmin, (req, res) => {
 })
 
 router.put('/questions/:id', requireAdmin, (req, res) => {
-  const item = Question.findPublicById(req.params.id)
+  const source = req.body.public_question_source
+    || (req.query.source ? String(req.query.source).trim() : null)
+  const item = Question.findPublicById(req.params.id, source)
   if (!item) return res.status(404).json({ error: '记录不存在' })
+
+  const targetSource = source || item.public_question_source
+  const questionBank = req.body.question_bank || item.question_bank || 'traditional'
 
   const payload = {
     verb_id: Number(req.body.verb_id ?? item.verb_id),
-    question_type: req.body.question_type ?? item.question_type,
+    question_bank: questionBank,
     question_text: req.body.question_text ?? item.question_text,
     correct_answer: req.body.correct_answer ?? item.correct_answer,
     example_sentence: req.body.example_sentence ?? item.example_sentence,
@@ -659,6 +666,11 @@ router.put('/questions/:id', requireAdmin, (req, res) => {
     tense: req.body.tense ?? item.tense,
     mood: req.body.mood ?? item.mood,
     person: req.body.person ?? item.person,
+    host_form: req.body.host_form ?? item.host_form,
+    host_form_zh: req.body.host_form_zh ?? item.host_form_zh,
+    pronoun_pattern: req.body.pronoun_pattern ?? item.pronoun_pattern,
+    io_pronoun: req.body.io_pronoun ?? item.io_pronoun,
+    do_pronoun: req.body.do_pronoun ?? item.do_pronoun,
     confidence_score: Number.isFinite(Number(req.body.confidence_score))
       ? Number(req.body.confidence_score)
       : item.confidence_score
@@ -672,9 +684,6 @@ router.put('/questions/:id', requireAdmin, (req, res) => {
   if (!verb) {
     return res.status(400).json({ error: '动词ID不存在', errors: { verb_id: '动词ID不存在' } })
   }
-  if (!['sentence'].includes(payload.question_type)) {
-    return res.status(400).json({ error: '题目类型仅支持 sentence' })
-  }
   if (!payload.question_text || !payload.correct_answer) {
     return res.status(400).json({ error: '题干和答案不能为空' })
   }
@@ -685,12 +694,19 @@ router.put('/questions/:id', requireAdmin, (req, res) => {
     return res.status(400).json({ error: '置信度需在 0-100 之间' })
   }
 
-  Question.updatePublic(req.params.id, payload)
+  if (questionBank === 'pronoun') {
+    if (!payload.host_form || !payload.host_form_zh) {
+      return res.status(400).json({ error: '带代词题目必须包含 host_form 与 host_form_zh' })
+    }
+  }
+
+  Question.updatePublic(req.params.id, payload, targetSource)
   res.json({ success: true })
 })
 
 router.delete('/questions/:id', requireAdmin, (req, res) => {
-  Question.deletePublic(req.params.id)
+  const source = req.query.source ? String(req.query.source).trim() : null
+  Question.deletePublic(req.params.id, source)
   res.json({ success: true })
 })
 

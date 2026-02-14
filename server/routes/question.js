@@ -19,7 +19,14 @@ router.post('/favorite', authMiddleware, async (req, res) => {
       mood,
       person,
       questionId,        // 如果是从公共题库收藏，传递questionId
-      questionSource     // 'public' 表示来自公共题库
+      questionSource,    // 题目来源
+      questionBank,
+      publicQuestionSource,
+      hostForm,
+      hostFormZh,
+      pronounPattern,
+      ioPronoun,
+      doPronoun
     } = req.body
 
     // 验证题目类型
@@ -27,10 +34,17 @@ router.post('/favorite', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: '只支持收藏例句填空' })
     }
 
+    const normalizedPublicSource = (
+      questionSource && questionSource !== 'private'
+    )
+      ? (questionSource === 'public' ? (publicQuestionSource || 'public_traditional') : questionSource)
+      : null
+
     // 添加到私人题库（如果来自公共题库，保存public_question_id）
     const privateQuestionId = Question.addToPrivate(userId, {
       verbId,
       questionType,
+      questionBank: questionBank || (normalizedPublicSource === 'public_pronoun' ? 'pronoun' : 'traditional'),
       questionText,
       correctAnswer,
       exampleSentence,
@@ -39,16 +53,22 @@ router.post('/favorite', authMiddleware, async (req, res) => {
       tense,
       mood,
       person,
-      publicQuestionId: (questionSource === 'public' ? questionId : null)
+      publicQuestionId: normalizedPublicSource ? questionId : null,
+      publicQuestionSource: normalizedPublicSource,
+      hostForm,
+      hostFormZh,
+      pronounPattern,
+      ioPronoun,
+      doPronoun
     })
 
     // 如果是从公共题库收藏，增加该题目的置信度
-    if (questionId && questionSource === 'public') {
-      const updated = Question.updateConfidence(questionId, 2)
+    if (questionId && normalizedPublicSource) {
+      const updated = Question.updateConfidence(questionId, 2, normalizedPublicSource)
       if (updated) {
-        console.log(`✓ 公共题库题目 ${questionId} 置信度+2`)
+        console.log(`✓ 公共题库题目 ${normalizedPublicSource}:${questionId} 置信度+2`)
       } else {
-        console.log(`⚠ 公共题库题目 ${questionId} 不存在，无法更新置信度`)
+        console.log(`⚠ 公共题库题目 ${normalizedPublicSource}:${questionId} 不存在，无法更新置信度`)
       }
     }
 
@@ -80,9 +100,13 @@ router.post('/unfavorite', authMiddleware, async (req, res) => {
 
     // 如果删除成功且有关联的公共题库题目，降低置信度
     if (result.removed && result.publicQuestionId) {
-      const updated = Question.updateConfidence(result.publicQuestionId, -2)
+      const updated = Question.updateConfidence(
+        result.publicQuestionId,
+        -2,
+        result.publicQuestionSource || 'public_traditional'
+      )
       if (updated) {
-        console.log(`✓ 公共题库题目 ${result.publicQuestionId} 置信度-2`)
+        console.log(`✓ 公共题库题目 ${result.publicQuestionSource || 'public_traditional'}:${result.publicQuestionId} 置信度-2`)
       } else {
         console.log(`✗ 公共题库题目 ${result.publicQuestionId} 不存在或已被删除，跳过置信度更新`)
       }
@@ -167,8 +191,8 @@ router.post('/rate', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: '评价值必须为 1(好题)、-1(坏题) 或 0(取消评价)' })
     }
 
-    if (!['public', 'private'].includes(questionSource)) {
-      return res.status(400).json({ error: '题目来源必须为 public 或 private' })
+    if (!['public', 'public_traditional', 'public_pronoun', 'private'].includes(questionSource)) {
+      return res.status(400).json({ error: '题目来源必须为 public/public_traditional/public_pronoun/private' })
     }
 
     // 记录评价

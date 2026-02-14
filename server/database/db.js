@@ -19,6 +19,26 @@ function ensureColumn(dbInstance, table, column, definition) {
   }
 }
 
+function tableExists(dbInstance, table) {
+  const row = dbInstance.prepare(`
+    SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?
+  `).get(table)
+  return !!row
+}
+
+function tableHasColumn(dbInstance, table, column) {
+  if (!tableExists(dbInstance, table)) return false
+  const tableInfo = dbInstance.prepare(`PRAGMA table_info(${table})`).all()
+  return tableInfo.some((col) => col.name === column)
+}
+
+function getTableDDL(dbInstance, table) {
+  const row = dbInstance.prepare(`
+    SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?
+  `).get(table)
+  return row && row.sql ? String(row.sql) : ''
+}
+
 // 初始化数据库表
 function initDatabase() {
   console.log('\n💾 数据库初始化...')
@@ -167,6 +187,7 @@ function initUserDatabase() {
       user_id INTEGER NOT NULL,
       verb_id INTEGER NOT NULL,
       question_type TEXT NOT NULL CHECK(question_type IN ('fill', 'sentence')),
+      question_bank TEXT DEFAULT 'traditional' CHECK(question_bank IN ('traditional', 'pronoun')),
       question_text TEXT NOT NULL,
       correct_answer TEXT NOT NULL,
       example_sentence TEXT,
@@ -176,6 +197,12 @@ function initUserDatabase() {
       mood TEXT NOT NULL,
       person TEXT NOT NULL,
       public_question_id INTEGER,
+      public_question_source TEXT CHECK(public_question_source IN ('public_traditional', 'public_pronoun')),
+      host_form TEXT,
+      host_form_zh TEXT,
+      pronoun_pattern TEXT,
+      io_pronoun TEXT,
+      do_pronoun TEXT,
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
@@ -187,7 +214,7 @@ function initUserDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       question_id INTEGER NOT NULL,
-      question_type TEXT NOT NULL CHECK(question_type IN ('public', 'private')),
+      question_type TEXT NOT NULL CHECK(question_type IN ('public_traditional', 'public_pronoun', 'private')),
       practice_count INTEGER DEFAULT 0,
       correct_count INTEGER DEFAULT 0,
       rating INTEGER DEFAULT 0 CHECK(rating IN (-1, 0, 1)),
@@ -238,6 +265,61 @@ function initUserDatabase() {
   `)
 
   // 创建索引
+  ensureColumn(userDb, 'private_questions', 'question_bank', "question_bank TEXT DEFAULT 'traditional'")
+  ensureColumn(userDb, 'private_questions', 'public_question_source', 'public_question_source TEXT')
+  ensureColumn(userDb, 'private_questions', 'host_form', 'host_form TEXT')
+  ensureColumn(userDb, 'private_questions', 'host_form_zh', 'host_form_zh TEXT')
+  ensureColumn(userDb, 'private_questions', 'pronoun_pattern', 'pronoun_pattern TEXT')
+  ensureColumn(userDb, 'private_questions', 'io_pronoun', 'io_pronoun TEXT')
+  ensureColumn(userDb, 'private_questions', 'do_pronoun', 'do_pronoun TEXT')
+
+  const userQuestionRecordsDDL = getTableDDL(userDb, 'user_question_records')
+  const needRebuildUserQuestionRecords = (
+    userQuestionRecordsDDL &&
+    !userQuestionRecordsDDL.includes('public_traditional')
+  )
+  if (needRebuildUserQuestionRecords) {
+    userDb.exec(`
+      CREATE TABLE IF NOT EXISTS user_question_records_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        question_id INTEGER NOT NULL,
+        question_type TEXT NOT NULL CHECK(question_type IN ('public_traditional', 'public_pronoun', 'private')),
+        practice_count INTEGER DEFAULT 0,
+        correct_count INTEGER DEFAULT 0,
+        rating INTEGER DEFAULT 0 CHECK(rating IN (-1, 0, 1)),
+        last_practiced_at TEXT DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(user_id, question_id, question_type)
+      )
+    `)
+
+    userDb.exec(`
+      INSERT INTO user_question_records_new (
+        id, user_id, question_id, question_type, practice_count, correct_count, rating, last_practiced_at
+      )
+      SELECT
+        id,
+        user_id,
+        question_id,
+        CASE
+          WHEN question_type = 'public' THEN 'public_traditional'
+          WHEN question_type = 'private' THEN 'private'
+          WHEN question_type = 'public_traditional' THEN 'public_traditional'
+          WHEN question_type = 'public_pronoun' THEN 'public_pronoun'
+          ELSE 'private'
+        END AS question_type,
+        practice_count,
+        correct_count,
+        rating,
+        last_practiced_at
+      FROM user_question_records
+    `)
+
+    userDb.exec('DROP TABLE user_question_records')
+    userDb.exec('ALTER TABLE user_question_records_new RENAME TO user_question_records')
+  }
+
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_practice_records_user ON practice_records(user_id)`)
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_private_questions_user ON private_questions(user_id)`)
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_user_question_records ON user_question_records(user_id, question_id, question_type)`)
@@ -352,12 +434,11 @@ function initVocabularyDatabase() {
 
 // 初始化题库数据库
 function initQuestionDatabase() {
-  // 公共题库表（填空题和例句填空）
+  // 传统题库（由原 public_questions 迁移而来）
   questionDb.exec(`
-    CREATE TABLE IF NOT EXISTS public_questions (
+    CREATE TABLE IF NOT EXISTS public_traditional_conjugation (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       verb_id INTEGER NOT NULL,
-      question_type TEXT NOT NULL CHECK(question_type IN ('fill', 'sentence')),
       question_text TEXT NOT NULL,
       correct_answer TEXT NOT NULL,
       example_sentence TEXT,
@@ -371,11 +452,94 @@ function initQuestionDatabase() {
     )
   `)
 
-  // 创建索引
-  questionDb.exec(`CREATE INDEX IF NOT EXISTS idx_public_questions_verb ON public_questions(verb_id)`)
-  questionDb.exec(`CREATE INDEX IF NOT EXISTS idx_public_questions_type ON public_questions(question_type)`)
-  questionDb.exec(`CREATE INDEX IF NOT EXISTS idx_public_questions_created ON public_questions(created_at)`)
-  questionDb.exec(`CREATE INDEX IF NOT EXISTS idx_public_questions_confidence ON public_questions(confidence_score)`)
+  // 兼容早期实验版本：移除 public_traditional_conjugation.question_type 字段
+  if (tableHasColumn(questionDb, 'public_traditional_conjugation', 'question_type')) {
+    questionDb.exec(`
+      CREATE TABLE IF NOT EXISTS public_traditional_conjugation_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        verb_id INTEGER NOT NULL,
+        question_text TEXT NOT NULL,
+        correct_answer TEXT NOT NULL,
+        example_sentence TEXT,
+        translation TEXT,
+        hint TEXT,
+        tense TEXT NOT NULL,
+        mood TEXT NOT NULL,
+        person TEXT NOT NULL,
+        confidence_score INTEGER DEFAULT 50 CHECK(confidence_score >= 0 AND confidence_score <= 100),
+        created_at TEXT DEFAULT (datetime('now', 'localtime'))
+      )
+    `)
+
+    questionDb.exec(`
+      INSERT INTO public_traditional_conjugation_new (
+        id, verb_id, question_text, correct_answer, example_sentence, translation, hint,
+        tense, mood, person, confidence_score, created_at
+      )
+      SELECT
+        id, verb_id, question_text, correct_answer, example_sentence, translation, hint,
+        tense, mood, person, confidence_score, created_at
+      FROM public_traditional_conjugation
+    `)
+
+    questionDb.exec('DROP TABLE public_traditional_conjugation')
+    questionDb.exec('ALTER TABLE public_traditional_conjugation_new RENAME TO public_traditional_conjugation')
+  }
+
+  const hasLegacyPublicQuestions = tableExists(questionDb, 'public_questions')
+  if (hasLegacyPublicQuestions) {
+    questionDb.exec(`
+      INSERT OR IGNORE INTO public_traditional_conjugation (
+        id, verb_id, question_text, correct_answer, example_sentence, translation, hint,
+        tense, mood, person, confidence_score, created_at
+      )
+      SELECT
+        id, verb_id, question_text, correct_answer, example_sentence, translation, hint,
+        tense, mood, person, confidence_score, created_at
+      FROM public_questions
+    `)
+
+    questionDb.exec(`DROP TABLE public_questions`)
+    questionDb.exec(`DROP INDEX IF EXISTS idx_public_questions_verb`)
+    questionDb.exec(`DROP INDEX IF EXISTS idx_public_questions_type`)
+    questionDb.exec(`DROP INDEX IF EXISTS idx_public_questions_created`)
+    questionDb.exec(`DROP INDEX IF EXISTS idx_public_questions_confidence`)
+  }
+
+  // 带代词变位题库（并行维护）
+  questionDb.exec(`
+    CREATE TABLE IF NOT EXISTS public_conjugation_with_pronoun (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      verb_id INTEGER NOT NULL,
+      host_form TEXT NOT NULL CHECK(host_form IN ('finite', 'imperative', 'infinitive', 'gerund', 'prnl')),
+      host_form_zh TEXT NOT NULL,
+      pronoun_pattern TEXT,
+      question_text TEXT NOT NULL,
+      correct_answer TEXT NOT NULL,
+      example_sentence TEXT,
+      translation TEXT,
+      hint TEXT,
+      tense TEXT NOT NULL,
+      mood TEXT NOT NULL,
+      person TEXT NOT NULL,
+      io_pronoun TEXT,
+      do_pronoun TEXT,
+      confidence_score INTEGER DEFAULT 50 CHECK(confidence_score >= 0 AND confidence_score <= 100),
+      created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    )
+  `)
+
+  // 创建索引（传统题库）
+  questionDb.exec(`CREATE INDEX IF NOT EXISTS idx_public_traditional_verb ON public_traditional_conjugation(verb_id)`)
+  questionDb.exec(`CREATE INDEX IF NOT EXISTS idx_public_traditional_created ON public_traditional_conjugation(created_at)`)
+  questionDb.exec(`CREATE INDEX IF NOT EXISTS idx_public_traditional_confidence ON public_traditional_conjugation(confidence_score)`)
+
+  // 创建索引（带代词题库）
+  questionDb.exec(`CREATE INDEX IF NOT EXISTS idx_public_pronoun_verb ON public_conjugation_with_pronoun(verb_id)`)
+  questionDb.exec(`CREATE INDEX IF NOT EXISTS idx_public_pronoun_host_form ON public_conjugation_with_pronoun(host_form)`)
+  questionDb.exec(`CREATE INDEX IF NOT EXISTS idx_public_pronoun_pattern ON public_conjugation_with_pronoun(pronoun_pattern)`)
+  questionDb.exec(`CREATE INDEX IF NOT EXISTS idx_public_pronoun_created ON public_conjugation_with_pronoun(created_at)`)
+  questionDb.exec(`CREATE INDEX IF NOT EXISTS idx_public_pronoun_confidence ON public_conjugation_with_pronoun(confidence_score)`)
 
   questionDb.exec(`
     CREATE TABLE IF NOT EXISTS question_bank (

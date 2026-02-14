@@ -80,6 +80,13 @@
         <text class="infinitive">{{ currentExercise.infinitive }}{{ currentExercise.isReflexive ? '(se)' : '' }}</text>
         <text class="meaning">{{ currentExercise.meaning }}</text>
       </view>
+      <view
+        v-if="exerciseType === 'sentence' && currentExercise && currentExercise.questionBank === 'pronoun'"
+        class="pronoun-meta"
+      >
+        <text class="pronoun-meta-item">形式：{{ currentExercise.hostFormZh || '未知' }}</text>
+        <text class="pronoun-meta-item">代词模式：{{ formatPronounPattern(currentExercise.pronounPattern) || '—' }}</text>
+      </view>
 
       <!-- 组合填空题不需要顶部提示，每个题目都有详细要求 -->
       
@@ -109,7 +116,7 @@
             <text>{{ showTranslation ? '隐藏翻译' : '查看翻译' }}</text>
           </button>
           <button 
-            v-if="currentExercise.hint" 
+            v-if="hasHintData(currentExercise)" 
             class="helper-btn" 
             :class="{ 'active': showHint }"
             @click="toggleHint"
@@ -125,9 +132,9 @@
         </view>
         
         <!-- 提示内容 -->
-        <view class="hint-box" v-if="currentExercise.hint && showHint">
+        <view class="hint-box" v-if="hasHintData(currentExercise) && showHint">
           <text class="hint-label">💡 提示：</text>
-          <text class="hint-text">{{ currentExercise.hint }}</text>
+          <text class="hint-text">{{ getHintText(currentExercise) }}</text>
         </view>
         
         <InAppInput
@@ -1225,6 +1232,54 @@ export default {
       }
     },
 
+    isPublicQuestionSource(source) {
+      return source === 'public'
+        || source === 'public_traditional'
+        || source === 'public_pronoun'
+    },
+
+    getQuestionUniqueKey(exercise) {
+      if (!exercise) return ''
+      if (exercise.questionId && exercise.questionSource) {
+        return `${exercise.questionSource}:${exercise.questionId}`
+      }
+      if (exercise.verbId) {
+        return `verb:${exercise.verbId}:${exercise.sentence || exercise.correctAnswer || ''}`
+      }
+      return ''
+    },
+
+    formatPronounPattern(pattern) {
+      const normalized = String(pattern || '').trim().toUpperCase()
+      if (normalized === 'DO') return 'DO'
+      if (normalized === 'IO') return 'IO'
+      if (normalized === 'DO_IO') return 'DO+IO'
+      return ''
+    },
+
+    hasHintData(exercise) {
+      if (!exercise) return false
+      if (exercise.questionBank === 'pronoun') return true
+      return !!exercise.hint
+    },
+
+    getHintText(exercise) {
+      if (!exercise) return ''
+      if (exercise.questionBank !== 'pronoun') {
+        return exercise.hint || ''
+      }
+      if (exercise.hostForm === 'prnl') {
+        return '自反形式（本题不区分 IO/DO）'
+      }
+      const parts = []
+      if (exercise.ioPronoun) parts.push(`IO: ${exercise.ioPronoun}`)
+      if (exercise.doPronoun) parts.push(`DO: ${exercise.doPronoun}`)
+      if (parts.length === 0 && exercise.pronounPattern) {
+        parts.push(`模式: ${this.formatPronounPattern(exercise.pronounPattern)}`)
+      }
+      return parts.length > 0 ? parts.join(' | ') : '请结合上下文判断代词格、性数和位置'
+    },
+
     createStateForExercise(exercise) {
       return {
         status: 'pending',
@@ -1645,6 +1700,11 @@ export default {
           practiceMode: this.practiceMode
         }
 
+        if (this.exerciseType === 'sentence') {
+          requestData.sentenceMode = this.selectedSentenceMode
+          requestData.conjugationForms = this.selectedConjugationForms
+        }
+
         // 如果是课程模式，传递课程单词ID列表
         if (this.isCourseMode && this.lessonVocabulary.length > 0) {
           requestData.verbIds = this.lessonVocabulary.map(v => v.id)
@@ -1717,14 +1777,20 @@ export default {
             this.fillFromMainPool()
           
             // 检查是否有足够的题目（仅例句填空需要）
-            const aiNeeded = this.isCustomPractice ? 0 : (res.needAI || 0)
-            const hasEnoughQuestions = this.exercises.length > 0 || aiNeeded > 0
+            const aiPlans = this.isCustomPractice
+              ? []
+              : (
+                Array.isArray(res.aiPlans)
+                  ? res.aiPlans
+                  : (res.needAI > 0 && res.aiOptions ? [{ count: res.needAI, aiOptions: res.aiOptions }] : [])
+              )
+            const hasEnoughQuestions = this.exercises.length > 0 || aiPlans.length > 0
             
             if (hasEnoughQuestions) {
               // 如果有题库题，检查第一题的收藏状态
               if (this.exercises.length > 0) {
                 this.goToExercise(0, true)
-              } else if (res.needAI && res.needAI > 0) {
+              } else if (aiPlans.length > 0) {
                 // 题库为空，等待AI生成
                 console.log('题库为空，等待AI生成题目...')
                 showToast('正在生成练习题，请稍候...', 'loading', 3000)
@@ -1735,9 +1801,9 @@ export default {
             }
             
             // 异步生成AI题目（如果需要）
-            if (!this.isCustomPractice && aiNeeded > 0 && res.aiOptions) {
-              console.log(`开始异步生成 ${res.needAI} 个AI题目`)
-              this.generateAIQuestionsAsync(aiNeeded, res.aiOptions)
+            if (!this.isCustomPractice && aiPlans.length > 0) {
+              console.log('开始异步生成AI题目计划:', aiPlans)
+              this.generateAIPlansAsync(aiPlans)
             }
           }
         } else {
@@ -1777,10 +1843,11 @@ export default {
       
       // 添加所有主题到exercises
       for (const question of shuffled) {
-        if (!this.usedQuestionIds.has(question.questionId)) {
+        const uniqueKey = this.getQuestionUniqueKey(question)
+        if (!uniqueKey || !this.usedQuestionIds.has(uniqueKey)) {
           this.exercises.push(question)
           this.questionStates.push(this.createStateForExercise(question))
-          this.usedQuestionIds.add(question.questionId)
+          if (uniqueKey) this.usedQuestionIds.add(uniqueKey)
         }
       }
       
@@ -1806,7 +1873,8 @@ export default {
       for (const question of this.backupQuestionPool) {
         if (filled >= remaining) break
         
-        if (!this.usedQuestionIds.has(question.questionId)) {
+        const uniqueKey = this.getQuestionUniqueKey(question)
+        if (!uniqueKey || !this.usedQuestionIds.has(uniqueKey)) {
           // 随机插入到未做题目的位置
           const insertStart = this.currentIndex + 1
           const insertEnd = this.exercises.length + 1
@@ -1814,7 +1882,7 @@ export default {
           
           this.exercises.splice(randomIndex, 0, question)
           this.questionStates.splice(randomIndex, 0, this.createStateForExercise(question))
-          this.usedQuestionIds.add(question.questionId)
+          if (uniqueKey) this.usedQuestionIds.add(uniqueKey)
           filled++
           
           console.log(`从备用池填充题目到位置 ${randomIndex}`)
@@ -1824,6 +1892,15 @@ export default {
       console.log(`从备用题目池填充了 ${filled} 个题目，当前总题数: ${this.exercises.length}`)
     },
     
+    async generateAIPlansAsync(aiPlans = []) {
+      const plans = Array.isArray(aiPlans) ? aiPlans : []
+      for (const plan of plans) {
+        const count = Number(plan.count || 0)
+        if (count <= 0 || !plan.aiOptions) continue
+        await this.generateAIQuestionsAsync(count, plan.aiOptions)
+      }
+    },
+
     // 异步生成AI题目并随机插入
     async generateAIQuestionsAsync(count, aiOptions) {
       const isFirstBatch = this.exercises.length === 0  // 判断是否是第一批题目（题库为空）
@@ -1872,8 +1949,9 @@ export default {
             successCount++
             
             // 记录已使用的题目ID
-            if (res.exercise.questionId) {
-              this.usedQuestionIds.add(res.exercise.questionId)
+            const uniqueKey = this.getQuestionUniqueKey(res.exercise)
+            if (uniqueKey) {
+              this.usedQuestionIds.add(uniqueKey)
             }
             
             // 检查用户当前是否还需要这个题目
@@ -2120,7 +2198,7 @@ export default {
           // 如果有关联的公共题库ID，也传递过去
           if (ex.publicQuestionId) {
             unfavoriteData.publicQuestionId = ex.publicQuestionId
-          } else if (ex.questionSource === 'public' && ex.questionId) {
+          } else if (this.isPublicQuestionSource(ex.questionSource) && ex.questionId) {
             unfavoriteData.publicQuestionId = ex.questionId
           }
           
@@ -2145,13 +2223,20 @@ export default {
             hint: ex.hint,
             tense: ex.tense,
             mood: ex.mood,
-            person: ex.person
+            person: ex.person,
+            questionBank: ex.questionBank,
+            hostForm: ex.hostForm,
+            hostFormZh: ex.hostFormZh,
+            pronounPattern: ex.pronounPattern,
+            ioPronoun: ex.ioPronoun,
+            doPronoun: ex.doPronoun
           }
           
           // 如果题目来自公共题库，传递questionId
-          if (ex.questionId && ex.questionSource === 'public') {
+          if (ex.questionId && this.isPublicQuestionSource(ex.questionSource)) {
             questionData.questionId = ex.questionId
             questionData.questionSource = ex.questionSource
+            questionData.publicQuestionSource = ex.publicQuestionSource || ex.questionSource
           }
           
           const res = await api.favoriteQuestion(questionData)
@@ -2885,6 +2970,23 @@ export default {
 .verb-info {
   text-align: center;
   margin: 30rpx 0;
+}
+
+.pronoun-meta {
+  margin: -10rpx 0 24rpx;
+  display: flex;
+  justify-content: center;
+  gap: 16rpx;
+  flex-wrap: wrap;
+}
+
+.pronoun-meta-item {
+  font-size: 24rpx;
+  color: #8B0012;
+  background: #fff4f4;
+  border: 1rpx solid #ffd1d6;
+  border-radius: 20rpx;
+  padding: 8rpx 18rpx;
 }
 
 .infinitive {

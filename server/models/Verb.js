@@ -85,7 +85,8 @@ class Verb {
     const params = []
 
     // 如果指定了动词ID列表，只从这些动词中选择
-    if (filters.verbIds && filters.verbIds.length > 0) {
+    const hasVerbIdFilter = filters.verbIds && filters.verbIds.length > 0
+    if (hasVerbIdFilter) {
       const placeholders = filters.verbIds.map(() => '?').join(',')
       query += ` AND id IN (${placeholders})`
       params.push(...filters.verbIds)
@@ -118,22 +119,33 @@ class Verb {
         }
       }
 
-      // 是否只要规则动词
-      if (filters.onlyRegular === true) {
-        query += ' AND is_irregular = 0'
-      }
-      
-      // 是否只要不规则动词
-      if (filters.onlyIrregular === true) {
-        query += ' AND is_irregular = 1'
-      }
-      
-      // 排除指定的动词ID
-      if (filters.excludeVerbIds && filters.excludeVerbIds.length > 0) {
-        const placeholders = filters.excludeVerbIds.map(() => '?').join(',')
-        query += ` AND id NOT IN (${placeholders})`
-        params.push(...filters.excludeVerbIds)
-      }
+    }
+
+    // 是否只要规则动词
+    if (filters.onlyRegular === true) {
+      query += ' AND is_irregular = 0'
+    }
+    
+    // 是否只要不规则动词
+    if (filters.onlyIrregular === true) {
+      query += ' AND is_irregular = 1'
+    }
+    
+    // 仅保留有及物用法的动词
+    if (filters.onlyHasTrUse === true) {
+      query += ' AND has_tr_use = 1'
+    }
+
+    // 仅保留反身动词
+    if (filters.onlyReflexive === true) {
+      query += ' AND is_reflexive = 1'
+    }
+    
+    // 排除指定的动词ID
+    if (filters.excludeVerbIds && filters.excludeVerbIds.length > 0) {
+      const placeholders = filters.excludeVerbIds.map(() => '?').join(',')
+      query += ` AND id NOT IN (${placeholders})`
+      params.push(...filters.excludeVerbIds)
     }
 
     query += ' ORDER BY RANDOM() LIMIT ?'
