@@ -121,6 +121,14 @@
       "style": {
         "navigationBarTitleText": "好友信息"
       }
+    },
+    {
+      "path": "pages/friends/pk",
+      "style": {
+        "navigationBarTitleText": "数值PK",
+        "navigationBarTextStyle": "white",
+        "navigationBarBackgroundColor": "#8B0012"
+      }
     }
   ],
   "globalStyle": {

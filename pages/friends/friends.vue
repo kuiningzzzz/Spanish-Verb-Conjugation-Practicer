@@ -67,7 +67,7 @@
           <text>设置备注</text>
         </view>
         <view class="menu-item" @click="toggleStar">
-          <text class="menu-icon">{{ selectedFriend && selectedFriend.is_starred ? '☆' : '⭐' }}</text>
+          <text class="menu-icon">{{ selectedFriend && selectedFriend.is_starred ? '🌟' : '⭐' }}</text>
           <text>{{ selectedFriend && selectedFriend.is_starred ? '取消星标' : '加星标' }}</text>
         </view>
         <view class="menu-item danger" @click="confirmRemoveFriend">

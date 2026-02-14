@@ -53,6 +53,14 @@
           </view>
         </view>
       </view>
+
+      <!-- 操作按钮 -->
+      <view class="actions">
+        <button class="btn-pk" @click="goToPK">
+          <text class="icon">⚔️</text>
+          <text>数值PK</text>
+        </button>
+      </view>
     </view>
   </view>
 </template>
@@ -109,6 +117,11 @@ export default {
       const month = (date.getMonth() + 1).toString().padStart(2, '0')
       const day = date.getDate().toString().padStart(2, '0')
       return `${year}-${month}-${day}`
+    },
+    goToPK() {
+      uni.navigateTo({
+        url: `/pages/friends/pk?friendId=${this.friendId}`
+      })
     },
     getAvatarText(username) {
       if (!username) return '?'
@@ -184,13 +197,6 @@ export default {
   font-size: 32rpx;
 }
 
-.unique-id {
-  display: block;
-  font-size: 24rpx;
-  opacity: 0.9;
-  margin-bottom: 8rpx;
-}
-
 .friend-since {
   display: block;
   font-size: 22rpx;
@@ -240,5 +246,34 @@ export default {
   display: block;
   font-size: 24rpx;
   color: #999;
+}
+
+.actions {
+  padding: 0;
+  margin-top: 20rpx;
+}
+
+.btn-pk {
+  width: 100%;
+  background: #8B0012;
+  color: #fff;
+  border: none;
+  border-radius: 50rpx;
+  padding: 28rpx;
+  font-size: 32rpx;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+}
+
+.btn-pk:active {
+  background: #750010;
+  transform: scale(0.98);
+}
+
+.icon {
+  font-size: 32rpx;
 }
 </style>
