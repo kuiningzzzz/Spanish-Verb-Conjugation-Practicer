@@ -633,6 +633,7 @@ export default {
   },
   data() {
     return {
+      fromRegister: false, // 是否从注册页面跳转过来
       useInAppIME: getUseInAppIME(),
       imeVisible: false,
       imeHeight: 0,
@@ -822,6 +823,11 @@ export default {
     // 获取系统信息，设置状态栏高度
     const systemInfo = uni.getSystemInfoSync()
     this.statusBarHeight = systemInfo.statusBarHeight || 0
+
+    // 检查是否从注册页面跳转而来
+    if (options.fromRegister === 'true') {
+      this.fromRegister = true
+    }
 
     this.initMoodPanels()
     // 每次进入页面重置时态勾选（灰色时态默认不勾选）
@@ -1051,6 +1057,14 @@ export default {
       })
     },
     goBack() {
+      // 如果是从注册页面跳转过来的，直接返回首页
+      if (this.fromRegister) {
+        uni.switchTab({
+          url: '/pages/index/index'
+        })
+        return
+      }
+
       if (this.hasStarted) {
         uni.showModal({
           title: '提示',

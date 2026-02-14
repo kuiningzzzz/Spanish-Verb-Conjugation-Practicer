@@ -704,11 +704,12 @@ export default {
           uni.setStorageSync('token', res.token)
           uni.setStorageSync('userInfo', res.user)
 
-          showToast('注册成功', 'success')
+          showToast('注册成功，欢迎开始练习！', 'success')
 
           setTimeout(() => {
-            uni.switchTab({
-              url: '/pages/index/index'
+            // 注册成功后跳转到练习页面
+            uni.redirectTo({
+              url: '/pages/practice/practice?fromRegister=true'
             })
           }, 1000)
         } else {
