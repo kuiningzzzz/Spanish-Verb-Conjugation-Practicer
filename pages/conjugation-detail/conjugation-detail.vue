@@ -40,7 +40,12 @@
 
     <!-- 变位表格 -->
     <view class="conjugation-section">
-      <view class="section-title">📋 完整变位表</view>
+      <view class="section-header">
+        <view class="section-title">📋 完整变位表</view>
+        <view class="single-practice-btn" @click="startSingleVerbPractice">
+          <text class="single-practice-btn-text">单词专练</text>
+        </view>
+      </view>
 
       <!-- 反身代词变位（仅反身动词显示） -->
       <view v-if="verbInfo.isReflexive" class="mood-group">
@@ -502,6 +507,18 @@ export default {
         console.error('收藏操作失败:', error)
         showToast('操作失败', 'none')
       }
+    },
+
+    // 单词专练：使用收藏专练相同设置逻辑，但限制为当前动词
+    startSingleVerbPractice() {
+      const verbId = Number(this.verbId)
+      if (!verbId) {
+        showToast('缺少动词ID', 'none')
+        return
+      }
+      uni.navigateTo({
+        url: `/pages/practice/practice?mode=favorite&verbIds=${verbId}&singleVerbPractice=true`
+      })
     }
   }
 }
@@ -666,12 +683,44 @@ export default {
   margin-bottom: 20rpx;
 }
 
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 20rpx 0;
+  margin-bottom: 20rpx;
+}
+
 .section-title {
   font-size: 32rpx;
   font-weight: bold;
   color: #2c3e50;
-  padding: 20rpx 0;
-  margin-bottom: 20rpx;
+  flex: 1;
+}
+
+.single-practice-btn {
+  flex-shrink: 0;
+  background: #8B0012;
+  border-radius: 24rpx;
+  padding: 12rpx 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.single-practice-btn:active {
+  opacity: 0.9;
+  transform: scale(0.98);
+}
+
+.single-practice-btn-text {
+  font-size: 24rpx;
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 /* 语气分组 */

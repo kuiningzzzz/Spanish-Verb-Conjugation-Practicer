@@ -416,8 +416,8 @@
           v-for="(type, index) in exerciseTypes" 
           :key="type.value"
           class="navbar-item" 
-          :class="{ 'active': exerciseTypeIndex === index, 'disabled': isCourseMode }"
-          @click="!isCourseMode && selectExerciseType(index)"
+          :class="{ 'active': exerciseTypeIndex === index, 'disabled': isCourseMode || isExerciseTypeDisabled(type.value) }"
+          @click="handleExerciseTypeClick(index)"
         >
           <text class="navbar-item-text">{{ type.label }}</text>
         </view>
@@ -756,6 +756,8 @@ export default {
       defaultReviewCount: 30,  // 滚动复习默认题量
       // 自定义动词练习
       isCustomPractice: false,
+      hasExplicitVerbIds: false,
+      isSingleVerbPractice: false,
       customVerbIds: [],
       // 专项练习设置
       moodOptions: [
@@ -925,6 +927,10 @@ export default {
         .split(',')
         .map(id => parseInt(id))
         .filter(id => !Number.isNaN(id))
+      this.hasExplicitVerbIds = this.customVerbIds.length > 0
+    }
+    if (options.singleVerbPractice === 'true') {
+      this.isSingleVerbPractice = true
     }
     if (this.practiceMode === 'custom' && this.customVerbIds.length > 0) {
       this.isCustomPractice = true
@@ -933,6 +939,9 @@ export default {
         this.exerciseTypeIndex = 0
         this.exerciseType = this.exerciseTypes[0].value
       }
+    }
+    if (this.shouldDisableSentenceInCurrentMode()) {
+      this.resetExerciseTypeForSentenceDisabledMode()
     }
     this.setExerciseCount(this.exerciseCount)
   },
@@ -1168,10 +1177,51 @@ export default {
         })
       }
     },
+    shouldDisableSentenceInCurrentMode() {
+      return this.practiceMode === 'favorite' || this.practiceMode === 'wrong'
+    },
+    isExerciseTypeDisabled(typeValue) {
+      if (!typeValue) return false
+      return this.shouldDisableSentenceInCurrentMode() && typeValue === 'sentence'
+    },
+    getSentenceUnsupportedToastText() {
+      if (this.isSingleVerbPractice) return '单词专练暂不支持例句填空练习'
+      if (this.practiceMode === 'favorite') return '收藏专练暂不支持例句填空练习'
+      if (this.practiceMode === 'wrong') return '错词专练暂不支持例句填空练习'
+      return '当前模式暂不支持例句填空练习'
+    },
+    showSentenceUnsupportedToast() {
+      showToast(this.getSentenceUnsupportedToastText(), 'none')
+    },
+    resetExerciseTypeForSentenceDisabledMode() {
+      const quickFillIndex = this.exerciseTypes.findIndex(type => type.value === 'quick-fill' && !this.isExerciseTypeDisabled(type.value))
+      const fallbackIndex = this.exerciseTypes.findIndex(type => !this.isExerciseTypeDisabled(type.value))
+      const targetIndex = quickFillIndex >= 0 ? quickFillIndex : fallbackIndex
+      if (targetIndex >= 0) {
+        this.exerciseTypeIndex = targetIndex
+        this.exerciseType = this.exerciseTypes[targetIndex].value
+      }
+    },
+    handleExerciseTypeClick(index) {
+      if (this.isCourseMode) return
+      const target = this.exerciseTypes[index]
+      if (!target) return
+      if (this.isExerciseTypeDisabled(target.value)) {
+        this.showSentenceUnsupportedToast()
+        return
+      }
+      this.selectExerciseType(index)
+    },
     // 选择练习类型（新方法）
     selectExerciseType(index) {
+      const target = this.exerciseTypes[index]
+      if (!target) return
+      if (this.isExerciseTypeDisabled(target.value)) {
+        this.showSentenceUnsupportedToast()
+        return
+      }
       this.exerciseTypeIndex = index
-      this.exerciseType = this.exerciseTypes[index].value
+      this.exerciseType = target.value
     },
 
     handleExerciseTypeSwipeStart(e) {
@@ -1221,9 +1271,15 @@ export default {
     },
 
     switchExerciseTypeByStep(step) {
-      const nextIndex = this.exerciseTypeIndex + step
-      if (nextIndex < 0 || nextIndex >= this.exerciseTypes.length) return
-      this.selectExerciseType(nextIndex)
+      let nextIndex = this.exerciseTypeIndex + step
+      while (nextIndex >= 0 && nextIndex < this.exerciseTypes.length) {
+        const target = this.exerciseTypes[nextIndex]
+        if (target && !this.isExerciseTypeDisabled(target.value)) {
+          this.selectExerciseType(nextIndex)
+          return
+        }
+        nextIndex += step
+      }
     },
 
     openExerciseModeModal() {
@@ -1689,7 +1745,7 @@ export default {
       if (this.isCourseMode && Array.isArray(this.lessonVocabulary) && this.lessonVocabulary.length > 0) {
         return new Set(this.lessonVocabulary.map(v => v.id))
       }
-      if (this.isCustomPractice && this.customVerbIds.length > 0) {
+      if (this.hasExplicitVerbIds && this.customVerbIds.length > 0) {
         return new Set(this.customVerbIds)
       }
       return null
@@ -1752,7 +1808,7 @@ export default {
         // 如果是课程模式，传递课程单词ID列表
         if (this.isCourseMode && this.lessonVocabulary.length > 0) {
           requestData.verbIds = this.lessonVocabulary.map(v => v.id)
-        } else if (this.isCustomPractice && this.customVerbIds.length > 0) {
+        } else if (this.hasExplicitVerbIds && this.customVerbIds.length > 0) {
           requestData.verbIds = this.customVerbIds
         }
 
@@ -1977,7 +2033,7 @@ export default {
             aiOptions: {
               ...aiOptions,
               excludeVerbIds: Array.from(usedVerbIds),
-              verbIds: this.isCustomPractice && this.customVerbIds.length > 0
+              verbIds: this.hasExplicitVerbIds && this.customVerbIds.length > 0
                 ? this.customVerbIds
                 : (aiOptions.verbIds && aiOptions.verbIds.length > 0 ? aiOptions.verbIds : fallbackVerbIds)
             }
@@ -3498,6 +3554,17 @@ export default {
 
 .navbar-item.disabled {
   cursor: not-allowed;
+  background: #eeeeee;
+  box-shadow: none;
+}
+
+.navbar-item.disabled .navbar-item-text {
+  color: #aaaaaa;
+}
+
+.navbar-item.disabled:active {
+  background: #eeeeee;
+  transform: none;
 }
 
 /* 大圆形开始按钮容器 */
