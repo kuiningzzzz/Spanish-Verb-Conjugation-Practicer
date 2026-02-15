@@ -188,6 +188,7 @@ function initUserDatabase() {
       verb_id INTEGER NOT NULL,
       question_type TEXT NOT NULL CHECK(question_type IN ('fill', 'sentence')),
       question_bank TEXT DEFAULT 'traditional' CHECK(question_bank IN ('traditional', 'pronoun')),
+      sentence_type TEXT DEFAULT 'traditional' CHECK(sentence_type IN ('traditional', 'with_pronoun')),
       question_text TEXT NOT NULL,
       correct_answer TEXT NOT NULL,
       example_sentence TEXT,
@@ -266,12 +267,28 @@ function initUserDatabase() {
 
   // 创建索引
   ensureColumn(userDb, 'private_questions', 'question_bank', "question_bank TEXT DEFAULT 'traditional'")
+  ensureColumn(userDb, 'private_questions', 'sentence_type', "sentence_type TEXT DEFAULT 'traditional'")
   ensureColumn(userDb, 'private_questions', 'public_question_source', 'public_question_source TEXT')
   ensureColumn(userDb, 'private_questions', 'host_form', 'host_form TEXT')
   ensureColumn(userDb, 'private_questions', 'host_form_zh', 'host_form_zh TEXT')
   ensureColumn(userDb, 'private_questions', 'pronoun_pattern', 'pronoun_pattern TEXT')
   ensureColumn(userDb, 'private_questions', 'io_pronoun', 'io_pronoun TEXT')
   ensureColumn(userDb, 'private_questions', 'do_pronoun', 'do_pronoun TEXT')
+  userDb.exec(`
+    UPDATE private_questions
+    SET sentence_type = CASE
+      WHEN LOWER(COALESCE(sentence_type, '')) IN ('traditional', 'with_pronoun')
+        THEN LOWER(sentence_type)
+      WHEN LOWER(COALESCE(sentence_type, '')) = 'pronoun'
+        THEN 'with_pronoun'
+      WHEN question_bank = 'pronoun' OR host_form IS NOT NULL
+        THEN 'with_pronoun'
+      ELSE 'traditional'
+    END
+    WHERE sentence_type IS NULL
+      OR TRIM(sentence_type) = ''
+      OR LOWER(sentence_type) NOT IN ('traditional', 'with_pronoun')
+  `)
 
   const userQuestionRecordsDDL = getTableDDL(userDb, 'user_question_records')
   const needRebuildUserQuestionRecords = (
@@ -322,6 +339,7 @@ function initUserDatabase() {
 
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_practice_records_user ON practice_records(user_id)`)
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_private_questions_user ON private_questions(user_id)`)
+  userDb.exec(`CREATE INDEX IF NOT EXISTS idx_private_questions_user_sentence_type ON private_questions(user_id, sentence_type)`)
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_user_question_records ON user_question_records(user_id, question_id, question_type)`)
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_user_textbooks ON user_textbooks(user_id)`)
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_user_lesson_progress ON user_lesson_progress(user_id, lesson_id)`)

@@ -21,6 +21,7 @@ router.post('/favorite', authMiddleware, async (req, res) => {
       questionId,        // 如果是从公共题库收藏，传递questionId
       questionSource,    // 题目来源
       questionBank,
+      sentenceType,
       publicQuestionSource,
       hostForm,
       hostFormZh,
@@ -45,6 +46,11 @@ router.post('/favorite', authMiddleware, async (req, res) => {
       verbId,
       questionType,
       questionBank: questionBank || (normalizedPublicSource === 'public_pronoun' ? 'pronoun' : 'traditional'),
+      sentenceType: sentenceType || (
+        (questionBank === 'pronoun' || normalizedPublicSource === 'public_pronoun' || hostForm)
+          ? 'with_pronoun'
+          : 'traditional'
+      ),
       questionText,
       correctAnswer,
       exampleSentence,
@@ -127,11 +133,18 @@ router.post('/unfavorite', authMiddleware, async (req, res) => {
 router.get('/my-questions', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId
-    const { questionType } = req.query
+    const { questionType, sentenceType } = req.query
 
     const filters = {}
     if (questionType) {
       filters.questionType = questionType
+    }
+    if (sentenceType) {
+      const normalizedSentenceType = String(sentenceType).trim().toLowerCase()
+      if (!['traditional', 'with_pronoun'].includes(normalizedSentenceType)) {
+        return res.status(400).json({ error: 'sentenceType 必须为 traditional 或 with_pronoun' })
+      }
+      filters.sentenceType = normalizedSentenceType
     }
 
     const questions = Question.getPrivateByUser(userId, filters)

@@ -6,6 +6,8 @@ const PRIVATE_SOURCE = 'private'
 
 const QUESTION_BANK_TRADITIONAL = 'traditional'
 const QUESTION_BANK_PRONOUN = 'pronoun'
+const SENTENCE_TYPE_TRADITIONAL = 'traditional'
+const SENTENCE_TYPE_WITH_PRONOUN = 'with_pronoun'
 
 const PUBLIC_TABLES = {
   [PUBLIC_SOURCE_TRADITIONAL]: 'public_traditional_conjugation',
@@ -97,6 +99,21 @@ function normalizeQuestionBank(bank, fallback = QUESTION_BANK_TRADITIONAL) {
   if (value === QUESTION_BANK_TRADITIONAL) return QUESTION_BANK_TRADITIONAL
   if (value === QUESTION_BANK_PRONOUN) return QUESTION_BANK_PRONOUN
   return fallback
+}
+
+function normalizeSentenceType(sentenceType, fallback = SENTENCE_TYPE_TRADITIONAL) {
+  if (!sentenceType) return fallback
+  const value = String(sentenceType).trim().toLowerCase()
+  if (value === SENTENCE_TYPE_TRADITIONAL) return SENTENCE_TYPE_TRADITIONAL
+  if (value === SENTENCE_TYPE_WITH_PRONOUN || value === 'pronoun') return SENTENCE_TYPE_WITH_PRONOUN
+  return fallback
+}
+
+function getSentenceTypeByQuestionBank(questionBank) {
+  const normalizedBank = normalizeQuestionBank(questionBank)
+  return normalizedBank === QUESTION_BANK_PRONOUN
+    ? SENTENCE_TYPE_WITH_PRONOUN
+    : SENTENCE_TYPE_TRADITIONAL
 }
 
 function getPublicSourceByQuestionBank(questionBank) {
@@ -756,6 +773,7 @@ class Question {
       publicQuestionId,
       publicQuestionSource,
       questionBank,
+      sentenceType,
       hostForm,
       hostFormZh,
       pronounPattern,
@@ -766,6 +784,10 @@ class Question {
     const normalizedBank = normalizeQuestionBank(
       questionBank,
       hostForm ? QUESTION_BANK_PRONOUN : QUESTION_BANK_TRADITIONAL
+    )
+    const normalizedSentenceType = normalizeSentenceType(
+      sentenceType,
+      getSentenceTypeByQuestionBank(normalizedBank)
     )
     const normalizedPublicSource = publicQuestionSource
       ? normalizePublicSource(publicQuestionSource)
@@ -779,6 +801,11 @@ class Question {
     `).get(userId, verbId, questionType, normalizedBank, questionText)
 
     if (existing) {
+      userDb.prepare(`
+        UPDATE private_questions
+        SET sentence_type = ?
+        WHERE id = ?
+      `).run(normalizedSentenceType, existing.id)
       return existing.id
     }
 
@@ -788,6 +815,7 @@ class Question {
         verb_id,
         question_type,
         question_bank,
+        sentence_type,
         question_text,
         correct_answer,
         example_sentence,
@@ -803,7 +831,7 @@ class Question {
         pronoun_pattern,
         io_pronoun,
         do_pronoun
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
     const result = stmt.run(
@@ -811,6 +839,7 @@ class Question {
       verbId,
       questionType,
       normalizedBank,
+      normalizedSentenceType,
       questionText,
       correctAnswer,
       exampleSentence || null,
@@ -851,7 +880,7 @@ class Question {
   }
 
   static getPrivateByUser(userId, filters = {}) {
-    const { questionType, questionBank } = filters
+    const { questionType, questionBank, sentenceType } = filters
     let query = 'SELECT * FROM private_questions WHERE user_id = ?'
     const params = [userId]
 
@@ -863,6 +892,11 @@ class Question {
     if (questionBank) {
       query += ' AND question_bank = ?'
       params.push(normalizeQuestionBank(questionBank))
+    }
+
+    if (sentenceType) {
+      query += ' AND sentence_type = ?'
+      params.push(normalizeSentenceType(sentenceType))
     }
 
     query += ' ORDER BY created_at DESC'
@@ -871,7 +905,7 @@ class Question {
   }
 
   static getRandomFromPrivate(userId, filters = {}) {
-    const { questionType, limit = 1, questionBank } = filters
+    const { questionType, limit = 1, questionBank, sentenceType } = filters
     let query = 'SELECT * FROM private_questions WHERE user_id = ?'
     const params = [userId]
 
@@ -883,6 +917,11 @@ class Question {
     if (questionBank) {
       query += ' AND question_bank = ?'
       params.push(normalizeQuestionBank(questionBank))
+    }
+
+    if (sentenceType) {
+      query += ' AND sentence_type = ?'
+      params.push(normalizeSentenceType(sentenceType))
     }
 
     query += ' ORDER BY RANDOM() LIMIT ?'
@@ -894,7 +933,7 @@ class Question {
   }
 
   static getPrivateCount(userId, filters = {}) {
-    const { questionType, questionBank } = filters
+    const { questionType, questionBank, sentenceType } = filters
     let query = 'SELECT COUNT(*) AS count FROM private_questions WHERE user_id = ?'
     const params = [userId]
 
@@ -906,6 +945,11 @@ class Question {
     if (questionBank) {
       query += ' AND question_bank = ?'
       params.push(normalizeQuestionBank(questionBank))
+    }
+
+    if (sentenceType) {
+      query += ' AND sentence_type = ?'
+      params.push(normalizeSentenceType(sentenceType))
     }
 
     return userDb.prepare(query).get(...params).count
