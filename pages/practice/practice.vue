@@ -1298,13 +1298,30 @@ export default {
       if (exercise.hostForm === 'prnl') {
         return '自反形式（本题不区分 IO/DO）'
       }
-      const parts = []
-      if (exercise.ioPronoun) parts.push(`IO: ${exercise.ioPronoun}`)
-      if (exercise.doPronoun) parts.push(`DO: ${exercise.doPronoun}`)
-      if (parts.length === 0 && exercise.pronounPattern) {
-        parts.push(`模式: ${this.formatPronounPattern(exercise.pronounPattern)}`)
+      const pronounParts = []
+      if (exercise.ioPronoun) pronounParts.push(`IO: ${exercise.ioPronoun}`)
+      if (exercise.doPronoun) pronounParts.push(`DO: ${exercise.doPronoun}`)
+      if (pronounParts.length === 0 && exercise.pronounPattern) {
+        pronounParts.push(`模式: ${this.formatPronounPattern(exercise.pronounPattern)}`)
       }
-      return parts.length > 0 ? parts.join(' | ') : '请结合上下文判断代词格、性数和位置'
+      const pronounHint = pronounParts.length > 0
+        ? pronounParts.join(' | ')
+        : '请结合上下文判断代词格、性数和位置'
+
+      const hostForm = String(exercise.hostForm || '').trim().toLowerCase()
+      const needMoodTensePersonLine = hostForm === 'finite' || hostForm === 'imperative'
+      if (!needMoodTensePersonLine) {
+        return pronounHint
+      }
+
+      const moodTensePerson = [exercise.mood, exercise.tense, exercise.person]
+        .filter(item => !!item)
+        .join('-')
+      if (!moodTensePerson) {
+        return pronounHint
+      }
+
+      return `${moodTensePerson}\n${pronounHint}`
     },
 
     createStateForExercise(exercise) {
@@ -3153,6 +3170,7 @@ export default {
   font-size: 26rpx;
   color: #ef6c00;
   line-height: 1.6;
+  white-space: pre-line;
 }
 
 @keyframes slideIn {
