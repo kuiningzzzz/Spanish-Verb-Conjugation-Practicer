@@ -11,6 +11,9 @@ class Verb {
       isReflexive,
       hasTrUse,
       hasIntrUse,
+      supportsDo,
+      supportsIo,
+      supportsDoIo,
       gerund,
       participle,
       participleForms,
@@ -22,11 +25,11 @@ class Verb {
     const stmt = db.prepare(`
       INSERT INTO verbs (
         infinitive, meaning, conjugation_type, is_irregular, is_reflexive, 
-        has_tr_use, has_intr_use,
+        has_tr_use, has_intr_use, supports_do, supports_io, supports_do_io,
         gerund, participle, participle_forms, 
         lesson_number, textbook_volume, frequency_level
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     
     const result = stmt.run(
@@ -37,6 +40,9 @@ class Verb {
       isReflexive || 0,
       hasTrUse || 0,
       hasIntrUse || 0,
+      supportsDo ?? null,
+      supportsIo ?? null,
+      supportsDoIo ?? null,
       gerund || null,
       participle || null,
       participleForms || null,

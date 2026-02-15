@@ -359,6 +359,9 @@ function initVocabularyDatabase() {
       is_reflexive INTEGER DEFAULT 0,
       has_tr_use INTEGER DEFAULT 0,
       has_intr_use INTEGER DEFAULT 0,
+      supports_do INTEGER,
+      supports_io INTEGER,
+      supports_do_io INTEGER,
       gerund TEXT,
       participle TEXT,
       participle_forms TEXT,
@@ -372,6 +375,9 @@ function initVocabularyDatabase() {
   // 兼容旧数据库，补充列
   ensureColumn(vocabularyDb, 'verbs', 'has_tr_use', 'has_tr_use INTEGER DEFAULT 0')
   ensureColumn(vocabularyDb, 'verbs', 'has_intr_use', 'has_intr_use INTEGER DEFAULT 0')
+  ensureColumn(vocabularyDb, 'verbs', 'supports_do', 'supports_do INTEGER')
+  ensureColumn(vocabularyDb, 'verbs', 'supports_io', 'supports_io INTEGER')
+  ensureColumn(vocabularyDb, 'verbs', 'supports_do_io', 'supports_do_io INTEGER')
 
   // 动词变位表
   vocabularyDb.exec(`
