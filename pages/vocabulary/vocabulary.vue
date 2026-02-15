@@ -80,7 +80,7 @@
             </view>
           </view>
           <view class="word-meta">
-            <text class="meta-item">收藏于 {{ formatDate(item.created_at) }}</text>
+            <text class="meta-item">收藏于 {{ formatFavoriteDate(item.created_at) }}</text>
             <view class="word-actions">
               <text class="detail-btn" @click="viewConjugations(item.verb_id)">查看全变位</text>
               <text class="remove-btn" @click="removeFavorite(item.verb_id)">删除</text>
@@ -691,6 +691,15 @@ export default {
       const month = date.getMonth() + 1
       const day = date.getDate()
       return `${month}月${day}日`
+    },
+
+    formatFavoriteDate(dateStr) {
+      if (!dateStr) return ''
+      const date = new Date(dateStr)
+      const year = date.getFullYear()
+      const month = date.getMonth() + 1
+      const day = date.getDate()
+      return `${year}年${month}月${day}日`
     },
 
     formatQuestionDate(dateStr) {
