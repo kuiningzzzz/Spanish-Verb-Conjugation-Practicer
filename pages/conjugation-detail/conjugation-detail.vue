@@ -605,8 +605,8 @@ export default {
 }
 
 .badge-type {
-  background-color: #e3f2fd;
-  color: #1976d2;
+  background-color: #f2f3f5;
+  color: #8c8c8c;
 }
 
 .badge-irregular {
