@@ -168,11 +168,30 @@ export default {
     }
   },
   onShow() {
+    this.scrollToTop()
     // 每次显示页面时刷新数据
     this.loadStats()
-    this.loadList()
+    this.loadAllLists()
   },
   methods: {
+    scrollToTop(duration = 0) {
+      this.$nextTick(() => {
+        if (typeof uni !== 'undefined' && typeof uni.pageScrollTo === 'function') {
+          uni.pageScrollTo({
+            scrollTop: 0,
+            duration
+          })
+          return
+        }
+        if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+          window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: duration > 0 ? 'smooth' : 'auto'
+          })
+        }
+      })
+    },
     async loadStats() {
       try {
         const res = await api.getVocabularyStats({ silentFailToast: true })
@@ -191,11 +210,28 @@ export default {
       }
     },
 
-    async loadList() {
-      if (this.activeTab === 'favorite') {
-        await this.loadFavoriteList()
-      } else {
-        await this.loadWrongList()
+    async loadAllLists() {
+      try {
+        this.listLoadFailed = false
+        showLoading('加载中...')
+        const [favoriteRes, wrongRes] = await Promise.all([
+          api.getFavoriteList({ silentFailToast: true }),
+          api.getWrongList({ silentFailToast: true })
+        ])
+        hideLoading()
+
+        if (favoriteRes.success) {
+          this.favoriteList = favoriteRes.favorites
+        }
+        if (wrongRes.success) {
+          this.wrongList = wrongRes.wrongs
+        }
+      } catch (error) {
+        hideLoading()
+        this.listLoadFailed = true
+        this.favoriteList = []
+        this.wrongList = []
+        console.error('加载单词列表失败:', error)
       }
     },
 
@@ -239,7 +275,6 @@ export default {
 
     switchTab(tab) {
       this.activeTab = tab
-      this.loadList()
     },
 
     async removeFavorite(verbId) {

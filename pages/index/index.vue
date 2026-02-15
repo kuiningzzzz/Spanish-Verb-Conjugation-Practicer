@@ -96,6 +96,7 @@ export default {
     this.checkLogin()
   },
   onShow() {
+    this.scrollToTop()
     if (this.userInfo) {
       this.loadData()
     }
@@ -103,6 +104,24 @@ export default {
     this.checkNewAnnouncements()
   },
   methods: {
+    scrollToTop(duration = 0) {
+      this.$nextTick(() => {
+        if (typeof uni !== 'undefined' && typeof uni.pageScrollTo === 'function') {
+          uni.pageScrollTo({
+            scrollTop: 0,
+            duration
+          })
+          return
+        }
+        if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+          window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: duration > 0 ? 'smooth' : 'auto'
+          })
+        }
+      })
+    },
     checkLogin() {
       const token = uni.getStorageSync('token')
       const userInfo = uni.getStorageSync('userInfo')
