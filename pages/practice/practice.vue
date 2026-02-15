@@ -61,17 +61,24 @@
           </view>
         </view>
         <view class="header-actions">
-          <!-- 单词收藏按钮 -->
-          <view class="favorite-btn" @click="toggleFavorite">
-            <text class="favorite-icon">{{ isFavorited ? '★' : '☆' }}</text>
-          </view>
-          <!-- 题目收藏按钮（仅例句填空） -->
+          <!-- 收藏题目按钮（仅例句填空） -->
           <view 
             v-if="exerciseType === 'sentence'" 
-            class="question-favorite-btn" 
+            class="favorite-action-card"
+            :class="{ active: isQuestionFavorited }"
             @click="toggleQuestionFavorite"
           >
-            <text class="question-favorite-icon">{{ isQuestionFavorited ? '📌' : '📍' }}</text>
+            <text class="favorite-action-icon">{{ isQuestionFavorited ? '★' : '☆' }}</text>
+            <text class="favorite-action-text">收藏题目</text>
+          </view>
+          <!-- 收藏单词按钮 -->
+          <view
+            class="favorite-action-card"
+            :class="{ active: isFavorited }"
+            @click="toggleFavorite"
+          >
+            <text class="favorite-action-icon">{{ isFavorited ? '★' : '☆' }}</text>
+            <text class="favorite-action-text">收藏单词</text>
           </view>
         </view>
       </view>
@@ -3040,31 +3047,46 @@ export default {
   font-weight: bold;
 }
 
-.favorite-btn {
-  padding: 10rpx 15rpx;
-  cursor: pointer;
-}
-
 .header-actions {
   display: flex;
   gap: 15rpx;
   align-items: center;
 }
 
-.question-favorite-btn {
-  padding: 10rpx 15rpx;
+.favorite-action-card {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 8rpx 14rpx;
+  border: 1rpx solid #e2e6f2;
+  border-radius: 999rpx;
+  background: #f8f9ff;
   cursor: pointer;
 }
 
-.favorite-icon {
-  font-size: 48rpx;
-  color: #ffd700;
+.favorite-action-card.active {
+  border-color: #ffd27d;
+  background: #fff7e8;
+}
+
+.favorite-action-icon {
+  font-size: 34rpx;
+  color: #b7bccb;
   line-height: 1;
 }
 
-.question-favorite-icon {
-  font-size: 44rpx;
-  line-height: 1;
+.favorite-action-card.active .favorite-action-icon {
+  color: #f4b400;
+}
+
+.favorite-action-text {
+  font-size: 22rpx;
+  color: #6f7384;
+  line-height: 1.2;
+}
+
+.favorite-action-card.active .favorite-action-text {
+  color: #8B0012;
 }
 
 .verb-info {
