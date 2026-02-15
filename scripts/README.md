@@ -74,6 +74,11 @@ node prompt_matrix_test.js
 - 支持 host_form：`finite`, `imperative`, `infinitive`, `gerund`, `prnl`。
 - 非 `prnl` 题会先随机确定 `pronoun_pattern`（`DO/IO/DO_IO`），再按 `supports_do/supports_io/supports_do_io=true` 抽词。
 - 同样是 4 步流水线：`generator -> validator_1 -> revisor -> validator_2`。
+- `conjugation_with_pronoun` prompt 现有两个版本：`0`（基础版）、`1`（高上下文+强唯一解校验版）。
+- 使用新版可在 `.env` 设置：
+  - `CONJ_WITH_PRONOUN_GENERATOR_PROMPTS=1`
+  - `CONJ_WITH_PRONOUN_VALIDATOR_PROMPTS=1`
+  - `CONJ_WITH_PRONOUN_REVISOR_PROMPTS=1`
 
 **输入**
 - 动词源：`/Users/tomorikaho/Projects/Spanish-Verb-Conjugation-Practicer/server/src/verbs.json`
