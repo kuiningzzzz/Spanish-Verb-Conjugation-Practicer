@@ -300,7 +300,7 @@ function buildPronounWhereClause(filters = {}) {
   const normalizedPatterns = normalizePronounPatterns(pronounPatterns)
   if (normalizedPatterns.length > 0) {
     const placeholders = normalizedPatterns.map(() => '?').join(',')
-    query += ` AND pronoun_pattern IN (${placeholders})`
+    query += ` AND (host_form = 'prnl' OR pronoun_pattern IN (${placeholders}))`
     params.push(...normalizedPatterns)
   }
 

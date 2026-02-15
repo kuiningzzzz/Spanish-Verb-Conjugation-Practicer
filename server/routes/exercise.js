@@ -26,7 +26,8 @@ router.post('/generate-batch', authMiddleware, async (req, res) => {
       verbIds = null,  // 从请求体接收 verbIds（课程模式会传递）
       sentenceMode = 'verb-only',
       conjugationForms = [],
-      hostForms = []
+      hostForms = [],
+      pronounPatterns = []
     } = req.body
 
     const userId = req.userId
@@ -47,7 +48,8 @@ router.post('/generate-batch', authMiddleware, async (req, res) => {
       verbIds,  // 直接使用前端传递的 verbIds
       sentenceMode,
       conjugationForms,
-      hostForms
+      hostForms,
+      pronounPatterns
     }
 
     // 根据练习模式获取动词ID列表（仅在未传递 verbIds 时生效）
@@ -105,7 +107,8 @@ router.post('/generate-one', authMiddleware, async (req, res) => {
       practiceMode = 'normal',
       sentenceMode = 'verb-only',
       conjugationForms = [],
-      hostForms = []
+      hostForms = [],
+      pronounPatterns = []
     } = req.body
 
     const userId = req.userId
@@ -124,7 +127,8 @@ router.post('/generate-one', authMiddleware, async (req, res) => {
       practiceMode,
       sentenceMode,
       conjugationForms,
-      hostForms
+      hostForms,
+      pronounPatterns
     }
 
     // 根据练习模式获取动词ID列表

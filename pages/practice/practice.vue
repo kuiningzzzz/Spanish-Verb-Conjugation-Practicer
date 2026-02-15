@@ -592,6 +592,34 @@
         </view>
       </view>
 
+      <!-- 代词模式设置 -->
+      <view v-if="showPronounPatternSelector" class="form-item theme-practice-item">
+        <view class="theme-header" @click="!isCourseMode && togglePronounPatternSettings()">
+          <view class="theme-header-left">
+            <text class="label theme-label">代词模式选择</text>
+            <text v-if="isCourseMode" class="locked-badge">🔒 已锁定</text>
+          </view>
+          <view class="theme-header-right" v-if="!isCourseMode">
+            <text class="expand-icon">{{ pronounPatternSettingsExpanded ? '▲' : '▼' }}</text>
+          </view>
+        </view>
+        <view class="theme-details" v-show="pronounPatternSettingsExpanded || isCourseMode">
+          <view class="theme-section">
+            <view class="checkbox-group">
+              <view
+                v-for="pattern in pronounPatternOptions"
+                :key="pattern.value"
+                :class="['checkbox-item', selectedPronounPatterns.includes(pattern.value) ? 'checked' : '', isCourseMode ? 'disabled' : '']"
+                @click="!isCourseMode && togglePronounPattern(pattern.value)"
+              >
+                <text class="checkbox-icon">{{ selectedPronounPatterns.includes(pattern.value) ? '☑' : '☐' }}</text>
+                <text class="checkbox-label">{{ pattern.label }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
       <!-- 其他选项 -->
       <view v-if="showOtherOptionsSelector" class="form-item theme-practice-item">
         <view class="theme-header" @click="!isCourseMode && toggleOtherSettings()">
@@ -746,6 +774,12 @@ export default {
         { value: 'reflexive', label: '自反动词' }
       ],
       selectedConjugationForms: ['general', 'imperative', 'infinitive', 'gerund', 'reflexive'],
+      pronounPatternOptions: [
+        { value: 'DO', label: 'DO' },
+        { value: 'IO', label: 'IO' },
+        { value: 'DO_IO', label: 'DO+IO' }
+      ],
+      selectedPronounPatterns: ['DO', 'IO', 'DO_IO'],
       exerciseCount: 10,
       minExerciseCount: 5,
       maxExerciseCount: 50,
@@ -814,6 +848,7 @@ export default {
       // 专项练习折叠状态
       themeSettingsExpanded: false,  // 默认折叠
       conjugationFormSettingsExpanded: false,  // 带代词变位形式默认折叠
+      pronounPatternSettingsExpanded: false, // 代词模式默认折叠
       otherSettingsExpanded: false, // 其他选项默认折叠
       
       exercises: [],
@@ -1067,6 +1102,13 @@ export default {
       showConjugationFormSelector() {
         return this.exerciseType === 'sentence'
           && (this.selectedSentenceMode === 'with-pronoun' || this.selectedSentenceMode === 'mixed')
+      },
+      showPronounPatternSelector() {
+        return this.showConjugationFormSelector
+      },
+      isPrnlOnlyConjugationSelection() {
+        return this.selectedConjugationForms.length === 1
+          && this.selectedConjugationForms.includes('reflexive')
       },
       showOtherOptionsSelector() {
         return !this.isSentenceWithPronounMode
@@ -1370,6 +1412,20 @@ export default {
       }
     },
 
+    togglePronounPattern(pattern) {
+      const index = this.selectedPronounPatterns.indexOf(pattern)
+      if (index > -1) {
+        this.selectedPronounPatterns.splice(index, 1)
+      } else {
+        this.selectedPronounPatterns.push(pattern)
+      }
+    },
+
+    getEffectivePronounPatterns() {
+      if (this.isPrnlOnlyConjugationSelection) return []
+      return [...this.selectedPronounPatterns]
+    },
+
     isPublicQuestionSource(source) {
       return source === 'public'
         || source === 'public_traditional'
@@ -1409,15 +1465,19 @@ export default {
       if (exercise.hostForm === 'prnl') {
         return '自反形式（本题不区分 IO/DO）'
       }
-      const pronounParts = []
-      if (exercise.ioPronoun) pronounParts.push(`IO: ${exercise.ioPronoun}`)
-      if (exercise.doPronoun) pronounParts.push(`DO: ${exercise.doPronoun}`)
-      if (pronounParts.length === 0 && exercise.pronounPattern) {
-        pronounParts.push(`模式: ${this.formatPronounPattern(exercise.pronounPattern)}`)
+      const ioPronoun = String(exercise.ioPronoun || '').trim()
+      const doPronoun = String(exercise.doPronoun || '').trim()
+      let pronounHint = '请结合上下文判断代词格、性数和位置'
+
+      if (doPronoun && ioPronoun) {
+        pronounHint = `DO：${doPronoun}\nIO：${ioPronoun}`
+      } else if (doPronoun) {
+        pronounHint = `DO：${doPronoun}`
+      } else if (ioPronoun) {
+        pronounHint = `IO：${ioPronoun}`
+      } else if (exercise.pronounPattern) {
+        pronounHint = `模式：${this.formatPronounPattern(exercise.pronounPattern)}`
       }
-      const pronounHint = pronounParts.length > 0
-        ? pronounParts.join(' | ')
-        : '请结合上下文判断代词格、性数和位置'
 
       const hostForm = String(exercise.hostForm || '').trim().toLowerCase()
       const needMoodTensePersonLine = hostForm === 'finite' || hostForm === 'imperative'
@@ -1425,7 +1485,11 @@ export default {
         return pronounHint
       }
 
-      const moodTensePerson = [exercise.mood, exercise.tense, exercise.person]
+      const moodTensePerson = [
+        this.formatHintMoodZh(exercise.mood),
+        this.formatHintTenseZh(exercise.tense),
+        exercise.person
+      ]
         .filter(item => !!item)
         .join('-')
       if (!moodTensePerson) {
@@ -1433,6 +1497,48 @@ export default {
       }
 
       return `${moodTensePerson}\n${pronounHint}`
+    },
+
+    formatHintTenseZh(tense) {
+      const raw = String(tense || '').trim()
+      if (!raw) return ''
+      const map = {
+        Presente: '现在时',
+        presente: '现在时',
+        'Pretérito indefinido': '简单过去时',
+        'Preterito indefinido': '简单过去时',
+        'pretérito indefinido': '简单过去时',
+        'preterito indefinido': '简单过去时',
+        'Pretérito imperfecto': '过去未完成时',
+        'Preterito imperfecto': '过去未完成时',
+        'pretérito imperfecto': '过去未完成时',
+        'preterito imperfecto': '过去未完成时',
+        Afirmativo: '肯定命令式',
+        afirmativo: '肯定命令式',
+        'No aplica': '不适用',
+        'no aplica': '不适用'
+      }
+      return map[raw] || raw
+    },
+
+    formatHintMoodZh(mood) {
+      const raw = String(mood || '').trim()
+      if (!raw) return ''
+      const map = {
+        Indicativo: '陈述式',
+        indicativo: '陈述式',
+        Imperativo: '命令式',
+        imperativo: '命令式',
+        Infinitivo: '不定式',
+        infinitivo: '不定式',
+        Gerundio: '副动词',
+        gerundio: '副动词',
+        Pronominal: '代词动词（自复）',
+        pronominal: '代词动词（自复）',
+        'No aplica': '不适用',
+        'no aplica': '不适用'
+      }
+      return map[raw] || raw
     },
 
     createStateForExercise(exercise) {
@@ -1691,6 +1797,10 @@ export default {
       this.conjugationFormSettingsExpanded = !this.conjugationFormSettingsExpanded
     },
 
+    togglePronounPatternSettings() {
+      this.pronounPatternSettingsExpanded = !this.pronounPatternSettingsExpanded
+    },
+
     toggleOtherSettings() {
       this.otherSettingsExpanded = !this.otherSettingsExpanded
     },
@@ -1850,6 +1960,15 @@ export default {
         showToast('请至少选择一个变位形式', 'none')
         return
       }
+
+      if (
+        this.showPronounPatternSelector
+        && !this.isPrnlOnlyConjugationSelection
+        && this.selectedPronounPatterns.length === 0
+      ) {
+        showToast('请至少选择一个代词模式', 'none')
+        return
+      }
       
       if (this.isCourseMode) {
         const hasVocabulary = Array.isArray(this.lessonVocabulary) && this.lessonVocabulary.length > 0
@@ -1878,6 +1997,9 @@ export default {
         if (this.exerciseType === 'sentence') {
           requestData.sentenceMode = this.selectedSentenceMode
           requestData.conjugationForms = this.selectedConjugationForms
+          if (this.showPronounPatternSelector) {
+            requestData.pronounPatterns = this.getEffectivePronounPatterns()
+          }
         }
 
         // 如果是课程模式，传递课程单词ID列表

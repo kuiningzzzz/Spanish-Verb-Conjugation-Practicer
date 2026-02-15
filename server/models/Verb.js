@@ -146,6 +146,21 @@ class Verb {
     if (filters.onlyReflexive === true) {
       query += ' AND is_reflexive = 1'
     }
+
+    // 仅保留支持直接宾语代词（DO）的动词
+    if (filters.onlySupportsDo === true) {
+      query += ' AND supports_do = 1'
+    }
+
+    // 仅保留支持间接宾语代词（IO）的动词
+    if (filters.onlySupportsIo === true) {
+      query += ' AND supports_io = 1'
+    }
+
+    // 仅保留支持 DO+IO 组合的动词
+    if (filters.onlySupportsDoIo === true) {
+      query += ' AND supports_do_io = 1'
+    }
     
     // 排除指定的动词ID
     if (filters.excludeVerbIds && filters.excludeVerbIds.length > 0) {

@@ -1,6 +1,7 @@
 const Verb = require('../models/Verb')
 const Conjugation = require('../models/Conjugation')
 const Question = require('../models/Question')
+const { questionDb } = require('../database/db')
 const QuestionGeneratorService = require('./traditional_conjugation/questionGenerator')
 const QuestionValidatorService = require('./traditional_conjugation/questionValidator')
 const QuestionRevisorService = require('./traditional_conjugation/questionRevisor')
@@ -229,11 +230,11 @@ class ExerciseGeneratorService {
 
   static getPronounFormMap() {
     return {
-      general: { hostForm: 'finite', hostFormZh: '一般变位' },
-      imperative: { hostForm: 'imperative', hostFormZh: '命令式' },
-      infinitive: { hostForm: 'infinitive', hostFormZh: '动词原形' },
+      general: { hostForm: 'finite', hostFormZh: '陈述式-常见时态' },
+      imperative: { hostForm: 'imperative', hostFormZh: '命令式（肯定）' },
+      infinitive: { hostForm: 'infinitive', hostFormZh: '不定式' },
       gerund: { hostForm: 'gerund', hostFormZh: '副动词' },
-      reflexive: { hostForm: 'prnl', hostFormZh: '自反动词' }
+      reflexive: { hostForm: 'prnl', hostFormZh: '代词动词（自复）' }
     }
   }
 
@@ -255,12 +256,132 @@ class ExerciseGeneratorService {
     return new Set(['现在时', '简单过去时', '未完成过去时'])
   }
 
+  static getPronounFiniteTargetMeta() {
+    return {
+      现在时: {
+        mood: 'Indicativo',
+        tense: 'Presente',
+        host_form_zh: '陈述式-现在时'
+      },
+      简单过去时: {
+        mood: 'Indicativo',
+        tense: 'Pretérito indefinido',
+        host_form_zh: '陈述式-简单过去时'
+      },
+      未完成过去时: {
+        mood: 'Indicativo',
+        tense: 'Pretérito imperfecto',
+        host_form_zh: '陈述式-过去未完成时'
+      }
+    }
+  }
+
+  static normalizePronounPersonLabel(person) {
+    const key = String(person || '').trim().toLowerCase()
+    if (key === 'nosotros') return 'nosotros/nosotras'
+    if (key === 'vosotros') return 'vosotros/vosotras'
+    return String(person || '').trim()
+  }
+
   static normalizePronounPattern(pattern) {
     const normalized = String(pattern || '').trim().toUpperCase()
     if (normalized === 'DO' || normalized === 'IO' || normalized === 'DO_IO') {
       return normalized
     }
     return ''
+  }
+
+  static getDefaultPronounPatterns() {
+    return ['DO', 'IO', 'DO_IO']
+  }
+
+  static normalizePronounPatternList(patterns = []) {
+    const values = Array.isArray(patterns) ? patterns : []
+    const normalized = values
+      .map(item => this.normalizePronounPattern(item))
+      .filter(Boolean)
+    return [...new Set(normalized)]
+  }
+
+  static toBooleanFlag(value) {
+    if (value === true || value === false) return value
+    if (value === 1 || value === '1') return true
+    if (value === 0 || value === '0') return false
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase()
+      if (normalized === 'true' || normalized === 'yes') return true
+      if (normalized === 'false' || normalized === 'no') return false
+    }
+    return false
+  }
+
+  static getPronounPatternCandidatesForHostForm(hostForm, options = {}) {
+    if (hostForm === 'prnl') return ['']
+    const configured = this.normalizePronounPatternList(options.pronounPatterns)
+    if (configured.length > 0) return configured
+    return this.getDefaultPronounPatterns()
+  }
+
+  static isVerbCompatibleWithPronounPattern(verb, hostForm, pronounPattern) {
+    if (!verb || !hostForm) return false
+    if (hostForm === 'prnl') {
+      return this.toBooleanFlag(verb.is_reflexive)
+    }
+
+    if (!this.toBooleanFlag(verb.has_tr_use)) return false
+
+    const normalized = this.normalizePronounPattern(pronounPattern)
+    if (!normalized) return false
+    if (normalized === 'DO') return this.toBooleanFlag(verb.supports_do)
+    if (normalized === 'IO') return this.toBooleanFlag(verb.supports_io)
+    if (normalized === 'DO_IO') return this.toBooleanFlag(verb.supports_do_io)
+    return false
+  }
+
+  static getBalancedPronounPatternOrder(hostForm, patterns, options = {}) {
+    if (hostForm === 'prnl') return ['']
+    const candidates = this.normalizePronounPatternList(patterns)
+    if (candidates.length === 0) return []
+
+    const counts = {}
+    candidates.forEach(pattern => { counts[pattern] = 0 })
+
+    try {
+      const placeholders = candidates.map(() => '?').join(',')
+      const params = [hostForm, ...candidates]
+      let whereClause = `host_form = ? AND pronoun_pattern IN (${placeholders})`
+
+      if (Array.isArray(options.verbIds) && options.verbIds.length > 0) {
+        const verbPlaceholders = options.verbIds.map(() => '?').join(',')
+        whereClause += ` AND verb_id IN (${verbPlaceholders})`
+        params.push(...options.verbIds)
+      }
+
+      const rows = questionDb.prepare(`
+        SELECT pronoun_pattern AS pattern, COUNT(*) AS count
+        FROM public_conjugation_with_pronoun
+        WHERE ${whereClause}
+        GROUP BY pronoun_pattern
+      `).all(...params)
+
+      rows.forEach((row) => {
+        const pattern = this.normalizePronounPattern(row.pattern)
+        if (pattern && Object.prototype.hasOwnProperty.call(counts, pattern)) {
+          counts[pattern] = Number(row.count) || 0
+        }
+      })
+    } catch (error) {
+      console.warn('[AI生成][pronoun] 读取 pattern 分布失败，退回随机:', error.message)
+      return this.shuffleArray(candidates)
+    }
+
+    return candidates
+      .map(pattern => ({ pattern, count: counts[pattern] || 0, rand: Math.random() }))
+      .sort((a, b) => {
+        if (a.count !== b.count) return a.count - b.count
+        return a.rand - b.rand
+      })
+      .map(item => item.pattern)
   }
 
   static buildPronounHint(ioPronoun, doPronoun, hostForm) {
@@ -298,7 +419,56 @@ class ExerciseGeneratorService {
     }]
   }
 
-  static buildPronounVerbQueryOptions(options, hostForm) {
+  static splitPronounAiPlansByPattern(plan) {
+    const totalCount = Number(plan?.count || 0)
+    if (!plan || totalCount <= 0 || !plan.aiOptions) return []
+
+    const hostForms = Array.isArray(plan.aiOptions.hostForms) && plan.aiOptions.hostForms.length > 0
+      ? plan.aiOptions.hostForms
+      : this.getDefaultPronounHostForms()
+    const nonPrnlHostForms = [...new Set(
+      hostForms
+        .map(item => String(item || '').trim().toLowerCase())
+        .filter(item => !!item && item !== 'prnl')
+    )]
+
+    if (nonPrnlHostForms.length === 0) {
+      return [plan]
+    }
+
+    const patternCandidates = this.normalizePronounPatternList(plan.aiOptions.pronounPatterns)
+    const activePatterns = patternCandidates.length > 0
+      ? patternCandidates
+      : this.getDefaultPronounPatterns()
+
+    if (activePatterns.length === 0) {
+      return [plan]
+    }
+
+    const shuffledPatterns = this.shuffleArray(activePatterns)
+    const baseCount = Math.floor(totalCount / shuffledPatterns.length)
+    const remainder = totalCount % shuffledPatterns.length
+    const splitPlans = []
+
+    shuffledPatterns.forEach((pattern, index) => {
+      const planCount = baseCount + (index < remainder ? 1 : 0)
+      if (planCount <= 0) return
+      splitPlans.push({
+        questionBank: 'pronoun',
+        count: planCount,
+        aiOptions: {
+          ...plan.aiOptions,
+          hostForms: nonPrnlHostForms,
+          pronounPatterns: [pattern],
+          balancePronounPattern: false
+        }
+      })
+    })
+
+    return splitPlans.length > 0 ? splitPlans : [plan]
+  }
+
+  static buildPronounVerbQueryOptions(options, hostForm, pronounPattern = '') {
     const queryOptions = {}
     if (options.verbIds && options.verbIds.length > 0) {
       queryOptions.verbIds = options.verbIds
@@ -317,21 +487,31 @@ class ExerciseGeneratorService {
       queryOptions.onlyReflexive = true
     } else {
       queryOptions.onlyHasTrUse = true
+      const normalizedPattern = this.normalizePronounPattern(pronounPattern)
+      if (normalizedPattern === 'DO') queryOptions.onlySupportsDo = true
+      if (normalizedPattern === 'IO') queryOptions.onlySupportsIo = true
+      if (normalizedPattern === 'DO_IO') queryOptions.onlySupportsDoIo = true
     }
     return queryOptions
   }
 
-  static buildPronounTargetForVerb(verb, hostForm, options = {}) {
+  static buildPronounTargetForVerb(verb, hostForm, options = {}, pronounPattern = '') {
     if (!verb || !hostForm) return null
+    const normalizedPattern = hostForm === 'prnl' ? '' : this.normalizePronounPattern(pronounPattern)
+
+    if (!this.isVerbCompatibleWithPronounPattern(verb, hostForm, normalizedPattern)) {
+      return null
+    }
 
     if (hostForm === 'infinitive') {
       if (!verb.infinitive) return null
       return {
         host_form: 'infinitive',
-        host_form_zh: '动词原形',
-        mood: '不适用',
-        tense: '不适用',
-        person: '不适用',
+        host_form_zh: '不定式',
+        pronoun_pattern: normalizedPattern,
+        mood: 'Infinitivo',
+        tense: 'No aplica',
+        person: 'No aplica',
         base_form: verb.infinitive
       }
     }
@@ -341,22 +521,23 @@ class ExerciseGeneratorService {
       return {
         host_form: 'gerund',
         host_form_zh: '副动词',
-        mood: '不适用',
-        tense: '不适用',
-        person: '不适用',
+        pronoun_pattern: normalizedPattern,
+        mood: 'Gerundio',
+        tense: 'No aplica',
+        person: 'No aplica',
         base_form: verb.gerund
       }
     }
 
     if (hostForm === 'prnl') {
-      if (verb.is_reflexive !== 1) return null
       if (!verb.infinitive) return null
       return {
         host_form: 'prnl',
-        host_form_zh: '自反动词',
-        mood: '不适用',
-        tense: '不适用',
-        person: '不适用',
+        host_form_zh: '代词动词（自复）',
+        pronoun_pattern: '',
+        mood: 'Pronominal',
+        tense: 'No aplica',
+        person: 'No aplica',
         base_form: `${verb.infinitive}se`
       }
     }
@@ -375,16 +556,18 @@ class ExerciseGeneratorService {
       const picked = imperativeForms[Math.floor(Math.random() * imperativeForms.length)]
       return {
         host_form: 'imperative',
-        host_form_zh: '命令式',
-        mood: picked.mood,
-        tense: picked.tense,
-        person: picked.person,
+        host_form_zh: '命令式（肯定）',
+        pronoun_pattern: normalizedPattern,
+        mood: 'Imperativo',
+        tense: 'Afirmativo',
+        person: this.normalizePronounPersonLabel(picked.person),
         base_form: picked.conjugated_form
       }
     }
 
     if (hostForm === 'finite') {
       const commonFiniteTenses = this.getCommonFiniteTenseSet()
+      const finiteMeta = this.getPronounFiniteTargetMeta()
       let finiteForms = conjugations.filter(c => (
         c.mood === '陈述式' && commonFiniteTenses.has(this.normalizeTenseName(c.tense))
       ))
@@ -396,12 +579,15 @@ class ExerciseGeneratorService {
       if (finiteForms.length === 0) return null
       const picked = finiteForms[Math.floor(Math.random() * finiteForms.length)]
       const normalizedTense = this.normalizeTenseName(picked.tense)
+      const meta = finiteMeta[normalizedTense]
+      if (!meta) return null
       return {
         host_form: 'finite',
-        host_form_zh: `${picked.mood}-${normalizedTense}`,
-        mood: picked.mood,
-        tense: normalizedTense,
-        person: picked.person,
+        host_form_zh: meta.host_form_zh,
+        pronoun_pattern: normalizedPattern,
+        mood: meta.mood,
+        tense: meta.tense,
+        person: this.normalizePronounPersonLabel(picked.person),
         base_form: picked.conjugated_form
       }
     }
@@ -421,7 +607,8 @@ class ExerciseGeneratorService {
     includeVosotros = true,
     reduceRareTenseFrequency = true,
     verbIds = null,
-    hostForms = []
+    hostForms = [],
+    pronounPatterns = []
   }) {
     const sourceType = questionBank === 'pronoun'
       ? PUBLIC_SOURCE_PRONOUN
@@ -438,6 +625,7 @@ class ExerciseGeneratorService {
       }
       if (questionBank === 'pronoun') {
         filters.hostForms = hostForms
+        filters.pronounPatterns = pronounPatterns
       } else {
         filters.tenses = tenses
         filters.moods = moods
@@ -501,7 +689,8 @@ class ExerciseGeneratorService {
       includeVosotros,
       reduceRareTenseFrequency,
       verbIds,
-      hostForms
+      hostForms,
+      pronounPatterns
     } : null
 
     return {
@@ -616,7 +805,8 @@ class ExerciseGeneratorService {
           includeVosotros,
           reduceRareTenseFrequency,
           verbIds,
-          hostForms: plan.questionBank === 'pronoun' ? hostForms : []
+          hostForms: plan.questionBank === 'pronoun' ? hostForms : [],
+          pronounPatterns: plan.questionBank === 'pronoun' ? options.pronounPatterns : []
         })
         planResults.push(planResult)
       }
@@ -635,11 +825,19 @@ class ExerciseGeneratorService {
 
       const aiPlans = planResults
         .filter(result => result.needAI > 0 && result.aiOptions)
-        .map(result => ({
-          questionBank: result.questionBank,
-          count: result.needAI,
-          aiOptions: result.aiOptions
-        }))
+        .flatMap((result) => {
+          const rawPlan = {
+            questionBank: result.questionBank,
+            count: result.needAI,
+            aiOptions: result.aiOptions
+          }
+
+          if (result.questionBank !== 'pronoun') {
+            return [rawPlan]
+          }
+
+          return this.splitPronounAiPlansByPattern(rawPlan)
+        })
 
       const response = {
         exercises: [],
@@ -695,6 +893,7 @@ class ExerciseGeneratorService {
     const hostForms = Array.isArray(options.hostForms) && options.hostForms.length > 0
       ? options.hostForms
       : this.mapConjugationFormsToHostForms(options.conjugationForms)
+    const pronounPatterns = this.normalizePronounPatternList(options.pronounPatterns)
     const sourceType = questionBank === 'pronoun' ? PUBLIC_SOURCE_PRONOUN : PUBLIC_SOURCE_TRADITIONAL
 
     try {
@@ -708,6 +907,7 @@ class ExerciseGeneratorService {
         }
         if (questionBank === 'pronoun') {
           filters.hostForms = hostForms
+          filters.pronounPatterns = pronounPatterns
         } else {
           filters.tenses = tenses
           filters.moods = moods
@@ -730,6 +930,7 @@ class ExerciseGeneratorService {
         }
         if (questionBank === 'pronoun') {
           filters.hostForms = hostForms
+          filters.pronounPatterns = pronounPatterns
         } else {
           filters.tenses = tenses
           filters.moods = moods
@@ -883,16 +1084,21 @@ class ExerciseGeneratorService {
       return { valid: true }
     }
 
-    if (!pronounPattern) {
-      return { valid: false, reason: '非 prnl 题缺少 pronoun_pattern' }
+    const targetPattern = this.normalizePronounPattern(target.pronoun_pattern)
+    if (!targetPattern) {
+      return { valid: false, reason: '非 prnl 题目标缺少 pronoun_pattern' }
     }
-    if (pronounPattern === 'DO' && (!doPronoun || ioPronoun)) {
+
+    if (!pronounPattern || pronounPattern !== targetPattern) {
+      return { valid: false, reason: `pronoun_pattern 与目标不一致（期望: ${targetPattern}）` }
+    }
+    if (targetPattern === 'DO' && (!doPronoun || ioPronoun)) {
       return { valid: false, reason: 'DO 题的 io/do 字段不匹配' }
     }
-    if (pronounPattern === 'IO' && (!ioPronoun || doPronoun)) {
+    if (targetPattern === 'IO' && (!ioPronoun || doPronoun)) {
       return { valid: false, reason: 'IO 题的 io/do 字段不匹配' }
     }
-    if (pronounPattern === 'DO_IO' && (!ioPronoun || !doPronoun)) {
+    if (targetPattern === 'DO_IO' && (!ioPronoun || !doPronoun)) {
       return { valid: false, reason: 'DO_IO 题的 io/do 字段不匹配' }
     }
 
@@ -901,10 +1107,15 @@ class ExerciseGeneratorService {
 
   static async runPronounSentenceAIPipeline({ verb, target, maxRetries = 3 }) {
     let lastError = ''
+    const enableRevisorV2 = this.toBooleanFlag(
+      process.env.EXERCISE_GENERATOR_CONJ_WITH_PRONOUN_ENABLE_REVISOR_V2
+        ?? process.env.CONJ_WITH_PRONOUN_ENABLE_REVISOR_V2
+    )
+    const pipelineMode = enableRevisorV2 ? 'G-V1-R-V2' : 'G-V1'
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       console.log(
-        `[AI生成][pronoun-pipeline] attempt=${attempt}/${maxRetries} verb=${verb.infinitive} host=${target.host_form}`
+        `[AI生成][pronoun-pipeline] mode=${pipelineMode} attempt=${attempt}/${maxRetries} verb=${verb.infinitive} host=${target.host_form} pattern=${target.pronoun_pattern || 'prnl'}`
       )
 
       try {
@@ -939,6 +1150,11 @@ class ExerciseGeneratorService {
             attempt,
             usedRevisor: false
           }
+        }
+
+        if (!enableRevisorV2) {
+          lastError = validationV1.reason || 'validator_v1未通过'
+          continue
         }
 
         let revisedQuestion
@@ -1410,93 +1626,100 @@ class ExerciseGeneratorService {
     const hostForms = this.shuffleArray(requestedHostForms)
 
     for (const hostForm of hostForms) {
-      const target = this.buildPronounTargetForVerb(verb, hostForm, options)
-      if (!target) continue
+      const patternCandidates = this.getPronounPatternCandidatesForHostForm(hostForm, options)
+      const patternOrder = hostForm === 'prnl'
+        ? ['']
+        : (options.balancePronounPattern
+          ? this.getBalancedPronounPatternOrder(hostForm, patternCandidates, { verbIds: options.verbIds })
+          : this.shuffleArray(patternCandidates))
 
-      const pipeline = await this.runPronounSentenceAIPipeline({
-        verb,
-        target,
-        maxRetries
-      })
+      for (const pronounPattern of patternOrder) {
+        if (!this.isVerbCompatibleWithPronounPattern(verb, hostForm, pronounPattern)) continue
 
-      if (!pipeline.passed || !pipeline.aiResult) {
-        continue
-      }
+        const target = this.buildPronounTargetForVerb(verb, hostForm, options, pronounPattern)
+        if (!target) continue
 
-      const aiResult = pipeline.aiResult
-      const normalizedPattern = this.normalizePronounPattern(aiResult.pronoun_pattern)
-      const ioPronoun = String(aiResult.io_pronoun || '').trim()
-      const doPronoun = String(aiResult.do_pronoun || '').trim()
+        const pipeline = await this.runPronounSentenceAIPipeline({
+          verb,
+          target,
+          maxRetries
+        })
 
-      let savedQuestionId = null
-      try {
-        const questionData = {
+        if (!pipeline.passed || !pipeline.aiResult) {
+          continue
+        }
+
+        const aiResult = pipeline.aiResult
+        const normalizedPattern = target.host_form === 'prnl' ? '' : target.pronoun_pattern
+        const ioPronoun = String(aiResult.io_pronoun || '').trim()
+        const doPronoun = String(aiResult.do_pronoun || '').trim()
+
+        let savedQuestionId = null
+        try {
+          const questionData = {
+            questionBank: 'pronoun',
+            publicQuestionSource: PUBLIC_SOURCE_PRONOUN,
+            verbId: verb.id,
+            hostForm: target.host_form,
+            hostFormZh: target.host_form_zh,
+            pronounPattern: normalizedPattern,
+            questionText: aiResult.sentence,
+            correctAnswer: aiResult.answer,
+            exampleSentence: aiResult.sentence,
+            translation: aiResult.translation || null,
+            hint: aiResult.hint || null,
+            tense: target.tense || 'No aplica',
+            mood: target.mood || 'No aplica',
+            person: target.person || 'No aplica',
+            ioPronoun: target.host_form === 'prnl' ? '' : ioPronoun,
+            doPronoun: target.host_form === 'prnl' ? '' : doPronoun,
+            confidenceScore: 50
+          }
+
+          if (!Question.existsInPublic(verb.id, questionData.questionText, PUBLIC_SOURCE_PRONOUN)) {
+            savedQuestionId = Question.addToPublic(questionData)
+          } else {
+            const existing = Question.findByVerbAndText(verb.id, questionData.questionText, PUBLIC_SOURCE_PRONOUN)
+            if (existing) {
+              savedQuestionId = existing.id
+            }
+          }
+        } catch (error) {
+          console.error('[AI生成][pronoun] 保存题目失败:', error)
+        }
+
+        const conjugationTypeMap = { 1: '第一变位', 2: '第二变位', 3: '第三变位' }
+        return {
+          questionId: savedQuestionId,
+          questionSource: PUBLIC_SOURCE_PRONOUN,
           questionBank: 'pronoun',
           publicQuestionSource: PUBLIC_SOURCE_PRONOUN,
           verbId: verb.id,
-          hostForm: target.host_form,
-          hostFormZh: target.host_form === 'finite'
-            ? `${target.mood}-${target.tense}`
-            : target.host_form_zh,
-          pronounPattern: target.host_form === 'prnl' ? '' : normalizedPattern,
-          questionText: aiResult.sentence,
+          infinitive: verb.infinitive,
+          meaning: verb.meaning,
+          tense: target.tense || 'No aplica',
+          mood: target.mood || 'No aplica',
+          person: target.person || 'No aplica',
           correctAnswer: aiResult.answer,
-          exampleSentence: aiResult.sentence,
-          translation: aiResult.translation || null,
-          hint: aiResult.hint || null,
-          tense: target.tense || '不适用',
-          mood: target.mood || '不适用',
-          person: target.person || '不适用',
+          exerciseType: 'sentence',
+          conjugationType: conjugationTypeMap[verb.conjugation_type] || '未知',
+          isIrregular: verb.is_irregular === 1,
+          isReflexive: verb.is_reflexive === 1,
+          fromQuestionBank: false,
+          aiGenerated: true,
+          sentence: aiResult.sentence,
+          translation: aiResult.translation || '',
+          hint: this.buildPronounHint(
+            target.host_form === 'prnl' ? '' : ioPronoun,
+            target.host_form === 'prnl' ? '' : doPronoun,
+            target.host_form
+          ),
+          hostForm: target.host_form,
+          hostFormZh: target.host_form_zh,
+          pronounPattern: normalizedPattern,
           ioPronoun: target.host_form === 'prnl' ? '' : ioPronoun,
-          doPronoun: target.host_form === 'prnl' ? '' : doPronoun,
-          confidenceScore: 50
+          doPronoun: target.host_form === 'prnl' ? '' : doPronoun
         }
-
-        if (!Question.existsInPublic(verb.id, questionData.questionText, PUBLIC_SOURCE_PRONOUN)) {
-          savedQuestionId = Question.addToPublic(questionData)
-        } else {
-          const existing = Question.findByVerbAndText(verb.id, questionData.questionText, PUBLIC_SOURCE_PRONOUN)
-          if (existing) {
-            savedQuestionId = existing.id
-          }
-        }
-      } catch (error) {
-        console.error('[AI生成][pronoun] 保存题目失败:', error)
-      }
-
-      const conjugationTypeMap = { 1: '第一变位', 2: '第二变位', 3: '第三变位' }
-      return {
-        questionId: savedQuestionId,
-        questionSource: PUBLIC_SOURCE_PRONOUN,
-        questionBank: 'pronoun',
-        publicQuestionSource: PUBLIC_SOURCE_PRONOUN,
-        verbId: verb.id,
-        infinitive: verb.infinitive,
-        meaning: verb.meaning,
-        tense: target.tense || '不适用',
-        mood: target.mood || '不适用',
-        person: target.person || '不适用',
-        correctAnswer: aiResult.answer,
-        exerciseType: 'sentence',
-        conjugationType: conjugationTypeMap[verb.conjugation_type] || '未知',
-        isIrregular: verb.is_irregular === 1,
-        isReflexive: verb.is_reflexive === 1,
-        fromQuestionBank: false,
-        aiGenerated: true,
-        sentence: aiResult.sentence,
-        translation: aiResult.translation || '',
-        hint: this.buildPronounHint(
-          target.host_form === 'prnl' ? '' : ioPronoun,
-          target.host_form === 'prnl' ? '' : doPronoun,
-          target.host_form
-        ),
-        hostForm: target.host_form,
-        hostFormZh: target.host_form === 'finite'
-          ? `${target.mood}-${target.tense}`
-          : target.host_form_zh,
-        pronounPattern: target.host_form === 'prnl' ? '' : normalizedPattern,
-        ioPronoun: target.host_form === 'prnl' ? '' : ioPronoun,
-        doPronoun: target.host_form === 'prnl' ? '' : doPronoun
       }
     }
 
@@ -1528,36 +1751,59 @@ class ExerciseGeneratorService {
       const normalizedHostForms = hostForms.length > 0
         ? hostForms
         : this.getDefaultPronounHostForms()
+      const forcedPatternList = this.normalizePronounPatternList(options.pronounPatterns)
+      const shouldAvoidPrnl = forcedPatternList.length === 1
+      const nonPrnlHostForms = normalizedHostForms
+        .map(item => String(item || '').trim().toLowerCase())
+        .filter(item => !!item && item !== 'prnl')
+      const hostFormCandidates = shouldAvoidPrnl && nonPrnlHostForms.length > 0
+        ? [...new Set(nonPrnlHostForms)]
+        : normalizedHostForms
 
-      for (const hostForm of this.shuffleArray(normalizedHostForms)) {
-        const queryOptions = this.buildPronounVerbQueryOptions({
-          verbIds,
-          conjugationTypes,
-          includeRegular,
-          excludeVerbIds
-        }, hostForm)
-        const aiVerbs = Verb.getRandom(3, queryOptions)
-        for (const verb of aiVerbs) {
-          try {
-            const aiExercise = await this.generatePronounWithAIForVerb(verb, {
-              hostForms: [hostForm],
-              includeVos,
-              includeVosotros
-            })
-            if (aiExercise) {
-              return aiExercise
+      for (const hostForm of this.shuffleArray(hostFormCandidates)) {
+        const patternCandidates = this.getPronounPatternCandidatesForHostForm(hostForm, options)
+        const patternOrder = hostForm === 'prnl'
+          ? ['']
+          : this.getBalancedPronounPatternOrder(hostForm, patternCandidates, { verbIds })
+
+        for (const pronounPattern of patternOrder) {
+          const queryOptions = this.buildPronounVerbQueryOptions({
+            verbIds,
+            conjugationTypes,
+            includeRegular,
+            excludeVerbIds
+          }, hostForm, pronounPattern)
+          const aiVerbs = Verb.getRandom(3, queryOptions)
+          for (const verb of aiVerbs) {
+            try {
+              const aiExercise = await this.generatePronounWithAIForVerb(verb, {
+                hostForms: [hostForm],
+                pronounPatterns: [pronounPattern],
+                includeVos,
+                includeVosotros,
+                verbIds,
+                balancePronounPattern: false
+              })
+              if (aiExercise) {
+                return aiExercise
+              }
+            } catch (error) {
+              console.error(
+                `为动词 ${verb.infinitive} 生成带代词题目失败:`,
+                error.message
+              )
             }
-          } catch (error) {
-            console.error(`为动词 ${verb.infinitive} 生成带代词题目失败:`, error.message)
           }
         }
       }
 
       if (userId) {
+        const selectedPatterns = this.normalizePronounPatternList(options.pronounPatterns)
         const supplementQuestions = Question.getSmartFromPublic(userId, {
           questionType: exerciseType,
           questionBank: 'pronoun',
-          hostForms: normalizedHostForms,
+          hostForms: hostFormCandidates,
+          pronounPatterns: selectedPatterns,
           includeVos: options.includeVos,
           includeVosotros: options.includeVosotros,
           verbIds
