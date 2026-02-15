@@ -1757,6 +1757,26 @@ export default {
       }
       return null
     },
+
+    scrollToTop(duration = 0) {
+      this.$nextTick(() => {
+        if (typeof uni !== 'undefined' && typeof uni.pageScrollTo === 'function') {
+          uni.pageScrollTo({
+            scrollTop: 0,
+            duration
+          })
+          return
+        }
+
+        if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+          window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: duration > 0 ? 'smooth' : 'auto'
+          })
+        }
+      })
+    },
     
     async startPractice() {
       // 验证是否登录
@@ -1840,6 +1860,7 @@ export default {
             this.exercises = exercises
             this.questionStates = this.exercises.map(ex => this.createStateForExercise(ex))
             this.hasStarted = true
+            this.scrollToTop()
             this.currentIndex = 0
             this.correctCount = 0
             
@@ -1876,6 +1897,7 @@ export default {
             
             this.usedQuestionIds = new Set()
             this.hasStarted = true
+            this.scrollToTop()
             this.currentIndex = 0
             this.correctCount = 0
             this.questionStates = []
