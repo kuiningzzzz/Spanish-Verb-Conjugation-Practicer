@@ -15,8 +15,12 @@ const validatorPrompts = [
 【目标约束】
 - infinitive: ${verb.infinitive}
 - meaning: ${verb.meaning}
+- supports_do: ${String(verb.supports_do)}
+- supports_io: ${String(verb.supports_io)}
+- supports_do_io: ${String(verb.supports_do_io)}
 - host_form(必须): ${target.host_form}
 - host_form_zh(必须): ${target.host_form_zh}
+- pronoun_pattern(必须): ${target.pronoun_pattern || ''}
 - mood(必须): ${target.mood}
 - tense(必须): ${target.tense}
 - person(必须): ${target.person}
@@ -29,24 +33,30 @@ ${JSON.stringify(question || {}, null, 2)}
 1) host_form 只能是 finite/imperative/infinitive/gerund/prnl；且必须与目标一致。
 2) finite 只允许常见时态（这里固定为目标时态），不得改成其他时态。
 3) pronoun_pattern 规则：
-   - 非 prnl：必须是 DO / IO / DO_IO 之一
-   - prnl：必须为空字符串
+   - 必须与目标 pronoun_pattern 完全一致，不允许改值
+   - 若 host_form=prnl，必须为空字符串
+   - 若 host_form 非 prnl，必须是 DO/IO/DO_IO 之一且等于目标值
 4) io_pronoun / do_pronoun 规则：
    - prnl：两者都必须为空
    - DO：do_pronoun 非空，io_pronoun 为空
    - IO：io_pronoun 非空，do_pronoun 为空
    - DO_IO：两者都非空
-5) answer 必须是“动词+代词组合”，不是裸动词、不是裸代词。
-6) 代词位置、拼写、重音符号必须正确（尤其附着代词时）。
-7) sentence 必须仅包含一个 "__?__"，且题干上下文足够充分，能唯一确定答案。
-8) 不得答案泄露（题干直接出现 answer）。
-9) 句子自然地道，翻译基本准确。
+5) supports 标签一致性：
+   - 若目标 pronoun_pattern=DO，则 supports_do 必须是 true
+   - 若目标 pronoun_pattern=IO，则 supports_io 必须是 true
+   - 若目标 pronoun_pattern=DO_IO，则 supports_do_io 必须是 true
+6) answer 必须是“动词+代词组合”，不是裸动词、不是裸代词。
+7) 代词位置、拼写、重音符号必须正确（尤其附着代词时）。
+8) sentence 必须仅包含一个 "__?__"，且题干上下文足够充分，能唯一确定答案。
+9) 不得答案泄露（题干直接出现 answer）。
+10) 句子自然地道，翻译基本准确。
 
 【failure_tags 可选枚举】
 - "field_mismatch"
 - "host_form_invalid"
 - "pronoun_pattern_invalid"
 - "pronoun_fields_invalid"
+- "support_tag_mismatch"
 - "answer_not_combo"
 - "pronoun_position_error"
 - "accent_error"

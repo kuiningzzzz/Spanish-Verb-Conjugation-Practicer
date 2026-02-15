@@ -6,26 +6,38 @@
 
 const generatorPrompts = [
   ({ verb, target }) => {
+    const targetPronounPattern = target.pronoun_pattern || ''
     const finiteExtraRule = target.host_form === 'finite'
       ? `\n- finite 题必须使用：${target.mood} ${target.tense}（${target.host_form_zh}），人称：${target.person}。`
       : ''
-
-    const pronounPatternRule = target.host_form === 'prnl'
-      ? `
-- host_form=prnl 时，pronoun_pattern 必须是空字符串 ""。
-- host_form=prnl 时，io_pronoun 和 do_pronoun 必须都为空字符串 ""。`
-      : `
-- 你必须自行选择并输出 pronoun_pattern，且只能是 "DO" / "IO" / "DO_IO" 三选一。
-- host_form 非 prnl 时，必须按 pronoun_pattern 正确填写 io_pronoun / do_pronoun：
-  - DO: do_pronoun 非空，io_pronoun 为空
-  - IO: io_pronoun 非空，do_pronoun 为空
-  - DO_IO: io_pronoun 和 do_pronoun 都非空`
 
     const hostFormRule = target.host_form === 'prnl'
       ? `
 - 本题 host_form 固定为 prnl，且必须体现自复/代词动词含义（例如 "llamarse" 这类）。`
       : `
 - 本题 host_form 固定为 ${target.host_form}。`
+
+    let pronounPatternRule = ''
+    if (target.host_form === 'prnl') {
+      pronounPatternRule = `
+- 本题 pronoun_pattern 固定为空字符串 ""，不得输出 DO/IO/DO_IO。
+- io_pronoun 和 do_pronoun 必须都为空字符串 ""。`
+    } else if (targetPronounPattern === 'DO') {
+      pronounPatternRule = `
+- 本题 pronoun_pattern 固定为 "DO"，不得改成 IO 或 DO_IO。
+- 必须满足：do_pronoun 非空，io_pronoun 为空字符串 ""。
+- 该动词 supports_do 必须为 true（本题已保证抽词阶段满足）。`
+    } else if (targetPronounPattern === 'IO') {
+      pronounPatternRule = `
+- 本题 pronoun_pattern 固定为 "IO"，不得改成 DO 或 DO_IO。
+- 必须满足：io_pronoun 非空，do_pronoun 为空字符串 ""。
+- 该动词 supports_io 必须为 true（本题已保证抽词阶段满足）。`
+    } else if (targetPronounPattern === 'DO_IO') {
+      pronounPatternRule = `
+- 本题 pronoun_pattern 固定为 "DO_IO"，不得改成 DO 或 IO。
+- 必须满足：io_pronoun 和 do_pronoun 都非空。
+- 该动词 supports_do_io 必须为 true（本题已保证抽词阶段满足）。`
+    }
 
     return {
       system:
@@ -38,10 +50,14 @@ const generatorPrompts = [
 - meaning: ${verb.meaning}
 - is_reflexive: ${String(verb.is_reflexive)}
 - has_tr_use: ${String(verb.has_tr_use)}
+- supports_do: ${String(verb.supports_do)}
+- supports_io: ${String(verb.supports_io)}
+- supports_do_io: ${String(verb.supports_do_io)}
 
 【固定目标】
 - host_form: ${target.host_form}
 - host_form_zh: ${target.host_form_zh}
+- pronoun_pattern: ${targetPronounPattern}
 - mood: ${target.mood}
 - tense: ${target.tense}
 - person: ${target.person}
@@ -65,7 +81,7 @@ ${pronounPatternRule}
 {
   "host_form": "${target.host_form}",
   "host_form_zh": "${target.host_form_zh}",
-  "pronoun_pattern": "DO|IO|DO_IO 或空字符串",
+  "pronoun_pattern": "${targetPronounPattern}",
   "mood": "${target.mood}",
   "tense": "${target.tense}",
   "person": "${target.person}",

@@ -22,8 +22,12 @@ const revisorPrompts = [
 【动词与目标】
 - infinitive: ${verb.infinitive}
 - meaning: ${verb.meaning}
+- supports_do: ${String(verb.supports_do)}
+- supports_io: ${String(verb.supports_io)}
+- supports_do_io: ${String(verb.supports_do_io)}
 - host_form: ${target.host_form}
 - host_form_zh: ${target.host_form_zh}
+- pronoun_pattern: ${target.pronoun_pattern || ''}
 - mood: ${target.mood}
 - tense: ${target.tense}
 - person: ${target.person}

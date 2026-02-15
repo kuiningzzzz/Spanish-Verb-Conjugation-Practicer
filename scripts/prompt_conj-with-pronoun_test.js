@@ -17,6 +17,7 @@ const revisorPrompts = require('./input/conjugation_with_pronoun/revisor_prompt'
 const VERB_SOURCE = path.join(__dirname, '../server/src/verbs.json')
 
 const HOST_FORMS = ['finite', 'imperative', 'infinitive', 'gerund', 'prnl']
+const NON_PRNL_PRONOUN_PATTERNS = ['DO', 'IO', 'DO_IO']
 const DEFAULT_MODELS = ['deepseek:deepseek-chat', 'qwen:qwen-plus', 'qwen:qwen3-max']
 const DEFAULT_GENERATOR_TEMPS = [0.7]
 const DEFAULT_VALIDATOR_FLAG = true
@@ -84,6 +85,21 @@ function parseAllowedList(value, allowed) {
   return picked.length > 0 ? picked : null
 }
 
+function parsePronounPatternList(value) {
+  const items = parseCsvList(value)
+  if (!items) return null
+  const allowedSet = new Set(NON_PRNL_PRONOUN_PATTERNS)
+  const picked = []
+  const pickedSet = new Set()
+  for (const item of items) {
+    const normalized = toCleanString(item).toUpperCase()
+    if (!allowedSet.has(normalized) || pickedSet.has(normalized)) continue
+    picked.push(normalized)
+    pickedSet.add(normalized)
+  }
+  return picked.length > 0 ? picked : null
+}
+
 function parseBool(value) {
   if (value === undefined || value === null || value === '') return null
   const normalized = String(value).toLowerCase()
@@ -98,6 +114,17 @@ function parsePositiveInt(value, fallback) {
 
 function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)]
+}
+
+function shuffleCopy(arr) {
+  const copy = Array.isArray(arr) ? arr.slice() : []
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const tmp = copy[i]
+    copy[i] = copy[j]
+    copy[j] = tmp
+  }
+  return copy
 }
 
 function countWords(text) {
@@ -152,6 +179,26 @@ function parseProviderAndModel(modelEntry) {
   }
 }
 
+function toBooleanOrNull(value) {
+  if (value === true || value === false) return value
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') {
+    if (value === 1) return true
+    if (value === 0) return false
+    return null
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === 'true' || normalized === '1' || normalized === 'yes') return true
+    if (normalized === 'false' || normalized === '0' || normalized === 'no') return false
+  }
+  return null
+}
+
+function isTrueFlag(value) {
+  return toBooleanOrNull(value) === true
+}
+
 function buildHint(target, pronounPattern) {
   const parts = []
   if (target.host_form) parts.push(target.host_form)
@@ -162,11 +209,19 @@ function buildHint(target, pronounPattern) {
   return parts.join(' | ')
 }
 
-function getVerbCandidatesByHostForm(verbs, hostForm) {
+function verbSupportsPronounPattern(verb, pronounPattern) {
+  if (!pronounPattern) return true
+  if (pronounPattern === 'DO') return isTrueFlag(verb?.supports_do)
+  if (pronounPattern === 'IO') return isTrueFlag(verb?.supports_io)
+  if (pronounPattern === 'DO_IO') return isTrueFlag(verb?.supports_do_io)
+  return false
+}
+
+function getVerbCandidatesByHostForm(verbs, hostForm, pronounPattern) {
   if (hostForm === 'prnl') {
-    return verbs.filter(verb => verb?.is_reflexive === true)
+    return verbs.filter(verb => isTrueFlag(verb?.is_reflexive))
   }
-  return verbs.filter(verb => verb?.has_tr_use === true)
+  return verbs.filter(verb => isTrueFlag(verb?.has_tr_use) && verbSupportsPronounPattern(verb, pronounPattern))
 }
 
 function buildFiniteTargets(verb, allowedFiniteTenses) {
@@ -272,15 +327,35 @@ function buildTargetForHostForm(verb, hostForm, allowedFiniteTenses) {
   return null
 }
 
-function pickVerbAndTarget(verbs, hostForm, allowedFiniteTenses) {
-  const candidates = getVerbCandidatesByHostForm(verbs, hostForm)
+function pickVerbAndTarget(verbs, hostForm, allowedFiniteTenses, pronounPattern) {
+  const candidates = getVerbCandidatesByHostForm(verbs, hostForm, pronounPattern)
   if (!candidates.length) return null
 
-  const maxAttempts = Math.min(200, candidates.length * 3)
-  for (let i = 0; i < maxAttempts; i++) {
-    const verb = pickRandom(candidates)
+  const shuffledCandidates = shuffleCopy(candidates)
+  for (const verb of shuffledCandidates) {
     const target = buildTargetForHostForm(verb, hostForm, allowedFiniteTenses)
-    if (target) return { verb, target }
+    if (target) {
+      return {
+        verb,
+        target: {
+          ...target,
+          pronoun_pattern: pronounPattern || ''
+        }
+      }
+    }
+  }
+  return null
+}
+
+function pickVerbTargetAndPattern(verbs, hostForm, allowedFiniteTenses, nonPrnlPatterns) {
+  if (hostForm === 'prnl') {
+    return pickVerbAndTarget(verbs, hostForm, allowedFiniteTenses, '')
+  }
+
+  const shuffledPatterns = shuffleCopy(nonPrnlPatterns)
+  for (const pronounPattern of shuffledPatterns) {
+    const picked = pickVerbAndTarget(verbs, hostForm, allowedFiniteTenses, pronounPattern)
+    if (picked) return picked
   }
   return null
 }
@@ -341,7 +416,7 @@ function normalizeQuestion(raw, target) {
   const pronounPattern = normalizePronounPattern(
     raw.pronoun_pattern !== undefined
       ? raw.pronoun_pattern
-      : raw.pronounPattern
+      : (raw.pronounPattern !== undefined ? raw.pronounPattern : target.pronoun_pattern)
   )
 
   const question = {
@@ -435,6 +510,7 @@ async function main() {
   const revisorPromptsEnv = process.env.CONJ_WITH_PRONOUN_REVISOR_PROMPTS || process.env.REVISOR_PROMPTS
   const hostFormsEnv = process.env.CONJ_WITH_PRONOUN_HOST_FORMS || process.env.HOST_FORMS
   const finiteTensesEnv = process.env.CONJ_WITH_PRONOUN_FINITE_TENSES || process.env.FINITE_TENSES
+  const pronounPatternsEnv = process.env.CONJ_WITH_PRONOUN_PATTERNS || process.env.PRONOUN_PATTERNS
 
   const generatorPromptIndexes = parseNumberList(generatorPromptsEnv) || DEFAULT_GENERATOR_PROMPTS
   const validatorPromptIndexes = parseNumberList(validatorPromptsEnv) || DEFAULT_VALIDATOR_PROMPTS
@@ -442,6 +518,7 @@ async function main() {
   const activeRevisorPromptIndexes = useRevisorFlag ? revisorPromptIndexes : [0]
   const hostForms = parseAllowedList(hostFormsEnv, HOST_FORMS) || HOST_FORMS
   const allowedFiniteTenses = parseAllowedList(finiteTensesEnv, DEFAULT_FINITE_TENSES) || DEFAULT_FINITE_TENSES
+  const nonPrnlPatterns = parsePronounPatternList(pronounPatternsEnv) || NON_PRNL_PRONOUN_PATTERNS
 
   const generatorMaxTokens = parsePositiveInt(
     process.env.CONJ_WITH_PRONOUN_GENERATOR_MAX_TOKENS || process.env.GENERATOR_MAX_TOKENS,
@@ -586,11 +663,15 @@ async function main() {
   if (finiteRequested && allowedFiniteTenses.length === 0) {
     throw new Error('host_form includes finite but finite tense candidates are empty')
   }
+  const nonPrnlHostFormRequested = hostForms.some(hostForm => hostForm !== 'prnl')
+  if (nonPrnlHostFormRequested && nonPrnlPatterns.length === 0) {
+    throw new Error('non-prnl host_form requested but pronoun patterns are empty')
+  }
 
   let rowIndex = 1
   for (let caseIndex = 0; caseIndex < testCases; caseIndex++) {
     const hostForm = pickRandom(hostForms)
-    const picked = pickVerbAndTarget(verbs, hostForm, allowedFiniteTenses)
+    const picked = pickVerbTargetAndPattern(verbs, hostForm, allowedFiniteTenses, nonPrnlPatterns)
     if (!picked) {
       logLine({
         event: 'error',
@@ -599,7 +680,7 @@ async function main() {
         model: '',
         temperature: '',
         prompt_index: '',
-        error: `no verb/target candidate for host_form=${hostForm}`
+        error: `no verb/target candidate for host_form=${hostForm} pronoun_patterns=${nonPrnlPatterns.join('|')}`
       })
       continue
     }
@@ -616,8 +697,11 @@ async function main() {
         verb: {
           infinitive: verb.infinitive,
           meaning,
-          is_reflexive: verb.is_reflexive === true,
-          has_tr_use: verb.has_tr_use === true
+          is_reflexive: isTrueFlag(verb.is_reflexive),
+          has_tr_use: isTrueFlag(verb.has_tr_use),
+          supports_do: toBooleanOrNull(verb.supports_do),
+          supports_io: toBooleanOrNull(verb.supports_io),
+          supports_do_io: toBooleanOrNull(verb.supports_do_io)
         },
         target
       })
@@ -715,7 +799,13 @@ async function main() {
                 } else {
                   try {
                     const validatorPrompt = validatorPromptBuilder({
-                      verb: { infinitive: verb.infinitive, meaning },
+                      verb: {
+                        infinitive: verb.infinitive,
+                        meaning,
+                        supports_do: toBooleanOrNull(verb.supports_do),
+                        supports_io: toBooleanOrNull(verb.supports_io),
+                        supports_do_io: toBooleanOrNull(verb.supports_do_io)
+                      },
                       target,
                       question: question || {}
                     })
@@ -785,7 +875,13 @@ async function main() {
                 } else {
                   try {
                     const revisorPrompt = revisorPromptBuilder({
-                      verb: { infinitive: verb.infinitive, meaning },
+                      verb: {
+                        infinitive: verb.infinitive,
+                        meaning,
+                        supports_do: toBooleanOrNull(verb.supports_do),
+                        supports_io: toBooleanOrNull(verb.supports_io),
+                        supports_do_io: toBooleanOrNull(verb.supports_do_io)
+                      },
                       target,
                       originalQuestion: question,
                       validatorResult: validator1Result || { reason: validator1Error || '' }
@@ -851,7 +947,13 @@ async function main() {
                 } else {
                   try {
                     const validatorPrompt = validatorPromptBuilder({
-                      verb: { infinitive: verb.infinitive, meaning },
+                      verb: {
+                        infinitive: verb.infinitive,
+                        meaning,
+                        supports_do: toBooleanOrNull(verb.supports_do),
+                        supports_io: toBooleanOrNull(verb.supports_io),
+                        supports_do_io: toBooleanOrNull(verb.supports_do_io)
+                      },
                       target,
                       question: revisedQuestion
                     })
@@ -907,7 +1009,11 @@ async function main() {
               const finalValidator = validator2Result || validator1Result
               const finalQuestion = revisedQuestion || question
               const rowHostForm = toCleanString(finalQuestion?.host_form || target.host_form)
-              const rowPronounPattern = normalizePronounPattern(finalQuestion?.pronoun_pattern || '')
+              const rowPronounPattern = normalizePronounPattern(
+                finalQuestion?.pronoun_pattern !== undefined
+                  ? finalQuestion.pronoun_pattern
+                  : target.pronoun_pattern
+              )
               const sentenceText = toCleanString(finalQuestion?.sentence)
               const rowErrorList = [
                 questionError,
@@ -1028,6 +1134,7 @@ async function main() {
       models,
       generator_temperatures: temperatures,
       host_forms: hostForms,
+      pronoun_patterns_non_prnl: nonPrnlPatterns,
       finite_tenses: allowedFiniteTenses,
       generator_prompt_indexes: generatorPromptIndexes,
       validator_prompt_indexes: validatorPromptIndexes,
@@ -1057,7 +1164,7 @@ async function main() {
     prompt_index: '',
     request_chars: '',
     response_chars: '',
-    error: `cases=${testCases} models=${models.length} generator_prompts=${generatorPromptIndexes.length} validator_prompts=${validatorPromptIndexes.length} revisor_prompts=${activeRevisorPromptIndexes.length} host_forms=${hostForms.join('|')} validator_used=${useValidatorFlag} revisor_used=${useRevisorFlag}`
+    error: `cases=${testCases} models=${models.length} generator_prompts=${generatorPromptIndexes.length} validator_prompts=${validatorPromptIndexes.length} revisor_prompts=${activeRevisorPromptIndexes.length} host_forms=${hostForms.join('|')} pronoun_patterns=${nonPrnlPatterns.join('|')} validator_used=${useValidatorFlag} revisor_used=${useRevisorFlag}`
   })
 
   if (outputStream) {

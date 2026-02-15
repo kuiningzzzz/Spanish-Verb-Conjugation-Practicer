@@ -72,6 +72,7 @@ node prompt_matrix_test.js
 **作用**
 - 新题型实验矩阵（动词+代词组合填空）。
 - 支持 host_form：`finite`, `imperative`, `infinitive`, `gerund`, `prnl`。
+- 非 `prnl` 题会先随机确定 `pronoun_pattern`（`DO/IO/DO_IO`），再按 `supports_do/supports_io/supports_do_io=true` 抽词。
 - 同样是 4 步流水线：`generator -> validator_1 -> revisor -> validator_2`。
 
 **输入**
