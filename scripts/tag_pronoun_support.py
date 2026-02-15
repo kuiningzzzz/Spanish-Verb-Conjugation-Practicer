@@ -11,6 +11,9 @@ What this script does:
 2) For verbs where has_tr_use == true, call the same Qwen API path used by get_verb.py
    to judge support for DO / IO / DO+IO.
 3) Input and output paths are read from interactive console input.
+4) Streaming output behavior:
+   - write initial output file immediately (all supports_* = null)
+   - after each model response, update the corresponding verb and flush to output file
 """
 
 import json
@@ -133,6 +136,26 @@ def load_json_file(path: str):
     return data
 
 
+def normalize_user_path(raw_path: str) -> str:
+    text = str(raw_path or "").strip()
+    if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
+        text = text[1:-1].strip()
+    return os.path.expanduser(text)
+
+
+def resolve_output_file_path(raw_output_path: str, input_path: str) -> str:
+    output_candidate = normalize_user_path(raw_output_path)
+    if not output_candidate:
+        raise RuntimeError("Output path is required.")
+
+    # If output is a directory (including "."), auto-generate a file name inside it.
+    if os.path.isdir(output_candidate):
+        input_base = os.path.splitext(os.path.basename(input_path))[0] or "verbs"
+        return os.path.join(output_candidate, f"{input_base}.supports.json")
+
+    return output_candidate
+
+
 def add_support_fields_and_reorder(verb: dict) -> OrderedDict:
     base = OrderedDict()
 
@@ -251,19 +274,23 @@ def load_env():
 def main():
     load_env()
 
-    input_path = input("Input verbs JSON path: ").strip()
-    output_path = input("Output JSON path: ").strip()
+    raw_input_path = input("Input verbs JSON path: ").strip()
+    raw_output_path = input("Output JSON path (file or directory): ").strip()
+
+    input_path = normalize_user_path(raw_input_path)
+    output_path = resolve_output_file_path(raw_output_path, input_path)
 
     if not input_path:
         raise RuntimeError("Input path is required.")
-    if not output_path:
-        raise RuntimeError("Output path is required.")
     if not os.path.exists(input_path):
         raise RuntimeError(f"Input file not found: {input_path}")
+    if os.path.isdir(input_path):
+        raise RuntimeError(f"Input path is a directory, expected a JSON file: {input_path}")
 
     verbs = load_json_file(input_path)
     total = len(verbs)
     print(f"Loaded {total} verbs.")
+    print(f"Resolved output file: {output_path}")
 
     processed = []
     target_indexes = []
@@ -275,6 +302,14 @@ def main():
         processed.append(normalized)
         if to_bool_default_false(normalized.get("has_tr_use")):
             target_indexes.append(idx)
+
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
+    # Initialize output file first: copy input structure + inserted null fields.
+    write_json_array(output_path, processed)
+    print(f"Initialized output file with null support fields: {output_path}")
 
     print(f"Will evaluate pronoun support for {len(target_indexes)} verbs (has_tr_use=true).")
 
@@ -290,19 +325,17 @@ def main():
             verb["supports_do"] = result["supports_do"]
             verb["supports_io"] = result["supports_io"]
             verb["supports_do_io"] = result["supports_do_io"]
+            write_json_array(output_path, processed)
             success_count += 1
-            print(" OK")
+            print(" OK (flushed)")
         except Exception as error:
             fail_count += 1
             # Keep null when failed.
             print(" FAIL")
             print(f"    reason: {error}")
+            # Flush anyway so progress up to current step remains persisted.
+            write_json_array(output_path, processed)
         time.sleep(REQUEST_INTERVAL_SECONDS)
-
-    output_dir = os.path.dirname(output_path)
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-    write_json_array(output_path, processed)
 
     print("\nDone.")
     print(f"- total verbs: {total}")
