@@ -839,6 +839,9 @@ export default {
       generationError: false,  // 生成是否出错
       bufferSize: 2,  // 缓冲区大小：保持提前生成2题
       maxConcurrent: 2,  // 最大并发生成数
+      aiGeneratingRangeStart: 0,  // 本轮AI生成提示区间起始题号（固定）
+      aiGeneratingRangeEnd: 0,    // 本轮AI生成提示区间结束题号（固定）
+      aiGeneratingReadyCount: 0,  // 本轮AI已补齐到练习队列的题数
 
       // 题目状态记录
       questionStates: [],
@@ -1075,13 +1078,25 @@ export default {
         return Math.min(this.generatingCount, this.remainingExerciseSlots)
       },
       showAiGeneratingStatus() {
-        return this.effectiveGeneratingCount > 0
+        if (this.generatingCount <= 0) return false
+        if (this.aiGeneratingStart <= 0 || this.aiGeneratingEnd <= 0) return false
+        if (this.aiGeneratingStart > this.aiGeneratingEnd) return false
+        // 进入“正在生成区间”的第一题时立即隐藏
+        return this.currentIndex + 1 < this.aiGeneratingStart
       },
       aiGeneratingStart() {
+        if (this.aiGeneratingRangeStart > 0) {
+          const dynamicStart = this.aiGeneratingRangeStart + Math.max(this.aiGeneratingReadyCount, 0)
+          if (this.aiGeneratingRangeEnd > 0) {
+            return Math.min(dynamicStart, this.aiGeneratingRangeEnd)
+          }
+          return dynamicStart
+        }
         if (this.exerciseCount <= 0) return 0
         return Math.min(this.exercises.length + 1, this.exerciseCount)
       },
       aiGeneratingEnd() {
+        if (this.aiGeneratingRangeEnd > 0) return this.aiGeneratingRangeEnd
         if (this.exerciseCount <= 0) return 0
         return Math.min(this.exercises.length + this.effectiveGeneratingCount, this.exerciseCount)
       }
@@ -1965,8 +1980,26 @@ export default {
             // 异步生成AI题目（如果需要）
             if (!this.isCustomPractice && aiPlans.length > 0) {
               this.generationError = false
+              const totalPlanCount = aiPlans.reduce((sum, plan) => {
+                const planCount = Number(plan && plan.count ? plan.count : 0)
+                return sum + (planCount > 0 ? planCount : 0)
+              }, 0)
+              if (totalPlanCount > 0) {
+                const rangeStart = this.exercises.length + 1
+                this.aiGeneratingRangeStart = Math.min(rangeStart, this.exerciseCount)
+                this.aiGeneratingRangeEnd = Math.min(rangeStart + totalPlanCount - 1, this.exerciseCount)
+                this.aiGeneratingReadyCount = 0
+              } else {
+                this.aiGeneratingRangeStart = 0
+                this.aiGeneratingRangeEnd = 0
+                this.aiGeneratingReadyCount = 0
+              }
               console.log('开始异步生成AI题目计划:', aiPlans)
               this.generateAIPlansAsync(aiPlans)
+            } else {
+              this.aiGeneratingRangeStart = 0
+              this.aiGeneratingRangeEnd = 0
+              this.aiGeneratingReadyCount = 0
             }
           }
         } else {
@@ -2057,10 +2090,17 @@ export default {
     
     async generateAIPlansAsync(aiPlans = []) {
       const plans = Array.isArray(aiPlans) ? aiPlans : []
-      for (const plan of plans) {
-        const count = Number(plan.count || 0)
-        if (count <= 0 || !plan.aiOptions) continue
-        await this.generateAIQuestionsAsync(count, plan.aiOptions)
+      try {
+        for (const plan of plans) {
+          const count = Number(plan.count || 0)
+          if (count <= 0 || !plan.aiOptions) continue
+          await this.generateAIQuestionsAsync(count, plan.aiOptions)
+        }
+      } finally {
+        // 本轮计划结束，清空显示区间
+        this.aiGeneratingRangeStart = 0
+        this.aiGeneratingRangeEnd = 0
+        this.aiGeneratingReadyCount = 0
       }
     },
 
@@ -2127,6 +2167,10 @@ export default {
                 // 第一题直接添加
                 this.exercises.push(res.exercise)
                 this.questionStates.push(this.createStateForExercise(res.exercise))
+                this.aiGeneratingReadyCount = Math.min(
+                  this.aiGeneratingReadyCount + 1,
+                  Math.max(this.aiGeneratingRangeEnd - this.aiGeneratingRangeStart + 1, 0)
+                )
                 console.log(`第一个AI题目已生成，开始练习`)
                 uni.hideToast()
                 this.goToExercise(0, true)
@@ -2138,6 +2182,10 @@ export default {
 
                 this.exercises.splice(randomIndex, 0, res.exercise)
                 this.questionStates.splice(randomIndex, 0, this.createStateForExercise(res.exercise))
+                this.aiGeneratingReadyCount = Math.min(
+                  this.aiGeneratingReadyCount + 1,
+                  Math.max(this.aiGeneratingRangeEnd - this.aiGeneratingRangeStart + 1, 0)
+                )
 
                 console.log(`AI题目已插入到位置 ${randomIndex}, 当前题目总数: ${this.exercises.length}`)
               }
@@ -2780,6 +2828,9 @@ export default {
       this.correctCount = 0
       this.generatingCount = 0
       this.generationError = false
+      this.aiGeneratingRangeStart = 0
+      this.aiGeneratingRangeEnd = 0
+      this.aiGeneratingReadyCount = 0
       this.wrongExercises = []
       this.wrongExercisesSet.clear()
     },
@@ -2802,6 +2853,9 @@ export default {
       this.correctCount = 0
       this.generatingCount = 0
       this.generationError = false
+      this.aiGeneratingRangeStart = 0
+      this.aiGeneratingRangeEnd = 0
+      this.aiGeneratingReadyCount = 0
       this.questionStates = this.exercises.map(ex => this.createStateForExercise(ex))
       if (this.exercises.length > 0) {
         this.goToExercise(0, true)
