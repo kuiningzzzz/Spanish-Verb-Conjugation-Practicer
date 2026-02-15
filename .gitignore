@@ -63,3 +63,4 @@ server/src/announcement.json
 server/src/updates/*.apk
 
 scripts/output/
+scripts/__pycache__/
