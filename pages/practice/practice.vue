@@ -2159,7 +2159,9 @@ export default {
             }
             
             // 检查用户当前是否还需要这个题目
-            const userNeedsMore = this.exercises.length < this.exerciseCount
+            // 只要本次练习已达到目标/已结束/已展示结果，就不要再把新题插入前端
+            const practiceClosed = this.showResult || !this.hasStarted || this.completedCount >= this.exerciseCount
+            const userNeedsMore = !practiceClosed && this.exercises.length < this.exerciseCount
             
             if (userNeedsMore) {
               // 用户还需要更多题目，插入到练习队列
