@@ -4,6 +4,12 @@ const Question = require('../models/Question')
 const QuestionGeneratorService = require('./traditional_conjugation/questionGenerator')
 const QuestionValidatorService = require('./traditional_conjugation/questionValidator')
 const QuestionRevisorService = require('./traditional_conjugation/questionRevisor')
+const PronounQuestionGeneratorService = require('./conjugation_with_pronoun/questionGenerator')
+const PronounQuestionValidatorService = require('./conjugation_with_pronoun/questionValidator')
+const PronounQuestionRevisorService = require('./conjugation_with_pronoun/questionRevisor')
+
+const PUBLIC_SOURCE_TRADITIONAL = 'public_traditional'
+const PUBLIC_SOURCE_PRONOUN = 'public_pronoun'
 
 /**
  * 题目生成服务（带题库和AI混合模式）
@@ -221,6 +227,294 @@ class ExerciseGeneratorService {
     return null
   }
 
+  static getPronounFormMap() {
+    return {
+      general: { hostForm: 'finite', hostFormZh: '一般变位' },
+      imperative: { hostForm: 'imperative', hostFormZh: '命令式' },
+      infinitive: { hostForm: 'infinitive', hostFormZh: '动词原形' },
+      gerund: { hostForm: 'gerund', hostFormZh: '副动词' },
+      reflexive: { hostForm: 'prnl', hostFormZh: '自反动词' }
+    }
+  }
+
+  static mapConjugationFormsToHostForms(conjugationForms = []) {
+    const formMap = this.getPronounFormMap()
+    const values = Array.isArray(conjugationForms) ? conjugationForms : []
+    const mapped = values
+      .map((value) => formMap[String(value || '').trim().toLowerCase()])
+      .filter(Boolean)
+      .map(item => item.hostForm)
+    return [...new Set(mapped)]
+  }
+
+  static getDefaultPronounHostForms() {
+    return ['finite', 'imperative', 'infinitive', 'gerund', 'prnl']
+  }
+
+  static getCommonFiniteTenseSet() {
+    return new Set(['现在时', '简单过去时', '未完成过去时'])
+  }
+
+  static normalizePronounPattern(pattern) {
+    const normalized = String(pattern || '').trim().toUpperCase()
+    if (normalized === 'DO' || normalized === 'IO' || normalized === 'DO_IO') {
+      return normalized
+    }
+    return ''
+  }
+
+  static buildPronounHint(ioPronoun, doPronoun, hostForm) {
+    if (hostForm === 'prnl') {
+      return '提示：自反形式（本题不区分 IO/DO）'
+    }
+    const parts = []
+    if (ioPronoun) parts.push(`IO: ${ioPronoun}`)
+    if (doPronoun) parts.push(`DO: ${doPronoun}`)
+    return parts.length > 0 ? parts.join(' | ') : ''
+  }
+
+  static shuffleArray(items = []) {
+    return [...items].sort(() => Math.random() - 0.5)
+  }
+
+  static getQuestionBankForSentenceMode(sentenceMode) {
+    if (sentenceMode === 'with-pronoun') return 'pronoun'
+    return 'traditional'
+  }
+
+  static buildSentenceBankPlans({ sentenceMode = 'verb-only', count = 10 }) {
+    if (sentenceMode === 'mixed') {
+      const traditionalCount = Math.floor(count / 2)
+      const pronounCount = count - traditionalCount
+      return [
+        { questionBank: 'traditional', count: traditionalCount },
+        { questionBank: 'pronoun', count: pronounCount }
+      ].filter(item => item.count > 0)
+    }
+
+    return [{
+      questionBank: this.getQuestionBankForSentenceMode(sentenceMode),
+      count
+    }]
+  }
+
+  static buildPronounVerbQueryOptions(options, hostForm) {
+    const queryOptions = {}
+    if (options.verbIds && options.verbIds.length > 0) {
+      queryOptions.verbIds = options.verbIds
+    } else {
+      if (options.conjugationTypes && options.conjugationTypes.length > 0) {
+        queryOptions.conjugationTypes = options.conjugationTypes
+      }
+    }
+    if (options.includeRegular === false) {
+      queryOptions.onlyIrregular = true
+    }
+    if (options.excludeVerbIds && options.excludeVerbIds.length > 0) {
+      queryOptions.excludeVerbIds = options.excludeVerbIds
+    }
+    if (hostForm === 'prnl') {
+      queryOptions.onlyReflexive = true
+    } else {
+      queryOptions.onlyHasTrUse = true
+    }
+    return queryOptions
+  }
+
+  static buildPronounTargetForVerb(verb, hostForm, options = {}) {
+    if (!verb || !hostForm) return null
+
+    if (hostForm === 'infinitive') {
+      if (!verb.infinitive) return null
+      return {
+        host_form: 'infinitive',
+        host_form_zh: '动词原形',
+        mood: '不适用',
+        tense: '不适用',
+        person: '不适用',
+        base_form: verb.infinitive
+      }
+    }
+
+    if (hostForm === 'gerund') {
+      if (!verb.gerund) return null
+      return {
+        host_form: 'gerund',
+        host_form_zh: '副动词',
+        mood: '不适用',
+        tense: '不适用',
+        person: '不适用',
+        base_form: verb.gerund
+      }
+    }
+
+    if (hostForm === 'prnl') {
+      if (verb.is_reflexive !== 1) return null
+      if (!verb.infinitive) return null
+      return {
+        host_form: 'prnl',
+        host_form_zh: '自反动词',
+        mood: '不适用',
+        tense: '不适用',
+        person: '不适用',
+        base_form: `${verb.infinitive}se`
+      }
+    }
+
+    const conjugations = Conjugation.getByVerbId(verb.id)
+    if (!Array.isArray(conjugations) || conjugations.length === 0) return null
+
+    if (hostForm === 'imperative') {
+      let imperativeForms = conjugations.filter(c => c.mood === '命令式' && c.tense === '肯定命令式')
+      imperativeForms = this.filterConjugationsByPronounSettings(
+        imperativeForms,
+        options.includeVos,
+        options.includeVosotros
+      )
+      if (imperativeForms.length === 0) return null
+      const picked = imperativeForms[Math.floor(Math.random() * imperativeForms.length)]
+      return {
+        host_form: 'imperative',
+        host_form_zh: '命令式',
+        mood: picked.mood,
+        tense: picked.tense,
+        person: picked.person,
+        base_form: picked.conjugated_form
+      }
+    }
+
+    if (hostForm === 'finite') {
+      const commonFiniteTenses = this.getCommonFiniteTenseSet()
+      let finiteForms = conjugations.filter(c => (
+        c.mood === '陈述式' && commonFiniteTenses.has(this.normalizeTenseName(c.tense))
+      ))
+      finiteForms = this.filterConjugationsByPronounSettings(
+        finiteForms,
+        options.includeVos,
+        options.includeVosotros
+      )
+      if (finiteForms.length === 0) return null
+      const picked = finiteForms[Math.floor(Math.random() * finiteForms.length)]
+      const normalizedTense = this.normalizeTenseName(picked.tense)
+      return {
+        host_form: 'finite',
+        host_form_zh: `${picked.mood}-${normalizedTense}`,
+        mood: picked.mood,
+        tense: normalizedTense,
+        person: picked.person,
+        base_form: picked.conjugated_form
+      }
+    }
+
+    return null
+  }
+
+  static async buildSentencePoolForBank({
+    userId,
+    questionBank,
+    count,
+    tenses = [],
+    moods = [],
+    conjugationTypes = [],
+    includeRegular = true,
+    includeVos = false,
+    includeVosotros = true,
+    reduceRareTenseFrequency = true,
+    verbIds = null,
+    hostForms = []
+  }) {
+    const sourceType = questionBank === 'pronoun'
+      ? PUBLIC_SOURCE_PRONOUN
+      : PUBLIC_SOURCE_TRADITIONAL
+
+    let allBankQuestions = []
+    if (userId) {
+      const filters = {
+        questionType: 'sentence',
+        questionBank,
+        includeVos,
+        includeVosotros,
+        verbIds
+      }
+      if (questionBank === 'pronoun') {
+        filters.hostForms = hostForms
+      } else {
+        filters.tenses = tenses
+        filters.moods = moods
+        filters.conjugationTypes = conjugationTypes
+        filters.includeRegular = includeRegular
+      }
+      allBankQuestions = Question.getSmartFromPublic(userId, filters, count)
+    }
+
+    const seenQuestionIds = new Set()
+    const uniqueBankQuestions = allBankQuestions.filter((question) => {
+      const key = `${sourceType}:${question.id}`
+      if (seenQuestionIds.has(key)) return false
+      seenQuestionIds.add(key)
+      return true
+    })
+
+    const actualBankCount = uniqueBankQuestions.length
+    const hasEnoughInBank = actualBankCount >= count
+    let mainQuestions = []
+    let backupQuestions = []
+    let aiCount = 0
+
+    if (hasEnoughInBank) {
+      const mainCount = Math.round(count * 0.85)
+      const backupCount = count - mainCount
+      const shuffled = this.shuffleArray(uniqueBankQuestions)
+      mainQuestions = shuffled.slice(0, mainCount)
+      backupQuestions = shuffled.slice(mainCount, mainCount + backupCount)
+      aiCount = backupCount
+    } else {
+      mainQuestions = uniqueBankQuestions
+      aiCount = count - actualBankCount
+    }
+
+    const questionPool = []
+    questionPool.push(...mainQuestions.map((q, index) => ({
+      ...this.formatQuestionBankExercise(q, sourceType),
+      _fromPool: true,
+      _poolIndex: index,
+      _isMain: true,
+      _questionBank: questionBank
+    })))
+    questionPool.push(...backupQuestions.map((q, index) => ({
+      ...this.formatQuestionBankExercise(q, sourceType),
+      _fromPool: true,
+      _poolIndex: mainQuestions.length + index,
+      _isBackup: true,
+      _questionBank: questionBank
+    })))
+
+    const aiOptions = aiCount > 0 ? {
+      exerciseType: 'sentence',
+      questionBank,
+      tenses,
+      moods,
+      userId,
+      conjugationTypes,
+      includeRegular,
+      includeVos,
+      includeVosotros,
+      reduceRareTenseFrequency,
+      verbIds,
+      hostForms
+    } : null
+
+    return {
+      questionBank,
+      questionPool,
+      mainCount: mainQuestions.length,
+      backupCount: backupQuestions.length,
+      hasEnoughInBank,
+      needAI: aiCount,
+      aiOptions
+    }
+  }
+
   /**
    * 生成单个题目（保留向后兼容）
    */
@@ -297,137 +591,81 @@ class ExerciseGeneratorService {
       return { exercises, questionPool: [] }
     }
 
-    // 例句填空：混合模式
+    // 例句填空：题库+AI混合模式（支持传统、带代词、混合50/50）
     if (exerciseType === 'sentence') {
-      // 尝试从题库获取count个题目
-      let allBankQuestions = []
-      
-      if (userId) {
-        console.log(`批量生成 - 准备从题库获取:`, { requestCount: count, exerciseType, practiceMode, verbIds: verbIds?.length })
+      const sentenceMode = options.sentenceMode || 'verb-only'
+      const selectedHostForms = Array.isArray(options.hostForms) && options.hostForms.length > 0
+        ? options.hostForms
+        : this.mapConjugationFormsToHostForms(options.conjugationForms)
+      const hostForms = selectedHostForms.length > 0
+        ? selectedHostForms
+        : this.getDefaultPronounHostForms()
 
-        allBankQuestions = Question.getSmartFromPublic(userId, {
-          questionType: exerciseType,
+      const plans = this.buildSentenceBankPlans({ sentenceMode, count })
+      const planResults = []
+      for (const plan of plans) {
+        const planResult = await this.buildSentencePoolForBank({
+          userId,
+          questionBank: plan.questionBank,
+          count: plan.count,
           tenses,
           moods,
           conjugationTypes,
           includeRegular,
           includeVos,
           includeVosotros,
-          verbIds
-        }, count)
-
-        console.log(`批量生成 - 题库返回:`, {
-          returnedCount: allBankQuestions.length,
-          questionIds: allBankQuestions.map(q => q.id)
+          reduceRareTenseFrequency,
+          verbIds,
+          hostForms: plan.questionBank === 'pronoun' ? hostForms : []
         })
+        planResults.push(planResult)
       }
 
-      // 去重
-      const seenQuestionIds = new Set()
-      const uniqueBankQuestions = allBankQuestions.filter(q => {
-        if (seenQuestionIds.has(q.id)) {
-          console.warn(`题目池构建时发现重复题目ID: ${q.id}，已过滤`)
-          return false
-        }
-        seenQuestionIds.add(q.id)
-        return true
-      })
-      
-      const actualBankCount = uniqueBankQuestions.length
-      console.log(`批量生成 - 去重后题库题目数量: ${actualBankCount}`)
+      const mergedPool = this.shuffleArray(planResults.flatMap(result => result.questionPool))
+        .map((item, index) => ({
+          ...item,
+          _poolIndex: index
+        }))
+      questionPool.push(...mergedPool)
 
-      // 判断题库是否充足（有足够的题目）
-      const hasEnoughInBank = actualBankCount >= count
-      
-      let mainQuestions = []  // 主要题目（85%）
-      let backupQuestions = [] // 备用题目（15%）
-      let aiCount = 0          // 需要AI生成的数量
-      
-      if (hasEnoughInBank) {
-        // 情况1：题库有足够的题目（>=n个）
-        // 随机取85%作为主要题目，15%作为备用
-        const mainCount = Math.round(count * 0.85)
-        const backupCount = count - mainCount
-        
-        // 打乱题库题目
-        const shuffled = [...uniqueBankQuestions].sort(() => Math.random() - 0.5)
-        
-        mainQuestions = shuffled.slice(0, mainCount)
-        backupQuestions = shuffled.slice(mainCount, mainCount + backupCount)
-        
-        // AI生成剩余15%用于替换备用题目
-        aiCount = backupCount
-        
-        console.log(`批量生成 - 情况1（题库充足）:`, {
-          total: count,
-          mainCount,
-          backupCount,
-          aiCount,
-          strategy: '85%主题+15%备用题，AI后台生成替换备用'
-        })
-      } else {
-        // 情况2：题库不足
-        // 能取多少取多少，剩下的交给AI
-        mainQuestions = uniqueBankQuestions
-        aiCount = count - actualBankCount
-        
-        console.log(`批量生成 - 情况2（题库不足）:`, {
-          total: count,
-          fromBank: actualBankCount,
-          needAI: aiCount,
-          strategy: '题库全用+等待AI生成'
-        })
-      }
-      
-      // 将主要题目格式化后放入questionPool（前端会从这里抽取）
-      questionPool.push(...mainQuestions.map((q, index) => ({
-        ...this.formatQuestionBankExercise(q, 'public'),
-        _fromPool: true,
-        _poolIndex: index,
-        _isMain: true
-      })))
-      
-      // 将备用题目也放入questionPool，但标记为备用
-      questionPool.push(...backupQuestions.map((q, index) => ({
-        ...this.formatQuestionBankExercise(q, 'public'),
-        _fromPool: true,
-        _poolIndex: mainQuestions.length + index,
-        _isBackup: true
-      })))
+      const needAI = planResults.reduce((sum, result) => sum + result.needAI, 0)
+      const mainCount = planResults.reduce((sum, result) => sum + result.mainCount, 0)
+      const backupCount = planResults.reduce((sum, result) => sum + result.backupCount, 0)
+      const hasEnoughInBank = planResults.every(result => result.hasEnoughInBank)
 
-      // 返回题目池和AI生成参数
-      const result = {
+      const aiPlans = planResults
+        .filter(result => result.needAI > 0 && result.aiOptions)
+        .map(result => ({
+          questionBank: result.questionBank,
+          count: result.needAI,
+          aiOptions: result.aiOptions
+        }))
+
+      const response = {
         exercises: [],
         questionPool,
         hasEnoughInBank,
-        mainCount: mainQuestions.length,
-        backupCount: backupQuestions.length,
-        needAI: aiCount
+        mainCount,
+        backupCount,
+        needAI
       }
-      
-      if (aiCount > 0) {
-        result.aiOptions = {
-          exerciseType,
-          tenses,
-          userId,
-          conjugationTypes,
-          includeRegular,
-          includeVos,
-          includeVosotros,
-          reduceRareTenseFrequency,
-          verbIds,
-          moods: options.moods
-        }
-        
-        console.log(`返回结果:`, {
-          主题: mainQuestions.length,
-          备用题: backupQuestions.length,
-          需要AI: aiCount,
-          题库充足: hasEnoughInBank
-        })
+
+      if (aiPlans.length === 1) {
+        response.aiOptions = aiPlans[0].aiOptions
+      } else if (aiPlans.length > 1) {
+        response.aiPlans = aiPlans
       }
-      
-      return result
+
+      console.log('批量生成 - sentence 计划:', {
+        sentenceMode,
+        plans,
+        mainCount,
+        backupCount,
+        needAI,
+        hasEnoughInBank
+      })
+
+      return response
     }
 
     // 默认使用传统方法
@@ -442,39 +680,66 @@ class ExerciseGeneratorService {
    * 从题库获取题目（使用智能推荐算法）
    */
   static async getFromQuestionBank(options) {
-    const { userId, exerciseType, tenses, moods, conjugationTypes, includeRegular, includeVos, includeVosotros } = options
+    const {
+      userId,
+      exerciseType,
+      tenses,
+      moods,
+      conjugationTypes,
+      includeRegular,
+      includeVos,
+      includeVosotros
+    } = options
+    const sentenceMode = options.sentenceMode || 'verb-only'
+    const questionBank = this.getQuestionBankForSentenceMode(sentenceMode)
+    const hostForms = Array.isArray(options.hostForms) && options.hostForms.length > 0
+      ? options.hostForms
+      : this.mapConjugationFormsToHostForms(options.conjugationForms)
+    const sourceType = questionBank === 'pronoun' ? PUBLIC_SOURCE_PRONOUN : PUBLIC_SOURCE_TRADITIONAL
 
     try {
       // 使用智能推荐算法从公共题库获取
       if (userId) {
-        const smartQuestions = Question.getSmartFromPublic(userId, {
+        const filters = {
           questionType: exerciseType,
-          tenses,
-          moods,
-          conjugationTypes,
-          includeRegular,
+          questionBank,
           includeVos,
           includeVosotros
-        }, 1)
+        }
+        if (questionBank === 'pronoun') {
+          filters.hostForms = hostForms
+        } else {
+          filters.tenses = tenses
+          filters.moods = moods
+          filters.conjugationTypes = conjugationTypes
+          filters.includeRegular = includeRegular
+        }
+        const smartQuestions = Question.getSmartFromPublic(userId, filters, 1)
 
         if (smartQuestions.length > 0) {
-          return this.formatQuestionBankExercise(smartQuestions[0], 'public')
+          return this.formatQuestionBankExercise(smartQuestions[0], sourceType)
         }
       } else {
         // 如果没有用户ID，使用旧的随机方法
-        const publicQuestion = Question.getRandomFromPublic({
+        const filters = {
           questionType: exerciseType,
-          tenses,
-          moods,
-          conjugationTypes,
-          includeRegular,
+          questionBank,
           includeVos,
           includeVosotros,
           limit: 1
-        })
+        }
+        if (questionBank === 'pronoun') {
+          filters.hostForms = hostForms
+        } else {
+          filters.tenses = tenses
+          filters.moods = moods
+          filters.conjugationTypes = conjugationTypes
+          filters.includeRegular = includeRegular
+        }
+        const publicQuestion = Question.getRandomFromPublic(filters)
 
         if (publicQuestion) {
-          return this.formatQuestionBankExercise(publicQuestion, 'public')
+          return this.formatQuestionBankExercise(publicQuestion, sourceType)
         }
       }
 
@@ -482,6 +747,7 @@ class ExerciseGeneratorService {
       if (userId) {
         const privateQuestion = Question.getRandomFromPrivate(userId, {
           questionType: exerciseType,
+          questionBank,
           limit: 1
         })
 
@@ -507,9 +773,17 @@ class ExerciseGeneratorService {
       3: '第三变位'
     }
 
+    const exerciseType = question.question_type || 'sentence'
+    const questionBank = question.question_bank
+      || (sourceType === PUBLIC_SOURCE_PRONOUN ? 'pronoun' : 'traditional')
+
     const exercise = {
       questionId: question.id,
-      questionSource: sourceType, // 'public' or 'private'
+      questionSource: sourceType,
+      questionBank,
+      publicQuestionSource: sourceType === 'private'
+        ? (question.public_question_source || null)
+        : sourceType,
       verbId: question.verb_id,
       infinitive: question.infinitive,
       meaning: question.meaning,
@@ -517,17 +791,31 @@ class ExerciseGeneratorService {
       mood: question.mood,
       person: question.person,
       correctAnswer: question.correct_answer,
-      exerciseType: question.question_type,
+      exerciseType,
       conjugationType: conjugationTypeMap[question.conjugation_type] || '未知',
       isIrregular: question.is_irregular === 1,
       isReflexive: question.is_reflexive === 1,
       fromQuestionBank: true
     }
 
-    if (question.question_type === 'sentence') {
+    if (exerciseType === 'sentence') {
       exercise.sentence = question.question_text
       exercise.translation = question.translation
-      exercise.hint = this.buildHint(question.person, question.tense, question.mood) || question.hint
+      exercise.hostForm = question.host_form || null
+      exercise.hostFormZh = question.host_form_zh || null
+      exercise.pronounPattern = question.pronoun_pattern || ''
+      exercise.ioPronoun = question.io_pronoun || ''
+      exercise.doPronoun = question.do_pronoun || ''
+
+      if (questionBank === 'pronoun') {
+        exercise.hint = this.buildPronounHint(
+          exercise.ioPronoun,
+          exercise.doPronoun,
+          exercise.hostForm
+        )
+      } else {
+        exercise.hint = question.hint || this.buildHint(question.person, question.tense, question.mood)
+      }
     }
 
     return exercise
@@ -555,6 +843,161 @@ class ExerciseGeneratorService {
     }
 
     return { valid: true }
+  }
+
+  static validatePronounAIResultData(aiResult, target) {
+    if (!aiResult) {
+      return { valid: false, reason: 'AI返回结果为空' }
+    }
+
+    if (!aiResult.sentence || aiResult.sentence === 'undefined') {
+      return { valid: false, reason: '例句字段缺失或为undefined' }
+    }
+    if (!aiResult.translation || aiResult.translation === 'undefined') {
+      return { valid: false, reason: '翻译字段缺失或为undefined' }
+    }
+    if (!aiResult.answer || aiResult.answer === 'undefined') {
+      return { valid: false, reason: '答案字段缺失或为undefined' }
+    }
+
+    const blankMatches = String(aiResult.sentence).match(/__\?__/g) || []
+    if (blankMatches.length !== 1) {
+      return { valid: false, reason: '题干必须且仅包含一个 __?__' }
+    }
+
+    if (aiResult.host_form !== target.host_form) {
+      return { valid: false, reason: 'host_form 与目标不一致' }
+    }
+
+    const pronounPattern = this.normalizePronounPattern(aiResult.pronoun_pattern)
+    const ioPronoun = String(aiResult.io_pronoun || '').trim()
+    const doPronoun = String(aiResult.do_pronoun || '').trim()
+
+    if (target.host_form === 'prnl') {
+      if (pronounPattern) {
+        return { valid: false, reason: 'prnl 题的 pronoun_pattern 必须为空' }
+      }
+      if (ioPronoun || doPronoun) {
+        return { valid: false, reason: 'prnl 题的 io/do 字段必须为空' }
+      }
+      return { valid: true }
+    }
+
+    if (!pronounPattern) {
+      return { valid: false, reason: '非 prnl 题缺少 pronoun_pattern' }
+    }
+    if (pronounPattern === 'DO' && (!doPronoun || ioPronoun)) {
+      return { valid: false, reason: 'DO 题的 io/do 字段不匹配' }
+    }
+    if (pronounPattern === 'IO' && (!ioPronoun || doPronoun)) {
+      return { valid: false, reason: 'IO 题的 io/do 字段不匹配' }
+    }
+    if (pronounPattern === 'DO_IO' && (!ioPronoun || !doPronoun)) {
+      return { valid: false, reason: 'DO_IO 题的 io/do 字段不匹配' }
+    }
+
+    return { valid: true }
+  }
+
+  static async runPronounSentenceAIPipeline({ verb, target, maxRetries = 3 }) {
+    let lastError = ''
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(
+        `[AI生成][pronoun-pipeline] attempt=${attempt}/${maxRetries} verb=${verb.infinitive} host=${target.host_form}`
+      )
+
+      try {
+        const generated = await PronounQuestionGeneratorService.generateSentenceExercise({ verb, target })
+        const normalizedGenerated = {
+          ...generated,
+          host_form: generated?.host_form || target.host_form,
+          host_form_zh: generated?.host_form_zh || target.host_form_zh,
+          mood: generated?.mood || target.mood,
+          tense: generated?.tense || target.tense,
+          person: generated?.person || target.person,
+          answer: generated?.answer || ''
+        }
+
+        const generatedCheck = this.validatePronounAIResultData(normalizedGenerated, target)
+        if (!generatedCheck.valid) {
+          lastError = generatedCheck.reason
+          continue
+        }
+
+        const validationV1 = await PronounQuestionValidatorService.validateQuestion({
+          verb,
+          target,
+          question: normalizedGenerated
+        })
+
+        if (validationV1.isValid && validationV1.hasUniqueAnswer) {
+          return {
+            passed: true,
+            aiResult: normalizedGenerated,
+            validation: validationV1,
+            attempt,
+            usedRevisor: false
+          }
+        }
+
+        let revisedQuestion
+        try {
+          const revised = await PronounQuestionRevisorService.reviseQuestion({
+            verb,
+            target,
+            originalQuestion: normalizedGenerated,
+            validatorResult: validationV1
+          })
+          revisedQuestion = {
+            ...normalizedGenerated,
+            sentence: revised.sentence || normalizedGenerated.sentence,
+            translation: revised.translation || normalizedGenerated.translation
+          }
+        } catch (error) {
+          lastError = `revisor失败: ${error.message}`
+          continue
+        }
+
+        const revisedCheck = this.validatePronounAIResultData(revisedQuestion, target)
+        if (!revisedCheck.valid) {
+          lastError = revisedCheck.reason
+          continue
+        }
+
+        const validationV2 = await PronounQuestionValidatorService.validateQuestion({
+          verb,
+          target,
+          question: revisedQuestion
+        })
+        if (validationV2.isValid && validationV2.hasUniqueAnswer) {
+          return {
+            passed: true,
+            aiResult: revisedQuestion,
+            validation: validationV2,
+            attempt,
+            usedRevisor: true
+          }
+        }
+
+        lastError = validationV2.reason || validationV1.reason || 'validator_v2未通过'
+      } catch (error) {
+        lastError = error.message
+      }
+
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 800))
+      }
+    }
+
+    return {
+      passed: false,
+      aiResult: null,
+      validation: null,
+      attempt: maxRetries,
+      usedRevisor: false,
+      lastError: lastError || '达到最大重试次数'
+    }
   }
 
   /**
@@ -771,7 +1214,8 @@ class ExerciseGeneratorService {
     try {
       const questionData = {
         verbId: verb.id,
-        questionType: exerciseType,
+        questionBank: 'traditional',
+        publicQuestionSource: PUBLIC_SOURCE_TRADITIONAL,
         questionText: exerciseType === 'sentence' ? aiResult.sentence : aiResult.question,
         correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
         exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
@@ -784,12 +1228,12 @@ class ExerciseGeneratorService {
       }
 
       // 检查是否已存在相同题目
-      if (!Question.existsInPublic(verb.id, questionData.questionText)) {
+      if (!Question.existsInPublic(verb.id, questionData.questionText, PUBLIC_SOURCE_TRADITIONAL)) {
         savedQuestionId = Question.addToPublic(questionData)
         console.log(`新题目已加入公共题库（ID: ${savedQuestionId}，初始置信度: 50）`)
       } else {
         // 如果已存在，获取已有题目的ID
-        const existing = Question.findByVerbAndText(verb.id, questionData.questionText)
+        const existing = Question.findByVerbAndText(verb.id, questionData.questionText, PUBLIC_SOURCE_TRADITIONAL)
         if (existing) {
           savedQuestionId = existing.id
           console.log(`题目已存在于题库（ID: ${savedQuestionId}）`)
@@ -804,7 +1248,9 @@ class ExerciseGeneratorService {
 
     const exercise = {
       questionId: savedQuestionId,  // 添加questionId
-      questionSource: 'public',      // 添加questionSource
+      questionSource: PUBLIC_SOURCE_TRADITIONAL,
+      questionBank: 'traditional',
+      publicQuestionSource: PUBLIC_SOURCE_TRADITIONAL,
       verbId: verb.id,
       infinitive: verb.infinitive,
       meaning: verb.meaning,
@@ -897,7 +1343,8 @@ class ExerciseGeneratorService {
     try {
       const questionData = {
         verbId: verb.id,
-        questionType: exerciseType,
+        questionBank: 'traditional',
+        publicQuestionSource: PUBLIC_SOURCE_TRADITIONAL,
         questionText: exerciseType === 'sentence' ? aiResult.sentence : aiResult.question,
         correctAnswer: aiResult.answer || randomConjugation.conjugated_form,
         exampleSentence: exerciseType === 'sentence' ? aiResult.sentence : (aiResult.example || null),
@@ -909,11 +1356,11 @@ class ExerciseGeneratorService {
         confidenceScore: 50
       }
 
-      if (!Question.existsInPublic(verb.id, questionData.questionText)) {
+      if (!Question.existsInPublic(verb.id, questionData.questionText, PUBLIC_SOURCE_TRADITIONAL)) {
         savedQuestionId = Question.addToPublic(questionData)
         console.log(`新题目已加入公共题库: ${verb.infinitive} (ID: ${savedQuestionId})`)
       } else {
-        const existing = Question.findByVerbAndText(verb.id, questionData.questionText)
+        const existing = Question.findByVerbAndText(verb.id, questionData.questionText, PUBLIC_SOURCE_TRADITIONAL)
         if (existing) {
           savedQuestionId = existing.id
           console.log(`题目已存在: ${verb.infinitive} (ID: ${savedQuestionId})`)
@@ -928,7 +1375,9 @@ class ExerciseGeneratorService {
 
     const exercise = {
       questionId: savedQuestionId,  // 添加questionId
-      questionSource: 'public',      // 添加questionSource
+      questionSource: PUBLIC_SOURCE_TRADITIONAL,
+      questionBank: 'traditional',
+      publicQuestionSource: PUBLIC_SOURCE_TRADITIONAL,
       verbId: verb.id,
       infinitive: verb.infinitive,
       meaning: verb.meaning,
@@ -953,6 +1402,107 @@ class ExerciseGeneratorService {
     return exercise
   }
 
+  static async generatePronounWithAIForVerb(verb, options) {
+    const maxRetries = 3
+    const requestedHostForms = Array.isArray(options.hostForms) && options.hostForms.length > 0
+      ? options.hostForms
+      : this.getDefaultPronounHostForms()
+    const hostForms = this.shuffleArray(requestedHostForms)
+
+    for (const hostForm of hostForms) {
+      const target = this.buildPronounTargetForVerb(verb, hostForm, options)
+      if (!target) continue
+
+      const pipeline = await this.runPronounSentenceAIPipeline({
+        verb,
+        target,
+        maxRetries
+      })
+
+      if (!pipeline.passed || !pipeline.aiResult) {
+        continue
+      }
+
+      const aiResult = pipeline.aiResult
+      const normalizedPattern = this.normalizePronounPattern(aiResult.pronoun_pattern)
+      const ioPronoun = String(aiResult.io_pronoun || '').trim()
+      const doPronoun = String(aiResult.do_pronoun || '').trim()
+
+      let savedQuestionId = null
+      try {
+        const questionData = {
+          questionBank: 'pronoun',
+          publicQuestionSource: PUBLIC_SOURCE_PRONOUN,
+          verbId: verb.id,
+          hostForm: target.host_form,
+          hostFormZh: target.host_form === 'finite'
+            ? `${target.mood}-${target.tense}`
+            : target.host_form_zh,
+          pronounPattern: target.host_form === 'prnl' ? '' : normalizedPattern,
+          questionText: aiResult.sentence,
+          correctAnswer: aiResult.answer,
+          exampleSentence: aiResult.sentence,
+          translation: aiResult.translation || null,
+          hint: aiResult.hint || null,
+          tense: target.tense || '不适用',
+          mood: target.mood || '不适用',
+          person: target.person || '不适用',
+          ioPronoun: target.host_form === 'prnl' ? '' : ioPronoun,
+          doPronoun: target.host_form === 'prnl' ? '' : doPronoun,
+          confidenceScore: 50
+        }
+
+        if (!Question.existsInPublic(verb.id, questionData.questionText, PUBLIC_SOURCE_PRONOUN)) {
+          savedQuestionId = Question.addToPublic(questionData)
+        } else {
+          const existing = Question.findByVerbAndText(verb.id, questionData.questionText, PUBLIC_SOURCE_PRONOUN)
+          if (existing) {
+            savedQuestionId = existing.id
+          }
+        }
+      } catch (error) {
+        console.error('[AI生成][pronoun] 保存题目失败:', error)
+      }
+
+      const conjugationTypeMap = { 1: '第一变位', 2: '第二变位', 3: '第三变位' }
+      return {
+        questionId: savedQuestionId,
+        questionSource: PUBLIC_SOURCE_PRONOUN,
+        questionBank: 'pronoun',
+        publicQuestionSource: PUBLIC_SOURCE_PRONOUN,
+        verbId: verb.id,
+        infinitive: verb.infinitive,
+        meaning: verb.meaning,
+        tense: target.tense || '不适用',
+        mood: target.mood || '不适用',
+        person: target.person || '不适用',
+        correctAnswer: aiResult.answer,
+        exerciseType: 'sentence',
+        conjugationType: conjugationTypeMap[verb.conjugation_type] || '未知',
+        isIrregular: verb.is_irregular === 1,
+        isReflexive: verb.is_reflexive === 1,
+        fromQuestionBank: false,
+        aiGenerated: true,
+        sentence: aiResult.sentence,
+        translation: aiResult.translation || '',
+        hint: this.buildPronounHint(
+          target.host_form === 'prnl' ? '' : ioPronoun,
+          target.host_form === 'prnl' ? '' : doPronoun,
+          target.host_form
+        ),
+        hostForm: target.host_form,
+        hostFormZh: target.host_form === 'finite'
+          ? `${target.mood}-${target.tense}`
+          : target.host_form_zh,
+        pronounPattern: target.host_form === 'prnl' ? '' : normalizedPattern,
+        ioPronoun: target.host_form === 'prnl' ? '' : ioPronoun,
+        doPronoun: target.host_form === 'prnl' ? '' : doPronoun
+      }
+    }
+
+    return null
+  }
+
   /**
    * 单个AI题目异步生成（供前端调用）
    */
@@ -967,10 +1517,60 @@ class ExerciseGeneratorService {
       includeVosotros,
       reduceRareTenseFrequency = true,
       verbIds,
-      excludeVerbIds = []
+      excludeVerbIds = [],
+      questionBank = 'traditional'
     } = options
 
-    // 准备动词查询选项
+    if (questionBank === 'pronoun') {
+      const hostForms = Array.isArray(options.hostForms) && options.hostForms.length > 0
+        ? options.hostForms
+        : this.mapConjugationFormsToHostForms(options.conjugationForms)
+      const normalizedHostForms = hostForms.length > 0
+        ? hostForms
+        : this.getDefaultPronounHostForms()
+
+      for (const hostForm of this.shuffleArray(normalizedHostForms)) {
+        const queryOptions = this.buildPronounVerbQueryOptions({
+          verbIds,
+          conjugationTypes,
+          includeRegular,
+          excludeVerbIds
+        }, hostForm)
+        const aiVerbs = Verb.getRandom(3, queryOptions)
+        for (const verb of aiVerbs) {
+          try {
+            const aiExercise = await this.generatePronounWithAIForVerb(verb, {
+              hostForms: [hostForm],
+              includeVos,
+              includeVosotros
+            })
+            if (aiExercise) {
+              return aiExercise
+            }
+          } catch (error) {
+            console.error(`为动词 ${verb.infinitive} 生成带代词题目失败:`, error.message)
+          }
+        }
+      }
+
+      if (userId) {
+        const supplementQuestions = Question.getSmartFromPublic(userId, {
+          questionType: exerciseType,
+          questionBank: 'pronoun',
+          hostForms: normalizedHostForms,
+          includeVos: options.includeVos,
+          includeVosotros: options.includeVosotros,
+          verbIds
+        }, 1)
+        if (supplementQuestions.length > 0) {
+          return this.formatQuestionBankExercise(supplementQuestions[0], PUBLIC_SOURCE_PRONOUN)
+        }
+      }
+
+      throw new Error('带代词AI生成失败且题库无可用题目')
+    }
+
+    // 传统句子题
     const queryOptions = {}
     if (verbIds && verbIds.length > 0) {
       queryOptions.verbIds = verbIds
@@ -981,35 +1581,28 @@ class ExerciseGeneratorService {
       if (!includeRegular) {
         queryOptions.onlyIrregular = true
       }
-      // 排除已使用的动诋ID
       if (excludeVerbIds && excludeVerbIds.length > 0) {
         queryOptions.excludeVerbIds = excludeVerbIds
       }
     }
 
-    // 获取多个候选动词（预防失败）
     const aiVerbs = Verb.getRandom(3, queryOptions)
     if (aiVerbs.length === 0) {
       throw new Error('没有可用的动词')
     }
 
-    console.log(`单个AI生成 - 获取候选动词:`, aiVerbs.map(v => v.infinitive))
-
-    // 尝试为每个动词生成，直到成功
     for (const verb of aiVerbs) {
       try {
         const aiExercise = await this.generateWithAIForVerb(verb, {
           exerciseType,
           tenses,
-          moods: options.moods,  // 修复：使用 options.moods 而不是未定义的 moods
+          moods: options.moods,
           userId,
           includeVos,
           includeVosotros,
           reduceRareTenseFrequency
         })
-        
         if (aiExercise) {
-          console.log(`单个AI生成成功: ${verb.infinitive}`)
           return aiExercise
         }
       } catch (error) {
@@ -1017,22 +1610,20 @@ class ExerciseGeneratorService {
       }
     }
 
-    // 所有动词都失败，尝试从题库补充
-    console.log('AI生成全部失败，尝试从题库补充')
     if (userId) {
       const supplementQuestions = Question.getSmartFromPublic(userId, {
         questionType: exerciseType,
+        questionBank: 'traditional',
         tenses,
-        moods: options.moods,  // 修复：使用 options.moods
+        moods: options.moods,
         conjugationTypes,
         includeRegular,
         includeVos: options.includeVos,
         includeVosotros: options.includeVosotros,
         verbIds
       }, 1)
-
       if (supplementQuestions.length > 0) {
-        return this.formatQuestionBankExercise(supplementQuestions[0], 'public')
+        return this.formatQuestionBankExercise(supplementQuestions[0], PUBLIC_SOURCE_TRADITIONAL)
       }
     }
 
