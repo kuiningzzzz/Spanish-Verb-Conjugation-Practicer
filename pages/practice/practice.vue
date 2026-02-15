@@ -36,7 +36,7 @@
         <view class="progress-bar">
           <view class="progress-fill" :style="{ width: progress + '%' }"></view>
         </view>
-        <text class="progress-text">{{ completedCount }} / {{ exerciseCount }}</text>
+        <text class="progress-text">{{ displayProgressCount }} / {{ exerciseCount }}</text>
       </view>
       <view class="progress-actions">
         <button class="progress-btn back" @click="goToPreviousExercise" :disabled="!canGoPrevious">
@@ -268,12 +268,12 @@
         </view>
       </view>
 
-      <button class="btn-primary mt-20" @click="handleAnswerAction">{{ showFeedback ? '下一题' : '提交答案' }}</button>
+      <button class="btn-primary mt-20 answer-action-btn" @click="handleAnswerAction">{{ showFeedback ? '下一题' : '提交答案' }}</button>
 
       <!-- 题目生成状态指示器 -->
-      <view class="ai-status" v-if="generatingCount > 0">
+      <view class="ai-status" v-if="showAiGeneratingStatus">
         <view class="ai-status-icon">🤖</view>
-        <text class="ai-status-text">正在生成第 {{ exercises.length + 1 }}-{{ Math.min(exercises.length + generatingCount, exerciseCount) }} 题...</text>
+        <text class="ai-status-text">正在生成第 {{ aiGeneratingStart }}-{{ aiGeneratingEnd }} 题...</text>
       </view>
     </view>
 
@@ -1017,8 +1017,15 @@ export default {
       completedCount() {
         return this.answeredCount + this.skippedCount
       },
+      displayProgressCount() {
+        if (!this.hasStarted || this.exerciseCount <= 0) return 0
+        if (!this.currentExercise) {
+          return Math.min(this.completedCount, this.exerciseCount)
+        }
+        return Math.min(this.currentIndex + 1, this.exerciseCount)
+      },
       progress() {
-        return this.exerciseCount ? (this.completedCount / this.exerciseCount) * 100 : 0
+        return this.exerciseCount ? (this.displayProgressCount / this.exerciseCount) * 100 : 0
       },
       accuracy() {
         return this.answeredCount ? Math.round((this.correctCount / this.answeredCount) * 100) : 0
@@ -1060,6 +1067,23 @@ export default {
       },
       showOtherOptionsSelector() {
         return !this.isSentenceWithPronounMode
+      },
+      remainingExerciseSlots() {
+        return Math.max(this.exerciseCount - this.exercises.length, 0)
+      },
+      effectiveGeneratingCount() {
+        return Math.min(this.generatingCount, this.remainingExerciseSlots)
+      },
+      showAiGeneratingStatus() {
+        return this.effectiveGeneratingCount > 0
+      },
+      aiGeneratingStart() {
+        if (this.exerciseCount <= 0) return 0
+        return Math.min(this.exercises.length + 1, this.exerciseCount)
+      },
+      aiGeneratingEnd() {
+        if (this.exerciseCount <= 0) return 0
+        return Math.min(this.exercises.length + this.effectiveGeneratingCount, this.exerciseCount)
       }
     },
   watch: {
@@ -1144,15 +1168,24 @@ export default {
       if (!this.imeVisible || !this.imeHeight || !inputId) return
       const query = uni.createSelectorQuery().in(this)
       query.select(`#${inputId}`).boundingClientRect()
+      query.select('.answer-action-btn').boundingClientRect()
       query.exec((res) => {
-        const rect = res[0]
-        if (!rect) return
+        const inputRect = res[0]
+        const actionButtonRect = res[1]
+        if (!inputRect) return
         const systemInfo = uni.getSystemInfoSync()
         const windowHeight = systemInfo.windowHeight || 0
-      const keyboardTop = windowHeight - this.imeHeight - this.imePopupHeight
-      const margin = 24
-        const originalBottom = rect.bottom + this.imeLift
-        const requiredLift = originalBottom > keyboardTop - margin ? originalBottom - (keyboardTop - margin) : 0
+        const keyboardTop = windowHeight - this.imeHeight - this.imePopupHeight
+        const margin = 24
+        const inputBottom = inputRect.bottom + this.imeLift
+        const shouldKeepActionVisible = this.exerciseType === 'sentence'
+        const actionButtonBottom = shouldKeepActionVisible && actionButtonRect
+          ? actionButtonRect.bottom + this.imeLift
+          : 0
+        const targetBottom = shouldKeepActionVisible
+          ? Math.max(inputBottom, actionButtonBottom)
+          : inputBottom
+        const requiredLift = targetBottom > keyboardTop - margin ? targetBottom - (keyboardTop - margin) : 0
         this.imeLift = requiredLift
       })
     },
@@ -1931,6 +1964,7 @@ export default {
             
             // 异步生成AI题目（如果需要）
             if (!this.isCustomPractice && aiPlans.length > 0) {
+              this.generationError = false
               console.log('开始异步生成AI题目计划:', aiPlans)
               this.generateAIPlansAsync(aiPlans)
             }
@@ -2071,6 +2105,7 @@ export default {
           if (res.success && res.exercise) {
             if (allowList && !allowList.has(res.exercise.verbId)) {
               failCount++
+              this.generationError = true
               console.warn('AI题目动词不在允许范围内，已跳过')
               continue
             }
@@ -2112,10 +2147,12 @@ export default {
             }
           } else {
             failCount++
+            this.generationError = true
             console.error(`生成第 ${i + 1} 个AI题目失败: API返回无效数据`)
           }
         } catch (error) {
           failCount++
+          this.generationError = true
           console.error(`生成第 ${i + 1} 个AI题目失败:`, error)
           
           // 如果是第一批题目且连续失败，提示用户
