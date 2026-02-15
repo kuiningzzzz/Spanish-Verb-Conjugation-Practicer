@@ -36,7 +36,7 @@
       <view v-if="currentList.length === 0" class="empty-placeholder">
         <text class="empty-icon">📚</text>
         <text class="empty-text">还没有收藏{{ selectedSentenceTypeLabel }}题目</text>
-        <text class="empty-hint">在练习时点击题目收藏按钮（📌）</text>
+        <text class="empty-hint">在练习时点击题目收藏按钮</text>
       </view>
 
       <!-- 题目卡片 -->
