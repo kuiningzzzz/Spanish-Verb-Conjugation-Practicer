@@ -4,19 +4,24 @@
     <view class="verb-info-card card">
       <view class="verb-header">
         <view class="verb-left">
-          <text class="verb-infinitive">{{ verbInfo.infinitive }}{{ verbInfo.isReflexive ? '(se)' : '' }}</text>
-          <view class="verb-badges">
-            <view v-if="verbInfo.isIrregular" class="badge badge-irregular">Irreg.</view>
-            <view v-if="verbInfo.isReflexive" class="badge badge-reflexive">Prnl.</view>
-            <view v-if="verbInfo.hasTrUse" class="badge badge-transitive">tr.</view>
-            <view v-if="verbInfo.hasIntrUse" class="badge badge-intransitive">intr.</view>
+          <view class="verb-title">
+            <text class="verb-infinitive">{{ verbInfo.infinitive }}{{ verbInfo.isReflexive ? '(se)' : '' }}</text>
+            <view v-if="verbInfo.conjugationType" class="badge badge-type">{{ verbInfo.conjugationType }}</view>
           </view>
         </view>
         <view class="favorite-icon" @click="toggleFavorite">
           <text class="star-icon" :class="{ 'favorited': isFavorited }">★</text>
         </view>
       </view>
-      <text class="verb-meaning">{{ verbInfo.meaning }}</text>
+      <view class="verb-meaning-row">
+        <text class="verb-meaning">{{ verbInfo.meaning }}</text>
+        <view class="verb-meta-badges">
+          <view v-if="verbInfo.isIrregular" class="badge badge-irregular">Irreg.</view>
+          <view v-if="verbInfo.isReflexive" class="badge badge-reflexive">Prnl.</view>
+          <view v-if="verbInfo.hasTrUse" class="badge badge-transitive">tr.</view>
+          <view v-if="verbInfo.hasIntrUse" class="badge badge-intransitive">intr.</view>
+        </view>
+      </view>
       
       <!-- 动词形式 -->
       <view class="verb-forms">
@@ -29,9 +34,6 @@
             <text class="form-label">Participio（过去分词）:</text>
             <text class="form-value">{{ getParticipleForms() }}</text>
           </view>
-        </view>
-        <view v-if="verbInfo.conjugationType" class="verb-forms-type">
-          <view class="badge badge-type">{{ verbInfo.conjugationType }}</view>
         </view>
       </view>
     </view>
@@ -528,8 +530,15 @@ export default {
 .verb-left {
   display: flex;
   align-items: center;
-  gap: 15rpx;
   flex: 1;
+  min-width: 0;
+}
+
+.verb-title {
+  display: flex;
+  align-items: center;
+  gap: 15rpx;
+  min-width: 0;
 }
 
 .verb-infinitive {
@@ -555,9 +564,21 @@ export default {
   text-shadow: 0 0 10rpx rgba(250, 219, 20, 0.5);
 }
 
-.verb-badges {
+.verb-meta-badges {
   display: flex;
-  gap: 15rpx;
+  gap: 8rpx;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  justify-content: flex-end;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.verb-meta-badges .badge {
+  font-size: 20rpx;
+  padding: 6rpx 14rpx;
+  border-radius: 16rpx;
+  white-space: nowrap;
 }
 
 .badge {
@@ -591,16 +612,23 @@ export default {
   color: #43a047;
 }
 
+.verb-meaning-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 20rpx;
+  margin-bottom: 25rpx;
+}
+
 .verb-meaning {
   font-size: 32rpx;
   color: #666;
-  margin-bottom: 25rpx;
+  flex: 1;
+  min-width: 0;
 }
 
 .verb-forms {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 20rpx;
   padding-top: 20rpx;
   border-top: 1rpx solid #f0f0f0;
@@ -612,13 +640,6 @@ export default {
   gap: 15rpx;
   flex: 1;
   min-width: 0;
-}
-
-.verb-forms-type {
-  min-width: 160rpx;
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-start;
 }
 
 .verb-form-item {
