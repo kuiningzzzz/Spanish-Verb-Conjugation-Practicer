@@ -2241,6 +2241,13 @@ export default {
       })
       
       for (let i = 0; i < count; i++) {
+        // 每次生成前检查用户是否仍在练习状态
+        // 如果用户已退出练习（比如点击了完成按钮回到配置界面），则停止生成
+        if (!this.hasStarted && this.exercises.length === 0) {
+          console.log(`用户已退出练习，停止AI题目生成任务`)
+          break
+        }
+        
         try {
           console.log(`正在生成第 ${i + 1}/${count} 个AI题目`)
           
@@ -2295,9 +2302,16 @@ export default {
                   this.aiGeneratingReadyCount + 1,
                   Math.max(this.aiGeneratingRangeEnd - this.aiGeneratingRangeStart + 1, 0)
                 )
-                console.log(`第一个AI题目已生成，开始练习`)
-                uni.hideToast()
-                this.goToExercise(0, true)
+                console.log(`第一个AI题目已生成`)
+                // 只有当用户确实在等待题目时（hasStarted为true）才自动开始练习
+                // 避免用户已经完成练习后AI题目还强制跳转到练习界面
+                if (this.hasStarted) {
+                  uni.hideToast()
+                  this.goToExercise(0, true)
+                  console.log(`开始练习`)
+                } else {
+                  console.log(`用户已退出练习，不自动跳转`)
+                }
               } else {
                 // 随机插入到当前题目之后
                 const insertStart = this.currentIndex + 1
