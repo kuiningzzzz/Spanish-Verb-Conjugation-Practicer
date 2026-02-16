@@ -234,7 +234,7 @@ class ExerciseGeneratorService {
       imperative: { hostForm: 'imperative', hostFormZh: '命令式（肯定）' },
       infinitive: { hostForm: 'infinitive', hostFormZh: '不定式' },
       gerund: { hostForm: 'gerund', hostFormZh: '副动词' },
-      reflexive: { hostForm: 'prnl', hostFormZh: '代词动词（自复）' }
+      reflexive: { hostForm: 'prnl', hostFormZh: '自反动词' }
     }
   }
 
@@ -533,7 +533,7 @@ class ExerciseGeneratorService {
       if (!verb.infinitive) return null
       return {
         host_form: 'prnl',
-        host_form_zh: '代词动词（自复）',
+        host_form_zh: '自反动词',
         pronoun_pattern: '',
         mood: 'Pronominal',
         tense: 'No aplica',
@@ -741,17 +741,17 @@ class ExerciseGeneratorService {
     // 快变快填和组合填空：直接用固定算法生成所有题目（同步、不使用AI）
     if (exerciseType === 'quick-fill' || exerciseType === 'combo-fill') {
       console.log(`批量生成 - 使用传统算法生成${exerciseType === 'quick-fill' ? '快变快填' : '组合填空'}题: ${count}个`)
-      
+
       // 使用Set来跟踪已生成的题目，避免重复
       const generatedKeys = new Set()
       const maxAttempts = count * 10 // 最大尝试次数，避免无限循环
       let attempts = 0
-      
+
       while (exercises.length < count && attempts < maxAttempts) {
         attempts++
         try {
           const exercise = this.generateTraditionalExercise(options)
-          
+
           // 生成唯一键
           let key
           if (exerciseType === 'quick-fill') {
@@ -759,7 +759,7 @@ class ExerciseGeneratorService {
           } else {
             key = `${exercise.verbId}-${exercise.mood}`
           }
-          
+
           // 检查是否重复
           if (!generatedKeys.has(key)) {
             generatedKeys.add(key)
@@ -771,12 +771,12 @@ class ExerciseGeneratorService {
           continue
         }
       }
-      
+
       // 如果尝试次数用完还没达到要求的数量，输出警告
       if (exercises.length < count) {
         console.warn(`警告: 只生成了 ${exercises.length}/${count} 个不重复的题目`)
       }
-      
+
       return { exercises, questionPool: [] }
     }
 
@@ -1109,7 +1109,7 @@ class ExerciseGeneratorService {
     let lastError = ''
     const enableRevisorV2 = this.toBooleanFlag(
       process.env.EXERCISE_GENERATOR_CONJ_WITH_PRONOUN_ENABLE_REVISOR_V2
-        ?? process.env.CONJ_WITH_PRONOUN_ENABLE_REVISOR_V2
+      ?? process.env.CONJ_WITH_PRONOUN_ENABLE_REVISOR_V2
     )
     const pipelineMode = enableRevisorV2 ? 'G-V1-R-V2' : 'G-V1'
 
@@ -1913,7 +1913,7 @@ class ExerciseGeneratorService {
       options.moods,
       tenses
     )
-    
+
     filteredConjugations = this.filterConjugationsByPronounSettings(
       filteredConjugations,
       options.includeVos,
@@ -1935,7 +1935,7 @@ class ExerciseGeneratorService {
         filteredConjugations,
         options.reduceRareTenseFrequency
       )
-      
+
       const exercise = {
         verbId: verb.id,
         infinitive: verb.infinitive,
@@ -1956,7 +1956,7 @@ class ExerciseGeneratorService {
           givenConjugation.mood
         )
       }
-      
+
       return exercise
     }
 
@@ -1965,7 +1965,7 @@ class ExerciseGeneratorService {
       if (filteredConjugations.length < 6) {
         throw new Error('该动词在所选范围内的变位数少于6个，无法生成组合填空题')
       }
-      
+
       // 逐个按时态类别加权抽样，且不重复
       const pool = [...filteredConjugations]
       const selectedConjugations = []
@@ -1979,7 +1979,7 @@ class ExerciseGeneratorService {
       if (selectedConjugations.length < 6) {
         throw new Error('该动词在所选范围内的变位数少于6个，无法生成组合填空题')
       }
-      
+
       // 构建组合填空题目
       const comboItems = selectedConjugations.map(c => ({
         tense: this.normalizeTenseName(c.tense),
@@ -1987,7 +1987,7 @@ class ExerciseGeneratorService {
         person: c.person,
         correctAnswer: c.conjugated_form
       }))
-      
+
       const exercise = {
         verbId: verb.id,
         infinitive: verb.infinitive,
@@ -2001,7 +2001,7 @@ class ExerciseGeneratorService {
         comboItems: comboItems,
         correctAnswer: comboItems[0].correctAnswer  // 用于统计的代表答案
       }
-      
+
       return exercise
     }
 
@@ -2010,7 +2010,7 @@ class ExerciseGeneratorService {
       filteredConjugations,
       options.reduceRareTenseFrequency
     )
-    
+
     const exercise = {
       verbId: verb.id,
       infinitive: verb.infinitive,
