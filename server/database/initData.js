@@ -110,10 +110,11 @@ function importFromVerbsJson(filePath) {
   const insertVerb = db.prepare(`
     INSERT INTO verbs (
       infinitive, meaning, conjugation_type, is_irregular, is_reflexive,
-      has_tr_use, has_intr_use, gerund, participle, participle_forms,
+      has_tr_use, has_intr_use, supports_do, supports_io, supports_do_io,
+      gerund, participle, participle_forms,
       frequency_level, textbook_volume
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
   `)
 
   const insertConjugation = db.prepare(`
@@ -159,6 +160,9 @@ function importFromVerbsJson(filePath) {
       // 是否包含及物/不及物用法
       const hasTrUse = toBooleanInt(verbData.has_tr_use, 0)
       const hasIntrUse = toBooleanInt(verbData.has_intr_use, 0)
+      const supportsDo = toBooleanInt(verbData.supports_do, null)
+      const supportsIo = toBooleanInt(verbData.supports_io, null)
+      const supportsDoIo = toBooleanInt(verbData.supports_do_io, null)
       
       // 副动词（gerund）
       const gerund = verbData.gerund || null
@@ -194,6 +198,9 @@ function importFromVerbsJson(filePath) {
         isReflexive, 
         hasTrUse,
         hasIntrUse,
+        supportsDo,
+        supportsIo,
+        supportsDoIo,
         gerund, 
         participle,
         participleForms,

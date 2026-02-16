@@ -358,6 +358,23 @@
       font-size: 13px;
     }
 
+    .filter-select-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .filter-select {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 8px;
+      background: #ffffff;
+      color: var(--text);
+      min-width: 128px;
+    }
+
     .row-meta {
       margin: 2px 0 12px;
       font-size: 13px;
@@ -561,7 +578,9 @@
     (function () {
       const STORAGE_KEY = 'admin_experiment_results_v1';
 
-      const REQUIRED_HEADERS = [
+      const EMPTY_FILTER_VALUE = '__EMPTY_FILTER__';
+
+      const LEGACY_REQUIRED_HEADERS = [
         'verb_infinitive',
         'verb_meaning',
         'conjugation_mood',
@@ -598,6 +617,49 @@
         'validator_rewrite_advice'
       ];
 
+      const PRONOUN_REQUIRED_HEADERS = [
+        'verb_infinitive',
+        'verb_meaning',
+        'host_form',
+        'host_form_zh',
+        'pronoun_pattern',
+        'mood',
+        'tense',
+        'person',
+        'io_pronoun',
+        'do_pronoun',
+        'question_sentence',
+        'question_answer',
+        'question_translation',
+        'question_hint',
+        'revised_sentence',
+        'revisor_reason',
+        'generator_prompt_index',
+        'generator_model',
+        'generator_temperature',
+        'validator_used',
+        'validator_prompt_index',
+        'validator_model',
+        'validator_temperature',
+        'revisor_used',
+        'revisor_prompt_index',
+        'revisor_model',
+        'revisor_temperature',
+        'validator_1_is_valid',
+        'validator_1_has_unique_answer',
+        'validator_1_reason',
+        'validator_1_rewrite_advice',
+        'validator_2_is_valid',
+        'validator_2_has_unique_answer',
+        'validator_2_reason',
+        'validator_2_rewrite_advice',
+        'validator_is_valid',
+        'validator_has_unique_answer',
+        'validator_reason',
+        'validator_rewrite_advice',
+        'error'
+      ];
+
       const FIELD_LABELS = {
         verb_infinitive: '动词原形',
         verb_meaning: '动词释义',
@@ -632,84 +694,199 @@
         validator_is_valid: '最终校验是否有效',
         validator_has_unique_answer: '最终校验是否唯一解',
         validator_reason: '最终校验原因',
-        validator_rewrite_advice: '最终校验建议'
+        validator_rewrite_advice: '最终校验建议',
+        host_form: 'host_form',
+        host_form_zh: 'host_form 中文',
+        pronoun_pattern: 'pronoun_pattern',
+        mood: '语气',
+        tense: '时态',
+        person: '人称',
+        io_pronoun: 'IO 代词',
+        do_pronoun: 'DO 代词',
+        validator_model: 'Validator 模型',
+        validator_temperature: 'Validator 温度',
+        revisor_model: 'Revisor 模型',
+        error: '错误'
       };
 
-      const STAGES = [
-        {
-          key: 'generator',
-          title: 'Generator 输出',
-          description: '题目生成与基础上下文字段',
-          fields: [
-            'verb_infinitive',
-            'verb_meaning',
-            'conjugation_mood',
-            'conjugation_tense',
-            'conjugation_person',
-            'conjugation_form',
-            'question_sentence',
-            'question_answer',
-            'question_translation',
-            'question_hint',
-            'question_error',
-            'generator_prompt_index',
-            'generator_model',
-            'generator_temperature'
+      const SCHEMA_CONFIG = {
+        legacy_conjugation: {
+          key: 'legacy_conjugation',
+          label: '传统变位实验',
+          requiredHeaders: LEGACY_REQUIRED_HEADERS,
+          rowMetaFields: [
+            { key: 'conjugation_tense', label: '时态' },
+            { key: 'conjugation_person', label: '人称' }
+          ],
+          filterFields: [
+            { key: 'conjugation_person', label: '人称', allLabel: '全部人称', emptyLabel: '空人称' },
+            { key: 'conjugation_tense', label: '时态', allLabel: '全部时态', emptyLabel: '空时态' }
+          ],
+          analysisDimensions: [
+            { key: 'conjugation_person', title: '各人称通过率', columnLabel: '人称', emptyText: '无人称数据', fallback: '未标注人称' },
+            { key: 'conjugation_tense', title: '各时态通过率', columnLabel: '时态', emptyText: '无时态数据', fallback: '未标注时态' }
+          ],
+          stages: [
+            {
+              key: 'generator',
+              title: 'Generator 输出',
+              description: '题目生成与基础上下文字段',
+              fields: [
+                'verb_infinitive',
+                'verb_meaning',
+                'conjugation_mood',
+                'conjugation_tense',
+                'conjugation_person',
+                'conjugation_form',
+                'question_sentence',
+                'question_answer',
+                'question_translation',
+                'question_hint',
+                'question_error',
+                'generator_prompt_index',
+                'generator_model',
+                'generator_temperature'
+              ]
+            },
+            {
+              key: 'validator_1',
+              title: 'Validator-1 输出',
+              description: '第一轮校验结果',
+              fields: [
+                'validator_used',
+                'validator_prompt_index',
+                'validator_1_is_valid',
+                'validator_1_has_unique_answer',
+                'validator_1_reason',
+                'validator_1_rewrite_advice'
+              ]
+            },
+            {
+              key: 'revisor',
+              title: 'Revisor 输出',
+              description: '重写与修正结果',
+              fields: [
+                'revisor_used',
+                'revisor_prompt_index',
+                'revisor_temperature',
+                'revised_sentence',
+                'revisor_reason',
+                'revised_question_error'
+              ]
+            },
+            {
+              key: 'validator_2',
+              title: 'Validator-2 输出',
+              description: '第二轮校验与最终结论',
+              fields: [
+                'validator_2_is_valid',
+                'validator_2_has_unique_answer',
+                'validator_2_reason',
+                'validator_2_rewrite_advice',
+                'validator_is_valid',
+                'validator_has_unique_answer',
+                'validator_reason',
+                'validator_rewrite_advice'
+              ]
+            }
           ]
         },
-        {
-          key: 'validator_1',
-          title: 'Validator-1 输出',
-          description: '第一轮校验结果',
-          fields: [
-            'validator_used',
-            'validator_prompt_index',
-            'validator_1_is_valid',
-            'validator_1_has_unique_answer',
-            'validator_1_reason',
-            'validator_1_rewrite_advice'
-          ]
-        },
-        {
-          key: 'revisor',
-          title: 'Revisor 输出',
-          description: '重写与修正结果',
-          fields: [
-            'revisor_used',
-            'revisor_prompt_index',
-            'revisor_temperature',
-            'revised_sentence',
-            'revisor_reason',
-            'revised_question_error'
-          ]
-        },
-        {
-          key: 'validator_2',
-          title: 'Validator-2 输出',
-          description: '第二轮校验与最终结论',
-          fields: [
-            'validator_2_is_valid',
-            'validator_2_has_unique_answer',
-            'validator_2_reason',
-            'validator_2_rewrite_advice',
-            'validator_is_valid',
-            'validator_has_unique_answer',
-            'validator_reason',
-            'validator_rewrite_advice'
+        conjugation_with_pronoun: {
+          key: 'conjugation_with_pronoun',
+          label: '动词+代词实验',
+          requiredHeaders: PRONOUN_REQUIRED_HEADERS,
+          rowMetaFields: [
+            { key: 'host_form', label: 'host_form' },
+            { key: 'pronoun_pattern', label: 'pronoun_pattern' }
+          ],
+          filterFields: [
+            { key: 'host_form', label: 'host_form', allLabel: '全部 host_form', emptyLabel: '空 host_form' },
+            { key: 'pronoun_pattern', label: 'pronoun_pattern', allLabel: '全部 pronoun_pattern', emptyLabel: '空 pronoun_pattern' }
+          ],
+          analysisDimensions: [
+            { key: 'host_form', title: '各 host_form 通过率', columnLabel: 'host_form', emptyText: '无 host_form 数据', fallback: '未标注 host_form' },
+            { key: 'pronoun_pattern', title: '各 pronoun_pattern 通过率', columnLabel: 'pronoun_pattern', emptyText: '无 pronoun_pattern 数据', fallback: '未标注 pronoun_pattern' }
+          ],
+          stages: [
+            {
+              key: 'generator',
+              title: 'Generator 输出',
+              description: '题目生成与代词相关字段',
+              fields: [
+                'verb_infinitive',
+                'verb_meaning',
+                'host_form',
+                'host_form_zh',
+                'pronoun_pattern',
+                'mood',
+                'tense',
+                'person',
+                'io_pronoun',
+                'do_pronoun',
+                'question_sentence',
+                'question_answer',
+                'question_translation',
+                'question_hint',
+                'generator_prompt_index',
+                'generator_model',
+                'generator_temperature'
+              ]
+            },
+            {
+              key: 'validator_1',
+              title: 'Validator-1 输出',
+              description: '第一轮校验结果',
+              fields: [
+                'validator_used',
+                'validator_prompt_index',
+                'validator_model',
+                'validator_temperature',
+                'validator_1_is_valid',
+                'validator_1_has_unique_answer',
+                'validator_1_reason',
+                'validator_1_rewrite_advice'
+              ]
+            },
+            {
+              key: 'revisor',
+              title: 'Revisor 输出',
+              description: '重写与修正结果',
+              fields: [
+                'revisor_used',
+                'revisor_prompt_index',
+                'revisor_model',
+                'revisor_temperature',
+                'revised_sentence',
+                'revisor_reason'
+              ]
+            },
+            {
+              key: 'validator_2',
+              title: 'Validator-2 输出',
+              description: '第二轮校验与最终结论',
+              fields: [
+                'validator_2_is_valid',
+                'validator_2_has_unique_answer',
+                'validator_2_reason',
+                'validator_2_rewrite_advice',
+                'validator_is_valid',
+                'validator_has_unique_answer',
+                'validator_reason',
+                'validator_rewrite_advice',
+                'error'
+              ]
+            }
           ]
         }
-      ].map((stage) => {
-        return {
-          key: stage.key,
-          title: stage.title,
-          description: stage.description,
-          fields: stage.fields.map((fieldKey) => {
-            return {
-              key: fieldKey,
-              label: FIELD_LABELS[fieldKey] || fieldKey
-            };
-          })
-        };
+      };
+
+      const SCHEMA_KEYS = Object.keys(SCHEMA_CONFIG);
+      const DEFAULT_SCHEMA_KEY = SCHEMA_KEYS[0];
+
+      SCHEMA_KEYS.forEach((schemaKey) => {
+        const schema = SCHEMA_CONFIG[schemaKey];
+        schema.stageDefs = mapStages(schema.stages);
+        schema.knownHeaders = collectSchemaHeaders(schema);
       });
 
       const appEl = document.getElementById('app');
@@ -722,6 +899,7 @@
         viewerMode: 'detail',
         filterV1Failed: false,
         filterV2Failed: false,
+        detailFieldFilters: {},
         currentRowIndex: 0,
         currentStageIndex: 0,
         currentModelIndex: 0,
@@ -829,6 +1007,16 @@
           state.currentRowIndex = 0;
           normalizeUiState();
           render();
+          return;
+        }
+        if (action === 'filter-field') {
+          const field = event.target.getAttribute('data-field') || '';
+          if (!field) return;
+          state.detailFieldFilters[field] = String(event.target.value || '');
+          state.currentRowIndex = 0;
+          state.currentModelIndex = 0;
+          normalizeUiState();
+          render();
         }
       }
 
@@ -859,6 +1047,9 @@
               '<span class="tag">' +
               escapeHtml(String(entry.rowCount)) +
               ' 行</span>' +
+              '<span class="tag">' +
+              escapeHtml(getSchemaLabel(entry.schemaKey)) +
+              '</span>' +
               '<span class="accordion-arrow">' +
               (expanded ? '−' : '+') +
               '</span>' +
@@ -901,7 +1092,7 @@
           '>清空缓存</button>' +
           '</div>' +
           '</div>' +
-          '<p class="hint">字段必须与 <code>prompt_matrix_1.csv</code> 完全一致（含顺序）。</p>' +
+          '<p class="hint">支持传统变位实验 CSV 与 conjugation_with_pronoun CSV。字段顺序不限，但必须包含对应实验类型的必需字段。</p>' +
           (state.errorMessage ? '<p class="error">' + escapeHtml(state.errorMessage) + '</p>' : '') +
           (state.successMessage ? '<p class="success-message">' + escapeHtml(state.successMessage) + '</p>' : '') +
           '<div class="entry-section">' +
@@ -941,11 +1132,15 @@
               (detailRows.length ? state.currentRowIndex + 1 : 0) +
               ' / ' +
               detailRows.length +
-              ' 行</p>'
+              ' 行 ｜ ' +
+              escapeHtml(getSchemaLabel(derived.activeEntry.schemaKey)) +
+              '</p>'
             : '<p class="muted">模型页 ' +
               (modelStatsPages.length ? state.currentModelIndex + 1 : 0) +
               ' / ' +
               modelStatsPages.length +
+              ' ｜ ' +
+              escapeHtml(getSchemaLabel(derived.activeEntry.schemaKey)) +
               '</p>') +
           '</div>' +
           '<div class="viewer-mode-switch">' +
@@ -969,7 +1164,8 @@
       function renderDetailViewer(derived) {
         const detailRows = derived.detailRows;
         const currentRow = derived.currentRow;
-        const stageTabs = STAGES.map((stage, index) => {
+        const stages = derived.stages;
+        const stageTabs = stages.map((stage, index) => {
           return (
             '<button class="stage-tab' +
             (index === state.currentStageIndex ? ' active' : '') +
@@ -981,7 +1177,7 @@
           );
         }).join('');
 
-        const stagePanes = STAGES.map((stage) => {
+        const stagePanes = stages.map((stage) => {
           const fieldItems = stage.fields
             .map((field) => {
               const value = currentRow ? currentRow[field.key] : '';
@@ -1019,6 +1215,39 @@
           );
         }).join('');
 
+        const dimensionFilterControls = derived.dimensionFilterOptions
+          .map((filterConfig) => {
+            const optionHtml = [
+              '<option value="">' + escapeHtml(filterConfig.allLabel) + '</option>'
+            ]
+              .concat(
+                filterConfig.options.map((option) => {
+                  return (
+                    '<option value="' +
+                    escapeHtml(option.value) +
+                    '"' +
+                    (option.value === filterConfig.currentValue ? ' selected' : '') +
+                    '>' +
+                    escapeHtml(option.label) +
+                    '</option>'
+                  );
+                })
+              )
+              .join('');
+
+            return (
+              '<label class="filter-select-wrap">' +
+              escapeHtml(filterConfig.label) +
+              '<select class="filter-select" data-action="filter-field" data-field="' +
+              escapeHtml(filterConfig.key) +
+              '">' +
+              optionHtml +
+              '</select>' +
+              '</label>'
+            );
+          })
+          .join('');
+
         return (
           '<div class="detail-filter-bar">' +
           '<label class="filter-checkbox">' +
@@ -1033,6 +1262,7 @@
               ' />' +
               'V2 未通过</label>'
             : '') +
+          dimensionFilterControls +
           '<button class="ghost" data-action="clear-detail-filters"' +
           (derived.hasDetailFilters ? '' : ' disabled') +
           '>取消筛选</button>' +
@@ -1053,12 +1283,8 @@
               (derived.canNextRow ? '' : ' disabled') +
               '>下一行</button>' +
               '</div>' +
-              '<p class="row-meta muted">动词：' +
-              escapeHtml(formatFieldValue(currentRow ? currentRow.verb_infinitive : '')) +
-              ' ｜ 时态：' +
-              escapeHtml(formatFieldValue(currentRow ? currentRow.conjugation_tense : '')) +
-              ' ｜ 人称：' +
-              escapeHtml(formatFieldValue(currentRow ? currentRow.conjugation_person : '')) +
+              '<p class="row-meta muted">' +
+              escapeHtml(buildRowMetaText(currentRow, derived.activeSchema)) +
               '</p>' +
               '<div class="stage-tabs">' +
               stageTabs +
@@ -1093,49 +1319,47 @@
           return '';
         }
 
-        const personRows = activeModelStats.personRates.length
-          ? activeModelStats.personRates
-              .map((item) => {
-                return (
-                  '<tr>' +
-                  '<td>' +
-                  escapeHtml(item.name) +
-                  '</td>' +
-                  '<td>' +
-                  escapeHtml(formatRate(item.rate)) +
-                  '</td>' +
-                  '<td>' +
-                  item.pass +
-                  ' / ' +
-                  item.total +
-                  '</td>' +
-                  '</tr>'
-                );
-              })
-              .join('')
-          : '<tr><td colspan="3" class="empty">无人称数据</td></tr>';
+        const dimensionTableHtml = activeModelStats.dimensionSections
+          .map((section) => {
+            const rowsHtml = section.rates.length
+              ? section.rates
+                  .map((item) => {
+                    return (
+                      '<tr>' +
+                      '<td>' +
+                      escapeHtml(item.name) +
+                      '</td>' +
+                      '<td>' +
+                      escapeHtml(formatRate(item.rate)) +
+                      '</td>' +
+                      '<td>' +
+                      item.pass +
+                      ' / ' +
+                      item.total +
+                      '</td>' +
+                      '</tr>'
+                    );
+                  })
+                  .join('')
+              : '<tr><td colspan="3" class="empty">' + escapeHtml(section.emptyText) + '</td></tr>';
 
-        const tenseRows = activeModelStats.tenseRates.length
-          ? activeModelStats.tenseRates
-              .map((item) => {
-                return (
-                  '<tr>' +
-                  '<td>' +
-                  escapeHtml(item.name) +
-                  '</td>' +
-                  '<td>' +
-                  escapeHtml(formatRate(item.rate)) +
-                  '</td>' +
-                  '<td>' +
-                  item.pass +
-                  ' / ' +
-                  item.total +
-                  '</td>' +
-                  '</tr>'
-                );
-              })
-              .join('')
-          : '<tr><td colspan="3" class="empty">无时态数据</td></tr>';
+            return (
+              '<div class="analysis-table-wrap">' +
+              '<h4>' +
+              escapeHtml(section.title) +
+              '</h4>' +
+              '<table class="table compact-table">' +
+              '<thead><tr><th>' +
+              escapeHtml(section.columnLabel) +
+              '</th><th>通过率</th><th>通过 / 总数</th></tr></thead>' +
+              '<tbody>' +
+              rowsHtml +
+              '</tbody>' +
+              '</table>' +
+              '</div>'
+            );
+          })
+          .join('');
 
         return (
           '<div class="analysis-nav">' +
@@ -1155,7 +1379,7 @@
           '<h4>模型：' +
           escapeHtml(activeModelStats.model) +
           '</h4>' +
-          '<p class="muted">按模型汇总当前 CSV 的通过率统计。</p>' +
+          '<p class="muted">按模型汇总当前筛选范围内的通过率统计。</p>' +
           '</div>' +
           '<div class="stats-grid analysis-kpis">' +
           '<article class="stat-card">' +
@@ -1198,45 +1422,35 @@
           '</p>' +
           '</article>' +
           '</div>' +
-          '<div class="analysis-table-wrap">' +
-          '<h4>各人称通过率</h4>' +
-          '<table class="table compact-table">' +
-          '<thead><tr><th>人称</th><th>通过率</th><th>通过 / 总数</th></tr></thead>' +
-          '<tbody>' +
-          personRows +
-          '</tbody>' +
-          '</table>' +
-          '</div>' +
-          '<div class="analysis-table-wrap">' +
-          '<h4>各时态通过率</h4>' +
-          '<table class="table compact-table">' +
-          '<thead><tr><th>时态</th><th>通过率</th><th>通过 / 总数</th></tr></thead>' +
-          '<tbody>' +
-          tenseRows +
-          '</tbody>' +
-          '</table>' +
-          '</div>'
+          dimensionTableHtml
         );
       }
 
       function deriveState() {
         const activeEntry = state.entries.find((item) => item.id === state.activeEntryId) || null;
+        const activeSchema = getSchemaByKey(activeEntry ? activeEntry.schemaKey : '');
         const activeRows = Array.isArray(activeEntry && activeEntry.rows) ? activeEntry.rows : [];
-        const detailRows = getDetailRows(activeRows);
-        const modelStatsPages = buildModelStats(activeRows);
+        const fieldFilteredRows = getRowsByFieldFilters(activeRows, activeSchema);
+        const detailRows = getDetailRows(fieldFilteredRows);
+        const modelStatsPages = buildModelStats(fieldFilteredRows, activeSchema);
+        const stages = activeSchema.stageDefs;
 
         return {
           activeEntry: activeEntry,
+          activeSchema: activeSchema,
+          stages: stages,
           activeRows: activeRows,
+          fieldFilteredRows: fieldFilteredRows,
           detailRows: detailRows,
           currentRow: detailRows[state.currentRowIndex] || null,
           modelStatsPages: modelStatsPages,
           activeModelStats: modelStatsPages[state.currentModelIndex] || null,
-          hasDetailFilters: state.filterV1Failed || state.filterV2Failed,
+          dimensionFilterOptions: buildDimensionFilterOptions(activeRows, activeSchema),
+          hasDetailFilters: state.filterV1Failed || state.filterV2Failed || hasActiveFieldFilters(activeSchema),
           canPrevRow: state.currentRowIndex > 0,
           canNextRow: state.currentRowIndex < detailRows.length - 1,
           canPrevStage: state.currentStageIndex > 0,
-          canNextStage: state.currentStageIndex < STAGES.length - 1,
+          canNextStage: state.currentStageIndex < stages.length - 1,
           canPrevModel: state.currentModelIndex > 0,
           canNextModel: state.currentModelIndex < modelStatsPages.length - 1
         };
@@ -1255,6 +1469,10 @@
           state.entries = [];
         }
 
+        if (!state.detailFieldFilters || typeof state.detailFieldFilters !== 'object') {
+          state.detailFieldFilters = {};
+        }
+
         if (!state.entries.some((item) => item.id === state.expandedEntryId)) {
           state.expandedEntryId = '';
         }
@@ -1265,11 +1483,22 @@
           state.isViewerVisible = false;
         }
 
-        state.currentStageIndex = clamp(state.currentStageIndex, 0, STAGES.length - 1);
+        const activeSchema = getSchemaByKey(activeEntry ? activeEntry.schemaKey : '');
+        const validFilterKeys = new Set(activeSchema.filterFields.map((item) => item.key));
+        Object.keys(state.detailFieldFilters).forEach((key) => {
+          if (!validFilterKeys.has(key)) {
+            delete state.detailFieldFilters[key];
+            return;
+          }
+          state.detailFieldFilters[key] = String(state.detailFieldFilters[key] || '');
+        });
+
+        state.currentStageIndex = clamp(state.currentStageIndex, 0, activeSchema.stageDefs.length - 1);
 
         const activeRows = Array.isArray(activeEntry && activeEntry.rows) ? activeEntry.rows : [];
-        const detailRows = getDetailRows(activeRows);
-        const modelStatsPages = buildModelStats(activeRows);
+        const fieldFilteredRows = getRowsByFieldFilters(activeRows, activeSchema);
+        const detailRows = getDetailRows(fieldFilteredRows);
+        const modelStatsPages = buildModelStats(fieldFilteredRows, activeSchema);
 
         state.currentRowIndex = detailRows.length ? clamp(state.currentRowIndex, 0, detailRows.length - 1) : 0;
         state.currentModelIndex = modelStatsPages.length ? clamp(state.currentModelIndex, 0, modelStatsPages.length - 1) : 0;
@@ -1290,9 +1519,10 @@
       function normalizeEntry(entry) {
         if (!entry || typeof entry !== 'object') return null;
         if (!Array.isArray(entry.rows)) return null;
+        const schema = resolveEntrySchema(entry);
         const normalizedRows = entry.rows.map((row) => {
           const mapped = {};
-          REQUIRED_HEADERS.forEach((header) => {
+          schema.knownHeaders.forEach((header) => {
             mapped[header] = row && row[header] !== undefined && row[header] !== null ? row[header] : '';
           });
           return mapped;
@@ -1302,6 +1532,7 @@
           fileName: String(entry.fileName || 'unknown.csv'),
           uploadedAt: String(entry.uploadedAt || ''),
           rowCount: Number(entry.rowCount !== undefined ? entry.rowCount : normalizedRows.length) || normalizedRows.length,
+          schemaKey: schema.key,
           rows: normalizedRows
         };
       }
@@ -1337,21 +1568,22 @@
             return textValue.trim();
           });
 
-          const headerError = validateHeaders(headers);
-          if (headerError) {
-            throw new Error(headerError);
+          const schemaMatch = detectSchemaByHeaders(headers);
+          if (!schemaMatch.schema) {
+            throw new Error(schemaMatch.error);
           }
 
           const rows = parsed
             .slice(1)
             .filter(hasAnyCellValue)
-            .map((row) => mapRowToObject(headers, row));
+            .map((row) => mapRowToObject(schemaMatch.schema, headers, row));
 
           const nextEntry = {
             id: createEntryId(),
             fileName: file.name || 'uploaded.csv',
             uploadedAt: new Date().toISOString(),
             rowCount: rows.length,
+            schemaKey: schemaMatch.schema.key,
             rows: rows
           };
 
@@ -1365,7 +1597,7 @@
           state.entries = nextEntries;
           state.expandedEntryId = nextEntry.id;
           state.isViewerVisible = false;
-          state.successMessage = '导入成功：' + nextEntry.fileName + '（' + rows.length + ' 行）';
+          state.successMessage = '导入成功：' + nextEntry.fileName + '（' + rows.length + ' 行，' + schemaMatch.schema.label + '）';
         } catch (error) {
           state.errorMessage = error && error.message ? error.message : '导入失败，请检查文件格式。';
         } finally {
@@ -1384,28 +1616,35 @@
         return Date.now() + '-' + Math.random().toString(36).slice(2, 10);
       }
 
-      function validateHeaders(headers) {
-        if (headers.length !== REQUIRED_HEADERS.length) {
-          return 'CSV 字段数量不匹配：期望 ' + REQUIRED_HEADERS.length + ' 列，实际 ' + headers.length + ' 列。';
+      function detectSchemaByHeaders(headers) {
+        const headerSet = new Set(headers);
+        const matches = SCHEMA_KEYS
+          .map((key) => SCHEMA_CONFIG[key])
+          .filter((schema) => schema.requiredHeaders.every((field) => headerSet.has(field)));
+
+        if (!matches.length) {
+          const lines = SCHEMA_KEYS.map((key) => {
+            const schema = SCHEMA_CONFIG[key];
+            const missing = schema.requiredHeaders.filter((field) => !headerSet.has(field));
+            return ' - ' + schema.label + ' 缺少字段：' + (missing.length ? missing.slice(0, 8).join(', ') + (missing.length > 8 ? ' ...' : '') : '无');
+          });
+          return {
+            schema: null,
+            error: 'CSV 不匹配已支持的实验类型，无法导入。\n' + lines.join('\n')
+          };
         }
-        const mismatchIndex = REQUIRED_HEADERS.findIndex((field, index) => headers[index] !== field);
-        if (mismatchIndex !== -1) {
-          return (
-            'CSV 字段不匹配：第 ' +
-            (mismatchIndex + 1) +
-            ' 列应为 "' +
-            REQUIRED_HEADERS[mismatchIndex] +
-            '"，实际为 "' +
-            (headers[mismatchIndex] || '') +
-            '"。'
-          );
-        }
-        return '';
+
+        matches.sort((a, b) => b.requiredHeaders.length - a.requiredHeaders.length);
+        return { schema: matches[0], error: '' };
       }
 
-      function mapRowToObject(headers, row) {
+      function mapRowToObject(schema, headers, row) {
         const mapped = {};
+        schema.knownHeaders.forEach((header) => {
+          mapped[header] = '';
+        });
         headers.forEach((header, index) => {
+          if (!Object.prototype.hasOwnProperty.call(mapped, header)) return;
           mapped[header] = row[index] !== undefined && row[index] !== null ? row[index] : '';
         });
         return mapped;
@@ -1493,9 +1732,10 @@
         return rows;
       }
 
-      function buildModelStats(rows) {
+      function buildModelStats(rows, schema) {
         if (!Array.isArray(rows) || !rows.length) return [];
         const modelMap = new Map();
+        const activeSchema = schema || getSchemaByKey('');
 
         rows.forEach((row) => {
           const model = normalizeDimension(row ? row.generator_model : '', '未标注模型');
@@ -1505,20 +1745,24 @@
         });
 
         return Array.from(modelMap.entries())
-          .map((entry) => buildSingleModelStats(entry[0], entry[1]))
+          .map((entry) => buildSingleModelStats(entry[0], entry[1], activeSchema))
           .sort((a, b) => {
             if (b.totalRows !== a.totalRows) return b.totalRows - a.totalRows;
             return a.model.localeCompare(b.model, 'zh-Hans-CN');
           });
       }
 
-      function buildSingleModelStats(model, rows) {
+      function buildSingleModelStats(model, rows, schema) {
         let validator1PassCount = 0;
         let validator2BaseCount = 0;
         let validator2PassCount = 0;
         let totalPassCount = 0;
-        const personMap = new Map();
-        const tenseMap = new Map();
+        const dimensionMaps = (schema.analysisDimensions || []).map((dimension) => {
+          return {
+            config: dimension,
+            map: new Map()
+          };
+        });
 
         rows.forEach((row) => {
           const validator1Pass = isValidatorPass(row, 'validator_1');
@@ -1538,8 +1782,20 @@
             totalPassCount += 1;
           }
 
-          accumulateDimension(personMap, normalizeDimension(row ? row.conjugation_person : '', '未标注人称'), finalPass);
-          accumulateDimension(tenseMap, normalizeDimension(row ? row.conjugation_tense : '', '未标注时态'), finalPass);
+          dimensionMaps.forEach((item) => {
+            const normalized = normalizeDimension(row ? row[item.config.key] : '', item.config.fallback || '未标注');
+            accumulateDimension(item.map, normalized, finalPass);
+          });
+        });
+
+        const dimensionSections = dimensionMaps.map((item) => {
+          return {
+            key: item.config.key,
+            title: item.config.title,
+            columnLabel: item.config.columnLabel,
+            emptyText: item.config.emptyText,
+            rates: toDimensionRates(item.map)
+          };
         });
 
         return {
@@ -1552,8 +1808,7 @@
           validator2PassRate: calcRate(validator2PassCount, validator2BaseCount),
           totalPassCount: totalPassCount,
           totalPassRate: calcRate(totalPassCount, rows.length),
-          personRates: toDimensionRates(personMap),
-          tenseRates: toDimensionRates(tenseMap)
+          dimensionSections: dimensionSections
         };
       }
 
@@ -1620,6 +1875,7 @@
         state.currentRowIndex = 0;
         state.currentStageIndex = 0;
         state.currentModelIndex = 0;
+        state.detailFieldFilters = {};
         resetMessages();
         normalizeUiState();
         render();
@@ -1643,6 +1899,7 @@
           state.currentRowIndex = 0;
           state.currentStageIndex = 0;
           state.currentModelIndex = 0;
+          state.detailFieldFilters = {};
         }
         if (state.expandedEntryId === id) {
           state.expandedEntryId = '';
@@ -1668,6 +1925,7 @@
         state.currentRowIndex = 0;
         state.currentStageIndex = 0;
         state.currentModelIndex = 0;
+        state.detailFieldFilters = {};
         resetMessages();
         normalizeUiState();
         render();
@@ -1690,7 +1948,9 @@
       }
 
       function goToStage(index) {
-        state.currentStageIndex = clamp(index, 0, STAGES.length - 1);
+        const activeEntry = state.entries.find((item) => item.id === state.activeEntryId) || null;
+        const activeSchema = getSchemaByKey(activeEntry ? activeEntry.schemaKey : '');
+        state.currentStageIndex = clamp(index, 0, activeSchema.stageDefs.length - 1);
         normalizeUiState();
         render();
       }
@@ -1714,7 +1974,9 @@
       function clearDetailFilters() {
         state.filterV1Failed = false;
         state.filterV2Failed = false;
+        state.detailFieldFilters = {};
         state.currentRowIndex = 0;
+        state.currentModelIndex = 0;
         normalizeUiState();
         render();
       }
@@ -1752,6 +2014,140 @@
           if (state.filterV2Failed && isValidatorPass(row, 'validator_2')) return false;
           return true;
         });
+      }
+
+      function getRowsByFieldFilters(rows, schema) {
+        if (!Array.isArray(rows) || !rows.length) return [];
+        const activeFilters = (schema.filterFields || []).filter((field) => {
+          const selected = String(state.detailFieldFilters[field.key] || '');
+          return selected !== '';
+        });
+        if (!activeFilters.length) return rows;
+
+        return rows.filter((row) => {
+          return activeFilters.every((field) => {
+            const selected = String(state.detailFieldFilters[field.key] || '');
+            const rowValue = String(row && row[field.key] !== undefined && row[field.key] !== null ? row[field.key] : '').trim();
+            if (selected === EMPTY_FILTER_VALUE) {
+              return rowValue === '';
+            }
+            return rowValue === selected;
+          });
+        });
+      }
+
+      function buildDimensionFilterOptions(rows, schema) {
+        if (!Array.isArray(schema.filterFields) || !schema.filterFields.length) return [];
+
+        return schema.filterFields.map((filterField) => {
+          const valueSet = new Set();
+          let hasEmpty = false;
+          rows.forEach((row) => {
+            const value = String(row && row[filterField.key] !== undefined && row[filterField.key] !== null ? row[filterField.key] : '').trim();
+            if (!value) {
+              hasEmpty = true;
+              return;
+            }
+            valueSet.add(value);
+          });
+
+          const options = Array.from(valueSet)
+            .sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
+            .map((value) => {
+              return { value: value, label: value };
+            });
+
+          if (hasEmpty) {
+            options.unshift({ value: EMPTY_FILTER_VALUE, label: filterField.emptyLabel || '(空)' });
+          }
+
+          return {
+            key: filterField.key,
+            label: filterField.label,
+            allLabel: filterField.allLabel || '全部',
+            currentValue: String(state.detailFieldFilters[filterField.key] || ''),
+            options: options
+          };
+        });
+      }
+
+      function hasActiveFieldFilters(schema) {
+        return (schema.filterFields || []).some((filterField) => {
+          return String(state.detailFieldFilters[filterField.key] || '') !== '';
+        });
+      }
+
+      function buildRowMetaText(row, schema) {
+        const parts = [];
+        parts.push('动词：' + formatFieldValue(row ? row.verb_infinitive : ''));
+        (schema.rowMetaFields || []).forEach((field) => {
+          parts.push(field.label + '：' + formatFieldValue(row ? row[field.key] : ''));
+        });
+        return parts.join(' ｜ ');
+      }
+
+      function getSchemaByKey(schemaKey) {
+        if (schemaKey && SCHEMA_CONFIG[schemaKey]) {
+          return SCHEMA_CONFIG[schemaKey];
+        }
+        return SCHEMA_CONFIG[DEFAULT_SCHEMA_KEY];
+      }
+
+      function getSchemaLabel(schemaKey) {
+        return getSchemaByKey(schemaKey).label;
+      }
+
+      function resolveEntrySchema(entry) {
+        const explicitSchema = getSchemaByKey(entry && entry.schemaKey ? entry.schemaKey : '');
+        if (entry && entry.schemaKey && SCHEMA_CONFIG[entry.schemaKey]) {
+          return explicitSchema;
+        }
+        const sampleRow = entry && Array.isArray(entry.rows) && entry.rows.length ? entry.rows[0] : null;
+        if (!sampleRow) {
+          return explicitSchema;
+        }
+        const detected = detectSchemaByHeaders(Object.keys(sampleRow));
+        return detected.schema || explicitSchema;
+      }
+
+      function mapStages(stages) {
+        return (stages || []).map((stage) => {
+          return {
+            key: stage.key,
+            title: stage.title,
+            description: stage.description,
+            fields: (stage.fields || []).map((fieldKey) => {
+              return {
+                key: fieldKey,
+                label: FIELD_LABELS[fieldKey] || fieldKey
+              };
+            })
+          };
+        });
+      }
+
+      function collectSchemaHeaders(schema) {
+        const allHeaders = [];
+        (schema.requiredHeaders || []).forEach((header) => allHeaders.push(header));
+        (schema.stages || []).forEach((stage) => {
+          (stage.fields || []).forEach((field) => allHeaders.push(field));
+        });
+        (schema.filterFields || []).forEach((field) => allHeaders.push(field.key));
+        (schema.rowMetaFields || []).forEach((field) => allHeaders.push(field.key));
+        (schema.analysisDimensions || []).forEach((field) => allHeaders.push(field.key));
+        return uniqueList(allHeaders);
+      }
+
+      function uniqueList(list) {
+        const seen = new Set();
+        const output = [];
+        (list || []).forEach((item) => {
+          const text = String(item || '');
+          if (!text || seen.has(text)) return;
+          seen.add(text);
+          output.push(text);
+        });
+        return output;
       }
 
       function formatDate(value) {
