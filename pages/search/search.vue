@@ -208,10 +208,6 @@
           <text class="tip-icon">💡</text>
           <text class="tip-text">支持模糊搜索和拼写容错</text>
         </view>
-            <view class="tip-item">
-          <text class="tip-icon">💡</text>
-          <text class="tip-text">暂时只收录了《现代西班牙语第一册》的194个动词</text>
-        </view>
       </view>
     </view>
     </view>
