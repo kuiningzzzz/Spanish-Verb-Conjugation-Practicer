@@ -315,7 +315,7 @@ function buildTargetForHostForm(verb, hostForm, allowedFiniteTenses) {
     if (!infinitive) return null
     return {
       host_form: 'prnl',
-      host_form_zh: '代词动词（自复）',
+      host_form_zh: '自反动词',
       mood: 'Pronominal',
       tense: 'No aplica',
       person: 'No aplica',
