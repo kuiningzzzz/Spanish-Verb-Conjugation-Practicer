@@ -11,6 +11,9 @@ class Verb {
       isReflexive,
       hasTrUse,
       hasIntrUse,
+      supportsDo,
+      supportsIo,
+      supportsDoIo,
       gerund,
       participle,
       participleForms,
@@ -22,11 +25,11 @@ class Verb {
     const stmt = db.prepare(`
       INSERT INTO verbs (
         infinitive, meaning, conjugation_type, is_irregular, is_reflexive, 
-        has_tr_use, has_intr_use,
+        has_tr_use, has_intr_use, supports_do, supports_io, supports_do_io,
         gerund, participle, participle_forms, 
         lesson_number, textbook_volume, frequency_level
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     
     const result = stmt.run(
@@ -37,6 +40,9 @@ class Verb {
       isReflexive || 0,
       hasTrUse || 0,
       hasIntrUse || 0,
+      supportsDo ?? null,
+      supportsIo ?? null,
+      supportsDoIo ?? null,
       gerund || null,
       participle || null,
       participleForms || null,
@@ -85,7 +91,8 @@ class Verb {
     const params = []
 
     // 如果指定了动词ID列表，只从这些动词中选择
-    if (filters.verbIds && filters.verbIds.length > 0) {
+    const hasVerbIdFilter = filters.verbIds && filters.verbIds.length > 0
+    if (hasVerbIdFilter) {
       const placeholders = filters.verbIds.map(() => '?').join(',')
       query += ` AND id IN (${placeholders})`
       params.push(...filters.verbIds)
@@ -118,22 +125,48 @@ class Verb {
         }
       }
 
-      // 是否只要规则动词
-      if (filters.onlyRegular === true) {
-        query += ' AND is_irregular = 0'
-      }
-      
-      // 是否只要不规则动词
-      if (filters.onlyIrregular === true) {
-        query += ' AND is_irregular = 1'
-      }
-      
-      // 排除指定的动词ID
-      if (filters.excludeVerbIds && filters.excludeVerbIds.length > 0) {
-        const placeholders = filters.excludeVerbIds.map(() => '?').join(',')
-        query += ` AND id NOT IN (${placeholders})`
-        params.push(...filters.excludeVerbIds)
-      }
+    }
+
+    // 是否只要规则动词
+    if (filters.onlyRegular === true) {
+      query += ' AND is_irregular = 0'
+    }
+    
+    // 是否只要不规则动词
+    if (filters.onlyIrregular === true) {
+      query += ' AND is_irregular = 1'
+    }
+    
+    // 仅保留有及物用法的动词
+    if (filters.onlyHasTrUse === true) {
+      query += ' AND has_tr_use = 1'
+    }
+
+    // 仅保留反身动词
+    if (filters.onlyReflexive === true) {
+      query += ' AND is_reflexive = 1'
+    }
+
+    // 仅保留支持直接宾语代词（DO）的动词
+    if (filters.onlySupportsDo === true) {
+      query += ' AND supports_do = 1'
+    }
+
+    // 仅保留支持间接宾语代词（IO）的动词
+    if (filters.onlySupportsIo === true) {
+      query += ' AND supports_io = 1'
+    }
+
+    // 仅保留支持 DO+IO 组合的动词
+    if (filters.onlySupportsDoIo === true) {
+      query += ' AND supports_do_io = 1'
+    }
+    
+    // 排除指定的动词ID
+    if (filters.excludeVerbIds && filters.excludeVerbIds.length > 0) {
+      const placeholders = filters.excludeVerbIds.map(() => '?').join(',')
+      query += ` AND id NOT IN (${placeholders})`
+      params.push(...filters.excludeVerbIds)
     }
 
     query += ' ORDER BY RANDOM() LIMIT ?'

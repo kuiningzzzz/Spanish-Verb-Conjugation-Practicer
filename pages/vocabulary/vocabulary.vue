@@ -18,9 +18,31 @@
       </view>
     </view>
 
-    <!-- 专项练习入口 -->
-    <view class="practice-entries">
-      <view class="entry-card" @click="startFavoritePractice">
+    <!-- Tab切换 -->
+    <view class="tabs">
+      <view 
+        :class="['tab-item', activeTab === 'favorite' ? 'active' : '']" 
+        @click="switchTab('favorite')"
+      >
+        <text>收藏单词</text>
+      </view>
+      <view 
+        :class="['tab-item', activeTab === 'wrong' ? 'active' : '']" 
+        @click="switchTab('wrong')"
+      >
+        <text>错题单词</text>
+      </view>
+      <view
+        :class="['tab-item', activeTab === 'question' ? 'active' : '']"
+        @click="switchTab('question')"
+      >
+        <text>收藏题目</text>
+      </view>
+    </view>
+
+    <!-- 收藏列表 -->
+    <view v-if="activeTab === 'favorite'" class="word-list">
+      <view class="entry-card tab-practice-entry" @click="startFavoritePractice">
         <view class="entry-icon">⭐</view>
         <view class="entry-content">
           <text class="entry-title">收藏专练</text>
@@ -29,43 +51,6 @@
         <view class="entry-arrow">→</view>
       </view>
 
-      <view class="entry-card" @click="startWrongPractice">
-        <view class="entry-icon">❌</view>
-        <view class="entry-content">
-          <text class="entry-title">错题专练</text>
-          <text class="entry-desc">练习做错的单词</text>
-        </view>
-        <view class="entry-arrow">→</view>
-      </view>
-
-      <view class="entry-card" @click="viewQuestions">
-        <view class="entry-icon">📝</view>
-        <view class="entry-content">
-          <text class="entry-title">收藏题目</text>
-          <text class="entry-desc">查看已收藏的填空题和例句题</text>
-        </view>
-        <view class="entry-arrow">→</view>
-      </view>
-    </view>
-
-    <!-- Tab切换 -->
-    <view class="tabs">
-      <view 
-        :class="['tab-item', activeTab === 'favorite' ? 'active' : '']" 
-        @click="switchTab('favorite')"
-      >
-        <text>收藏单词 ({{ favoriteCount }})</text>
-      </view>
-      <view 
-        :class="['tab-item', activeTab === 'wrong' ? 'active' : '']" 
-        @click="switchTab('wrong')"
-      >
-        <text>错题单词 ({{ wrongCount }})</text>
-      </view>
-    </view>
-
-    <!-- 收藏列表 -->
-    <view v-if="activeTab === 'favorite'" class="word-list">
       <view v-if="listLoadFailed" class="empty-placeholder load-failed-placeholder">
         <text class="load-failed-text">加载失败，请检查您的网络连接</text>
       </view>
@@ -95,7 +80,7 @@
             </view>
           </view>
           <view class="word-meta">
-            <text class="meta-item">收藏于 {{ formatDate(item.created_at) }}</text>
+            <text class="meta-item">收藏于 {{ formatFavoriteDate(item.created_at) }}</text>
             <view class="word-actions">
               <text class="detail-btn" @click="viewConjugations(item.verb_id)">查看全变位</text>
               <text class="remove-btn" @click="removeFavorite(item.verb_id)">删除</text>
@@ -107,6 +92,15 @@
 
     <!-- 错题列表 -->
     <view v-if="activeTab === 'wrong'" class="word-list">
+      <view class="entry-card tab-practice-entry" @click="startWrongPractice">
+        <view class="entry-icon">❌</view>
+        <view class="entry-content">
+          <text class="entry-title">错题专练</text>
+          <text class="entry-desc">练习做错的单词</text>
+        </view>
+        <view class="entry-arrow">→</view>
+      </view>
+
       <view v-if="listLoadFailed" class="empty-placeholder load-failed-placeholder">
         <text class="load-failed-text">加载失败，请检查您的网络连接</text>
       </view>
@@ -148,6 +142,123 @@
         </view>
       </template>
     </view>
+
+    <!-- 收藏题目 -->
+    <view v-if="activeTab === 'question'" class="question-list">
+      <view v-if="questionLoadFailed" class="empty-placeholder load-failed-placeholder">
+        <text class="load-failed-text">加载失败，请检查您的网络连接</text>
+      </view>
+      <template v-else>
+        <view class="entry-card tab-practice-entry" @click="startQuestionPractice">
+          <view class="entry-icon">📝</view>
+          <view class="entry-content">
+            <text class="entry-title">收藏题目专练</text>
+            <text class="entry-desc">练习已收藏的题目</text>
+          </view>
+          <view class="entry-arrow">→</view>
+        </view>
+
+        <view
+          class="sentence-type-filter"
+          @touchstart="handleSentenceTypeSwipeStart"
+          @touchend="handleSentenceTypeSwipeEnd"
+          @touchcancel="resetSentenceTypeSwipeState"
+        >
+          <view class="sentence-type-navbar">
+            <view
+              v-for="(type, index) in sentenceTypeOptions"
+              :key="type.value"
+              class="sentence-type-item"
+              :class="{ active: selectedSentenceTypeIndex === index }"
+              @click="selectSentenceType(index)"
+            >
+              <text class="sentence-type-item-text">{{ type.label }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view v-if="sentenceQuestions.length === 0" class="empty-placeholder">
+          <text class="empty-icon">📚</text>
+          <text class="empty-text">还没有收藏{{ selectedSentenceTypeLabel }}题目</text>
+          <text class="empty-hint">在练习时点击题目收藏按钮</text>
+        </view>
+
+        <template v-else>
+          <view
+            v-for="(item, index) in sentenceQuestions"
+            :key="item.id"
+            class="question-card card"
+          >
+            <view class="question-header">
+              <view class="header-left">
+                <view class="question-number">#{{ index + 1 }}</view>
+                <view v-if="item.infinitive" class="verb-infinitive">
+                  <text class="verb-text">{{ item.infinitive }}</text>
+                </view>
+              </view>
+              <view class="question-header-actions">
+                <text class="detail-btn question-detail-btn" @click.stop="viewConjugations(item.verb_id)">查看全变位</text>
+              </view>
+            </view>
+
+            <view v-if="shouldShowPronounMeta(item)" class="question-pronoun-meta">
+              <text class="meta-tag-blue">{{ getHostFormTagText(item) }}</text>
+              <text v-if="shouldShowPronounPatternTag(item)" class="meta-tag-blue">{{ getDoIoTagText(item) }}</text>
+            </view>
+
+            <view v-if="hasApplicableMeta(item)" class="question-meta">
+              <text class="meta-tag" v-if="isApplicableMeta(item.mood)">{{ item.mood }}</text>
+              <text class="meta-tag" v-if="isApplicableMeta(item.tense)">{{ item.tense }}</text>
+              <text class="meta-tag" v-if="isApplicableMeta(item.person)">{{ item.person }}</text>
+            </view>
+
+            <view class="question-content">
+              <text class="question-text">{{ item.question_text }}</text>
+            </view>
+
+            <view class="question-helper-buttons">
+              <button
+                class="question-helper-btn"
+                :class="{ active: isQuestionTranslationVisible(item.id) }"
+                @click.stop="toggleQuestionTranslation(item.id)"
+              >
+                <text class="question-helper-icon">📖</text>
+                <text>{{ isQuestionTranslationVisible(item.id) ? '隐藏翻译' : '查看翻译' }}</text>
+              </button>
+              <button
+                class="question-helper-btn"
+                :class="{ active: isQuestionAnswerVisible(item.id) }"
+                @click.stop="toggleQuestionAnswer(item.id)"
+              >
+                <text class="question-helper-icon">💡</text>
+                <text>{{ isQuestionAnswerVisible(item.id) ? '隐藏答案' : '查看答案' }}</text>
+              </button>
+            </view>
+
+            <view
+              v-if="item.translation && isQuestionTranslationVisible(item.id)"
+              class="translation-section question-reveal-panel"
+            >
+              <text class="translation-icon">🌐</text>
+              <text class="translation-text">{{ item.translation }}</text>
+            </view>
+
+            <view v-if="isQuestionAnswerVisible(item.id)" class="answer-section question-reveal-panel">
+              <view class="answer-box">
+                <text class="answer-text">{{ item.correct_answer }}</text>
+              </view>
+            </view>
+
+            <view class="question-footer">
+              <text class="footer-info">收藏于 {{ formatQuestionDate(item.created_at) }}</text>
+              <view class="word-actions">
+                <text class="remove-btn" @click.stop="deleteQuestion(item.id)">删除</text>
+              </view>
+            </view>
+          </view>
+        </template>
+      </template>
+    </view>
   </view>
 </template>
 
@@ -164,15 +275,55 @@ export default {
       questionCount: 0,
       favoriteList: [],
       wrongList: [],
-      listLoadFailed: false
+      sentenceQuestions: [],
+      sentenceTypeOptions: [
+        { value: 'traditional', label: '纯动词变位' },
+        { value: 'with_pronoun', label: '带代词变位' }
+      ],
+      selectedSentenceTypeIndex: 0,
+      sentenceTypeSwipeStartX: 0,
+      isSentenceTypeSwipeTracking: false,
+      questionRevealStates: {},
+      listLoadFailed: false,
+      questionLoadFailed: false
+    }
+  },
+  computed: {
+    selectedSentenceType() {
+      const active = this.sentenceTypeOptions[this.selectedSentenceTypeIndex]
+      return active ? active.value : 'traditional'
+    },
+    selectedSentenceTypeLabel() {
+      const active = this.sentenceTypeOptions[this.selectedSentenceTypeIndex]
+      return active ? active.label : '纯动词变位'
     }
   },
   onShow() {
+    this.scrollToTop()
     // 每次显示页面时刷新数据
     this.loadStats()
-    this.loadList()
+    this.loadAllLists()
+    this.loadQuestions()
   },
   methods: {
+    scrollToTop(duration = 0) {
+      this.$nextTick(() => {
+        if (typeof uni !== 'undefined' && typeof uni.pageScrollTo === 'function') {
+          uni.pageScrollTo({
+            scrollTop: 0,
+            duration
+          })
+          return
+        }
+        if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+          window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: duration > 0 ? 'smooth' : 'auto'
+          })
+        }
+      })
+    },
     async loadStats() {
       try {
         const res = await api.getVocabularyStats({ silentFailToast: true })
@@ -191,11 +342,55 @@ export default {
       }
     },
 
-    async loadList() {
-      if (this.activeTab === 'favorite') {
-        await this.loadFavoriteList()
-      } else {
-        await this.loadWrongList()
+    async loadAllLists() {
+      try {
+        this.listLoadFailed = false
+        const [favoriteRes, wrongRes] = await Promise.all([
+          api.getFavoriteList({ silentFailToast: true }),
+          api.getWrongList({ silentFailToast: true })
+        ])
+
+        if (favoriteRes.success) {
+          this.favoriteList = favoriteRes.favorites
+        } else {
+          this.favoriteList = []
+        }
+        if (wrongRes.success) {
+          this.wrongList = wrongRes.wrongs
+        } else {
+          this.wrongList = []
+        }
+      } catch (error) {
+        this.listLoadFailed = true
+        this.favoriteList = []
+        this.wrongList = []
+        console.error('加载单词列表失败:', error)
+      }
+    },
+
+    async loadQuestions(showLoadingMask = false) {
+      try {
+        this.questionLoadFailed = false
+        if (showLoadingMask) showLoading('加载中...')
+        const res = await api.getMyQuestions({
+          questionType: 'sentence',
+          sentenceType: this.selectedSentenceType
+        })
+        if (showLoadingMask) hideLoading()
+
+        if (res.success) {
+          this.sentenceQuestions = (res.questions || []).filter(q => q.question_type === 'sentence')
+        } else {
+          this.sentenceQuestions = []
+        }
+        this.questionRevealStates = {}
+      } catch (error) {
+        if (showLoadingMask) hideLoading()
+        this.questionLoadFailed = true
+        this.sentenceQuestions = []
+        this.questionRevealStates = {}
+        console.error('加载收藏题目失败:', error)
+        if (showLoadingMask) showToast('加载失败', 'none')
       }
     },
 
@@ -239,7 +434,6 @@ export default {
 
     switchTab(tab) {
       this.activeTab = tab
-      this.loadList()
     },
 
     async removeFavorite(verbId) {
@@ -317,14 +511,178 @@ export default {
       })
     },
 
-    viewQuestions() {
-      if (this.questionCount === 0) {
-        showToast('还没有收藏题目', 'none')
+    startQuestionPractice() {
+      showToast('收藏题目专练正在开发中', 'none')
+    },
+
+    getQuestionRevealState(questionId) {
+      return this.questionRevealStates[questionId] || {
+        showTranslation: false,
+        showAnswer: false
+      }
+    },
+
+    isQuestionTranslationVisible(questionId) {
+      return this.getQuestionRevealState(questionId).showTranslation
+    },
+
+    isQuestionAnswerVisible(questionId) {
+      return this.getQuestionRevealState(questionId).showAnswer
+    },
+
+    toggleQuestionTranslation(questionId) {
+      const current = this.getQuestionRevealState(questionId)
+      this.questionRevealStates = {
+        ...this.questionRevealStates,
+        [questionId]: {
+          ...current,
+          showTranslation: !current.showTranslation
+        }
+      }
+    },
+
+    toggleQuestionAnswer(questionId) {
+      const current = this.getQuestionRevealState(questionId)
+      this.questionRevealStates = {
+        ...this.questionRevealStates,
+        [questionId]: {
+          ...current,
+          showAnswer: !current.showAnswer
+        }
+      }
+    },
+
+    selectSentenceType(index) {
+      if (index < 0 || index >= this.sentenceTypeOptions.length) return
+      if (this.selectedSentenceTypeIndex === index) return
+      this.selectedSentenceTypeIndex = index
+      this.loadQuestions(true)
+    },
+
+    handleSentenceTypeSwipeStart(e) {
+      const touch = e && e.touches && e.touches[0]
+      if (!touch) return
+      this.sentenceTypeSwipeStartX = touch.clientX
+      this.isSentenceTypeSwipeTracking = true
+    },
+
+    handleSentenceTypeSwipeEnd(e) {
+      if (!this.isSentenceTypeSwipeTracking) return
+      const touch = e && e.changedTouches && e.changedTouches[0]
+      if (!touch) {
+        this.resetSentenceTypeSwipeState()
         return
       }
-      uni.navigateTo({
-        url: '/pages/question-bank/question-bank'
-      })
+      const deltaX = touch.clientX - this.sentenceTypeSwipeStartX
+      const minSwipeDistance = 60
+      if (Math.abs(deltaX) < minSwipeDistance) {
+        this.resetSentenceTypeSwipeState()
+        return
+      }
+      if (deltaX < 0) {
+        this.selectSentenceType(this.selectedSentenceTypeIndex + 1)
+      } else {
+        this.selectSentenceType(this.selectedSentenceTypeIndex - 1)
+      }
+      this.resetSentenceTypeSwipeState()
+    },
+
+    resetSentenceTypeSwipeState() {
+      this.sentenceTypeSwipeStartX = 0
+      this.isSentenceTypeSwipeTracking = false
+    },
+
+    isApplicableMeta(value) {
+      const text = String(value || '').trim()
+      if (!text) return false
+      const normalized = text.toLowerCase()
+      if (normalized === '不适用') return false
+      if (normalized === 'n/a' || normalized === 'na') return false
+      if (normalized === '-') return false
+      if (normalized === 'null' || normalized === 'undefined') return false
+      return true
+    },
+
+    hasApplicableMeta(item) {
+      if (!item) return false
+      return this.isApplicableMeta(item.mood)
+        || this.isApplicableMeta(item.tense)
+        || this.isApplicableMeta(item.person)
+    },
+
+    shouldShowPronounMeta(item) {
+      if (!item) return false
+      return item.sentence_type === 'with_pronoun'
+    },
+
+    shouldShowPronounPatternTag(item) {
+      if (!item) return false
+      if (item.sentence_type !== 'with_pronoun') return false
+      const hostForm = String(item.host_form || '').trim().toLowerCase()
+      return hostForm !== 'prnl'
+    },
+
+    getHostFormTagText(item) {
+      if (!item) return '形式：未知'
+      const hostFormZh = String(item.host_form_zh || '').trim()
+      if (hostFormZh) return `形式：${hostFormZh}`
+
+      const hostForm = String(item.host_form || '').trim().toLowerCase()
+      const hostFormMap = {
+        finite: '陈述式/时态变位',
+        imperative: '命令式',
+        infinitive: '不定式',
+        gerund: '副动词',
+        prnl: '自反形式'
+      }
+      return `形式：${hostFormMap[hostForm] || '未知'}`
+    },
+
+    getDoIoTagText(item) {
+      if (!item) return '代词模式：—'
+
+      const hostForm = String(item.host_form || '').trim().toLowerCase()
+      if (hostForm === 'prnl') {
+        return '代词模式：—'
+      }
+
+      const ioPronoun = String(item.io_pronoun || '').trim()
+      const doPronoun = String(item.do_pronoun || '').trim()
+      if (ioPronoun && doPronoun) {
+        return '代词模式：DO+IO'
+      }
+      if (ioPronoun) {
+        return '代词模式：IO'
+      }
+      if (doPronoun) {
+        return '代词模式：DO'
+      }
+
+      const pattern = String(item.pronoun_pattern || '').trim().toUpperCase()
+      if (pattern === 'DO') return '代词模式：DO'
+      if (pattern === 'IO') return '代词模式：IO'
+      if (pattern === 'DO_IO') return '代词模式：DO+IO'
+
+      return '代词模式：—'
+    },
+
+    async deleteQuestion(questionId) {
+      try {
+        const { confirm } = await uni.showModal({
+          title: '提示',
+          content: '确定要删除该收藏题目吗？'
+        })
+        if (!confirm) return
+
+        const res = await api.unfavoriteQuestion({ privateQuestionId: questionId })
+        if (res.success) {
+          showToast('已删除', 'success')
+          this.loadStats()
+          this.loadQuestions()
+        }
+      } catch (error) {
+        showToast('操作失败', 'none')
+      }
     },
 
     formatDate(dateStr) {
@@ -333,6 +691,24 @@ export default {
       const month = date.getMonth() + 1
       const day = date.getDate()
       return `${month}月${day}日`
+    },
+
+    formatFavoriteDate(dateStr) {
+      if (!dateStr) return ''
+      const date = new Date(dateStr)
+      const year = date.getFullYear()
+      const month = date.getMonth() + 1
+      const day = date.getDate()
+      return `${year}年${month}月${day}日`
+    },
+
+    formatQuestionDate(dateStr) {
+      if (!dateStr) return ''
+      const date = new Date(dateStr)
+      const year = date.getFullYear()
+      const month = date.getMonth() + 1
+      const day = date.getDate()
+      return `${year}年${month}月${day}日`
     },
 
     formatInfinitive(verb) {
@@ -379,11 +755,6 @@ export default {
   opacity: 0.9;
 }
 
-/* 专项练习入口 */
-.practice-entries {
-  margin-bottom: 30rpx;
-}
-
 .entry-card {
   background: #fff;
   border-radius: 16rpx;
@@ -428,6 +799,10 @@ export default {
   color: #8B0012;
 }
 
+.tab-practice-entry {
+  margin-bottom: 30rpx;
+}
+
 /* Tab切换 */
 .tabs {
   display: flex;
@@ -453,8 +828,48 @@ export default {
   font-weight: bold;
 }
 
+.sentence-type-filter {
+  margin-bottom: 26rpx;
+}
+
+.sentence-type-navbar {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1rpx solid #f0d6da;
+  border-radius: 16rpx;
+  padding: 8rpx;
+  box-shadow: 0 4rpx 16rpx rgba(139, 0, 18, 0.08);
+}
+
+.sentence-type-item {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 12rpx;
+  border-radius: 12rpx;
+  transition: all 0.2s ease;
+}
+
+.sentence-type-item.active {
+  background: #8B0012;
+}
+
+.sentence-type-item-text {
+  font-size: 26rpx;
+  color: #8B0012;
+  font-weight: 600;
+}
+
+.sentence-type-item.active .sentence-type-item-text {
+  color: #fff;
+}
+
 /* 单词列表 */
 .word-list {
+  margin-bottom: 40rpx;
+}
+
+.question-list {
   margin-bottom: 40rpx;
 }
 
@@ -573,6 +988,219 @@ export default {
 .meta-item {
   font-size: 24rpx;
   color: #999;
+}
+
+.question-card {
+  margin-bottom: 30rpx;
+  padding: 30rpx;
+}
+
+.question-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 2rpx solid #f0f0f0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  flex: 1;
+}
+
+.question-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.question-number {
+  background: #8B0012;
+  color: #fff;
+  padding: 10rpx 24rpx;
+  border-radius: 24rpx;
+  font-size: 26rpx;
+  font-weight: bold;
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.3);
+  flex-shrink: 0;
+}
+
+.verb-infinitive {
+  display: flex;
+  align-items: center;
+}
+
+.verb-text {
+  font-size: 32rpx;
+  color: #333;
+  font-weight: bold;
+}
+
+.question-detail-btn {
+  flex-shrink: 0;
+}
+
+.question-pronoun-meta {
+  display: flex;
+  gap: 12rpx;
+  flex-wrap: wrap;
+  margin-bottom: 20rpx;
+}
+
+.meta-tag-blue {
+  background: #eef6ff;
+  padding: 8rpx 18rpx;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  color: #2a5d9f;
+  font-weight: 500;
+  border: 1rpx solid #d6e8ff;
+}
+
+.question-meta {
+  display: flex;
+  gap: 12rpx;
+  flex-wrap: wrap;
+  margin-bottom: 20rpx;
+}
+
+.meta-tag {
+  background: #fff5f5;
+  padding: 8rpx 18rpx;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  color: #8B0012;
+  font-weight: 500;
+  border: 1rpx solid #ffd9d9;
+}
+
+.question-content {
+  margin-bottom: 25rpx;
+}
+
+.question-text {
+  display: block;
+  font-size: 32rpx;
+  color: #1a1a1a;
+  line-height: 1.8;
+  font-weight: 500;
+  padding: 10rpx 0;
+}
+
+.question-helper-buttons {
+  display: flex;
+  gap: 15rpx;
+  margin: 25rpx 0 20rpx;
+}
+
+.question-helper-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  padding: 18rpx 16rpx;
+  background: #f5f5f5;
+  border: 2rpx solid #d1d9e6;
+  border-radius: 50rpx;
+  font-size: 26rpx;
+  color: #555;
+  transition: all 0.3s ease;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+  line-height: 1.2;
+}
+
+.question-helper-btn::after {
+  border: none;
+}
+
+.question-helper-btn.active {
+  background: #8B0012;
+  border-color: #8B0012;
+  color: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.3);
+  transform: translateY(-2rpx);
+}
+
+.question-helper-icon {
+  font-size: 32rpx;
+  line-height: 1;
+}
+
+.question-reveal-panel {
+  animation: questionSlideIn 0.3s ease;
+}
+
+.answer-section {
+  margin-bottom: 25rpx;
+}
+
+.answer-box {
+  background: #e8f5e9;
+  padding: 22rpx 28rpx;
+  border-radius: 12rpx;
+  border-left: 6rpx solid #4caf50;
+  box-shadow: 0 2rpx 8rpx rgba(76, 175, 80, 0.15);
+}
+
+.answer-text {
+  font-size: 32rpx;
+  color: #2e7d32;
+  font-weight: bold;
+  letter-spacing: 1rpx;
+}
+
+.translation-section {
+  display: flex;
+  align-items: flex-start;
+  padding: 24rpx;
+  background: #fff9e6;
+  border-radius: 12rpx;
+  margin-bottom: 20rpx;
+  border: 1rpx solid #ffe8b3;
+  box-shadow: 0 2rpx 8rpx rgba(255, 193, 7, 0.1);
+}
+
+.translation-icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+  line-height: 1.5;
+}
+
+.translation-text {
+  flex: 1;
+  font-size: 26rpx;
+  color: #555;
+  line-height: 1.6;
+}
+
+.question-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 20rpx;
+  border-top: 2rpx solid #f0f0f0;
+  gap: 20rpx;
+}
+
+.footer-info {
+  font-size: 24rpx;
+  color: #999;
+  font-weight: 400;
+}
+
+@keyframes questionSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* 空状态 */

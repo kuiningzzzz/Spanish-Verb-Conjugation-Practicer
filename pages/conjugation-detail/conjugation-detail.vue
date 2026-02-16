@@ -4,37 +4,48 @@
     <view class="verb-info-card card">
       <view class="verb-header">
         <view class="verb-left">
-          <text class="verb-infinitive">{{ verbInfo.infinitive }}{{ verbInfo.isReflexive ? '(se)' : '' }}</text>
-          <view class="verb-badges">
-            <view class="badge badge-type">{{ verbInfo.conjugationType }}</view>
-            <view v-if="verbInfo.isIrregular" class="badge badge-irregular">Irreg.</view>
-            <view v-if="verbInfo.isReflexive" class="badge badge-reflexive">Prnl.</view>
-            <view v-if="verbInfo.hasTrUse" class="badge badge-transitive">tr.</view>
-            <view v-if="verbInfo.hasIntrUse" class="badge badge-intransitive">intr.</view>
+          <view class="verb-title">
+            <text class="verb-infinitive">{{ verbInfo.infinitive }}{{ verbInfo.isReflexive ? '(se)' : '' }}</text>
+            <view v-if="verbInfo.conjugationType" class="badge badge-type">{{ verbInfo.conjugationType }}</view>
           </view>
         </view>
         <view class="favorite-icon" @click="toggleFavorite">
           <text class="star-icon" :class="{ 'favorited': isFavorited }">★</text>
         </view>
       </view>
-      <text class="verb-meaning">{{ verbInfo.meaning }}</text>
+      <view class="verb-meaning-row">
+        <text class="verb-meaning">{{ verbInfo.meaning }}</text>
+        <view class="verb-meta-badges">
+          <view v-if="verbInfo.isIrregular" class="badge badge-irregular">Irreg.</view>
+          <view v-if="verbInfo.isReflexive" class="badge badge-reflexive">Prnl.</view>
+          <view v-if="verbInfo.hasTrUse" class="badge badge-transitive">tr.</view>
+          <view v-if="verbInfo.hasIntrUse" class="badge badge-intransitive">intr.</view>
+        </view>
+      </view>
       
       <!-- 动词形式 -->
       <view class="verb-forms">
-        <view v-if="verbInfo.gerund" class="verb-form-item">
-          <text class="form-label">Gerundio（副动词）:</text>
-          <text class="form-value">{{ verbInfo.gerund }}</text>
-        </view>
-        <view v-if="verbInfo.participle" class="verb-form-item">
-          <text class="form-label">Participio（过去分词）:</text>
-          <text class="form-value">{{ getParticipleForms() }}</text>
+        <view class="verb-forms-main">
+          <view v-if="verbInfo.gerund" class="verb-form-item">
+            <text class="form-label">Gerundio（副动词）:</text>
+            <text class="form-value">{{ verbInfo.gerund }}</text>
+          </view>
+          <view v-if="verbInfo.participle" class="verb-form-item">
+            <text class="form-label">Participio（过去分词）:</text>
+            <text class="form-value">{{ getParticipleForms() }}</text>
+          </view>
         </view>
       </view>
     </view>
 
     <!-- 变位表格 -->
     <view class="conjugation-section">
-      <view class="section-title">📋 完整变位表</view>
+      <view class="section-header">
+        <view class="section-title">📋 完整变位表</view>
+        <view class="single-practice-btn" @click="startSingleVerbPractice">
+          <text class="single-practice-btn-text">单词专练</text>
+        </view>
+      </view>
 
       <!-- 反身代词变位（仅反身动词显示） -->
       <view v-if="verbInfo.isReflexive" class="mood-group">
@@ -496,6 +507,18 @@ export default {
         console.error('收藏操作失败:', error)
         showToast('操作失败', 'none')
       }
+    },
+
+    // 单词专练：使用收藏专练相同设置逻辑，但限制为当前动词
+    startSingleVerbPractice() {
+      const verbId = Number(this.verbId)
+      if (!verbId) {
+        showToast('缺少动词ID', 'none')
+        return
+      }
+      uni.navigateTo({
+        url: `/pages/practice/practice?mode=favorite&verbIds=${verbId}&singleVerbPractice=true`
+      })
     }
   }
 }
@@ -524,8 +547,15 @@ export default {
 .verb-left {
   display: flex;
   align-items: center;
-  gap: 15rpx;
   flex: 1;
+  min-width: 0;
+}
+
+.verb-title {
+  display: flex;
+  align-items: center;
+  gap: 15rpx;
+  min-width: 0;
 }
 
 .verb-infinitive {
@@ -551,9 +581,21 @@ export default {
   text-shadow: 0 0 10rpx rgba(250, 219, 20, 0.5);
 }
 
-.verb-badges {
+.verb-meta-badges {
   display: flex;
-  gap: 15rpx;
+  gap: 8rpx;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  justify-content: flex-end;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.verb-meta-badges .badge {
+  font-size: 20rpx;
+  padding: 6rpx 14rpx;
+  border-radius: 16rpx;
+  white-space: nowrap;
 }
 
 .badge {
@@ -563,8 +605,8 @@ export default {
 }
 
 .badge-type {
-  background-color: #e3f2fd;
-  color: #1976d2;
+  background-color: #f2f3f5;
+  color: #8c8c8c;
 }
 
 .badge-irregular {
@@ -587,18 +629,34 @@ export default {
   color: #43a047;
 }
 
+.verb-meaning-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 20rpx;
+  margin-bottom: 25rpx;
+}
+
 .verb-meaning {
   font-size: 32rpx;
   color: #666;
-  margin-bottom: 25rpx;
+  flex: 1;
+  min-width: 0;
 }
 
 .verb-forms {
   display: flex;
-  flex-direction: column;
-  gap: 15rpx;
+  align-items: flex-start;
+  gap: 20rpx;
   padding-top: 20rpx;
   border-top: 1rpx solid #f0f0f0;
+}
+
+.verb-forms-main {
+  display: flex;
+  flex-direction: column;
+  gap: 15rpx;
+  flex: 1;
+  min-width: 0;
 }
 
 .verb-form-item {
@@ -625,12 +683,44 @@ export default {
   margin-bottom: 20rpx;
 }
 
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 20rpx 0;
+  margin-bottom: 20rpx;
+}
+
 .section-title {
   font-size: 32rpx;
   font-weight: bold;
   color: #2c3e50;
-  padding: 20rpx 0;
-  margin-bottom: 20rpx;
+  flex: 1;
+}
+
+.single-practice-btn {
+  flex-shrink: 0;
+  background: #8B0012;
+  border-radius: 24rpx;
+  padding: 12rpx 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(139, 0, 18, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.single-practice-btn:active {
+  opacity: 0.9;
+  transform: scale(0.98);
+}
+
+.single-practice-btn-text {
+  font-size: 24rpx;
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 /* 语气分组 */

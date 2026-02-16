@@ -341,6 +341,7 @@ export default {
   },
 
   onShow() {
+    this.scrollToTop()
     if (!this.unsubscribeImeSetting) {
       this.unsubscribeImeSetting = subscribeUseInAppIME((value) => {
         this.useInAppIME = value
@@ -366,6 +367,24 @@ export default {
     return false
   },
   methods: {
+    scrollToTop(duration = 0) {
+      this.$nextTick(() => {
+        if (typeof uni !== 'undefined' && typeof uni.pageScrollTo === 'function') {
+          uni.pageScrollTo({
+            scrollTop: 0,
+            duration
+          })
+          return
+        }
+        if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+          window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: duration > 0 ? 'smooth' : 'auto'
+          })
+        }
+      })
+    },
     onImeHeightChange(height) {
       this.imeHeight = height || 0
       if (this.imeVisible && this.focusedInputId) {
