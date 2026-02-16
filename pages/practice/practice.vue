@@ -1533,8 +1533,8 @@ export default {
         infinitivo: '不定式',
         Gerundio: '副动词',
         gerundio: '副动词',
-        Pronominal: '代词动词（自复）',
-        pronominal: '代词动词（自复）',
+        Pronominal: '自反动词',
+        pronominal: '自反动词',
         'No aplica': '不适用',
         'no aplica': '不适用'
       }
