@@ -109,6 +109,8 @@ router.get('/favorite/list', authMiddleware, async (req, res) => {
       conjugationType: conjugationTypeMap[fav.conjugation_type] || '未知',
       isIrregular: fav.is_irregular === 1,
       isReflexive: fav.is_reflexive === 1,
+      hasTrUse: fav.has_tr_use === 1,
+      hasIntrUse: fav.has_intr_use === 1,
       participleForms: fav.participle_forms ? fav.participle_forms.split(' | ') : []
     }))
     
@@ -189,6 +191,8 @@ router.get('/wrong/list', authMiddleware, async (req, res) => {
       conjugationType: conjugationTypeMap[wrong.conjugation_type] || '未知',
       isIrregular: wrong.is_irregular === 1,
       isReflexive: wrong.is_reflexive === 1,
+      hasTrUse: wrong.has_tr_use === 1,
+      hasIntrUse: wrong.has_intr_use === 1,
       participleForms: wrong.participle_forms ? wrong.participle_forms.split(' | ') : []
     }))
     

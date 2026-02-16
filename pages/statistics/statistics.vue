@@ -144,7 +144,7 @@
             v-for="(verb, index) in masteredVerbs.slice(0, 6)" 
             :key="getVerbKey(verb, index)"
           >
-            <view class="verb-avatar" :style="{ background: getVerbColor(verb.mastery_level) }">
+            <view class="verb-avatar" :style="{ background: verb.bgColor }">
               <text class="verb-icon">📖</text>
             </view>
             <view class="verb-content">
@@ -154,7 +154,7 @@
             <view class="mastery-level">
               <view class="level-stars">
                 <text 
-                  v-for="star in 5" 
+                  v-for="star in [1,2,3,4,5]" 
                   :key="star"
                   class="star"
                   :class="{ filled: star <= verb.mastery_level }"
@@ -162,7 +162,7 @@
                   {{ star <= verb.mastery_level ? '⭐' : '☆' }}
                 </text>
               </view>
-              <text class="level-text">掌握度 {{ verb.mastery_level }}/5</text>
+              <text class="level-text">掌握度 {{ verb.mastery_level }} / 5</text>
             </view>
           </view>
         </view>
@@ -220,23 +220,12 @@
         
         <view class="criteria-list">
           <view class="criteria-item">
-            <view class="criteria-level level-5">
-              <text class="level-icon">⭐⭐⭐⭐⭐</text>
-              <text class="level-name">精通 (5级)</text>
-            </view>
-            <view class="criteria-desc">
-              <text class="criteria-condition">条件：练习次数 ≥ 5次 且 正确率 ≥ 80%</text>
-              <text class="criteria-note">对该动词已非常熟练，几乎不会出错</text>
-            </view>
-          </view>
-
-          <view class="criteria-item">
             <view class="criteria-level level-4">
               <text class="level-icon">⭐⭐⭐⭐</text>
-              <text class="level-name">熟练 (4级)</text>
+              <text class="level-name">熟练 (四级)</text>
             </view>
             <view class="criteria-desc">
-              <text class="criteria-condition">条件：练习次数 ≥ 4次 且 正确率 ≥ 70%</text>
+              <text class="criteria-condition">条件：练习次数四次以上且正确率70%以上</text>
               <text class="criteria-note">对该动词已熟练掌握，偶尔可能出错</text>
             </view>
           </view>
@@ -244,10 +233,10 @@
           <view class="criteria-item">
             <view class="criteria-level level-3">
               <text class="level-icon">⭐⭐⭐</text>
-              <text class="level-name">掌握 (3级)</text>
+              <text class="level-name">掌握 (三级)</text>
             </view>
             <view class="criteria-desc">
-              <text class="criteria-condition">条件：练习次数 ≥ 3次 且 正确率 ≥ 60%</text>
+              <text class="criteria-condition">条件：练习次数三次以上且正确率60%以上</text>
               <text class="criteria-note">已基本掌握该动词，需要继续巩固</text>
             </view>
           </view>
@@ -255,10 +244,10 @@
           <view class="criteria-item">
             <view class="criteria-level level-2">
               <text class="level-icon">⭐⭐</text>
-              <text class="level-name">熟悉 (2级)</text>
+              <text class="level-name">熟悉 (二级)</text>
             </view>
             <view class="criteria-desc">
-              <text class="criteria-condition">条件：正确率 ≥ 50%</text>
+              <text class="criteria-condition">条件：正确率60%以上</text>
               <text class="criteria-note">对该动词有一定了解，还需多练习</text>
             </view>
           </view>
@@ -266,10 +255,10 @@
           <view class="criteria-item">
             <view class="criteria-level level-1">
               <text class="level-icon">⭐</text>
-              <text class="level-name">初学 (1级)</text>
+              <text class="level-name">初学 (一级)</text>
             </view>
             <view class="criteria-desc">
-              <text class="criteria-condition">条件：正确率 < 50%</text>
+              <text class="criteria-condition">条件：正确率60%以下</text>
               <text class="criteria-note">刚开始学习该动词，需要多加练习</text>
             </view>
           </view>
@@ -330,7 +319,11 @@ export default {
         const statsRes = await api.getStatistics()
         if (statsRes.success) {
           this.totalStats = statsRes.statistics.total || {}
-          this.masteredVerbs = statsRes.statistics.masteredVerbs || []
+          // 预处理动词颜色
+          this.masteredVerbs = (statsRes.statistics.masteredVerbs || []).map(verb => ({
+            ...verb,
+            bgColor: this.getVerbColor(verb.mastery_level)
+          }))
         }
 
         const recordsRes = await api.getStudyRecords()

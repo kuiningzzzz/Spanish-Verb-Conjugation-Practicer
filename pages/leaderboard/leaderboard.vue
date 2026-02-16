@@ -26,6 +26,11 @@
       </view>
     </view>
 
+    <!-- 榜单描述 -->
+    <view class="leaderboard-desc">
+      <text class="desc-text">{{ getCurrentTabDesc() }}</text>
+    </view>
+
     <!-- 时间范围切换（仅在老资历榜和数值怪榜显示） -->
     <view class="time-range-container" v-if="activeTab === 'veteran' || activeTab === 'exercise'">
       <view 
@@ -40,11 +45,6 @@
 
     <!-- 排行榜内容 -->
     <view class="leaderboard-content">
-      <!-- 榜单描述 -->
-      <view class="leaderboard-desc">
-        <text class="desc-text">{{ getCurrentTabDesc() }}</text>
-      </view>
-
       <!-- 排行榜列表 -->
       <view class="rank-list">
         <view 
@@ -53,19 +53,19 @@
           :key="user.id"
           :class="{ 'current-user': user.isCurrentUser }"
         >
-          <view class="rank-number" :class="getRankClass(index)">
+          <view class="rank-number" :class="user.rankClass">
             <text v-if="index < 3" class="medal-icon">{{ ['🥇', '🥈', '🥉'][index] }}</text>
             <text v-else class="rank-digit">{{ index + 1 }}</text>
           </view>
 
           <view class="user-avatar">
             <image v-if="user.avatar" :src="user.avatar" class="avatar-image" mode="aspectFill"></image>
-            <text v-else class="avatar-text">{{ getAvatarText(user.username) }}</text>
+            <text v-else class="avatar-text">{{ user.avatarText }}</text>
           </view>
 
           <view class="user-info">
             <view class="user-main">
-              <text class="username" :style="getUsernameStyle(user.username)">{{ user.username }}</text>
+              <text class="username" :style="user.usernameStyle">{{ user.username }}</text>
               <view class="user-badges">
                 <view class="badge" v-if="user.isCurrentUser">我</view>
               </view>
@@ -79,8 +79,8 @@
               <text class="stat-value">{{ user.check_in_days }}天</text>
             </view>
             <view class="stat-item" v-else-if="activeTab === 'exercise'">
-              <text class="stat-icon">📝</text>
-              <text class="stat-value">{{ user.total_exercises }}题</text>
+              <text class="stat-icon">✅</text>
+              <text class="stat-value">{{ user.total_correct }}题</text>
             </view>
             <view class="stat-item" v-else-if="activeTab === 'streak'">
               <text class="stat-icon">🔥</text>
@@ -114,9 +114,9 @@ export default {
   data() {
     return {
       tabs: [
-        { value: 'veteran', label: '老资历榜', desc: '累计练习天数排行\n积极出勤才能成为老资历噢！' },
-        { value: 'exercise', label: '数值怪榜', desc: '累计练习题数排行\n增加数值的最佳手段肯定还是打副本啦！' },
-        { value: 'streak', label: '焊武帝榜', desc: '连续练习天数排行\n我就焊死在这儿不走啦！' }
+        { value: 'veteran', label: '老资历榜', desc: '累计练习天数排行' },
+        { value: 'exercise', label: '数值怪榜', desc: '累计正确题数排行' },
+        { value: 'streak', label: '焊武帝榜', desc: '连续练习天数排行' }
       ],
       activeTab: 'veteran',
       timeRanges: [
@@ -163,10 +163,13 @@ export default {
         this.refreshing = false
 
         if (res.success) {
-          // 标记当前用户
-          this.leaderboard = (res.leaderboard || []).map(user => ({
+          // 标记当前用户并预处理样式数据
+          this.leaderboard = (res.leaderboard || []).map((user, index) => ({
             ...user,
-            isCurrentUser: user.id === this.currentUser?.id
+            isCurrentUser: user.id === this.currentUser?.id,
+            rankClass: this.getRankClass(index),
+            usernameStyle: this.getUsernameStyle(user.username),
+            avatarText: this.getAvatarText(user.username)
           }))
         }
       } catch (error) {
@@ -351,7 +354,7 @@ export default {
 .leaderboard-desc {
   text-align: center;
   padding: 20rpx 40rpx;
-  margin: 0 20rpx 30rpx;
+  margin: 0 40rpx 30rpx;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   border-radius: 20rpx;

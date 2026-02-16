@@ -36,7 +36,7 @@
         <view class="progress-bar">
           <view class="progress-fill" :style="{ width: progress + '%' }"></view>
         </view>
-        <text class="progress-text">{{ completedCount }} / {{ exerciseCount }}</text>
+        <text class="progress-text">{{ displayProgressCount }} / {{ exerciseCount }}</text>
       </view>
       <view class="progress-actions">
         <button class="progress-btn back" @click="goToPreviousExercise" :disabled="!canGoPrevious">
@@ -61,17 +61,24 @@
           </view>
         </view>
         <view class="header-actions">
-          <!-- 单词收藏按钮 -->
-          <view class="favorite-btn" @click="toggleFavorite">
-            <text class="favorite-icon">{{ isFavorited ? '★' : '☆' }}</text>
-          </view>
-          <!-- 题目收藏按钮（仅例句填空） -->
+          <!-- 收藏题目按钮（仅例句填空） -->
           <view 
             v-if="exerciseType === 'sentence'" 
-            class="question-favorite-btn" 
+            class="favorite-action-card"
+            :class="{ active: isQuestionFavorited }"
             @click="toggleQuestionFavorite"
           >
-            <text class="question-favorite-icon">{{ isQuestionFavorited ? '📌' : '📍' }}</text>
+            <text class="favorite-action-icon">{{ isQuestionFavorited ? '★' : '☆' }}</text>
+            <text class="favorite-action-text">收藏题目</text>
+          </view>
+          <!-- 收藏单词按钮 -->
+          <view
+            class="favorite-action-card"
+            :class="{ active: isFavorited }"
+            @click="toggleFavorite"
+          >
+            <text class="favorite-action-icon">{{ isFavorited ? '★' : '☆' }}</text>
+            <text class="favorite-action-text">收藏单词</text>
           </view>
         </view>
       </view>
@@ -79,6 +86,18 @@
       <view class="verb-info">
         <text class="infinitive">{{ currentExercise.infinitive }}{{ currentExercise.isReflexive ? '(se)' : '' }}</text>
         <text class="meaning">{{ currentExercise.meaning }}</text>
+      </view>
+      <view
+        v-if="exerciseType === 'sentence' && currentExercise && currentExercise.questionBank === 'pronoun'"
+        class="pronoun-meta"
+      >
+        <text class="pronoun-meta-item">形式：{{ currentExercise.hostFormZh || '未知' }}</text>
+        <text
+          v-if="currentExercise.hostForm !== 'prnl'"
+          class="pronoun-meta-item"
+        >
+          代词模式：{{ formatPronounPattern(currentExercise.pronounPattern) || '—' }}
+        </text>
       </view>
 
       <!-- 组合填空题不需要顶部提示，每个题目都有详细要求 -->
@@ -109,7 +128,7 @@
             <text>{{ showTranslation ? '隐藏翻译' : '查看翻译' }}</text>
           </button>
           <button 
-            v-if="currentExercise.hint" 
+            v-if="hasHintData(currentExercise)" 
             class="helper-btn" 
             :class="{ 'active': showHint }"
             @click="toggleHint"
@@ -125,14 +144,14 @@
         </view>
         
         <!-- 提示内容 -->
-        <view class="hint-box" v-if="currentExercise.hint && showHint">
+        <view class="hint-box" v-if="hasHintData(currentExercise) && showHint">
           <text class="hint-label">💡 提示：</text>
-          <text class="hint-text">{{ currentExercise.hint }}</text>
+          <text class="hint-text">{{ getHintText(currentExercise) }}</text>
         </view>
         
         <InAppInput
           v-if="useInAppIME"
-          :key="`sentence-${currentIndex}`"
+          :key="`sentence-inapp-${currentIndex}`"
           class="answer-input"
           v-model="userAnswer"
           placeholder="请填入正确的动词变位"
@@ -144,7 +163,7 @@
         />
         <input
           v-else
-          :key="`sentence-${currentIndex}`"
+          :key="`sentence-native-${currentIndex}`"
           class="answer-input"
           v-model="userAnswer"
           placeholder="请填入正确的动词变位"
@@ -157,7 +176,7 @@
       <view v-if="exerciseType === 'quick-fill'" class="input-container">
         <InAppInput
           v-if="useInAppIME"
-          :key="`quick-${currentIndex}`"
+          :key="`quick-inapp-${currentIndex}`"
           class="answer-input"
           v-model="userAnswer"
           placeholder="请输入目标变位形式"
@@ -169,7 +188,7 @@
         />
         <input
           v-else
-          :key="`quick-${currentIndex}`"
+          :key="`quick-native-${currentIndex}`"
           class="answer-input"
           v-model="userAnswer"
           placeholder="请输入目标变位形式"
@@ -249,12 +268,12 @@
         </view>
       </view>
 
-      <button class="btn-primary mt-20" @click="handleAnswerAction">{{ showFeedback ? '下一题' : '提交答案' }}</button>
+      <button class="btn-primary mt-20 answer-action-btn" @click="handleAnswerAction">{{ showFeedback ? '下一题' : '提交答案' }}</button>
 
       <!-- 题目生成状态指示器 -->
-      <view class="ai-status" v-if="generatingCount > 0">
+      <view class="ai-status" v-if="showAiGeneratingStatus">
         <view class="ai-status-icon">🤖</view>
-        <text class="ai-status-text">正在生成第 {{ exercises.length + 1 }}-{{ Math.min(exercises.length + generatingCount, exerciseCount) }} 题...</text>
+        <text class="ai-status-text">正在生成第 {{ aiGeneratingStart }}-{{ aiGeneratingEnd }} 题...</text>
       </view>
     </view>
 
@@ -381,7 +400,13 @@
     </view>
 
     <!-- 配置面板 -->
-    <view class="settings-card card" v-if="!hasStarted">
+    <view
+      class="settings-card card"
+      v-if="!hasStarted"
+      @touchstart="handleExerciseTypeSwipeStart"
+      @touchend="handleExerciseTypeSwipeEnd"
+      @touchcancel="resetExerciseTypeSwipeState"
+    >
       <!-- 课程模式提示 -->
       <view v-if="isCourseMode" class="course-mode-tip">
         <text class="tip-icon">{{ isRollingReview ? '🔄' : '📚' }}</text>
@@ -398,8 +423,8 @@
           v-for="(type, index) in exerciseTypes" 
           :key="type.value"
           class="navbar-item" 
-          :class="{ 'active': exerciseTypeIndex === index, 'disabled': isCourseMode }"
-          @click="!isCourseMode && selectExerciseType(index)"
+          :class="{ 'active': exerciseTypeIndex === index, 'disabled': isCourseMode || isExerciseTypeDisabled(type.value) }"
+          @click="handleExerciseTypeClick(index)"
         >
           <text class="navbar-item-text">{{ type.label }}</text>
         </view>
@@ -416,32 +441,25 @@
         </view>
       </view>
 
-      <view v-if="exerciseType === 'sentence'" class="form-item theme-practice-item">
-        <view class="theme-header" @click="!isCourseMode && toggleSentenceModeSettings()">
-          <view class="theme-header-left">
-            <text class="label theme-label">模式选择</text>
+      <view v-if="exerciseType === 'sentence'" class="form-item theme-practice-item sentence-mode-practice-item">
+        <view class="sentence-mode-header">
+          <view class="sentence-mode-header-left">
+            <text class="label theme-label sentence-mode-title">模式选择：</text>
             <view class="mode-info-button" @click.stop="openSentenceModeInfoModal">
               <text class="mode-info-button-text">i</text>
             </view>
-            <text v-if="isCourseMode" class="locked-badge">🔒 已锁定</text>
           </view>
-          <view class="theme-header-right">
-            <text class="mode-current-text">当前模式：{{ currentSentenceModeLabel }}</text>
-            <text v-if="!isCourseMode" class="expand-icon">{{ sentenceModeSettingsExpanded ? '▲' : '▼' }}</text>
-          </view>
+          <text v-if="isCourseMode" class="locked-badge sentence-mode-locked">🔒 已锁定</text>
         </view>
-
-        <view class="theme-details" v-show="sentenceModeSettingsExpanded || isCourseMode">
-          <view class="sentence-mode-list">
-            <view
-              v-for="mode in sentenceModeOptions"
-              :key="mode.value"
-              :class="['sentence-mode-item', selectedSentenceMode === mode.value ? 'active' : '', isCourseMode ? 'disabled' : '']"
-              @click="!isCourseMode && selectSentenceMode(mode.value)"
-            >
-              <text class="sentence-mode-check">{{ selectedSentenceMode === mode.value ? '◉' : '○' }}</text>
-              <text class="sentence-mode-label">{{ mode.label }}</text>
-            </view>
+        <view class="exercise-type-navbar sentence-mode-navbar" :class="{ 'disabled': isCourseMode }">
+          <view
+            v-for="mode in sentenceModeOptions"
+            :key="mode.value"
+            class="navbar-item sentence-mode-navbar-item"
+            :class="{ active: selectedSentenceMode === mode.value, disabled: isCourseMode }"
+            @click="!isCourseMode && selectSentenceMode(mode.value)"
+          >
+            <text class="navbar-item-text sentence-mode-navbar-item-text">{{ mode.label }}</text>
           </view>
         </view>
       </view>
@@ -473,7 +491,7 @@
       </view>
 
       <!-- 语气与时态设置 -->
-      <view class="form-item theme-practice-item">
+      <view v-if="showThemeTenseSelector" class="form-item theme-practice-item">
         <view class="theme-header" @click="!isCourseMode && toggleThemeSettings()">
           <view class="theme-header-left">
             <text class="label theme-label">语气与时态选择</text>
@@ -546,8 +564,64 @@
         <!-- 结束 theme-details -->
       </view>
 
+      <!-- 变位形式设置 -->
+      <view v-if="showConjugationFormSelector" class="form-item theme-practice-item">
+        <view class="theme-header" @click="!isCourseMode && toggleConjugationFormSettings()">
+          <view class="theme-header-left">
+            <text class="label theme-label">带代词变位形式选择</text>
+            <text v-if="isCourseMode" class="locked-badge">🔒 已锁定</text>
+          </view>
+          <view class="theme-header-right" v-if="!isCourseMode">
+            <text class="expand-icon">{{ conjugationFormSettingsExpanded ? '▲' : '▼' }}</text>
+          </view>
+        </view>
+        <view class="theme-details" v-show="conjugationFormSettingsExpanded || isCourseMode">
+          <view class="theme-section">
+            <view class="checkbox-group">
+              <view
+                v-for="form in conjugationFormOptions"
+                :key="form.value"
+                :class="['checkbox-item', selectedConjugationForms.includes(form.value) ? 'checked' : '', isCourseMode ? 'disabled' : '']"
+                @click="!isCourseMode && toggleConjugationForm(form.value)"
+              >
+                <text class="checkbox-icon">{{ selectedConjugationForms.includes(form.value) ? '☑' : '☐' }}</text>
+                <text class="checkbox-label">{{ form.label }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 代词模式设置 -->
+      <view v-if="showPronounPatternSelector" class="form-item theme-practice-item">
+        <view class="theme-header" @click="!isCourseMode && togglePronounPatternSettings()">
+          <view class="theme-header-left">
+            <text class="label theme-label">代词模式选择</text>
+            <text v-if="isCourseMode" class="locked-badge">🔒 已锁定</text>
+          </view>
+          <view class="theme-header-right" v-if="!isCourseMode">
+            <text class="expand-icon">{{ pronounPatternSettingsExpanded ? '▲' : '▼' }}</text>
+          </view>
+        </view>
+        <view class="theme-details" v-show="pronounPatternSettingsExpanded || isCourseMode">
+          <view class="theme-section">
+            <view class="checkbox-group">
+              <view
+                v-for="pattern in pronounPatternOptions"
+                :key="pattern.value"
+                :class="['checkbox-item', selectedPronounPatterns.includes(pattern.value) ? 'checked' : '', isCourseMode ? 'disabled' : '']"
+                @click="!isCourseMode && togglePronounPattern(pattern.value)"
+              >
+                <text class="checkbox-icon">{{ selectedPronounPatterns.includes(pattern.value) ? '☑' : '☐' }}</text>
+                <text class="checkbox-label">{{ pattern.label }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
       <!-- 其他选项 -->
-      <view class="form-item theme-practice-item">
+      <view v-if="showOtherOptionsSelector" class="form-item theme-practice-item">
         <view class="theme-header" @click="!isCourseMode && toggleOtherSettings()">
           <view class="theme-header-left">
             <text class="label theme-label">其他选项</text>
@@ -591,7 +665,7 @@
 
     <view class="modal" v-if="showSentenceModeInfoModal" @click="closeSentenceModeInfoModal">
       <view class="modal-content exercise-mode-modal" @click.stop>
-        <text class="exercise-mode-modal-title">模式说明</text>
+        <text class="exercise-mode-modal-title">例句填空模式说明</text>
         <view class="exercise-mode-list">
           <view
             v-for="mode in sentenceModeOptions"
@@ -599,11 +673,13 @@
             class="exercise-mode-item"
           >
             <text class="exercise-mode-item-title">{{ mode.label }}</text>
+            <text class="exercise-mode-item-desc">{{ mode.description }}</text>
           </view>
         </view>
         <button class="btn-primary mt-20" @click="closeSentenceModeInfoModal">我知道了</button>
       </view>
     </view>
+
   </view>
   <InAppKeyboardHost
     @height-change="onImeHeightChange"
@@ -633,6 +709,7 @@ export default {
   },
   data() {
     return {
+      fromRegister: false, // 是否从注册页面跳转过来
       useInAppIME: getUseInAppIME(),
       imeVisible: false,
       imeHeight: 0,
@@ -640,6 +717,9 @@ export default {
       imeLift: 0,
       focusedInputId: '',
       focusedComboIndex: null,
+      exerciseTypeSwipeStartX: 0,
+      exerciseTypeSwipeStartY: 0,
+      isExerciseTypeSwipeTracking: false,
       statusBarHeight: 0, // 状态栏高度
       hasStarted: false,
       exerciseTypes: [
@@ -665,15 +745,41 @@ export default {
         }
       ],
       sentenceModeOptions: [
-        { value: 'verb-only', label: '纯动词变位' },
-        { value: 'with-pronoun', label: '带代词变位' },
-        { value: 'mixed', label: '混合模式' }
+        {
+          value: 'verb-only',
+          label: '纯动词变位',
+          description: '纯动词例句填空，请根据例句上下文判断你要填入的时态和人称变位。'
+        },
+        {
+          value: 'with-pronoun',
+          label: '带代词变位',
+          description: '“动词+代词”组合填空，支持一般/命令式/原形/副动词/自反等形式，并按上下文判断格、性、数与位置。'
+        },
+        {
+          value: 'mixed',
+          label: '混合模式',
+          description: '纯动词变位与带代词变位混合出题。'
+        }
       ],
       exerciseTypeIndex: 0,
       exerciseType: 'sentence',
       showExerciseModeModal: false,
       showSentenceModeInfoModal: false,
       selectedSentenceMode: 'verb-only',
+      conjugationFormOptions: [
+        { value: 'general', label: '一般变位' },
+        { value: 'imperative', label: '命令式' },
+        { value: 'infinitive', label: '动词原形' },
+        { value: 'gerund', label: '副动词' },
+        { value: 'reflexive', label: '自反动词' }
+      ],
+      selectedConjugationForms: ['general', 'imperative', 'infinitive', 'gerund', 'reflexive'],
+      pronounPatternOptions: [
+        { value: 'DO', label: 'DO' },
+        { value: 'IO', label: 'IO' },
+        { value: 'DO_IO', label: 'DO+IO' }
+      ],
+      selectedPronounPatterns: ['DO', 'IO', 'DO_IO'],
       exerciseCount: 10,
       minExerciseCount: 5,
       maxExerciseCount: 50,
@@ -691,6 +797,8 @@ export default {
       defaultReviewCount: 30,  // 滚动复习默认题量
       // 自定义动词练习
       isCustomPractice: false,
+      hasExplicitVerbIds: false,
+      isSingleVerbPractice: false,
       customVerbIds: [],
       // 专项练习设置
       moodOptions: [
@@ -738,8 +846,9 @@ export default {
       reduceRareTenseFrequency: true, // 是否减少罕见时态出现
       
       // 专项练习折叠状态
-      sentenceModeSettingsExpanded: false, // 例句填空模式设置折叠
       themeSettingsExpanded: false,  // 默认折叠
+      conjugationFormSettingsExpanded: false,  // 带代词变位形式默认折叠
+      pronounPatternSettingsExpanded: false, // 代词模式默认折叠
       otherSettingsExpanded: false, // 其他选项默认折叠
       
       exercises: [],
@@ -765,6 +874,9 @@ export default {
       generationError: false,  // 生成是否出错
       bufferSize: 2,  // 缓冲区大小：保持提前生成2题
       maxConcurrent: 2,  // 最大并发生成数
+      aiGeneratingRangeStart: 0,  // 本轮AI生成提示区间起始题号（固定）
+      aiGeneratingRangeEnd: 0,    // 本轮AI生成提示区间结束题号（固定）
+      aiGeneratingReadyCount: 0,  // 本轮AI已补齐到练习队列的题数
 
       // 题目状态记录
       questionStates: [],
@@ -821,6 +933,11 @@ export default {
     const systemInfo = uni.getSystemInfoSync()
     this.statusBarHeight = systemInfo.statusBarHeight || 0
 
+    // 检查是否从注册页面跳转而来
+    if (options.fromRegister === 'true') {
+      this.fromRegister = true
+    }
+
     this.initMoodPanels()
     // 每次进入页面重置时态勾选（灰色时态默认不勾选）
     this.resetThemeSelections()
@@ -855,6 +972,10 @@ export default {
         .split(',')
         .map(id => parseInt(id))
         .filter(id => !Number.isNaN(id))
+      this.hasExplicitVerbIds = this.customVerbIds.length > 0
+    }
+    if (options.singleVerbPractice === 'true') {
+      this.isSingleVerbPractice = true
     }
     if (this.practiceMode === 'custom' && this.customVerbIds.length > 0) {
       this.isCustomPractice = true
@@ -863,6 +984,9 @@ export default {
         this.exerciseTypeIndex = 0
         this.exerciseType = this.exerciseTypes[0].value
       }
+    }
+    if (this.shouldDisableSentenceInCurrentMode()) {
+      this.resetExerciseTypeForSentenceDisabledMode()
     }
     this.setExerciseCount(this.exerciseCount)
   },
@@ -931,8 +1055,15 @@ export default {
       completedCount() {
         return this.answeredCount + this.skippedCount
       },
+      displayProgressCount() {
+        if (!this.hasStarted || this.exerciseCount <= 0) return 0
+        if (!this.currentExercise) {
+          return Math.min(this.completedCount, this.exerciseCount)
+        }
+        return Math.min(this.currentIndex + 1, this.exerciseCount)
+      },
       progress() {
-        return this.exerciseCount ? (this.completedCount / this.exerciseCount) * 100 : 0
+        return this.exerciseCount ? (this.displayProgressCount / this.exerciseCount) * 100 : 0
       },
       accuracy() {
         return this.answeredCount ? Math.round((this.correctCount / this.answeredCount) * 100) : 0
@@ -943,9 +1074,6 @@ export default {
       canSkipCurrent() {
         return this.hasStarted && this.currentExercise && !this.showFeedback
       },
-      currentSentenceModeLabel() {
-        return this.sentenceModeOptions.find((mode) => mode.value === this.selectedSentenceMode)?.label || ''
-      },
       currentExerciseModeInfo() {
         return this.exerciseModeDescriptions.find((mode) => mode.value === this.exerciseType) || {
           label: '',
@@ -954,7 +1082,65 @@ export default {
       },
       exerciseTypeText() {
         const types = { sentence: '例句填空', 'quick-fill': '快变快填', 'combo-fill': '组合填空' }
+        if (this.exerciseType === 'sentence') {
+          if (this.currentExercise && this.currentExercise.hostForm) return '带代词变位'
+          const questionBank = this.currentExercise && this.currentExercise.questionBank
+          if (questionBank === 'pronoun') return '带代词变位'
+          if (questionBank === 'traditional') return '纯动词变位'
+          if (this.currentExercise) return '纯动词变位'
+          if (this.selectedSentenceMode === 'with-pronoun') return '带代词变位'
+          if (this.selectedSentenceMode === 'verb-only') return '纯动词变位'
+        }
         return types[this.exerciseType] || ''
+      },
+      isSentenceWithPronounMode() {
+        return this.exerciseType === 'sentence' && this.selectedSentenceMode === 'with-pronoun'
+      },
+      showThemeTenseSelector() {
+        return !this.isSentenceWithPronounMode
+      },
+      showConjugationFormSelector() {
+        return this.exerciseType === 'sentence'
+          && (this.selectedSentenceMode === 'with-pronoun' || this.selectedSentenceMode === 'mixed')
+      },
+      showPronounPatternSelector() {
+        return this.showConjugationFormSelector
+      },
+      isPrnlOnlyConjugationSelection() {
+        return this.selectedConjugationForms.length === 1
+          && this.selectedConjugationForms.includes('reflexive')
+      },
+      showOtherOptionsSelector() {
+        return !this.isSentenceWithPronounMode
+      },
+      remainingExerciseSlots() {
+        return Math.max(this.exerciseCount - this.exercises.length, 0)
+      },
+      effectiveGeneratingCount() {
+        return Math.min(this.generatingCount, this.remainingExerciseSlots)
+      },
+      showAiGeneratingStatus() {
+        if (this.generatingCount <= 0) return false
+        if (this.aiGeneratingStart <= 0 || this.aiGeneratingEnd <= 0) return false
+        if (this.aiGeneratingStart > this.aiGeneratingEnd) return false
+        // 进入“正在生成区间”的第一题时立即隐藏
+        return this.currentIndex + 1 < this.aiGeneratingStart
+      },
+      aiGeneratingStart() {
+        if (this.aiGeneratingRangeStart > 0) {
+          const dynamicStart = this.aiGeneratingRangeStart + Math.max(this.aiGeneratingReadyCount, 0)
+          if (this.aiGeneratingRangeEnd > 0) {
+            return Math.min(dynamicStart, this.aiGeneratingRangeEnd)
+          }
+          return dynamicStart
+        }
+        if (this.exerciseCount <= 0) return 0
+        return Math.min(this.exercises.length + 1, this.exerciseCount)
+      },
+      aiGeneratingEnd() {
+        if (this.aiGeneratingRangeEnd > 0) return this.aiGeneratingRangeEnd
+        if (this.exerciseCount <= 0) return 0
+        return Math.min(this.exercises.length + this.effectiveGeneratingCount, this.exerciseCount)
       }
     },
   watch: {
@@ -1039,19 +1225,36 @@ export default {
       if (!this.imeVisible || !this.imeHeight || !inputId) return
       const query = uni.createSelectorQuery().in(this)
       query.select(`#${inputId}`).boundingClientRect()
+      query.select('.answer-action-btn').boundingClientRect()
       query.exec((res) => {
-        const rect = res[0]
-        if (!rect) return
+        const inputRect = res[0]
+        const actionButtonRect = res[1]
+        if (!inputRect) return
         const systemInfo = uni.getSystemInfoSync()
         const windowHeight = systemInfo.windowHeight || 0
-      const keyboardTop = windowHeight - this.imeHeight - this.imePopupHeight
-      const margin = 24
-        const originalBottom = rect.bottom + this.imeLift
-        const requiredLift = originalBottom > keyboardTop - margin ? originalBottom - (keyboardTop - margin) : 0
+        const keyboardTop = windowHeight - this.imeHeight - this.imePopupHeight
+        const margin = 24
+        const inputBottom = inputRect.bottom + this.imeLift
+        const shouldKeepActionVisible = this.exerciseType === 'sentence'
+        const actionButtonBottom = shouldKeepActionVisible && actionButtonRect
+          ? actionButtonRect.bottom + this.imeLift
+          : 0
+        const targetBottom = shouldKeepActionVisible
+          ? Math.max(inputBottom, actionButtonBottom)
+          : inputBottom
+        const requiredLift = targetBottom > keyboardTop - margin ? targetBottom - (keyboardTop - margin) : 0
         this.imeLift = requiredLift
       })
     },
     goBack() {
+      // 如果是从注册页面跳转过来的，直接返回首页
+      if (this.fromRegister) {
+        uni.switchTab({
+          url: '/pages/index/index'
+        })
+        return
+      }
+
       if (this.hasStarted) {
         uni.showModal({
           title: '提示',
@@ -1071,10 +1274,109 @@ export default {
         })
       }
     },
+    shouldDisableSentenceInCurrentMode() {
+      return this.practiceMode === 'favorite' || this.practiceMode === 'wrong'
+    },
+    isExerciseTypeDisabled(typeValue) {
+      if (!typeValue) return false
+      return this.shouldDisableSentenceInCurrentMode() && typeValue === 'sentence'
+    },
+    getSentenceUnsupportedToastText() {
+      if (this.isSingleVerbPractice) return '单词专练暂不支持例句填空练习'
+      if (this.practiceMode === 'favorite') return '收藏专练暂不支持例句填空练习'
+      if (this.practiceMode === 'wrong') return '错词专练暂不支持例句填空练习'
+      return '当前模式暂不支持例句填空练习'
+    },
+    showSentenceUnsupportedToast() {
+      showToast(this.getSentenceUnsupportedToastText(), 'none')
+    },
+    resetExerciseTypeForSentenceDisabledMode() {
+      const quickFillIndex = this.exerciseTypes.findIndex(type => type.value === 'quick-fill' && !this.isExerciseTypeDisabled(type.value))
+      const fallbackIndex = this.exerciseTypes.findIndex(type => !this.isExerciseTypeDisabled(type.value))
+      const targetIndex = quickFillIndex >= 0 ? quickFillIndex : fallbackIndex
+      if (targetIndex >= 0) {
+        this.exerciseTypeIndex = targetIndex
+        this.exerciseType = this.exerciseTypes[targetIndex].value
+      }
+    },
+    handleExerciseTypeClick(index) {
+      if (this.isCourseMode) return
+      const target = this.exerciseTypes[index]
+      if (!target) return
+      if (this.isExerciseTypeDisabled(target.value)) {
+        this.showSentenceUnsupportedToast()
+        return
+      }
+      this.selectExerciseType(index)
+    },
     // 选择练习类型（新方法）
     selectExerciseType(index) {
+      const target = this.exerciseTypes[index]
+      if (!target) return
+      if (this.isExerciseTypeDisabled(target.value)) {
+        this.showSentenceUnsupportedToast()
+        return
+      }
       this.exerciseTypeIndex = index
-      this.exerciseType = this.exerciseTypes[index].value
+      this.exerciseType = target.value
+    },
+
+    handleExerciseTypeSwipeStart(e) {
+      if (this.isCourseMode || !Array.isArray(this.exerciseTypes) || this.exerciseTypes.length <= 1) return
+      const touch = e && e.touches && e.touches[0]
+      if (!touch) return
+      this.exerciseTypeSwipeStartX = touch.clientX
+      this.exerciseTypeSwipeStartY = touch.clientY
+      this.isExerciseTypeSwipeTracking = true
+    },
+
+    handleExerciseTypeSwipeEnd(e) {
+      if (this.isCourseMode || !Array.isArray(this.exerciseTypes) || this.exerciseTypes.length <= 1) {
+        this.resetExerciseTypeSwipeState()
+        return
+      }
+      if (!this.isExerciseTypeSwipeTracking) return
+      const touch = e && e.changedTouches && e.changedTouches[0]
+      if (!touch) {
+        this.resetExerciseTypeSwipeState()
+        return
+      }
+
+      const deltaX = touch.clientX - this.exerciseTypeSwipeStartX
+      const deltaY = touch.clientY - this.exerciseTypeSwipeStartY
+      const absX = Math.abs(deltaX)
+      const absY = Math.abs(deltaY)
+      const minSwipeDistance = 60
+
+      if (absX < minSwipeDistance || absX <= absY) {
+        this.resetExerciseTypeSwipeState()
+        return
+      }
+
+      if (deltaX < 0) {
+        this.switchExerciseTypeByStep(1)
+      } else {
+        this.switchExerciseTypeByStep(-1)
+      }
+      this.resetExerciseTypeSwipeState()
+    },
+
+    resetExerciseTypeSwipeState() {
+      this.exerciseTypeSwipeStartX = 0
+      this.exerciseTypeSwipeStartY = 0
+      this.isExerciseTypeSwipeTracking = false
+    },
+
+    switchExerciseTypeByStep(step) {
+      let nextIndex = this.exerciseTypeIndex + step
+      while (nextIndex >= 0 && nextIndex < this.exerciseTypes.length) {
+        const target = this.exerciseTypes[nextIndex]
+        if (target && !this.isExerciseTypeDisabled(target.value)) {
+          this.selectExerciseType(nextIndex)
+          return
+        }
+        nextIndex += step
+      }
     },
 
     openExerciseModeModal() {
@@ -1093,12 +1395,150 @@ export default {
       this.showSentenceModeInfoModal = false
     },
 
-    toggleSentenceModeSettings() {
-      this.sentenceModeSettingsExpanded = !this.sentenceModeSettingsExpanded
-    },
-
     selectSentenceMode(mode) {
       this.selectedSentenceMode = mode
+    },
+
+    toggleConjugationForm(form) {
+      const index = this.selectedConjugationForms.indexOf(form)
+      if (index > -1) {
+        if (this.selectedConjugationForms.length === 1) {
+          showToast('请至少选择一个变位形式', 'none')
+          return
+        }
+        this.selectedConjugationForms.splice(index, 1)
+      } else {
+        this.selectedConjugationForms.push(form)
+      }
+    },
+
+    togglePronounPattern(pattern) {
+      const index = this.selectedPronounPatterns.indexOf(pattern)
+      if (index > -1) {
+        this.selectedPronounPatterns.splice(index, 1)
+      } else {
+        this.selectedPronounPatterns.push(pattern)
+      }
+    },
+
+    getEffectivePronounPatterns() {
+      if (this.isPrnlOnlyConjugationSelection) return []
+      return [...this.selectedPronounPatterns]
+    },
+
+    isPublicQuestionSource(source) {
+      return source === 'public'
+        || source === 'public_traditional'
+        || source === 'public_pronoun'
+    },
+
+    getQuestionUniqueKey(exercise) {
+      if (!exercise) return ''
+      if (exercise.questionId && exercise.questionSource) {
+        return `${exercise.questionSource}:${exercise.questionId}`
+      }
+      if (exercise.verbId) {
+        return `verb:${exercise.verbId}:${exercise.sentence || exercise.correctAnswer || ''}`
+      }
+      return ''
+    },
+
+    formatPronounPattern(pattern) {
+      const normalized = String(pattern || '').trim().toUpperCase()
+      if (normalized === 'DO') return 'DO'
+      if (normalized === 'IO') return 'IO'
+      if (normalized === 'DO_IO') return 'DO+IO'
+      return ''
+    },
+
+    hasHintData(exercise) {
+      if (!exercise) return false
+      if (exercise.questionBank === 'pronoun') return true
+      return !!exercise.hint
+    },
+
+    getHintText(exercise) {
+      if (!exercise) return ''
+      if (exercise.questionBank !== 'pronoun') {
+        return exercise.hint || ''
+      }
+      if (exercise.hostForm === 'prnl') {
+        return '自反形式（本题不区分 IO/DO）'
+      }
+      const ioPronoun = String(exercise.ioPronoun || '').trim()
+      const doPronoun = String(exercise.doPronoun || '').trim()
+      let pronounHint = '请结合上下文判断代词格、性数和位置'
+
+      if (doPronoun && ioPronoun) {
+        pronounHint = `DO：${doPronoun}\nIO：${ioPronoun}`
+      } else if (doPronoun) {
+        pronounHint = `DO：${doPronoun}`
+      } else if (ioPronoun) {
+        pronounHint = `IO：${ioPronoun}`
+      } else if (exercise.pronounPattern) {
+        pronounHint = `模式：${this.formatPronounPattern(exercise.pronounPattern)}`
+      }
+
+      const hostForm = String(exercise.hostForm || '').trim().toLowerCase()
+      const needMoodTensePersonLine = hostForm === 'finite' || hostForm === 'imperative'
+      if (!needMoodTensePersonLine) {
+        return pronounHint
+      }
+
+      const moodTensePerson = [
+        this.formatHintMoodZh(exercise.mood),
+        this.formatHintTenseZh(exercise.tense),
+        exercise.person
+      ]
+        .filter(item => !!item)
+        .join('-')
+      if (!moodTensePerson) {
+        return pronounHint
+      }
+
+      return `${moodTensePerson}\n${pronounHint}`
+    },
+
+    formatHintTenseZh(tense) {
+      const raw = String(tense || '').trim()
+      if (!raw) return ''
+      const map = {
+        Presente: '现在时',
+        presente: '现在时',
+        'Pretérito indefinido': '简单过去时',
+        'Preterito indefinido': '简单过去时',
+        'pretérito indefinido': '简单过去时',
+        'preterito indefinido': '简单过去时',
+        'Pretérito imperfecto': '过去未完成时',
+        'Preterito imperfecto': '过去未完成时',
+        'pretérito imperfecto': '过去未完成时',
+        'preterito imperfecto': '过去未完成时',
+        Afirmativo: '肯定命令式',
+        afirmativo: '肯定命令式',
+        'No aplica': '不适用',
+        'no aplica': '不适用'
+      }
+      return map[raw] || raw
+    },
+
+    formatHintMoodZh(mood) {
+      const raw = String(mood || '').trim()
+      if (!raw) return ''
+      const map = {
+        Indicativo: '陈述式',
+        indicativo: '陈述式',
+        Imperativo: '命令式',
+        imperativo: '命令式',
+        Infinitivo: '不定式',
+        infinitivo: '不定式',
+        Gerundio: '副动词',
+        gerundio: '副动词',
+        Pronominal: '代词动词（自复）',
+        pronominal: '代词动词（自复）',
+        'No aplica': '不适用',
+        'no aplica': '不适用'
+      }
+      return map[raw] || raw
     },
 
     createStateForExercise(exercise) {
@@ -1353,6 +1793,14 @@ export default {
       this.themeSettingsExpanded = !this.themeSettingsExpanded
     },
 
+    toggleConjugationFormSettings() {
+      this.conjugationFormSettingsExpanded = !this.conjugationFormSettingsExpanded
+    },
+
+    togglePronounPatternSettings() {
+      this.pronounPatternSettingsExpanded = !this.pronounPatternSettingsExpanded
+    },
+
     toggleOtherSettings() {
       this.otherSettingsExpanded = !this.otherSettingsExpanded
     },
@@ -1462,10 +1910,30 @@ export default {
       if (this.isCourseMode && Array.isArray(this.lessonVocabulary) && this.lessonVocabulary.length > 0) {
         return new Set(this.lessonVocabulary.map(v => v.id))
       }
-      if (this.isCustomPractice && this.customVerbIds.length > 0) {
+      if (this.hasExplicitVerbIds && this.customVerbIds.length > 0) {
         return new Set(this.customVerbIds)
       }
       return null
+    },
+
+    scrollToTop(duration = 0) {
+      this.$nextTick(() => {
+        if (typeof uni !== 'undefined' && typeof uni.pageScrollTo === 'function') {
+          uni.pageScrollTo({
+            scrollTop: 0,
+            duration
+          })
+          return
+        }
+
+        if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+          window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: duration > 0 ? 'smooth' : 'auto'
+          })
+        }
+      })
     },
     
     async startPractice() {
@@ -1481,9 +1949,24 @@ export default {
         return
       }
       
-      // 验证是否至少选择了一个语气或时态
-      if (this.selectedMoods.length === 0 && this.selectedTenses.length === 0) {
+      // 非“带代词变位”模式下，验证是否至少选择了一个语气或时态
+      if (this.showThemeTenseSelector && this.selectedMoods.length === 0 && this.selectedTenses.length === 0) {
         showToast('请至少选择一个语气或时态', 'none')
+        return
+      }
+
+      // 带代词相关模式下，验证是否至少选择一个变位形式
+      if (this.showConjugationFormSelector && this.selectedConjugationForms.length === 0) {
+        showToast('请至少选择一个变位形式', 'none')
+        return
+      }
+
+      if (
+        this.showPronounPatternSelector
+        && !this.isPrnlOnlyConjugationSelection
+        && this.selectedPronounPatterns.length === 0
+      ) {
+        showToast('请至少选择一个代词模式', 'none')
         return
       }
       
@@ -1511,10 +1994,18 @@ export default {
           practiceMode: this.practiceMode
         }
 
+        if (this.exerciseType === 'sentence') {
+          requestData.sentenceMode = this.selectedSentenceMode
+          requestData.conjugationForms = this.selectedConjugationForms
+          if (this.showPronounPatternSelector) {
+            requestData.pronounPatterns = this.getEffectivePronounPatterns()
+          }
+        }
+
         // 如果是课程模式，传递课程单词ID列表
         if (this.isCourseMode && this.lessonVocabulary.length > 0) {
           requestData.verbIds = this.lessonVocabulary.map(v => v.id)
-        } else if (this.isCustomPractice && this.customVerbIds.length > 0) {
+        } else if (this.hasExplicitVerbIds && this.customVerbIds.length > 0) {
           requestData.verbIds = this.customVerbIds
         }
 
@@ -1539,6 +2030,7 @@ export default {
             this.exercises = exercises
             this.questionStates = this.exercises.map(ex => this.createStateForExercise(ex))
             this.hasStarted = true
+            this.scrollToTop()
             this.currentIndex = 0
             this.correctCount = 0
             
@@ -1575,6 +2067,7 @@ export default {
             
             this.usedQuestionIds = new Set()
             this.hasStarted = true
+            this.scrollToTop()
             this.currentIndex = 0
             this.correctCount = 0
             this.questionStates = []
@@ -1583,14 +2076,20 @@ export default {
             this.fillFromMainPool()
           
             // 检查是否有足够的题目（仅例句填空需要）
-            const aiNeeded = this.isCustomPractice ? 0 : (res.needAI || 0)
-            const hasEnoughQuestions = this.exercises.length > 0 || aiNeeded > 0
+            const aiPlans = this.isCustomPractice
+              ? []
+              : (
+                Array.isArray(res.aiPlans)
+                  ? res.aiPlans
+                  : (res.needAI > 0 && res.aiOptions ? [{ count: res.needAI, aiOptions: res.aiOptions }] : [])
+              )
+            const hasEnoughQuestions = this.exercises.length > 0 || aiPlans.length > 0
             
             if (hasEnoughQuestions) {
               // 如果有题库题，检查第一题的收藏状态
               if (this.exercises.length > 0) {
                 this.goToExercise(0, true)
-              } else if (res.needAI && res.needAI > 0) {
+              } else if (aiPlans.length > 0) {
                 // 题库为空，等待AI生成
                 console.log('题库为空，等待AI生成题目...')
                 showToast('正在生成练习题，请稍候...', 'loading', 3000)
@@ -1601,9 +2100,28 @@ export default {
             }
             
             // 异步生成AI题目（如果需要）
-            if (!this.isCustomPractice && aiNeeded > 0 && res.aiOptions) {
-              console.log(`开始异步生成 ${res.needAI} 个AI题目`)
-              this.generateAIQuestionsAsync(aiNeeded, res.aiOptions)
+            if (!this.isCustomPractice && aiPlans.length > 0) {
+              this.generationError = false
+              const totalPlanCount = aiPlans.reduce((sum, plan) => {
+                const planCount = Number(plan && plan.count ? plan.count : 0)
+                return sum + (planCount > 0 ? planCount : 0)
+              }, 0)
+              if (totalPlanCount > 0) {
+                const rangeStart = this.exercises.length + 1
+                this.aiGeneratingRangeStart = Math.min(rangeStart, this.exerciseCount)
+                this.aiGeneratingRangeEnd = Math.min(rangeStart + totalPlanCount - 1, this.exerciseCount)
+                this.aiGeneratingReadyCount = 0
+              } else {
+                this.aiGeneratingRangeStart = 0
+                this.aiGeneratingRangeEnd = 0
+                this.aiGeneratingReadyCount = 0
+              }
+              console.log('开始异步生成AI题目计划:', aiPlans)
+              this.generateAIPlansAsync(aiPlans)
+            } else {
+              this.aiGeneratingRangeStart = 0
+              this.aiGeneratingRangeEnd = 0
+              this.aiGeneratingReadyCount = 0
             }
           }
         } else {
@@ -1643,10 +2161,11 @@ export default {
       
       // 添加所有主题到exercises
       for (const question of shuffled) {
-        if (!this.usedQuestionIds.has(question.questionId)) {
+        const uniqueKey = this.getQuestionUniqueKey(question)
+        if (!uniqueKey || !this.usedQuestionIds.has(uniqueKey)) {
           this.exercises.push(question)
           this.questionStates.push(this.createStateForExercise(question))
-          this.usedQuestionIds.add(question.questionId)
+          if (uniqueKey) this.usedQuestionIds.add(uniqueKey)
         }
       }
       
@@ -1672,7 +2191,8 @@ export default {
       for (const question of this.backupQuestionPool) {
         if (filled >= remaining) break
         
-        if (!this.usedQuestionIds.has(question.questionId)) {
+        const uniqueKey = this.getQuestionUniqueKey(question)
+        if (!uniqueKey || !this.usedQuestionIds.has(uniqueKey)) {
           // 随机插入到未做题目的位置
           const insertStart = this.currentIndex + 1
           const insertEnd = this.exercises.length + 1
@@ -1680,7 +2200,7 @@ export default {
           
           this.exercises.splice(randomIndex, 0, question)
           this.questionStates.splice(randomIndex, 0, this.createStateForExercise(question))
-          this.usedQuestionIds.add(question.questionId)
+          if (uniqueKey) this.usedQuestionIds.add(uniqueKey)
           filled++
           
           console.log(`从备用池填充题目到位置 ${randomIndex}`)
@@ -1690,6 +2210,22 @@ export default {
       console.log(`从备用题目池填充了 ${filled} 个题目，当前总题数: ${this.exercises.length}`)
     },
     
+    async generateAIPlansAsync(aiPlans = []) {
+      const plans = Array.isArray(aiPlans) ? aiPlans : []
+      try {
+        for (const plan of plans) {
+          const count = Number(plan.count || 0)
+          if (count <= 0 || !plan.aiOptions) continue
+          await this.generateAIQuestionsAsync(count, plan.aiOptions)
+        }
+      } finally {
+        // 本轮计划结束，清空显示区间
+        this.aiGeneratingRangeStart = 0
+        this.aiGeneratingRangeEnd = 0
+        this.aiGeneratingReadyCount = 0
+      }
+    },
+
     // 异步生成AI题目并随机插入
     async generateAIQuestionsAsync(count, aiOptions) {
       const isFirstBatch = this.exercises.length === 0  // 判断是否是第一批题目（题库为空）
@@ -1722,7 +2258,7 @@ export default {
             aiOptions: {
               ...aiOptions,
               excludeVerbIds: Array.from(usedVerbIds),
-              verbIds: this.isCustomPractice && this.customVerbIds.length > 0
+              verbIds: this.hasExplicitVerbIds && this.customVerbIds.length > 0
                 ? this.customVerbIds
                 : (aiOptions.verbIds && aiOptions.verbIds.length > 0 ? aiOptions.verbIds : fallbackVerbIds)
             }
@@ -1731,6 +2267,7 @@ export default {
           if (res.success && res.exercise) {
             if (allowList && !allowList.has(res.exercise.verbId)) {
               failCount++
+              this.generationError = true
               console.warn('AI题目动词不在允许范围内，已跳过')
               continue
             }
@@ -1738,12 +2275,15 @@ export default {
             successCount++
             
             // 记录已使用的题目ID
-            if (res.exercise.questionId) {
-              this.usedQuestionIds.add(res.exercise.questionId)
+            const uniqueKey = this.getQuestionUniqueKey(res.exercise)
+            if (uniqueKey) {
+              this.usedQuestionIds.add(uniqueKey)
             }
             
             // 检查用户当前是否还需要这个题目
-            const userNeedsMore = this.exercises.length < this.exerciseCount
+            // 只要本次练习已达到目标/已结束/已展示结果，就不要再把新题插入前端
+            const practiceClosed = this.showResult || !this.hasStarted || this.completedCount >= this.exerciseCount
+            const userNeedsMore = !practiceClosed && this.exercises.length < this.exerciseCount
             
             if (userNeedsMore) {
               // 用户还需要更多题目，插入到练习队列
@@ -1751,6 +2291,10 @@ export default {
                 // 第一题直接添加
                 this.exercises.push(res.exercise)
                 this.questionStates.push(this.createStateForExercise(res.exercise))
+                this.aiGeneratingReadyCount = Math.min(
+                  this.aiGeneratingReadyCount + 1,
+                  Math.max(this.aiGeneratingRangeEnd - this.aiGeneratingRangeStart + 1, 0)
+                )
                 console.log(`第一个AI题目已生成，开始练习`)
                 uni.hideToast()
                 this.goToExercise(0, true)
@@ -1762,6 +2306,10 @@ export default {
 
                 this.exercises.splice(randomIndex, 0, res.exercise)
                 this.questionStates.splice(randomIndex, 0, this.createStateForExercise(res.exercise))
+                this.aiGeneratingReadyCount = Math.min(
+                  this.aiGeneratingReadyCount + 1,
+                  Math.max(this.aiGeneratingRangeEnd - this.aiGeneratingRangeStart + 1, 0)
+                )
 
                 console.log(`AI题目已插入到位置 ${randomIndex}, 当前题目总数: ${this.exercises.length}`)
               }
@@ -1771,10 +2319,12 @@ export default {
             }
           } else {
             failCount++
+            this.generationError = true
             console.error(`生成第 ${i + 1} 个AI题目失败: API返回无效数据`)
           }
         } catch (error) {
           failCount++
+          this.generationError = true
           console.error(`生成第 ${i + 1} 个AI题目失败:`, error)
           
           // 如果是第一批题目且连续失败，提示用户
@@ -1986,7 +2536,7 @@ export default {
           // 如果有关联的公共题库ID，也传递过去
           if (ex.publicQuestionId) {
             unfavoriteData.publicQuestionId = ex.publicQuestionId
-          } else if (ex.questionSource === 'public' && ex.questionId) {
+          } else if (this.isPublicQuestionSource(ex.questionSource) && ex.questionId) {
             unfavoriteData.publicQuestionId = ex.questionId
           }
           
@@ -2011,13 +2561,20 @@ export default {
             hint: ex.hint,
             tense: ex.tense,
             mood: ex.mood,
-            person: ex.person
+            person: ex.person,
+            questionBank: ex.questionBank,
+            hostForm: ex.hostForm,
+            hostFormZh: ex.hostFormZh,
+            pronounPattern: ex.pronounPattern,
+            ioPronoun: ex.ioPronoun,
+            doPronoun: ex.doPronoun
           }
           
           // 如果题目来自公共题库，传递questionId
-          if (ex.questionId && ex.questionSource === 'public') {
+          if (ex.questionId && this.isPublicQuestionSource(ex.questionSource)) {
             questionData.questionId = ex.questionId
             questionData.questionSource = ex.questionSource
+            questionData.publicQuestionSource = ex.publicQuestionSource || ex.questionSource
           }
           
           const res = await api.favoriteQuestion(questionData)
@@ -2395,6 +2952,9 @@ export default {
       this.correctCount = 0
       this.generatingCount = 0
       this.generationError = false
+      this.aiGeneratingRangeStart = 0
+      this.aiGeneratingRangeEnd = 0
+      this.aiGeneratingReadyCount = 0
       this.wrongExercises = []
       this.wrongExercisesSet.clear()
     },
@@ -2417,6 +2977,9 @@ export default {
       this.correctCount = 0
       this.generatingCount = 0
       this.generationError = false
+      this.aiGeneratingRangeStart = 0
+      this.aiGeneratingRangeEnd = 0
+      this.aiGeneratingReadyCount = 0
       this.questionStates = this.exercises.map(ex => this.createStateForExercise(ex))
       if (this.exercises.length > 0) {
         this.goToExercise(0, true)
@@ -2721,36 +3284,68 @@ export default {
   font-weight: bold;
 }
 
-.favorite-btn {
-  padding: 10rpx 15rpx;
-  cursor: pointer;
-}
-
 .header-actions {
   display: flex;
   gap: 15rpx;
   align-items: center;
 }
 
-.question-favorite-btn {
-  padding: 10rpx 15rpx;
+.favorite-action-card {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 8rpx 14rpx;
+  border: 1rpx solid #e2e6f2;
+  border-radius: 999rpx;
+  background: #f8f9ff;
   cursor: pointer;
 }
 
-.favorite-icon {
-  font-size: 48rpx;
-  color: #ffd700;
+.favorite-action-card.active {
+  border-color: #ffd27d;
+  background: #fff7e8;
+}
+
+.favorite-action-icon {
+  font-size: 34rpx;
+  color: #b7bccb;
   line-height: 1;
 }
 
-.question-favorite-icon {
-  font-size: 44rpx;
-  line-height: 1;
+.favorite-action-card.active .favorite-action-icon {
+  color: #f4b400;
+}
+
+.favorite-action-text {
+  font-size: 22rpx;
+  color: #6f7384;
+  line-height: 1.2;
+}
+
+.favorite-action-card.active .favorite-action-text {
+  color: #8B0012;
 }
 
 .verb-info {
   text-align: center;
   margin: 30rpx 0;
+}
+
+.pronoun-meta {
+  margin: -10rpx 0 24rpx;
+  display: flex;
+  justify-content: center;
+  gap: 16rpx;
+  flex-wrap: wrap;
+}
+
+.pronoun-meta-item {
+  font-size: 24rpx;
+  color: #8B0012;
+  background: #fff4f4;
+  border: 1rpx solid #ffd1d6;
+  border-radius: 20rpx;
+  padding: 8rpx 18rpx;
 }
 
 .infinitive {
@@ -2890,6 +3485,7 @@ export default {
   font-size: 26rpx;
   color: #ef6c00;
   line-height: 1.6;
+  white-space: pre-line;
 }
 
 @keyframes slideIn {
@@ -3217,6 +3813,17 @@ export default {
 
 .navbar-item.disabled {
   cursor: not-allowed;
+  background: #eeeeee;
+  box-shadow: none;
+}
+
+.navbar-item.disabled .navbar-item-text {
+  color: #aaaaaa;
+}
+
+.navbar-item.disabled:active {
+  background: #eeeeee;
+  transform: none;
 }
 
 /* 大圆形开始按钮容器 */
@@ -3302,6 +3909,29 @@ export default {
   color: #8B0012;
 }
 
+.sentence-mode-practice-item {
+  padding-bottom: 18rpx;
+}
+
+.sentence-mode-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+  padding-bottom: 14rpx;
+  border-bottom: 2rpx solid #e0e7ff;
+}
+
+.sentence-mode-header-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.sentence-mode-title {
+  margin-bottom: 0;
+}
+
 .mode-info-button {
   width: 38rpx;
   height: 38rpx;
@@ -3321,46 +3951,21 @@ export default {
   font-weight: 600;
 }
 
-.mode-current-text {
+.sentence-mode-navbar {
+  margin-bottom: 0;
+}
+
+.sentence-mode-navbar-item {
+  padding: 18rpx 8rpx;
+}
+
+.sentence-mode-navbar-item-text {
   font-size: 24rpx;
-  color: #666;
-  margin-right: 16rpx;
-  text-align: right;
 }
 
-.sentence-mode-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-}
-
-.sentence-mode-item {
-  display: flex;
-  align-items: center;
-  padding: 16rpx 18rpx;
-  border-radius: 10rpx;
-  border: 2rpx solid #e9ecef;
-  background: #fff;
-}
-
-.sentence-mode-item.active {
-  border-color: #8B0012;
-  background: #fff8f8;
-}
-
-.sentence-mode-item.disabled {
-  opacity: 0.6;
-}
-
-.sentence-mode-check {
-  font-size: 30rpx;
-  color: #8B0012;
-  margin-right: 10rpx;
-}
-
-.sentence-mode-label {
-  font-size: 25rpx;
-  color: #333;
+.sentence-mode-locked {
+  flex-shrink: 0;
+  margin-left: 12rpx;
 }
 
 .exercise-mode-modal {

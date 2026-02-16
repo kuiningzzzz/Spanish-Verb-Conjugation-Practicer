@@ -332,6 +332,7 @@ export default {
       uni.reLaunch({ url: '/pages/login/login' })
       return
     }
+    this.scrollToTop()
     this.loadFailed = false
     this.loadUserInfo()
     this.loadUserStats()
@@ -346,6 +347,24 @@ export default {
     this.clearFeedbackTipTimers()
   },
   methods: {
+    scrollToTop(duration = 0) {
+      this.$nextTick(() => {
+        if (typeof uni !== 'undefined' && typeof uni.pageScrollTo === 'function') {
+          uni.pageScrollTo({
+            scrollTop: 0,
+            duration
+          })
+          return
+        }
+        if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+          window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: duration > 0 ? 'smooth' : 'auto'
+          })
+        }
+      })
+    },
     async loadUserInfo() {
       const localUserInfo = uni.getStorageSync('userInfo')
       if (localUserInfo) {
@@ -502,8 +521,8 @@ export default {
       })
       // #endif
       
-      // #ifdef MP
-      // 小程序环境
+      // #ifdef MP-WEIXIN
+      // 微信小程序环境
       uni.getFileSystemManager().readFile({
         filePath: tempFilePath,
         encoding: 'base64',

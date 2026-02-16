@@ -67,6 +67,7 @@ export default {
   login: (data) => request({ url: '/user/login', method: 'POST', data }),
   loginWithEmailCode: (data) => request({ url: '/user/login/email-code', method: 'POST', data }),
   getUserInfo: (requestOptions = {}) => request({ url: '/user/info', ...requestOptions }),
+  getUserStats: (requestOptions = {}) => request({ url: '/user/stats', ...requestOptions }),
   checkUsername: (data) => request({ url: '/user/check-username', method: 'POST', data }),
   updateProfile: (data) => request({ url: '/user/profile', method: 'PUT', data }),
   uploadAvatar: (data) => request({ url: '/user/avatar', method: 'POST', data }),
@@ -160,8 +161,6 @@ export default {
   getAnnouncementById: (id) => request({ url: `/announcement/${id}` }),
 
   // 好友系统相关
-  checkUniqueId: (uniqueId) => request({ url: '/friend/check-unique-id', method: 'POST', data: { uniqueId } }),
-  setUniqueId: (uniqueId) => request({ url: '/friend/set-unique-id', method: 'POST', data: { uniqueId } }),
   searchUsers: (keyword) => request({ url: '/friend/search', data: { keyword } }),
   sendFriendRequest: (toUserId, message) => request({ url: '/friend/request', method: 'POST', data: { toUserId, message } }),
   getFriendRequests: () => request({ url: '/friend/requests' }),

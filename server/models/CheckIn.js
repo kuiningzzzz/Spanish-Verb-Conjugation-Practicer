@@ -185,7 +185,7 @@ class CheckIn {
     return stmt.all(limit)
   }
 
-  // 数值怪榜：按总题目数排名（不考虑天数）
+  // 数值怪榜：按总正确题数排名（不考虑天数）
   static getExerciseLeaderboard(limit = 50, timeRange = 'all') {
     let dateFilter = ''
     
@@ -214,7 +214,7 @@ class CheckIn {
       JOIN check_ins c ON u.id = c.user_id
       WHERE u.participate_in_leaderboard = 1 ${dateFilter}
       GROUP BY u.id
-      ORDER BY total_exercises DESC
+      ORDER BY total_correct DESC
       LIMIT ?
     `)
     

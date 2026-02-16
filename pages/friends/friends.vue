@@ -13,24 +13,6 @@
       </view>
     </view>
 
-    <!-- 唯一ID设置提示 -->
-    <view class="unique-id-card card" v-if="!userInfo.unique_id">
-      <view class="tip-header">
-        <text class="tip-title">设置唯一ID</text>
-      </view>
-      <text class="tip-desc">设置后你的好友可以通过唯一ID搜索并添加你</text>
-      <button class="btn-secondary" @click="showSetUniqueIdDialog">立即设置</button>
-    </view>
-
-    <!-- 唯一ID显示 -->
-    <view class="unique-id-display card" v-else>
-      <text class="label">我的唯一ID</text>
-      <view class="id-value">
-        <text>{{ userInfo.unique_id }}</text>
-        <text class="edit-btn" @click="showSetUniqueIdDialog">修改</text>
-      </view>
-    </view>
-
     <!-- 好友列表 -->
     <view class="friends-section">
       <view class="section-header">
@@ -69,42 +51,10 @@
                 <text v-else>{{ friend.username }}</text>
               </text>
             </view>
-            <text class="friend-id">ID: {{ friend.unique_id || '未设置' }}</text>
           </view>
           <view class="friend-actions" @click.stop="openFriendMenu(friend)">
             <text class="more-icon">⋮</text>
           </view>
-        </view>
-      </view>
-    </view>
-
-    <!-- 设置唯一ID弹窗 -->
-    <view v-if="showUniqueIdPopup" class="popup-mask" @click="closeUniqueIdDialog">
-      <view class="popup-content" @click.stop>
-        <view class="popup-header">
-          <text class="popup-title">设置唯一ID</text>
-        </view>
-        <view class="popup-body">
-          <text class="popup-hint">6-8位字母、数字或下划线</text>
-          <input 
-            class="unique-id-input"
-            v-model="uniqueIdInput"
-            placeholder="请输入唯一ID"
-            placeholder-style="color: #999"
-            maxlength="8"
-            @input="checkUniqueId"
-            cursor-spacing="50"
-          />
-          <text v-if="uniqueIdError" class="error-text">{{ uniqueIdError }}</text>
-          <text v-else-if="uniqueIdChecked && uniqueIdAvailable" class="success-text">✓ 该ID可用</text>
-        </view>
-        <view class="popup-actions">
-          <button class="btn-cancel" @click="closeUniqueIdDialog">取消</button>
-          <button 
-            class="btn-confirm" 
-            @click="setUniqueId"
-            :disabled="!uniqueIdAvailable || !!uniqueIdError"
-          >确定</button>
         </view>
       </view>
     </view>
@@ -117,7 +67,7 @@
           <text>设置备注</text>
         </view>
         <view class="menu-item" @click="toggleStar">
-          <text class="menu-icon">{{ selectedFriend && selectedFriend.is_starred ? '☆' : '⭐' }}</text>
+          <text class="menu-icon">{{ selectedFriend && selectedFriend.is_starred ? '🌟' : '⭐' }}</text>
           <text>{{ selectedFriend && selectedFriend.is_starred ? '取消星标' : '加星标' }}</text>
         </view>
         <view class="menu-item danger" @click="confirmRemoveFriend">
@@ -145,7 +95,6 @@
             />
             <view class="preview-info">
               <text class="preview-name">{{ selectedFriend.username }}</text>
-              <text class="preview-id">ID: {{ selectedFriend.unique_id || '未设置' }}</text>
             </view>
           </view>
           <text class="input-label">备注名称</text>
@@ -180,7 +129,6 @@
             />
             <view class="preview-info">
               <text class="preview-name">{{ selectedFriend.username }}</text>
-              <text class="preview-id">ID: {{ selectedFriend.unique_id || '未设置' }}</text>
             </view>
           </view>
           <text class="warning-text">确定要删除该好友吗？删除后将无法查看对方的学习动态。</text>
@@ -205,13 +153,7 @@ export default {
       friends: [],
       loading: false,
       requestCount: 0,
-      uniqueIdInput: '',
-      uniqueIdError: '',
-      uniqueIdChecked: false,
-      uniqueIdAvailable: false,
-      checkTimer: null,
       selectedFriend: null,
-      showUniqueIdPopup: false,
       showFriendMenuPopup: false,
       showRemarkDialog: false,
       remarkInput: '',
@@ -233,11 +175,8 @@ export default {
     async loadUserInfo() {
       try {
         const res = await api.getUserInfo()
-        console.log('loadUserInfo响应:', res)
         if (res.success) {
           this.userInfo = res.user
-          console.log('userInfo已更新:', this.userInfo)
-          console.log('unique_id值:', this.userInfo.unique_id)
         }
       } catch (error) {
         console.error('获取用户信息失败:', error)
@@ -281,74 +220,6 @@ export default {
       uni.navigateTo({
         url: `/pages/friends/friend-card?friendId=${friendId}`
       })
-    },
-    showSetUniqueIdDialog() {
-      this.uniqueIdInput = this.userInfo.unique_id || ''
-      this.uniqueIdError = ''
-      this.uniqueIdChecked = false
-      this.uniqueIdAvailable = false
-      this.showUniqueIdPopup = true
-    },
-    closeUniqueIdDialog() {
-      this.showUniqueIdPopup = false
-    },
-    checkUniqueId() {
-      const id = this.uniqueIdInput.trim()
-      
-      // 清除之前的计时器
-      if (this.checkTimer) {
-        clearTimeout(this.checkTimer)
-      }
-      
-      // 重置状态
-      this.uniqueIdChecked = false
-      this.uniqueIdAvailable = false
-      this.uniqueIdError = ''
-      
-      if (!id) {
-        return
-      }
-      
-      // 格式检查
-      if (!/^[A-Za-z0-9_]{6,8}$/.test(id)) {
-        this.uniqueIdError = '6-8位字母、数字或下划线'
-        return
-      }
-      
-      // 防抖检查
-      this.checkTimer = setTimeout(async () => {
-        try {
-          const res = await api.checkUniqueId(id)
-          if (res.success) {
-            this.uniqueIdChecked = true
-            this.uniqueIdAvailable = res.available
-            if (!res.available) {
-              this.uniqueIdError = '该ID已被使用'
-            }
-          }
-        } catch (error) {
-          console.error('检查唯一ID失败:', error)
-        }
-      }, 500)
-    },
-    async setUniqueId() {
-      const id = this.uniqueIdInput.trim()
-      
-      if (!id || !this.uniqueIdAvailable) {
-        return
-      }
-      
-      try {
-        const res = await api.setUniqueId(id)
-        if (res.success) {
-          showToast('唯一ID设置成功', 'success')
-          this.userInfo.unique_id = id
-          this.closeUniqueIdDialog()
-        }
-      } catch (error) {
-        console.error('设置唯一ID失败:', error)
-        showToast(error.error || '设置失败', 'none')
-      }
     },
     openFriendMenu(friend) {
       this.selectedFriend = friend
@@ -470,63 +341,6 @@ export default {
   font-size: 20rpx;
 }
 
-.unique-id-card {
-  background: #8B0012;
-  color: #fff;
-  padding: 30rpx;
-  margin-bottom: 20rpx;
-  border-radius: 16rpx;
-}
-
-.tip-header {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  margin-bottom: 15rpx;
-}
-
-.tip-title {
-  font-size: 32rpx;
-  font-weight: bold;
-}
-
-.tip-desc {
-  display: block;
-  font-size: 24rpx;
-  opacity: 0.9;
-  margin-bottom: 20rpx;
-}
-
-.unique-id-display {
-  padding: 30rpx;
-  margin-bottom: 20rpx;
-}
-
-.label {
-  display: block;
-  font-size: 24rpx;
-  color: #999;
-  margin-bottom: 10rpx;
-}
-
-.id-value {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.id-value text:first-child {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #8B0012;
-}
-
-.edit-btn {
-  font-size: 28rpx;
-  color: #8B0012;
-  padding: 10rpx 20rpx;
-}
-
 .friends-section {
   margin-top: 20rpx;
 }
@@ -630,11 +444,6 @@ export default {
   margin-right: 8rpx;
 }
 
-.friend-id {
-  font-size: 24rpx;
-  color: #999;
-}
-
 .friend-actions {
   padding: 10rpx 20rpx;
 }
@@ -680,43 +489,6 @@ export default {
 
 .popup-body {
   padding: 40rpx 30rpx;
-}
-
-.popup-hint {
-  display: block;
-  font-size: 24rpx;
-  color: #999;
-  margin-bottom: 20rpx;
-}
-
-.unique-id-input {
-  width: 100%;
-  height: 80rpx;
-  padding: 0 24rpx;
-  border: 2rpx solid #e5e5e5;
-  border-radius: 12rpx;
-  font-size: 32rpx;
-  color: #333;
-  background-color: #fff;
-  box-sizing: border-box;
-}
-
-.unique-id-input:focus {
-  border-color: #8B0012;
-}
-
-.error-text {
-  display: block;
-  margin-top: 10rpx;
-  font-size: 24rpx;
-  color: #FF0000;
-}
-
-.success-text {
-  display: block;
-  margin-top: 10rpx;
-  font-size: 24rpx;
-  color: #52c41a;
 }
 
 .popup-actions {
@@ -838,12 +610,6 @@ export default {
   font-weight: bold;
   color: #333;
   margin-bottom: 6rpx;
-}
-
-.preview-id {
-  display: block;
-  font-size: 24rpx;
-  color: #999;
 }
 
 .input-label {
