@@ -19,6 +19,7 @@ const Feedback = require('../models/Feedback')
 const QuestionFeedback = require('../models/QuestionFeedback')
 const AdminLog = require('../models/AdminLog')
 const PracticeRecord = require('../models/PracticeRecord')
+const Announcement = require('../models/Announcement')
 const { vocabularyDb } = require('../database/db')
 const fs = require('fs')
 const path = require('path')
@@ -422,6 +423,156 @@ router.post('/versions', requireAdmin, (req, res) => {
   saveVersionInfo({ versions: updated })
 
   res.status(201).json({ success: true, version: newVersion })
+})
+
+// 公告管理路由
+router.get('/announcements', requireAdmin, (req, res) => {
+  if (!isDev(req)) {
+    return forbid(res, '仅 dev 可以管理公告')
+  }
+  try {
+    const announcements = Announcement.getAll()
+    const sorted = Announcement.sortByPriority(announcements)
+    res.json({
+      success: true,
+      data: sorted
+    })
+  } catch (error) {
+    console.error('获取公告列表失败:', error)
+    res.status(500).json({
+      success: false,
+      error: '获取公告列表失败'
+    })
+  }
+})
+
+router.get('/announcements/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) {
+    return forbid(res, '仅 dev 可以管理公告')
+  }
+  try {
+    const { id } = req.params
+    const announcement = Announcement.getById(id)
+    if (!announcement) {
+      return res.status(404).json({
+        success: false,
+        error: '公告不存在'
+      })
+    }
+    res.json({
+      success: true,
+      data: announcement
+    })
+  } catch (error) {
+    console.error('获取公告详情失败:', error)
+    res.status(500).json({
+      success: false,
+      error: '获取公告详情失败'
+    })
+  }
+})
+
+router.post('/announcements', requireAdmin, (req, res) => {
+  if (!isDev(req)) {
+    return forbid(res, '仅 dev 可以管理公告')
+  }
+  try {
+    const { title, content, priority, publisher, publishTime, isActive } = req.body
+    if (!title || !content) {
+      return res.status(400).json({
+        success: false,
+        error: '标题和内容不能为空'
+      })
+    }
+    const announcementData = {
+      title,
+      content,
+      priority,
+      publisher: publisher || req.admin.username,
+      publishTime,
+      isActive
+    }
+    const newAnnouncement = Announcement.create(announcementData)
+    res.status(201).json({
+      success: true,
+      data: newAnnouncement,
+      message: '公告创建成功'
+    })
+  } catch (error) {
+    console.error('创建公告失败:', error)
+    res.status(500).json({
+      success: false,
+      error: '创建公告失败'
+    })
+  }
+})
+
+router.put('/announcements/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) {
+    return forbid(res, '仅 dev 可以管理公告')
+  }
+  try {
+    const { id } = req.params
+    const { title, content, priority, publisher, publishTime, isActive } = req.body
+    if (!title || !content) {
+      return res.status(400).json({
+        success: false,
+        error: '标题和内容不能为空'
+      })
+    }
+    const updateData = {
+      title,
+      content,
+      priority,
+      publisher,
+      publishTime,
+      isActive
+    }
+    const updated = Announcement.update(id, updateData)
+    if (!updated) {
+      return res.status(404).json({
+        success: false,
+        error: '公告不存在'
+      })
+    }
+    res.json({
+      success: true,
+      data: updated,
+      message: '公告更新成功'
+    })
+  } catch (error) {
+    console.error('更新公告失败:', error)
+    res.status(500).json({
+      success: false,
+      error: '更新公告失败'
+    })
+  }
+})
+
+router.delete('/announcements/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) {
+    return forbid(res, '仅 dev 可以管理公告')
+  }
+  try {
+    const { id } = req.params
+    const deleted = Announcement.delete(id)
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: '公告不存在'
+      })
+    }
+    res.json({
+      success: true,
+      message: '公告删除成功'
+    })
+  } catch (error) {
+    console.error('删除公告失败:', error)
+    res.status(500).json({
+      success: false,
+      error: '删除公告失败'
+    })
+  }
 })
 
 router.get('/lexicon', requireAdmin, (req, res) => {
