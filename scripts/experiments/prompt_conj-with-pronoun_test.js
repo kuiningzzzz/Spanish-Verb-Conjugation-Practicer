@@ -5,16 +5,16 @@ const fs = require('fs')
 const path = require('path')
 const axios = require('axios')
 
-const dotenvPath = path.join(__dirname, '.env')
+const dotenvPath = path.join(__dirname, '../.env')
 if (fs.existsSync(dotenvPath)) {
   require('dotenv').config({ path: dotenvPath })
 }
 
-const generatorPrompts = require('./input/conjugation_with_pronoun/generator_prompt')
-const validatorPrompts = require('./input/conjugation_with_pronoun/validator_prompt')
-const revisorPrompts = require('./input/conjugation_with_pronoun/revisor_prompt')
+const generatorPrompts = require('../input/conjugation_with_pronoun/generator_prompt')
+const validatorPrompts = require('../input/conjugation_with_pronoun/validator_prompt')
+const revisorPrompts = require('../input/conjugation_with_pronoun/revisor_prompt')
 
-const VERB_SOURCE = path.join(__dirname, '../server/src/verbs.json')
+const VERB_SOURCE = path.join(__dirname, '../../server/src/verbs.json')
 
 const HOST_FORMS = ['finite', 'imperative', 'infinitive', 'gerund', 'prnl']
 const NON_PRNL_PRONOUN_PATTERNS = ['DO', 'IO', 'DO_IO']
@@ -27,8 +27,8 @@ const DEFAULT_TEST_CASES = 1
 const DEFAULT_GENERATOR_PROMPTS = generatorPrompts.map((_, i) => i)
 const DEFAULT_VALIDATOR_PROMPTS = validatorPrompts.map((_, i) => i)
 const DEFAULT_REVISOR_PROMPTS = revisorPrompts.map((_, i) => i)
-const DEFAULT_OUTPUT_FILE = path.join(__dirname, 'output', 'prompt_conj-with-pronoun.csv')
-const DEFAULT_LOG_FILE = path.join(__dirname, 'output', 'prompt_conj-with-pronoun_logs.csv')
+const DEFAULT_OUTPUT_FILE = path.join(__dirname, '../output', 'prompt_conj-with-pronoun.csv')
+const DEFAULT_LOG_FILE = path.join(__dirname, '../output', 'prompt_conj-with-pronoun_logs.csv')
 
 const FINITE_TENSE_META = {
   present: {
