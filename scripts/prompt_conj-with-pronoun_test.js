@@ -22,6 +22,7 @@ const DEFAULT_MODELS = ['deepseek:deepseek-chat', 'qwen:qwen-plus', 'qwen:qwen3-
 const DEFAULT_GENERATOR_TEMPS = [0.7]
 const DEFAULT_VALIDATOR_FLAG = true
 const DEFAULT_REVISOR_FLAG = true
+const DEFAULT_CONJ_WITH_PRONOUN_SECOND_ROUND_FLAG = true
 const DEFAULT_TEST_CASES = 1
 const DEFAULT_GENERATOR_PROMPTS = generatorPrompts.map((_, i) => i)
 const DEFAULT_VALIDATOR_PROMPTS = validatorPrompts.map((_, i) => i)
@@ -500,6 +501,11 @@ async function main() {
   const useValidatorFlag = useValidator === null ? DEFAULT_VALIDATOR_FLAG : useValidator
   const useRevisor = parseBool(process.env.USE_REVISOR)
   const useRevisorFlag = useRevisor === null ? DEFAULT_REVISOR_FLAG : useRevisor
+  const secondRoundSwitch = parseBool(process.env.CONJ_WITH_PRONOUN_ENABLE_SECOND_ROUND)
+  const useSecondRoundFlag = secondRoundSwitch === null
+    ? DEFAULT_CONJ_WITH_PRONOUN_SECOND_ROUND_FLAG
+    : secondRoundSwitch
+  const effectiveUseRevisorFlag = useRevisorFlag && useSecondRoundFlag
   const testCasesParsed = Number.parseInt(process.env.TEST_CASES || DEFAULT_TEST_CASES, 10)
   const testCases = Number.isFinite(testCasesParsed) && testCasesParsed > 0
     ? testCasesParsed
@@ -515,7 +521,7 @@ async function main() {
   const generatorPromptIndexes = parseNumberList(generatorPromptsEnv) || DEFAULT_GENERATOR_PROMPTS
   const validatorPromptIndexes = parseNumberList(validatorPromptsEnv) || DEFAULT_VALIDATOR_PROMPTS
   const revisorPromptIndexes = parseNumberList(revisorPromptsEnv) || DEFAULT_REVISOR_PROMPTS
-  const activeRevisorPromptIndexes = useRevisorFlag ? revisorPromptIndexes : [0]
+  const activeRevisorPromptIndexes = effectiveUseRevisorFlag ? revisorPromptIndexes : [0]
   const hostForms = parseAllowedList(hostFormsEnv, HOST_FORMS) || HOST_FORMS
   const allowedFiniteTenses = parseAllowedList(finiteTensesEnv, DEFAULT_FINITE_TENSES) || DEFAULT_FINITE_TENSES
   const nonPrnlPatterns = parsePronounPatternList(pronounPatternsEnv) || NON_PRNL_PRONOUN_PATTERNS
@@ -866,7 +872,7 @@ async function main() {
                 : 0.5
 
               const validator1Passed = validator1Result?.isValid === true && validator1Result?.hasUniqueAnswer === true
-              const shouldRunRevisor = useRevisorFlag && useValidatorFlag && question && !validator1Passed
+              const shouldRunRevisor = effectiveUseRevisorFlag && useValidatorFlag && question && !validator1Passed
               if (shouldRunRevisor) {
                 summaryStats.revisorTriggered += 1
                 const revisorPromptBuilder = revisorPrompts[revisorPromptIndex]
@@ -940,7 +946,7 @@ async function main() {
                 }
               }
 
-              if (useValidatorFlag && revisedQuestion?.sentence) {
+              if (useSecondRoundFlag && useValidatorFlag && revisedQuestion?.sentence) {
                 const validatorPromptBuilder = validatorPrompts[validatorPromptIndex]
                 if (!validatorPromptBuilder) {
                   validator2Error = `validator prompt index not found: ${validatorPromptIndex}`
@@ -1067,7 +1073,7 @@ async function main() {
                 validator_prompt_index: String(validatorPromptIndex),
                 validator_model: model,
                 validator_temperature: String(validatorTemperature),
-                revisor_used: String(useRevisorFlag),
+                revisor_used: String(effectiveUseRevisorFlag),
                 revisor_prompt_index: String(revisorPromptIndex),
                 revisor_model: model,
                 revisor_temperature: String(revisorTemperature),
@@ -1140,7 +1146,8 @@ async function main() {
       validator_prompt_indexes: validatorPromptIndexes,
       revisor_prompt_indexes: activeRevisorPromptIndexes,
       use_validator: useValidatorFlag,
-      use_revisor: useRevisorFlag
+      use_revisor: effectiveUseRevisorFlag,
+      use_second_round: useSecondRoundFlag
     }
   }
 
@@ -1164,7 +1171,7 @@ async function main() {
     prompt_index: '',
     request_chars: '',
     response_chars: '',
-    error: `cases=${testCases} models=${models.length} generator_prompts=${generatorPromptIndexes.length} validator_prompts=${validatorPromptIndexes.length} revisor_prompts=${activeRevisorPromptIndexes.length} host_forms=${hostForms.join('|')} pronoun_patterns=${nonPrnlPatterns.join('|')} validator_used=${useValidatorFlag} revisor_used=${useRevisorFlag}`
+    error: `cases=${testCases} models=${models.length} generator_prompts=${generatorPromptIndexes.length} validator_prompts=${validatorPromptIndexes.length} revisor_prompts=${activeRevisorPromptIndexes.length} host_forms=${hostForms.join('|')} pronoun_patterns=${nonPrnlPatterns.join('|')} validator_used=${useValidatorFlag} revisor_used=${effectiveUseRevisorFlag} second_round_used=${useSecondRoundFlag}`
   })
 
   if (outputStream) {
