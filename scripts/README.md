@@ -189,9 +189,9 @@ node export_prompt_matrix_excel.js
 ## 4. Prompt 文件约定
 
 ### 4.1 传统变位实验
-- `scripts/input/generator_prompt.js`
-- `scripts/input/validator_prompt.js`
-- `scripts/input/revisor_prompt.js`
+- `scripts/input/traditional_conjugation/generator_prompt.js`
+- `scripts/input/traditional_conjugation/validator_prompt.js`
+- `scripts/input/traditional_conjugation/revisor_prompt.js`
 
 ### 4.2 动词+代词实验
 - `scripts/input/conjugation_with_pronoun/generator_prompt.js`

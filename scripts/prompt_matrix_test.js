@@ -10,9 +10,9 @@ if (fs.existsSync(dotenvPath)) {
   require('dotenv').config({ path: dotenvPath })
 }
 
-const generatorPrompts = require('./input/generator_prompt')
-const validatorPrompts = require('./input/validator_prompt')
-const revisorPrompts = require('./input/revisor_prompt')
+const generatorPrompts = require('./input/traditional_conjugation/generator_prompt')
+const validatorPrompts = require('./input/traditional_conjugation/validator_prompt')
+const revisorPrompts = require('./input/traditional_conjugation/revisor_prompt')
 
 const VERB_SOURCE = path.join(__dirname, '../server/src/verbs.json')
 
