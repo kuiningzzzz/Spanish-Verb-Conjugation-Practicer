@@ -205,16 +205,35 @@ ${JSON.stringify(question || {}, null, 2)}
    - 目标 DO -> supports_do 必须 true
    - 目标 IO -> supports_io 必须 true
    - 目标 DO_IO -> supports_do_io 必须 true
-4) 答案结构检查：answer 必须是“动词+代词组合”，不是裸动词/裸代词。
-5) 语法检查：代词位置、拼写、重音必须正确。
-6) 题干结构检查：sentence 仅含一个 "__?__"，语言自然。
-7) 唯一解求解（最重要）：
+4) 释义-配价匹配检查（新增）：
+   - 必须判断 sentence 中实际采用的动词义项与论元结构，是否与目标 pronoun_pattern 一致。
+   - 不得把本应是直接宾语（DO/CD）的成分，硬判为间接宾语（IO/CI）来凑题。
+   - 不得依赖方言性 leísmo/laísmo/loísmo 才能成立；按标准西班牙语判断。
+5) answer 字段解析规则：
+   - 默认 answer 是单个候选；
+   - 仅当 host_form=infinitive 时允许使用 "|" 分隔两个候选；
+   - 若 host_form 不是 infinitive 却出现 "|"，判错；
+   - 使用 "|" 时，候选必须去空格后非空、互不重复、数量最多 2。
+6) 答案结构检查：每个候选都必须是“动词+代词组合”，不是裸动词/裸代词。
+7) host_form 定位语法硬校验（每个候选都要检查）：
+   - finite：代词前置且分写（如 "me lo das"）；
+   - imperative（肯定命令式）：代词后置合写，必要时重音正确（如 "dámelo"）；
+   - infinitive：允许两种合法位置（前置分写 vs 后置合写+重音）；
+   - gerund：代词后置合写在 gerund 上，必要时重音正确（如 "dándomelo"）；
+   - prnl：必须出现对应反身代词，且位置符合当前 host_form 规则。
+8) 题干结构检查：
+   - sentence 仅含一个 "__?__"；
+   - sentence 必须是 1~2 句叙述体；
+   - 上下文信息应足够判断代词格、性、数与指代。
+9) 唯一解求解（最重要）：
    - 你要“自己像学生一样”根据 sentence + infinitive + host_form_zh + pronoun_pattern 推导答案；
-   - 枚举你能成立的候选答案；
-   - 只有候选数=1 且与 answer 一致，才可判定 hasUniqueAnswer=true；
-   - 若候选数=0 或 >1，必须判定 hasUniqueAnswer=false，并给出详细原因与具体改写建议；
+   - 默认上述四个条件都是正确的前提下；
+   - 枚举你能成立的候选答案集合 C；
+   - 若 answer 是单个候选：只有 |C|=1 且与 answer 一致，才可 hasUniqueAnswer=true；
+   - 若 answer 含 "|"：把 answer 解析为集合 A，只有 C 与 A 完全相同（集合相等）才可 hasUniqueAnswer=true；
+   - 若 C 为空、或 C 与 answer 不一致、或存在额外可行解未写入 answer，必须 hasUniqueAnswer=false；
    - 唯一解判断只在“给定 pronoun_pattern 绝对正确”条件下进行，不要因为其他 pattern 也可能成立而判错。
-8) se 规则检查（必须执行）：
+10) se 规则检查（必须执行）：
    - DO_IO 且第三人称组合时，必须是 se lo/la/los/las；若出现 le/les lo/la/los/las 判错
    - 若目标形式需要反身/代词成分，不得遗漏 se（或对应的 me/te/nos/os/se）
 
@@ -223,6 +242,12 @@ ${JSON.stringify(question || {}, null, 2)}
   "yo debía __?__ al nuevo empleado sobre los resultados de su evaluación"
   则你应只在 IO 条件下评估唯一解。此时 "avisarle" 可成立；
   即便 "avisárselo" 在 DO_IO 条件下也可能成立，也不能据此判 not_unique。
+- 若目标是 infinitive=graduar 且 pronoun_pattern=IO，若句子核心是 “graduar a un estudiante”：
+  这是标准语法中的 DO 结构（CD），不能因为出现 "a + 人" 就判成 IO-only；
+  例如 "__?__ al estudiante destacado" + "gradúale" 应判为释义-配价不匹配。
+- 若目标 host_form=infinitive，且上下文允许两种合法位置，answer 可以是：
+  "te lo puedo explicar|puedo explicártelo"。
+  只要这两项都语法正确、语义一致、且无第三种可行答案，应判 hasUniqueAnswer=true。
 
 【判定要求】
 - 若唯一解不成立，isValid 必须为 false。
