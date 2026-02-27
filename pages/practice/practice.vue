@@ -50,7 +50,7 @@
       </view>
     </view>
 
-    <view class="card exercise-card" v-if="currentExercise">
+    <view class="card exercise-card" v-if="hasStarted && currentExercise">
       <view class="card-header">
         <view class="header-tags">
           <view class="exercise-type-tag">
