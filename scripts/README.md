@@ -46,7 +46,7 @@ python3 -m pip install dashscope python-dotenv
 
 ## 3. 脚本清单（作用 + 用法）
 
-### 3.1 `prompt_matrix_test.js`
+### 3.1 `experiments/prompt_matrix_test.js`
 **作用**
 - 传统变位实验矩阵：`generator -> validator_1 -> revisor(必要时) -> validator_2`。
 - 对比多模型、多温度、多 prompt 版本。
@@ -62,13 +62,13 @@ python3 -m pip install dashscope python-dotenv
 
 **运行**
 ```bash
-cd /Users/tomorikaho/Projects/Spanish-Verb-Conjugation-Practicer/scripts
-node prompt_matrix_test.js
+cd /Users/tomorikaho/Projects/Spanish-Verb-Conjugation-Practicer
+node scripts/experiments/prompt_matrix_test.js
 ```
 
 ---
 
-### 3.2 `prompt_conj-with-pronoun_test.js`
+### 3.2 `experiments/prompt_conj-with-pronoun_test.js`
 **作用**
 - 新题型实验矩阵（动词+代词组合填空）。
 - 支持 host_form：`finite`, `imperative`, `infinitive`, `gerund`, `prnl`。
@@ -95,20 +95,20 @@ node prompt_matrix_test.js
 
 **运行**
 ```bash
-cd /Users/tomorikaho/Projects/Spanish-Verb-Conjugation-Practicer/scripts
-node prompt_conj-with-pronoun_test.js
+cd /Users/tomorikaho/Projects/Spanish-Verb-Conjugation-Practicer
+node scripts/experiments/prompt_conj-with-pronoun_test.js
 ```
 
 ---
 
-### 3.3 `generate_course_sentences.js`
+### 3.3 `utils/generate_course_sentences.js`
 **作用**
 - 按课程/课时批量生成例句并写数据库（服务端流程）。
 
 **运行**
 ```bash
 cd /Users/tomorikaho/Projects/Spanish-Verb-Conjugation-Practicer
-node scripts/generate_course_sentences.js [options]
+node scripts/utils/generate_course_sentences.js [options]
 ```
 
 **常用参数**
@@ -120,7 +120,7 @@ node scripts/generate_course_sentences.js [options]
 
 ---
 
-### 3.4 `get_verb.py`
+### 3.4 `utils/get_verb.py`
 **作用**
 - 调用 Qwen 生成动词变位 JSON（含脚本规则补全复合时态）。
 
@@ -133,17 +133,17 @@ node scripts/generate_course_sentences.js [options]
 **运行**
 ```bash
 cd /Users/tomorikaho/Projects/Spanish-Verb-Conjugation-Practicer
-python3 scripts/get_verb.py <input_verbs.txt> <output.json>
+python3 scripts/utils/get_verb.py <input_verbs.txt> <output.json>
 ```
 
 **示例**
 ```bash
-python3 scripts/get_verb.py scripts/input/verbs.txt scripts/output/verbs.json
+python3 scripts/utils/get_verb.py scripts/input/verbs.txt scripts/output/verbs.json
 ```
 
 ---
 
-### 3.5 `tag_pronoun_support.py`
+### 3.5 `utils/tag_pronoun_support.py`
 **作用**
 - 给与 `server/src/verbs.json` 同格式的文件补充三字段：
   - `supports_do`
@@ -160,38 +160,26 @@ python3 scripts/get_verb.py scripts/input/verbs.txt scripts/output/verbs.json
 **运行**
 ```bash
 cd /Users/tomorikaho/Projects/Spanish-Verb-Conjugation-Practicer
-python3 scripts/tag_pronoun_support.py
+python3 scripts/utils/tag_pronoun_support.py
 ```
 
 ---
 
-### 3.6 `output/export_prompt_matrix_excel.js`
-**作用**
-- 将 `scripts/output/prompt_matrix.csv` 导出为 `scripts/output/prompt_matrix.xlsx`。
-
-**运行**
-```bash
-cd /Users/tomorikaho/Projects/Spanish-Verb-Conjugation-Practicer/scripts/output
-node export_prompt_matrix_excel.js
-```
-
----
-
-### 3.7 `experiment-results.html`
+### 3.6 `utils/experiment-results.html`
 **作用**
 - 本地可视化 CSV 实验结果（无需后端）。
 - 支持传统变位实验和新题型实验 CSV。
 
 **使用方式**
-- 浏览器打开：`/Users/tomorikaho/Projects/Spanish-Verb-Conjugation-Practicer/scripts/experiment-results.html`
+- 浏览器打开：`/Users/tomorikaho/Projects/Spanish-Verb-Conjugation-Practicer/scripts/utils/experiment-results.html`
 - 点击“上传 CSV”查看结果。
 
 ## 4. Prompt 文件约定
 
 ### 4.1 传统变位实验
-- `scripts/input/generator_prompt.js`
-- `scripts/input/validator_prompt.js`
-- `scripts/input/revisor_prompt.js`
+- `scripts/input/traditional_conjugation/generator_prompt.js`
+- `scripts/input/traditional_conjugation/validator_prompt.js`
+- `scripts/input/traditional_conjugation/revisor_prompt.js`
 
 ### 4.2 动词+代词实验
 - `scripts/input/conjugation_with_pronoun/generator_prompt.js`
