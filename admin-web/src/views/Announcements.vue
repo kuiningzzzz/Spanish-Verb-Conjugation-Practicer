@@ -371,7 +371,7 @@ async function fetchAnnouncements() {
   loading.value = true;
   error.value = '';
   try {
-    const data = await apiRequest('/api/announcement/all');
+    const data = await apiRequest('/announcements');
     announcements.value = Array.isArray(data?.data) ? data.data : [];
   } catch (err) {
     error.value = err.message || '加载失败';
@@ -408,7 +408,7 @@ async function openEdit(announcement) {
   resetForm();
   drawerMode.value = 'edit';
   try {
-    const data = await apiRequest(`/api/announcement/${announcement.id}`);
+    const data = await apiRequest(`/announcements/${announcement.id}`);
     const record = data?.data || data || {};
     form.id = record.id ?? announcement.id;
     form.title = record.title || announcement.title || '';
@@ -455,10 +455,10 @@ async function submitForm() {
 
   try {
     if (drawerMode.value === 'create') {
-      await apiRequest('/api/announcement', { method: 'POST', body: payload });
+      await apiRequest('/announcements', { method: 'POST', body: payload });
       showToast('公告已发布', 'success');
     } else if (form.id) {
-      await apiRequest(`/api/announcement/${form.id}`, { method: 'PUT', body: payload });
+      await apiRequest(`/announcements/${form.id}`, { method: 'PUT', body: payload });
       showToast('公告已更新', 'success');
     }
     closeDrawer();
@@ -482,7 +482,7 @@ async function submitDelete() {
   if (!deleteDialog.value) return;
   deleting.value = true;
   try {
-    await apiRequest(`/api/announcement/${deleteDialog.value.id}`, { method: 'DELETE' });
+    await apiRequest(`/announcements/${deleteDialog.value.id}`, { method: 'DELETE' });
     showToast('公告已删除', 'success');
     closeDelete();
     fetchAnnouncements();
