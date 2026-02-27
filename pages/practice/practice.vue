@@ -16,13 +16,7 @@
           <text class="back-text">返回</text>
         </view>
         <view class="navbar-title">开始练习</view>
-        <view class="navbar-right" v-if="shouldShowReportButton">
-          <view class="report-btn" @click="showReportModal = true">
-            <text class="report-icon">⚠️</text>
-            <text class="report-text">反馈错误</text>
-          </view>
-        </view>
-        <view class="navbar-placeholder" v-else></view>
+        <view class="navbar-placeholder"></view>
       </view>
     </view>
     
@@ -42,6 +36,10 @@
         <button class="progress-btn back" @click="goToPreviousExercise" :disabled="!canGoPrevious">
           <text class="arrow">←</text>
           <text>返回上题</text>
+        </button>
+        <button class="progress-btn report-inline" v-if="shouldShowReportButton" @click="showReportModal = true">
+          <text class="report-icon">⚠️</text>
+          <text>反馈错误</text>
         </button>
         <button class="progress-btn skip" @click="skipCurrentExercise" :disabled="!canSkipCurrent">
           <text>跳过此题</text>
@@ -3260,6 +3258,20 @@ export default {
 
 .progress-btn:disabled {
   color: #b3b8d4;
+}
+
+.progress-btn.report-inline {
+  color: #ff9800;
+  background: rgba(255, 152, 0, 0.1);
+  border: 2rpx solid rgba(255, 152, 0, 0.5);
+  border-radius: 20rpx;
+  padding: 6rpx 18rpx;
+  font-size: 24rpx;
+}
+
+.progress-btn.report-inline:active {
+  background: rgba(255, 152, 0, 0.25);
+  transform: scale(0.95);
 }
 
 .exercise-card {
