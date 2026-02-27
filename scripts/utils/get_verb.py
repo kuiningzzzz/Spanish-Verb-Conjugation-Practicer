@@ -647,7 +647,7 @@ def call_qwen_for_verb(raw_verb: str) -> dict:
 
 def main():
     if len(sys.argv) != 3:
-        print("用法：python ./scripts/get_verb.py <input_verbs.txt> <output.json>")
+        print("用法：python ./scripts/utils/get_verb.py <input_verbs.txt> <output.json>")
         sys.exit(1)
 
     input_path = sys.argv[1]

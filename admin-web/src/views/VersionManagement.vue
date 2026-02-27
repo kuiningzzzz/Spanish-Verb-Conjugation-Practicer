@@ -283,7 +283,7 @@ async function fetchVersions() {
   loading.value = true;
   error.value = '';
   try {
-    const data = await apiRequest('/api/version/all', { auth: false });
+    const data = await apiRequest('/versions');
     versions.value = Array.isArray(data?.versions) ? data.versions : [];
     latestVersion.value = data?.latestVersion || null;
   } catch (err) {

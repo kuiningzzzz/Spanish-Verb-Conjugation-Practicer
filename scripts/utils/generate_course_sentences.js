@@ -4,15 +4,15 @@
 const path = require('path')
 const fs = require('fs')
 
-const dotenvPath = path.join(__dirname, '../server/.env')
+const dotenvPath = path.join(__dirname, '../../server/.env')
 if (fs.existsSync(dotenvPath)) {
   require('dotenv').config({ path: dotenvPath })
 }
 
-const { questionDb } = require('../server/database/db')
-const Textbook = require('../server/models/Textbook')
-const Lesson = require('../server/models/Lesson')
-const ExerciseGeneratorService = require('../server/services/exerciseGenerator')
+const { questionDb } = require('../../server/database/db')
+const Textbook = require('../../server/models/Textbook')
+const Lesson = require('../../server/models/Lesson')
+const ExerciseGeneratorService = require('../../server/services/exerciseGenerator')
 
 const DEFAULT_COURSE_COUNT = 20
 const DEFAULT_MIN_PER_VERB = 2
@@ -144,7 +144,7 @@ function createTensePicker(allTenses) {
     queue = [...tenses]
     for (let i = queue.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
-      ;[queue[i], queue[j]] = [queue[j], queue[i]]
+        ;[queue[i], queue[j]] = [queue[j], queue[i]]
     }
     index = 0
   }
@@ -172,7 +172,7 @@ function createMoodPicker(allMoods) {
     queue = [...moods]
     for (let i = queue.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
-      ;[queue[i], queue[j]] = [queue[j], queue[i]]
+        ;[queue[i], queue[j]] = [queue[j], queue[i]]
     }
     index = 0
   }

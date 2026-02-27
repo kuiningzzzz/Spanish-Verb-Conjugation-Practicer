@@ -264,7 +264,7 @@ def load_env():
 
     # First try scripts/.env to match project conventions.
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    script_env = os.path.join(script_dir, ".env")
+    script_env = os.path.join(script_dir, "..", ".env")
     if os.path.exists(script_env):
         load_dotenv(script_env, override=False)
     # Also allow default dotenv discovery behavior.

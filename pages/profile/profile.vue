@@ -127,7 +127,7 @@
           </view>
           <button class="renew-button" @click="renewSubscription">
             <text class="button-icon">💎</text>
-            <text class="button-text">续费订阅 ¥38/年</text>
+            <text class="button-text">续费订阅</text>
           </button>
         </view>
       </view>
