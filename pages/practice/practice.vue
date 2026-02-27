@@ -268,7 +268,11 @@
         </view>
       </view>
 
-      <button class="btn-primary mt-20 answer-action-btn" @click="handleAnswerAction">{{ showFeedback ? '下一题' : '提交答案' }}</button>
+      <button
+        class="btn-primary mt-20 answer-action-btn"
+        @touchstart.stop="handleAnswerActionTouchStart"
+        @click="handleAnswerActionClick"
+      >{{ showFeedback ? '下一题' : '提交答案' }}</button>
 
       <!-- 题目生成状态指示器 -->
       <view class="ai-status" v-if="showAiGeneratingStatus">
@@ -682,6 +686,8 @@
 
   </view>
   <InAppKeyboardHost
+    :defer-mask-dismiss="true"
+    @mask-tap="onImeMaskTap"
     @height-change="onImeHeightChange"
     @visibility-change="onImeVisibilityChange"
     @popup-height-change="onImePopupHeightChange"
@@ -863,6 +869,7 @@ export default {
       currentIndex: 0,
       userAnswer: '',
       answerInputFocus: false,  // 控制填空输入框的聚焦
+      lastAnswerActionTouchTs: 0,
       selectedAnswer: '',
       comboAnswers: [],  // 组合填空的答案数组
       showFeedback: false,
@@ -2609,14 +2616,56 @@ export default {
       this.saveCurrentState()
     },
     
+    dismissKeyboardForAnswerAction() {
+      setActiveTarget(null)
+      if (typeof uni.hideKeyboard === 'function') {
+        uni.hideKeyboard()
+      }
+    },
+    async handleAnswerActionTouchStart() {
+      this.lastAnswerActionTouchTs = Date.now()
+      await this.handleAnswerAction()
+      this.dismissKeyboardForAnswerAction()
+    },
+    async handleAnswerActionClick() {
+      const now = Date.now()
+      if (now - this.lastAnswerActionTouchTs < 240) return
+      await this.handleAnswerAction()
+      this.dismissKeyboardForAnswerAction()
+    },
+    onImeMaskTap(point) {
+      if (!point) {
+        this.dismissKeyboardForAnswerAction()
+        return
+      }
+      const query = uni.createSelectorQuery().in(this)
+      query.select('.answer-action-btn').boundingClientRect((rect) => {
+        if (!this.isPointInRect(point, rect)) {
+          this.dismissKeyboardForAnswerAction()
+          return
+        }
+        this.lastAnswerActionTouchTs = Date.now()
+        Promise.resolve(this.handleAnswerAction())
+          .finally(() => {
+            this.dismissKeyboardForAnswerAction()
+          })
+      }).exec()
+    },
+    isPointInRect(point, rect) {
+      if (!point || !rect) return false
+      if (typeof rect.left !== 'number' || typeof rect.right !== 'number' || typeof rect.top !== 'number' || typeof rect.bottom !== 'number') {
+        return false
+      }
+      return point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom
+    },
     // 统一处理提交答案和下一题的按钮点击
-    handleAnswerAction() {
+    async handleAnswerAction() {
       if (this.showFeedback) {
         // 已经显示反馈，点击进入下一题
-        this.nextExercise()
+        await this.nextExercise()
       } else {
         // 还未提交，点击提交答案
-        this.submitAnswer()
+        await this.submitAnswer()
       }
     },
 
