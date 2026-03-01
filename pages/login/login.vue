@@ -189,7 +189,7 @@
 
         <view class="tips mt-20">
           <text class="tip-text" v-if="isLogin">学生用户免费使用教材内容</text>
-          <text class="tip-text" v-else>社会人士 ¥38/年，享受全部功能</text>
+          <text class="tip-text" v-else>社会人士付费订阅，享受全部功能</text>
         </view>
       </view>
     </view>
