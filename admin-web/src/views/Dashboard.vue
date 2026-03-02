@@ -68,9 +68,12 @@
       </section>
     </div>
 
-    <div v-if="detailOpen" class="overlay" @click.self="closeDetail">
+    <div v-if="detailOpen" class="overlay">
       <div class="modal history-detail">
-        <h3>{{ detailTitle }}</h3>
+        <div class="modal-header">
+          <h3>{{ detailTitle }}</h3>
+          <button class="ghost" @click="closeDetail">关闭</button>
+        </div>
         <div class="detail-grid">
           <div class="detail-item">
             <span class="detail-label">修改人</span>

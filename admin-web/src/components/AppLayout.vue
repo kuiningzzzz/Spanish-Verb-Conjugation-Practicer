@@ -7,12 +7,12 @@
         <RouterLink to="/users">用户管理</RouterLink>
         <RouterLink to="/lexicon">词库管理</RouterLink>
         <RouterLink to="/questions">题库管理</RouterLink>
-        <RouterLink v-if="isDev" to="/logs">日志查看</RouterLink>
         <RouterLink v-if="isDev" to="/feedback">反馈处理</RouterLink>
         <RouterLink v-if="isDev" to="/practice-records">用户数据</RouterLink>
         <RouterLink v-if="isDev" to="/announcements">公告管理</RouterLink>
         <RouterLink v-if="isDev" to="/versions">版本管理</RouterLink>
         <RouterLink v-if="isDev" to="/database">数据库管理</RouterLink>
+        <RouterLink v-if="isDev" to="/logs">日志查看</RouterLink>
         <RouterLink v-if="isDev" to="/experiment-results">实验结果分析</RouterLink>
       </nav>
     </aside>

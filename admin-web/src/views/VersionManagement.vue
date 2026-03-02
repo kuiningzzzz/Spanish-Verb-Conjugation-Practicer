@@ -57,7 +57,7 @@
       </div>
     </div>
 
-    <div v-if="detailOpen" class="overlay" @click.self="closeDetail">
+    <div v-if="detailOpen" class="overlay">
       <div class="drawer">
         <header>
           <h3>版本详情</h3>
@@ -121,7 +121,7 @@
       </div>
     </div>
 
-    <div v-if="createOpen" class="overlay" @click.self="closeCreate">
+    <div v-if="createOpen" class="overlay">
       <div class="drawer">
         <header>
           <h3>发布新版本</h3>

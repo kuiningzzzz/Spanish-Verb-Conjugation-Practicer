@@ -1,19 +1,9 @@
 <template>
-  <section class="card practice-records-page">
-    <div class="users-header">
-      <div>
+  <section class="card practice-records-page management-page">
+    <div class="management-header practice-header">
+      <div class="practice-header-row practice-header-primary">
         <h2>用户数据</h2>
-        <p class="muted">
-          仅 dev 可查看 user_data.db 中的 practice_records，支持筛选与排序。
-        </p>
-      </div>
-      <div class="toolbar">
-        <div class="toolbar-left">
-          <input
-            v-model.trim="keyword"
-            placeholder="搜索用户ID/邮箱/昵称"
-            @keydown.enter="triggerSearch"
-          />
+        <div class="practice-primary-actions">
           <input
             v-model.trim="userId"
             placeholder="用户ID"
@@ -38,161 +28,154 @@
             <option value="1">正确</option>
             <option value="0">错误</option>
           </select>
-          <input v-model.trim="tense" placeholder="时态" />
-          <input v-model.trim="mood" placeholder="语气" />
-          <input v-model.trim="person" placeholder="人称" />
           <button class="ghost" :disabled="!hasFilters" @click="clearFilters">清空</button>
           <button class="ghost" :disabled="loading" @click="refresh">刷新</button>
         </div>
-        <div class="toolbar-right">
-          <div class="pagination inline-pagination" v-if="total > pageSize">
-            <button class="ghost" :disabled="page === 1 || loading" @click="changePage(page - 1)">
-              上一页
-            </button>
-            <span>第 {{ page }} / {{ totalPages }} 页</span>
-            <button
-              class="ghost"
-              :disabled="page === totalPages || loading"
-              @click="changePage(page + 1)"
-            >
-              下一页
-            </button>
-          </div>
+      </div>
+      <div class="practice-header-row practice-header-secondary">
+        <input v-model.trim="tense" placeholder="时态" />
+        <input v-model.trim="mood" placeholder="语气" />
+        <input v-model.trim="person" placeholder="人称" />
+        <div class="pagination inline-pagination practice-pagination">
+          <button class="ghost" :disabled="page === 1 || loading" @click="changePage(page - 1)">
+            上一页
+          </button>
+          <span>第 {{ page }} / {{ totalPages }} 页</span>
+          <button
+            class="ghost"
+            :disabled="page === totalPages || loading"
+            @click="changePage(page + 1)"
+          >
+            下一页
+          </button>
         </div>
       </div>
     </div>
 
-    <div v-if="error" class="error-block">
-      <p class="error">{{ error }}</p>
-      <button class="ghost" @click="refresh">重试</button>
-    </div>
-
-    <div v-else>
-      <div v-if="loading" class="loading">加载中...</div>
-      <div v-else>
-        <div class="stats-grid">
-          <div class="stat-card">
-            <h3>总体正确率</h3>
-            <p class="stat-value">{{ formatPercent(stats.overall.accuracy) }}</p>
-            <p class="muted">正确 {{ stats.overall.correct }} / 总量 {{ stats.overall.total }}</p>
-          </div>
-        </div>
-
+    <div class="management-page-body">
+      <div v-if="error" class="error-block">
+        <p class="error">{{ error }}</p>
+        <button class="ghost" @click="refresh">重试</button>
+      </div>
+      <div v-else-if="loading" class="loading">加载中...</div>
+      <div v-else class="management-scroll practice-content-scroll">
         <div class="stats-section">
           <div class="stats-toolbar">
-            <h3>正确率统计</h3>
-            <div class="stats-controls">
+            <div class="practice-stats-heading">
+              <select v-model="sectionView" class="practice-section-select">
+                <option value="stats">正确率统计</option>
+                <option value="history">答题历史</option>
+              </select>
+              <span v-if="sectionView === 'stats'" class="muted practice-overall-inline">
+                总体正确率 {{ formatPercent(stats.overall.accuracy) }}
+                <span class="practice-overall-counts">
+                  正确 {{ stats.overall.correct }} / 总量 {{ stats.overall.total }}
+                </span>
+              </span>
+            </div>
+            <div v-if="sectionView === 'stats'" class="stats-controls">
               <select v-model="statsView">
                 <option value="byUser">按用户</option>
-                <option value="byVerb">按题目（动词）</option>
+                <option value="byVerb">按动词</option>
                 <option value="byUserTenseMood">用户 × 时态/语气</option>
               </select>
               <input v-model.trim="statsFilter" :placeholder="currentStats.placeholder" />
               <button class="ghost" :disabled="!statsFilter" @click="statsFilter = ''">清空筛选</button>
             </div>
           </div>
-          <table class="table compact-table">
-            <thead>
-              <tr>
-                <th v-for="column in currentStats.columns" :key="column.key">
-                  <button
-                    v-if="column.sortable"
-                    class="ghost inline-button"
-                    @click="toggleStatsSort"
-                  >
-                    {{ column.label }}
-                    <span class="sort-indicator">{{ statsSortIndicator }}</span>
-                  </button>
-                  <span v-else>{{ column.label }}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in currentStats.rows" :key="item.rowKey">
-                <td v-for="column in currentStats.columns" :key="column.key">
-                  {{ column.format(item) }}
-                </td>
-              </tr>
-              <tr v-if="!currentStats.rows.length">
-                <td :colspan="currentStats.columns.length" class="empty">暂无统计</td>
-              </tr>
-            </tbody>
-          </table>
+          <div v-if="sectionView === 'stats'" class="practice-table-shell">
+            <table class="table compact-table">
+              <thead>
+                <tr>
+                  <th v-for="column in currentStats.columns" :key="column.key">
+                    <button
+                      v-if="column.sortable"
+                      class="ghost inline-button"
+                      @click="toggleStatsSort"
+                    >
+                      {{ column.label }}
+                      <span class="sort-indicator">{{ statsSortIndicator }}</span>
+                    </button>
+                    <span v-else>{{ column.label }}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in currentStats.rows" :key="item.rowKey">
+                  <td v-for="column in currentStats.columns" :key="column.key">
+                    {{ column.format(item) }}
+                  </td>
+                </tr>
+                <tr v-if="!currentStats.rows.length">
+                  <td :colspan="currentStats.columns.length" class="empty">暂无统计</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else class="practice-table-shell">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th class="sortable" @click="toggleSort('id')">
+                    ID <span class="sort-indicator">{{ sortIndicator('id') }}</span>
+                  </th>
+                  <th class="sortable" @click="toggleSort('user_id')">
+                    用户ID <span class="sort-indicator">{{ sortIndicator('user_id') }}</span>
+                  </th>
+                  <th>用户</th>
+                  <th class="sortable" @click="toggleSort('verb_id')">
+                    动词 <span class="sort-indicator">{{ sortIndicator('verb_id') }}</span>
+                  </th>
+                  <th class="sortable" @click="toggleSort('exercise_type')">
+                    练习类型 <span class="sort-indicator">{{ sortIndicator('exercise_type') }}</span>
+                  </th>
+                  <th class="sortable" @click="toggleSort('is_correct')">
+                    结果 <span class="sort-indicator">{{ sortIndicator('is_correct') }}</span>
+                  </th>
+                  <th>作答</th>
+                  <th>正确答案</th>
+                  <th class="sortable" @click="toggleSort('created_at')">
+                    时间 <span class="sort-indicator">{{ sortIndicator('created_at') }}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="record in records" :key="record.id">
+                  <td>{{ record.id }}</td>
+                  <td>{{ record.user_id }}</td>
+                  <td>
+                    <div>{{ formatUser(record) }}</div>
+                    <div class="muted">{{ record.email || '-' }}</div>
+                  </td>
+                  <td>
+                    <div>{{ record.infinitive || '-' }}</div>
+                    <div class="muted">{{ record.verb_id }}</div>
+                  </td>
+                  <td>{{ record.exercise_type || '-' }}</td>
+                  <td>
+                    <span class="tag" :class="record.is_correct ? 'success' : 'error'">
+                      {{ record.is_correct ? '正确' : '错误' }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="ellipsis" :title="record.answer || '-'">
+                      {{ formatText(record.answer) }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="ellipsis" :title="record.correct_answer || '-'">
+                      {{ formatText(record.correct_answer) }}
+                    </span>
+                  </td>
+                  <td>{{ formatDate(record.created_at) }}</td>
+                </tr>
+                <tr v-if="!records.length">
+                  <td colspan="9" class="empty">暂无记录</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-
-        <table class="table">
-          <thead>
-            <tr>
-              <th class="sortable" @click="toggleSort('id')">
-                ID <span class="sort-indicator">{{ sortIndicator('id') }}</span>
-              </th>
-              <th class="sortable" @click="toggleSort('user_id')">
-                用户ID <span class="sort-indicator">{{ sortIndicator('user_id') }}</span>
-              </th>
-              <th>用户</th>
-              <th class="sortable" @click="toggleSort('verb_id')">
-                动词 <span class="sort-indicator">{{ sortIndicator('verb_id') }}</span>
-              </th>
-              <th class="sortable" @click="toggleSort('exercise_type')">
-                练习类型 <span class="sort-indicator">{{ sortIndicator('exercise_type') }}</span>
-              </th>
-              <th class="sortable" @click="toggleSort('is_correct')">
-                结果 <span class="sort-indicator">{{ sortIndicator('is_correct') }}</span>
-              </th>
-              <th>作答</th>
-              <th>正确答案</th>
-              <th class="sortable" @click="toggleSort('tense')">
-                时态 <span class="sort-indicator">{{ sortIndicator('tense') }}</span>
-              </th>
-              <th class="sortable" @click="toggleSort('mood')">
-                语气 <span class="sort-indicator">{{ sortIndicator('mood') }}</span>
-              </th>
-              <th class="sortable" @click="toggleSort('person')">
-                人称 <span class="sort-indicator">{{ sortIndicator('person') }}</span>
-              </th>
-              <th class="sortable" @click="toggleSort('created_at')">
-                时间 <span class="sort-indicator">{{ sortIndicator('created_at') }}</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="record in records" :key="record.id">
-              <td>{{ record.id }}</td>
-              <td>{{ record.user_id }}</td>
-              <td>
-                <div>{{ formatUser(record) }}</div>
-                <div class="muted">{{ record.email || '-' }}</div>
-              </td>
-              <td>
-                <div>{{ record.infinitive || '-' }}</div>
-                <div class="muted">{{ record.verb_id }}</div>
-              </td>
-              <td>{{ record.exercise_type || '-' }}</td>
-              <td>
-                <span class="tag" :class="record.is_correct ? 'success' : 'error'">
-                  {{ record.is_correct ? '正确' : '错误' }}
-                </span>
-              </td>
-              <td>
-                <span class="ellipsis" :title="record.answer || '-'">
-                  {{ formatText(record.answer) }}
-                </span>
-              </td>
-              <td>
-                <span class="ellipsis" :title="record.correct_answer || '-'">
-                  {{ formatText(record.correct_answer) }}
-                </span>
-              </td>
-              <td>{{ record.tense || '-' }}</td>
-              <td>{{ record.mood || '-' }}</td>
-              <td>{{ record.person || '-' }}</td>
-              <td>{{ formatDate(record.created_at) }}</td>
-            </tr>
-            <tr v-if="!records.length">
-              <td colspan="12" class="empty">暂无记录</td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </div>
   </section>
@@ -218,14 +201,13 @@ const stats = ref({
 const statsView = ref('byUser');
 const statsFilter = ref('');
 const statsSortOrder = ref('desc');
+const sectionView = ref('stats');
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(15);
 const loading = ref(false);
 const error = ref('');
 
-const keyword = ref('');
-const debouncedKeyword = ref('');
 const userId = ref('');
 const verbId = ref('');
 const exerciseType = ref('all');
@@ -240,8 +222,7 @@ const sortOrder = ref('desc');
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
 const hasFilters = computed(() =>
   Boolean(
-    keyword.value ||
-      verbId.value ||
+    verbId.value ||
       userId.value ||
       exerciseType.value !== 'all' ||
       correctness.value !== 'all' ||
@@ -251,18 +232,8 @@ const hasFilters = computed(() =>
   )
 );
 
-let searchTimer;
-
-watch(keyword, (value) => {
-  if (searchTimer) clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => {
-    debouncedKeyword.value = value.trim();
-    page.value = 1;
-  }, 300);
-});
-
 watch(
-  [page, pageSize, debouncedKeyword, userId, verbId, exerciseType, correctness, tense, mood, person, sortKey, sortOrder],
+  [page, pageSize, userId, verbId, exerciseType, correctness, tense, mood, person, sortKey, sortOrder],
   () => {
     fetchRecords();
     fetchStats();
@@ -270,15 +241,7 @@ watch(
   { immediate: true }
 );
 
-function triggerSearch() {
-  if (searchTimer) clearTimeout(searchTimer);
-  debouncedKeyword.value = keyword.value.trim();
-  page.value = 1;
-}
-
 function clearFilters() {
-  keyword.value = '';
-  debouncedKeyword.value = '';
   userId.value = '';
   verbId.value = '';
   exerciseType.value = 'all';
@@ -504,9 +467,6 @@ async function fetchRecords() {
       sortBy: sortKey.value,
       sortOrder: sortOrder.value
     };
-    if (debouncedKeyword.value) {
-      params.keyword = debouncedKeyword.value;
-    }
     if (verbId.value) {
       params.verbId = verbId.value.trim();
     }
@@ -542,9 +502,6 @@ async function fetchRecords() {
 async function fetchStats() {
   try {
     const params = {};
-    if (debouncedKeyword.value) {
-      params.keyword = debouncedKeyword.value;
-    }
     if (verbId.value) {
       params.verbId = verbId.value.trim();
     }
@@ -578,3 +535,139 @@ async function fetchStats() {
   }
 }
 </script>
+
+<style scoped>
+.practice-records-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.practice-records-page .management-header {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.practice-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.practice-header-primary h2 {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.practice-primary-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-left: auto;
+}
+
+.practice-header-primary input,
+.practice-header-secondary input {
+  width: 112px;
+  min-width: 112px;
+}
+
+.practice-header-primary select {
+  width: 132px;
+  min-width: 132px;
+}
+
+.practice-pagination {
+  margin-top: 0;
+  margin-left: 8px;
+  flex-wrap: nowrap;
+}
+
+.practice-header-secondary {
+  justify-content: flex-end;
+}
+
+.practice-content-scroll {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding-right: 4px;
+}
+
+.practice-stats-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.practice-stats-heading h3 {
+  margin: 0;
+}
+
+.practice-section-select {
+  min-width: 144px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-weight: 600;
+}
+
+.practice-overall-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.practice-overall-counts {
+  font-size: 13px;
+}
+
+.practice-table-shell {
+  width: 100%;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: auto;
+  background: #fff;
+}
+
+.practice-records-page .stats-section {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 960px) {
+  .practice-header-row {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .practice-primary-actions {
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .practice-header-secondary {
+    justify-content: flex-start;
+  }
+
+  .practice-pagination {
+    margin-left: 8px;
+  }
+
+  .practice-header-primary input,
+  .practice-header-primary select,
+  .practice-header-secondary input {
+    width: 100%;
+    min-width: 0;
+  }
+}
+</style>

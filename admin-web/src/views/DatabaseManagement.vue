@@ -101,7 +101,7 @@
       </div>
     </div>
 
-    <div v-if="backupDialogOpen" class="overlay" @click.self="closeBackupCreate">
+    <div v-if="backupDialogOpen" class="overlay">
       <div class="drawer">
         <header>
           <h3>新增备份</h3>
@@ -121,9 +121,12 @@
       </div>
     </div>
 
-    <div v-if="deleteBackupDialog" class="overlay" @click.self="closeDeleteBackup">
+    <div v-if="deleteBackupDialog" class="overlay">
       <div class="modal">
-        <h3>确认删除备份</h3>
+        <div class="modal-header">
+          <h3>确认删除备份</h3>
+          <button class="ghost" @click="closeDeleteBackup">关闭</button>
+        </div>
         <p>即将删除备份：<strong>{{ deleteBackupDialog.createdAt }}</strong></p>
         <p class="muted">此操作会同时删除备份文件，且不可恢复。</p>
         <div class="modal-actions">
@@ -133,9 +136,12 @@
       </div>
     </div>
 
-    <div v-if="restoreDialog" class="overlay" @click.self="closeRestore">
+    <div v-if="restoreDialog" class="overlay">
       <div class="modal warning">
-        <h3>确认还原备份</h3>
+        <div class="modal-header">
+          <h3>确认还原备份</h3>
+          <button class="ghost" @click="closeRestore">关闭</button>
+        </div>
         <p>将使用备份覆盖当前数据：<strong>{{ restoreDialog.createdAt }}</strong></p>
         <p class="muted">还原会丢失未备份的数据，请确认无误。</p>
         <div class="modal-actions">
@@ -145,7 +151,7 @@
       </div>
     </div>
 
-    <div v-if="importDialogOpen" class="overlay" @click.self="closeImportDialog">
+    <div v-if="importDialogOpen" class="overlay">
       <div class="drawer">
         <header>
           <h3>导入数据</h3>
@@ -166,9 +172,12 @@
       </div>
     </div>
 
-    <div v-if="importConfirmDialog" class="overlay" @click.self="closeImportConfirm">
+    <div v-if="importConfirmDialog" class="overlay">
       <div class="modal warning">
-        <h3>确认导入</h3>
+        <div class="modal-header">
+          <h3>确认导入</h3>
+          <button class="ghost" @click="closeImportConfirm">关闭</button>
+        </div>
         <p>导入将覆盖现有数据，请确认已完成备份。</p>
         <div class="modal-actions">
           <button class="ghost" @click="closeImportConfirm">取消</button>
@@ -177,9 +186,12 @@
       </div>
     </div>
 
-    <div v-if="deleteImportDialog" class="overlay" @click.self="closeDeleteImport">
+    <div v-if="deleteImportDialog" class="overlay">
       <div class="modal">
-        <h3>确认删除导入记录</h3>
+        <div class="modal-header">
+          <h3>确认删除导入记录</h3>
+          <button class="ghost" @click="closeDeleteImport">关闭</button>
+        </div>
         <p>即将删除导入记录：<strong>{{ deleteImportDialog.createdAt }}</strong></p>
         <p class="muted">删除导入记录不会还原到导入前的状态，请务必在导入前进行备份。</p>
         <div class="modal-actions">

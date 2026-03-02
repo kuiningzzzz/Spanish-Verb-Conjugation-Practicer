@@ -596,6 +596,8 @@ class Question {
       'infinitive',
       'question_text',
       'translation',
+      'host_form',
+      'pronoun_pattern',
       'tense',
       'mood',
       'person',

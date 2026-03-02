@@ -827,6 +827,18 @@ textarea {
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
 }
 
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.modal-header h3 {
+  margin: 0;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;

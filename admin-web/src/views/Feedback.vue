@@ -127,7 +127,7 @@
       </div>
     </div>
 
-    <div v-if="drawerOpen" class="overlay" @click.self="closeDrawer">
+    <div v-if="drawerOpen" class="overlay">
       <div class="drawer">
         <header>
           <h3>反馈详情</h3>
@@ -228,9 +228,12 @@
       </div>
     </div>
 
-    <div v-if="deleteDialog" class="overlay" @click.self="closeDelete">
+    <div v-if="deleteDialog" class="overlay">
       <div class="modal">
-        <h3>确认删除</h3>
+        <div class="modal-header">
+          <h3>确认删除</h3>
+          <button class="ghost" @click="closeDelete">关闭</button>
+        </div>
         <p>即将删除反馈：<strong>{{ deleteDialog.id }}</strong></p>
         <div class="modal-actions">
           <button class="ghost" @click="closeDelete">取消</button>

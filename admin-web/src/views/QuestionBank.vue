@@ -80,15 +80,25 @@
               <th class="col-question sortable" @click="toggleSort('question_text')">
                 题干 <span class="sort-indicator">{{ sortIndicator('question_text') }}</span>
               </th>
-              <th class="col-tense sortable" @click="toggleSort('tense')">
-                时态 <span class="sort-indicator">{{ sortIndicator('tense') }}</span>
-              </th>
-              <th class="col-mood sortable" @click="toggleSort('mood')">
-                语气 <span class="sort-indicator">{{ sortIndicator('mood') }}</span>
-              </th>
-              <th class="col-person sortable" @click="toggleSort('person')">
-                人称 <span class="sort-indicator">{{ sortIndicator('person') }}</span>
-              </th>
+              <template v-if="isPronounBank">
+                <th class="col-host-form sortable" @click="toggleSort('host_form')">
+                  变位形式 <span class="sort-indicator">{{ sortIndicator('host_form') }}</span>
+                </th>
+                <th class="col-pronoun-mode sortable" @click="toggleSort('pronoun_pattern')">
+                  代词模式 <span class="sort-indicator">{{ sortIndicator('pronoun_pattern') }}</span>
+                </th>
+              </template>
+              <template v-else>
+                <th class="col-tense sortable" @click="toggleSort('tense')">
+                  时态 <span class="sort-indicator">{{ sortIndicator('tense') }}</span>
+                </th>
+                <th class="col-mood sortable" @click="toggleSort('mood')">
+                  语气 <span class="sort-indicator">{{ sortIndicator('mood') }}</span>
+                </th>
+                <th class="col-person sortable" @click="toggleSort('person')">
+                  人称 <span class="sort-indicator">{{ sortIndicator('person') }}</span>
+                </th>
+              </template>
               <th v-if="isDev" class="col-confidence sortable" @click="toggleSort('confidence_score')">
                 置信度 <span class="sort-indicator">{{ sortIndicator('confidence_score') }}</span>
               </th>
@@ -107,9 +117,15 @@
                   {{ formatText(question.question_text) }}
                 </span>
               </td>
-              <td class="col-tense">{{ question.tense }}</td>
-              <td class="col-mood">{{ question.mood }}</td>
-              <td class="col-person">{{ question.person }}</td>
+              <template v-if="isPronounBank">
+                <td class="col-host-form">{{ formatHostForm(question) }}</td>
+                <td class="col-pronoun-mode">{{ formatPronounPattern(question) }}</td>
+              </template>
+              <template v-else>
+                <td class="col-tense">{{ question.tense }}</td>
+                <td class="col-mood">{{ question.mood }}</td>
+                <td class="col-person">{{ question.person }}</td>
+              </template>
               <td v-if="isDev" class="col-confidence">{{ question.confidence_score ?? '-' }}</td>
               <td v-if="isDev" class="col-created">{{ formatDate(question.created_at) }}</td>
               <td class="actions col-actions">
@@ -125,7 +141,7 @@
       </div>
     </div>
 
-    <div v-if="drawerOpen" class="overlay" @click.self="closeDrawer">
+    <div v-if="drawerOpen" class="overlay">
       <div class="drawer">
         <header>
           <h3>编辑题目</h3>
@@ -193,9 +209,12 @@
       </div>
     </div>
 
-    <div v-if="deleteDialog" class="overlay" @click.self="closeDelete">
+    <div v-if="deleteDialog" class="overlay">
       <div class="modal">
-        <h3>确认删除</h3>
+        <div class="modal-header">
+          <h3>确认删除</h3>
+          <button class="ghost" @click="closeDelete">关闭</button>
+        </div>
         <p>
           即将删除题目：<strong>{{ briefQuestion(deleteDialog.question_text) }}</strong>（ID: {{ deleteDialog.id }}）
         </p>
@@ -267,8 +286,12 @@ const toast = reactive({
   type: 'info'
 });
 
+const isPronounBank = computed(() => questionBankFilter.value === 'pronoun');
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
-const emptyColspan = computed(() => (isDev.value ? 9 : 7));
+const emptyColspan = computed(() => {
+  const baseColumns = isPronounBank.value ? 6 : 7;
+  return isDev.value ? baseColumns + 2 : baseColumns;
+});
 const resolvedTenseOptions = computed(() => mergeOptions(tenseOptions.value, form.tense));
 const resolvedPersonOptions = computed(() => mergeOptions(personOptions.value, form.person));
 
@@ -571,6 +594,16 @@ function formatText(value) {
   return `${text.slice(0, 60)}...`;
 }
 
+function formatHostForm(question) {
+  const value = String(question?.host_form || '').trim();
+  return value || '-';
+}
+
+function formatPronounPattern(question) {
+  const value = String(question?.pronoun_pattern || '').trim().toUpperCase();
+  return value || '-';
+}
+
 function briefQuestion(value) {
   if (!value) return '（空题干）';
   const text = String(value);
@@ -811,6 +844,14 @@ fetchConjugationOptions();
 
 .question-bank-page .col-tense {
   width: 116px;
+}
+
+.question-bank-page .col-host-form {
+  width: 112px;
+}
+
+.question-bank-page .col-pronoun-mode {
+  width: 104px;
 }
 
 .question-bank-page .col-mood,
