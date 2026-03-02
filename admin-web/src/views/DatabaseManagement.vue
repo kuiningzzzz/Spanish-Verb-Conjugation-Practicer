@@ -1,37 +1,39 @@
 <template>
-  <section class="card db-page">
-    <div class="users-header">
+  <section class="card db-page management-page">
+    <div class="management-header">
       <div>
         <h2>数据库管理</h2>
-        <p class="muted">仅 dev 可进行备份、还原与导入操作。</p>
       </div>
-      <div class="toolbar">
-        <div class="toggle-group">
-          <span class="toggle-label" :class="{ active: activeTab === 'backup' }">备份</span>
-          <label class="switch">
-            <input type="checkbox" v-model="isImportMode" />
-            <span class="slider"></span>
-          </label>
-          <span class="toggle-label" :class="{ active: activeTab === 'import' }">导入</span>
+      <div class="toolbar management-toolbar">
+        <div class="toolbar-left">
+          <div class="toggle-group">
+            <span class="toggle-label" :class="{ active: activeTab === 'backup' }">备份</span>
+            <label class="switch">
+              <input type="checkbox" v-model="isImportMode" />
+              <span class="slider"></span>
+            </label>
+            <span class="toggle-label" :class="{ active: activeTab === 'import' }">导入</span>
+          </div>
         </div>
-        <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
-        <button v-if="activeTab === 'backup'" @click="openBackupCreate">新增备份</button>
-        <button v-else @click="openImportDialog">导入 .zip</button>
+        <div class="management-actions">
+          <span class="muted management-pagination-total">共 {{ activeRecordCount }} 条</span>
+          <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
+          <button v-if="activeTab === 'backup'" @click="openBackupCreate">新增备份</button>
+          <button v-else @click="openImportDialog">导入 .zip</button>
+        </div>
       </div>
     </div>
 
-    <div v-if="error" class="error-block">
-      <p class="error">{{ error }}</p>
-      <button class="ghost" @click="refresh">重试</button>
-    </div>
-
-    <div v-else>
-      <div v-if="loading" class="loading">加载中...</div>
-      <div v-else>
+    <div class="management-page-body">
+      <div v-if="error" class="error-block">
+        <p class="error">{{ error }}</p>
+        <button class="ghost" @click="refresh">重试</button>
+      </div>
+      <div v-else-if="loading" class="loading">加载中...</div>
+      <div v-else class="management-scroll">
         <div v-if="activeTab === 'backup'" class="db-panel">
           <div class="panel-header">
             <h3>备份记录</h3>
-            <span class="muted">共 {{ backups.length }} 条</span>
           </div>
           <table class="table compact-table">
             <thead>
@@ -67,7 +69,6 @@
         <div v-else class="db-panel">
           <div class="panel-header">
             <h3>导入记录</h3>
-            <span class="muted">共 {{ imports.length }} 条</span>
           </div>
           <table class="table compact-table">
             <thead>
@@ -234,6 +235,8 @@ const toast = reactive({
   message: '',
   type: 'info'
 });
+
+const activeRecordCount = computed(() => (activeTab.value === 'backup' ? backups.value.length : imports.value.length));
 
 function showToast(message, type = 'info') {
   toast.message = message;

@@ -20,7 +20,6 @@
       <header class="topbar">
         <div class="topbar-left">
           <h1>{{ title }}</h1>
-          <p class="subtitle"></p>
         </div>
         <div class="topbar-right" v-if="user">
           <span class="chip">{{ user.username || user.email }}</span>

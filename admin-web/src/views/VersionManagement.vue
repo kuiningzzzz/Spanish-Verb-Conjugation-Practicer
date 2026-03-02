@@ -1,26 +1,26 @@
 <template>
-  <section class="card version-page">
-    <div class="users-header">
+  <section class="card version-page management-page">
+    <div class="management-header">
       <div>
         <h2>版本管理</h2>
-        <p class="muted">仅 dev 可查看历史版本更新日志与发布新版本。</p>
-        <p class="muted total-count">共 {{ versions.length }} 条</p>
       </div>
-      <div class="toolbar">
-        <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
-        <button @click="openCreate">发布新版本</button>
-        <button class="ghost" :disabled="!latestVersion" @click="downloadLatest">下载最新版本</button>
+      <div class="toolbar management-toolbar">
+        <div class="management-actions">
+          <span class="muted management-pagination-total">共 {{ versions.length }} 条</span>
+          <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
+          <button @click="openCreate">发布新版本</button>
+          <button class="ghost" :disabled="!latestVersion" @click="downloadLatest">下载最新版本</button>
+        </div>
       </div>
     </div>
 
-    <div v-if="error" class="error-block">
-      <p class="error">{{ error }}</p>
-      <button class="ghost" @click="refresh">重试</button>
-    </div>
-
-    <div v-else>
-      <div v-if="loading" class="loading">加载中...</div>
-      <div v-else>
+    <div class="management-page-body">
+      <div v-if="error" class="error-block">
+        <p class="error">{{ error }}</p>
+        <button class="ghost" @click="refresh">重试</button>
+      </div>
+      <div v-else-if="loading" class="loading">加载中...</div>
+      <div v-else class="management-table-scroll">
         <table class="table">
           <thead>
             <tr>

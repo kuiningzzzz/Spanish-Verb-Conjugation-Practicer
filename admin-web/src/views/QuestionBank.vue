@@ -1,103 +1,105 @@
 <template>
-  <section class="card question-bank-page">
-    <div class="users-header">
+  <section class="card question-bank-page management-page">
+    <div class="management-header">
       <div>
         <h2>题库管理</h2>
-        <p class="muted">
-          管理所有动词变位例句题目
-        </p>
-        <p class="muted total-count">共 {{ total }} 条</p>
       </div>
-      <div class="toolbar">
+      <div class="toolbar management-toolbar">
         <div class="toolbar-left">
           <input
             v-model.trim="keyword"
+            class="question-search-input"
             placeholder="搜索题干/动词原形"
             @keydown.enter="triggerSearch"
           />
           <button class="ghost" :disabled="!keyword" @click="clearSearch">清空</button>
           <button class="ghost" :disabled="loading" @click="refresh">刷新</button>
         </div>
-        <div class="toolbar-right">
+        <div class="management-actions">
           <button class="ghost" :disabled="downloadingAll" @click="downloadAllQuestionsJson">下载题库JSON</button>
-          <div class="pagination inline-pagination" v-if="total > pageSize">
-            <button class="ghost" :disabled="page === 1 || loading" @click="changePage(page - 1)">上一页</button>
-            <span>第 {{ page }} / {{ totalPages }} 页</span>
-            <button
-              class="ghost"
-              :disabled="page === totalPages || loading"
-              @click="changePage(page + 1)"
-            >
-              下一页
-            </button>
-            <input
-              v-model.number="pageJump"
-              class="page-jump-input"
-              type="number"
-              min="1"
-              :max="totalPages"
-              placeholder="跳转页"
-              @keydown.enter="jumpToPage"
-            />
-            <button class="ghost" :disabled="loading" @click="jumpToPage">跳转</button>
+          <div class="pagination inline-pagination management-inline-pagination">
+            <span class="muted management-pagination-total">共 {{ total }} 条</span>
+            <template v-if="total > pageSize">
+              <button class="ghost" :disabled="page === 1 || loading" @click="changePage(page - 1)">上一页</button>
+              <label class="management-pagination-jump" for="questions-page-jump">
+                第
+                <input
+                  id="questions-page-jump"
+                  v-model.number="pageJump"
+                  class="page-jump-input management-page-number-input"
+                  type="number"
+                  min="1"
+                  :max="totalPages"
+                  @keydown.enter.prevent="jumpToPage"
+                  @blur="jumpToPage"
+                />
+                / {{ totalPages }} 页
+              </label>
+              <button
+                class="ghost"
+                :disabled="page === totalPages || loading"
+                @click="changePage(page + 1)"
+              >
+                下一页
+              </button>
+            </template>
           </div>
         </div>
       </div>
     </div>
 
-    <div v-if="error" class="error-block">
-      <p class="error">{{ error }}</p>
-      <button class="ghost" @click="refresh">重试</button>
-    </div>
-
-    <div v-else>
-      <div v-if="loading" class="loading">加载中...</div>
-      <div v-else>
+    <div class="management-page-body">
+      <div v-if="error" class="error-block">
+        <p class="error">{{ error }}</p>
+        <button class="ghost" @click="refresh">重试</button>
+      </div>
+      <div v-else-if="loading" class="loading">加载中...</div>
+      <div v-else class="management-table-scroll">
         <table class="table">
           <thead>
             <tr>
-              <th class="sortable" @click="toggleSort('id')">
+              <th class="col-id sortable" @click="toggleSort('id')">
                 ID <span class="sort-indicator">{{ sortIndicator('id') }}</span>
               </th>
-              <th class="sortable" @click="toggleSort('infinitive')">
+              <th class="col-verb sortable" @click="toggleSort('infinitive')">
                 动词原形 <span class="sort-indicator">{{ sortIndicator('infinitive') }}</span>
               </th>
-              <th class="sortable" @click="toggleSort('question_text')">
+              <th class="col-question sortable" @click="toggleSort('question_text')">
                 题干 <span class="sort-indicator">{{ sortIndicator('question_text') }}</span>
               </th>
-              <th class="sortable" @click="toggleSort('tense')">
+              <th class="col-tense sortable" @click="toggleSort('tense')">
                 时态 <span class="sort-indicator">{{ sortIndicator('tense') }}</span>
               </th>
-              <th class="sortable" @click="toggleSort('mood')">
+              <th class="col-mood sortable" @click="toggleSort('mood')">
                 语气 <span class="sort-indicator">{{ sortIndicator('mood') }}</span>
               </th>
-              <th class="sortable" @click="toggleSort('person')">
+              <th class="col-person sortable" @click="toggleSort('person')">
                 人称 <span class="sort-indicator">{{ sortIndicator('person') }}</span>
               </th>
-              <th v-if="isDev" class="sortable" @click="toggleSort('confidence_score')">
+              <th v-if="isDev" class="col-confidence sortable" @click="toggleSort('confidence_score')">
                 置信度 <span class="sort-indicator">{{ sortIndicator('confidence_score') }}</span>
               </th>
-              <th v-if="isDev" class="sortable" @click="toggleSort('created_at')">
+              <th v-if="isDev" class="col-created sortable" @click="toggleSort('created_at')">
                 创建时间 <span class="sort-indicator">{{ sortIndicator('created_at') }}</span>
               </th>
-              <th>操作</th>
+              <th class="col-actions">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="question in questions" :key="question.id">
-              <td>{{ question.id }}</td>
-              <td>{{ question.infinitive || '-' }}</td>
-              <td>
-                <span class="ellipsis" :title="question.question_text">
+              <td class="col-id">{{ question.id }}</td>
+              <td class="col-verb">{{ question.infinitive || '-' }}</td>
+              <td class="col-question">
+                <span class="ellipsis question-ellipsis" :title="question.question_text">
                   {{ formatText(question.question_text) }}
                 </span>
               </td>
-              <td>{{ question.tense }}</td>
-              <td>{{ question.mood }}</td>
-              <td>{{ question.person }}</td>
-              <td v-if="isDev">{{ question.confidence_score ?? '-' }}</td>
-              <td v-if="isDev">{{ formatDate(question.created_at) }}</td>
-              <td class="actions">
+              <td class="col-tense">{{ question.tense }}</td>
+              <td class="col-mood">{{ question.mood }}</td>
+              <td class="col-person">{{ question.person }}</td>
+              <td v-if="isDev" class="col-confidence">{{ question.confidence_score ?? '-' }}</td>
+              <td v-if="isDev" class="col-created">{{ formatDate(question.created_at) }}</td>
+              <td class="actions col-actions">
                 <button class="ghost" @click="openEdit(question)">编辑</button>
                 <button class="danger" @click="confirmDelete(question)">删除</button>
               </td>
@@ -209,7 +211,7 @@ const questions = ref([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(10);
-const pageJump = ref(null);
+const pageJump = ref(1);
 const keyword = ref('');
 const debouncedKeyword = ref('');
 const loading = ref(false);
@@ -276,6 +278,10 @@ watch(keyword, (value) => {
 watch([page, pageSize, debouncedKeyword, sortKey, sortOrder], () => {
   fetchQuestions();
 });
+
+watch(page, (value) => {
+  pageJump.value = value;
+}, { immediate: true });
 
 watch(
   () => form.verb_id,
@@ -437,10 +443,14 @@ function changePage(nextPage) {
 }
 
 function jumpToPage() {
-  if (!pageJump.value) return;
-  const target = Math.min(Math.max(Number(pageJump.value), 1), totalPages.value);
-  page.value = target;
-  pageJump.value = null;
+  const target = Number(pageJump.value);
+  if (!Number.isFinite(target)) {
+    pageJump.value = page.value;
+    return;
+  }
+  const nextPage = Math.min(Math.max(Math.trunc(target), 1), totalPages.value);
+  pageJump.value = nextPage;
+  page.value = nextPage;
 }
 
 function triggerSearch() {
@@ -687,3 +697,112 @@ async function submitDelete() {
 fetchQuestions();
 fetchConjugationOptions();
 </script>
+
+<style scoped>
+.question-bank-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.question-bank-page h2 {
+  white-space: nowrap;
+}
+
+.question-bank-page .management-header > div:first-child {
+  flex-shrink: 0;
+}
+
+.question-bank-page .management-header,
+.question-bank-page .management-toolbar,
+.question-bank-page .toolbar-left,
+.question-bank-page .management-actions {
+  flex-wrap: nowrap;
+}
+
+.question-bank-page .management-toolbar,
+.question-bank-page .toolbar-left,
+.question-bank-page .management-actions {
+  gap: 8px;
+}
+
+.question-bank-page .management-table-scroll {
+  width: 100%;
+}
+
+.question-bank-page .question-search-input {
+  width: 180px;
+  min-width: 180px;
+}
+
+.question-bank-page .management-toolbar button {
+  padding: 8px 10px;
+  font-size: 14px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.question-bank-page .table {
+  table-layout: fixed;
+}
+
+.question-bank-page .table th,
+.question-bank-page .table td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.question-bank-page .col-id {
+  width: 64px;
+}
+
+.question-bank-page .col-verb {
+  width: 110px;
+}
+
+.question-bank-page .col-tense {
+  width: 116px;
+}
+
+.question-bank-page .col-mood,
+.question-bank-page .col-person {
+  width: 92px;
+}
+
+.question-bank-page .col-confidence {
+  width: 76px;
+}
+
+.question-bank-page .col-created {
+  width: 168px;
+}
+
+.question-bank-page .col-actions {
+  width: 164px;
+}
+
+.question-bank-page .question-ellipsis {
+  display: block;
+  max-width: 100%;
+}
+
+.question-bank-page .table td.actions {
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 960px) {
+  .question-bank-page .management-header,
+  .question-bank-page .management-toolbar,
+  .question-bank-page .toolbar-left,
+  .question-bank-page .management-actions {
+    flex-wrap: wrap;
+  }
+
+  .question-bank-page .question-search-input {
+    width: 100%;
+    min-width: 0;
+  }
+}
+</style>
