@@ -1,4 +1,14 @@
 <template>
+  <Teleport to=".topbar-left">
+    <button
+      class="ghost question-bank-download-button"
+      :disabled="downloadingAll"
+      @click="downloadAllQuestionsJson"
+    >
+      下载题库JSON
+    </button>
+  </Teleport>
+
   <section class="card question-bank-page management-page">
     <div class="management-header">
       <div>
@@ -16,7 +26,10 @@
           <button class="ghost" :disabled="loading" @click="refresh">刷新</button>
         </div>
         <div class="management-actions">
-          <button class="ghost" :disabled="downloadingAll" @click="downloadAllQuestionsJson">下载题库JSON</button>
+          <select v-model="questionBankFilter" class="question-bank-mode-select">
+            <option value="traditional">传统变位</option>
+            <option value="pronoun">带代词变位</option>
+          </select>
           <div class="pagination inline-pagination management-inline-pagination">
             <span class="muted management-pagination-total">共 {{ total }} 条</span>
             <template v-if="total > pageSize">
@@ -212,6 +225,7 @@ const total = ref(0);
 const page = ref(1);
 const pageSize = ref(10);
 const pageJump = ref(1);
+const questionBankFilter = ref('traditional');
 const keyword = ref('');
 const debouncedKeyword = ref('');
 const loading = ref(false);
@@ -276,6 +290,14 @@ watch(keyword, (value) => {
 });
 
 watch([page, pageSize, debouncedKeyword, sortKey, sortOrder], () => {
+  fetchQuestions();
+});
+
+watch(questionBankFilter, () => {
+  if (page.value !== 1) {
+    page.value = 1;
+    return;
+  }
   fetchQuestions();
 });
 
@@ -407,6 +429,7 @@ async function fetchQuestions() {
     if (debouncedKeyword.value) {
       params.keyword = debouncedKeyword.value;
     }
+    params.questionBank = questionBankFilter.value;
     params.sortBy = sortKey.value;
     params.sortOrder = sortOrder.value;
     const data = await apiRequest('/questions', { params });
@@ -479,6 +502,7 @@ function downloadJsonFile(payload, fileName) {
 
 function buildDownloadFileName() {
   const now = new Date();
+  const bank = questionBankFilter.value === 'pronoun' ? 'pronoun' : 'traditional';
   const stamp = [
     now.getFullYear(),
     String(now.getMonth() + 1).padStart(2, '0'),
@@ -487,7 +511,7 @@ function buildDownloadFileName() {
     String(now.getMinutes()).padStart(2, '0'),
     String(now.getSeconds()).padStart(2, '0')
   ].join('');
-  return `question-bank-list-${stamp}.json`;
+  return `question-bank-${bank}-${stamp}.json`;
 }
 
 async function fetchAllQuestions() {
@@ -497,7 +521,13 @@ async function fetchAllQuestions() {
   const all = [];
   while (true) {
     const data = await apiRequest('/questions', {
-      params: { limit, offset, sortBy: 'id', sortOrder: 'asc' }
+      params: {
+        limit,
+        offset,
+        sortBy: 'id',
+        sortOrder: 'asc',
+        questionBank: questionBankFilter.value
+      }
     });
     const rows = data?.rows || [];
     if (!rows.length) break;
@@ -587,7 +617,9 @@ async function openEdit(question) {
   resetErrors(formErrors);
   saving.value = false;
   try {
-    const data = await apiRequest(`/questions/${question.id}`);
+    const data = await apiRequest(`/questions/${question.id}`, {
+      params: { source: question.public_question_source }
+    });
     activeQuestion.value = data;
     form.id = data.id;
     form.verb_id = data.verb_id ? String(data.verb_id) : '';
@@ -651,6 +683,7 @@ async function submitEdit() {
     await apiRequest(`/questions/${form.id}`, {
       method: 'PUT',
       body: {
+        public_question_source: activeQuestion.value?.public_question_source,
         verb_id: verbId,
         question_text: form.question_text.trim(),
         translation: form.translation?.trim() || null,
@@ -683,7 +716,10 @@ async function submitDelete() {
   if (!deleteDialog.value) return;
   deleting.value = true;
   try {
-    await apiRequest(`/questions/${deleteDialog.value.id}`, { method: 'DELETE' });
+    await apiRequest(`/questions/${deleteDialog.value.id}`, {
+      method: 'DELETE',
+      params: { source: deleteDialog.value.public_question_source }
+    });
     showToast('删除成功', 'success');
     closeDelete();
     fetchQuestions();
@@ -733,6 +769,18 @@ fetchConjugationOptions();
 .question-bank-page .question-search-input {
   width: 180px;
   min-width: 180px;
+}
+
+.question-bank-page .question-bank-mode-select {
+  width: 136px;
+  min-width: 136px;
+}
+
+.question-bank-page .question-bank-download-button {
+  padding: 7px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .question-bank-page .management-toolbar button {
@@ -801,6 +849,11 @@ fetchConjugationOptions();
   }
 
   .question-bank-page .question-search-input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .question-bank-page .question-bank-mode-select {
     width: 100%;
     min-width: 0;
   }
