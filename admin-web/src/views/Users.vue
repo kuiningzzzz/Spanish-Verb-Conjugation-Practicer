@@ -61,6 +61,7 @@
               <th>ID</th>
               <th>邮箱</th>
               <th>昵称</th>
+              <th>类型</th>
               <th>角色</th>
               <th>创建时间</th>
               <th>操作</th>
@@ -71,6 +72,9 @@
               <td>{{ user.id }}</td>
               <td>{{ user.email || '-' }}</td>
               <td>{{ user.username || '-' }}</td>
+              <td>
+                <span class="tag" :class="typeTagClass(user.user_type)">{{ userTypeLabel(user.user_type) }}</span>
+              </td>
               <td>
                 <span class="tag" :class="user.role">{{ roleLabel(user.role) }}</span>
               </td>
@@ -95,7 +99,7 @@
               </td>
             </tr>
             <tr v-if="!filteredUsers.length">
-              <td colspan="6" class="empty">暂无用户数据</td>
+              <td colspan="7" class="empty">暂无用户数据</td>
             </tr>
           </tbody>
         </table>
@@ -387,6 +391,19 @@ function roleLabel(role) {
   if (role === 'dev') return 'DEV';
   if (role === 'admin') return 'ADMIN';
   return 'USER';
+}
+
+function userTypeLabel(userType) {
+  const normalized = String(userType || '').trim().toLowerCase();
+  if (normalized === 'student') return 'STUDENT';
+  if (normalized === 'public') return 'PUBLIC';
+  if (!normalized) return '-';
+  return normalized.toUpperCase();
+}
+
+function typeTagClass(userType) {
+  const normalized = String(userType || '').trim().toLowerCase();
+  return normalized ? `type-${normalized}` : 'type-unknown';
 }
 
 function canEdit(user) {

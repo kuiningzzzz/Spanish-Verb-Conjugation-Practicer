@@ -475,6 +475,21 @@ textarea {
   color: #374151;
 }
 
+.tag.type-student {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.tag.type-public {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.tag.type-unknown {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
 .tag.priority-high {
   background: #fee2e2;
   color: #991b1b;
