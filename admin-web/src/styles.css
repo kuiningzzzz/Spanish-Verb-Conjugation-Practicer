@@ -55,7 +55,7 @@ a {
   color: #e2e8f0;
 }
 
-.sidebar a.router-link-active {
+.sidebar a.router-link-exact-active {
   background: rgba(59, 130, 246, 0.16);
   color: #93c5fd;
 }
