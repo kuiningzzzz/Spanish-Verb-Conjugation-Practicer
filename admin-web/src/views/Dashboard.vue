@@ -28,43 +28,45 @@
           </div>
         </div>
 
-        <table class="table history-table">
-          <colgroup>
-            <col style="width: 26%" />
-            <col style="width: 20%" />
-            <col style="width: 34%" />
-            <col style="width: 20%" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>修改人</th>
-              <th>{{ panel.targetLabel }}</th>
-              <th>修改时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in pagedItems(panel)" :key="item.id" class="history-row">
-              <td class="history-cell">
-                <span class="ellipsis" :title="item.username">{{ item.username }}</span>
-              </td>
-              <td class="history-cell">
-                <span class="ellipsis" :title="String(item.targetId)">{{ item.targetId }}</span>
-              </td>
-              <td class="history-cell">
-                <span class="ellipsis" :title="formatDate(item.modifiedAt)">
-                  {{ formatDateDay(item.modifiedAt) }}
-                </span>
-              </td>
-              <td class="history-actions-cell">
-                <button class="ghost" @click="openDetail(panel.key, item)">详情</button>
-              </td>
-            </tr>
-            <tr v-if="!pagedItems(panel).length">
-              <td colspan="4" class="empty">暂无记录</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="history-table-shell">
+          <table class="table history-table">
+            <colgroup>
+              <col style="width: 26%" />
+              <col style="width: 20%" />
+              <col style="width: 34%" />
+              <col style="width: 20%" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>修改人</th>
+                <th>{{ panel.targetLabel }}</th>
+                <th>修改时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in pagedItems(panel)" :key="item.id" class="history-row">
+                <td class="history-cell">
+                  <span class="ellipsis" :title="item.username">{{ item.username }}</span>
+                </td>
+                <td class="history-cell">
+                  <span class="ellipsis" :title="String(item.targetId)">{{ item.targetId }}</span>
+                </td>
+                <td class="history-cell">
+                  <span class="ellipsis" :title="formatDate(item.modifiedAt)">
+                    {{ formatDateDay(item.modifiedAt) }}
+                  </span>
+                </td>
+                <td class="history-actions-cell">
+                  <button class="ghost" @click="openDetail(panel.key, item)">详情</button>
+                </td>
+              </tr>
+              <tr v-if="!pagedItems(panel).length">
+                <td colspan="4" class="empty">暂无记录</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
 
@@ -104,7 +106,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
 
-const pageSize = 5;
+const pageSize = 10;
 
 function buildHistory({ count, usernames, targetStart, actions, descriptions, prefix }) {
   const now = Date.now();
@@ -264,6 +266,9 @@ function formatDateDay(value) {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  height: min(calc(100vh - 150px), 760px);
+  min-height: 560px;
+  overflow: hidden;
 }
 
 .history-panel h3 {
@@ -293,6 +298,21 @@ function formatDateDay(value) {
 
 .history-table {
   table-layout: fixed;
+}
+
+.history-table-shell {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid #d8dce6;
+  border-radius: 16px;
+}
+
+.history-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fff;
 }
 
 .history-row {
@@ -330,5 +350,12 @@ function formatDateDay(value) {
 
 .history-detail {
   width: min(560px, 96vw);
+}
+
+@media (max-width: 960px) {
+  .history-panel {
+    height: 66vh;
+    min-height: 460px;
+  }
 }
 </style>
