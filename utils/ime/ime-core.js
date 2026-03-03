@@ -76,6 +76,7 @@ export class IMECore {
   insert(char, applyShift = true) {
     if (!this.target) return
     if (!char) return
+    this.cursor = clamp(this.target.getCursor(), 0, this.textBuffer.length)
     const output = applyShift ? applyShiftToChar(char, this.shiftState) : char
     const before = this.textBuffer.slice(0, this.cursor)
     const after = this.textBuffer.slice(this.cursor)
@@ -89,6 +90,7 @@ export class IMECore {
 
   deleteBackward() {
     if (!this.target) return
+    this.cursor = clamp(this.target.getCursor(), 0, this.textBuffer.length)
     if (this.cursor <= 0) return
     const before = this.textBuffer.slice(0, this.cursor - 1)
     const after = this.textBuffer.slice(this.cursor)
@@ -99,6 +101,7 @@ export class IMECore {
 
   moveCursor(delta) {
     if (!this.target) return
+    this.cursor = clamp(this.target.getCursor(), 0, this.textBuffer.length)
     this.cursor = clamp(this.cursor + delta, 0, this.textBuffer.length)
     this.commit()
   }

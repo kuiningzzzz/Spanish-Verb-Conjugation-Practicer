@@ -61,7 +61,8 @@ export default {
       localText: this.value || '',
       cursor: (this.value || '').length,
       isFocused: false,
-      unsubscribeFocus: null
+      unsubscribeFocus: null,
+      inputRect: null
     }
   },
   computed: {
@@ -107,6 +108,32 @@ export default {
       },
       onSubmit: (text) => {
         this.$emit('confirm', text)
+      },
+      // 由 InAppKeyboardHost 在遮罩点击时调用，用于光标重定位。
+      // 若点击坐标落在本输入框内则处理并返回 true，否则返回 false。
+      handleExternalTap: (point) => {
+        if (!point || !this.inputRect) return false
+        const { left, right, top, bottom } = this.inputRect
+        if (point.x < left || point.x > right || point.y < top || point.y > bottom) return false
+        // 坐标在输入框内，查询各字符的位置后计算光标落点
+        const query = uni.createSelectorQuery().in(this)
+        query.selectAll('.inapp-char').boundingClientRect((charRects) => {
+          if (!charRects || charRects.length === 0) {
+            this.cursor = 0
+            return
+          }
+          let newCursor = 0
+          for (let i = 0; i < charRects.length; i++) {
+            const mid = charRects[i].left + charRects[i].width / 2
+            if (point.x > mid) {
+              newCursor = i + 1
+            } else {
+              break
+            }
+          }
+          this.cursor = newCursor
+        }).exec()
+        return true
       }
     }
     this.unsubscribeFocus = subscribeActiveTarget((target) => {
@@ -114,8 +141,16 @@ export default {
       this.isFocused = target === this.inputTarget
       if (this.isFocused && !wasFocused) {
         this.$emit('focus')
+        // 缓存元素位置，供遮罩点击时判断坐标是否落在输入框内
+        this.$nextTick(() => {
+          const query = uni.createSelectorQuery().in(this)
+          query.select('.inapp-input').boundingClientRect((rect) => {
+            this.inputRect = rect
+          }).exec()
+        })
       }
       if (!this.isFocused && wasFocused) {
+        this.inputRect = null
         this.$emit('blur')
       }
     })
