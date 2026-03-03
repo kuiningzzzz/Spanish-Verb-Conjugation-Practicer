@@ -104,11 +104,15 @@
       
       <!-- 快变快填题和其他题型的题干信息 -->
       <view v-if="exerciseType === 'quick-fill'" class="question-section">
-        <text class="tense-info">{{ currentExercise.mood }} - {{ currentExercise.tense }}</text>
+        <text class="tense-info">
+          {{ formatExerciseMoodLabel(currentExercise.mood, currentExercise.tense) }} - {{ formatExerciseTenseLabel(currentExercise.mood, currentExercise.tense) }}
+        </text>
         <text class="person-info">{{ currentExercise.person }}</text>
       </view>
       <view v-else-if="exerciseType !== 'sentence' && exerciseType !== 'combo-fill'" class="question-section">
-        <text class="tense-info">{{ currentExercise.mood }} - {{ currentExercise.tense }}</text>
+        <text class="tense-info">
+          {{ formatExerciseMoodLabel(currentExercise.mood, currentExercise.tense) }} - {{ formatExerciseTenseLabel(currentExercise.mood, currentExercise.tense) }}
+        </text>
         <text class="person-info">{{ currentExercise.person }}</text>
       </view>
 
@@ -208,9 +212,9 @@
           <view class="combo-header">
             <text class="combo-number">{{ index + 1 }}.</text>
             <view class="combo-requirement">
-              <text class="requirement-mood">{{ item.mood }}</text>
+              <text class="requirement-mood">{{ formatExerciseMoodLabel(item.mood, item.tense) }}</text>
               <text class="requirement-divider">-</text>
-              <text class="requirement-tense">{{ item.tense }}</text>
+              <text class="requirement-tense">{{ formatExerciseTenseLabel(item.mood, item.tense) }}</text>
               <text class="requirement-divider">-</text>
               <text class="requirement-person">{{ item.person }}</text>
             </view>
@@ -1456,6 +1460,185 @@ export default {
       if (normalized === 'IO') return 'IO'
       if (normalized === 'DO_IO') return 'DO+IO'
       return ''
+    },
+
+    normalizeExerciseTextKey(value) {
+      const raw = String(value || '').trim()
+      if (!raw) return ''
+      return raw
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/\s+/g, '_')
+    },
+
+    normalizeExerciseMoodLabel(mood) {
+      const raw = String(mood || '').trim()
+      if (!raw) return ''
+
+      const directMap = {
+        '陈述式': '陈述式',
+        '复合陈述式': '陈述式',
+        '虚拟式': '虚拟式',
+        '复合虚拟式': '虚拟式',
+        '条件式': '条件式',
+        '命令式': '命令式'
+      }
+      if (directMap[raw]) return directMap[raw]
+
+      const normalized = this.normalizeExerciseTextKey(raw)
+      const normalizedMap = {
+        indicativo: '陈述式',
+        indicativo_compuesto: '陈述式',
+        subjuntivo: '虚拟式',
+        subjuntivo_compuesto: '虚拟式',
+        condicional: '条件式',
+        imperativo: '命令式'
+      }
+      return normalizedMap[normalized] || raw
+    },
+
+    resolveExerciseMoodAndTense(mood, tense) {
+      const rawTense = String(tense || '').trim()
+      const normalizedTense = this.normalizeExerciseTextKey(rawTense)
+      let moodLabel = this.normalizeExerciseMoodLabel(mood)
+
+      const conditionalKeys = [
+        '条件式',
+        'condicional',
+        'conditional',
+        '条件完成时',
+        'condicional_perfecto',
+        'conditional_perfect'
+      ]
+      const imperativeKeys = [
+        '肯定命令式',
+        '否定命令式',
+        'imperativo_afirmativo',
+        'imperativo_negativo',
+        'afirmativo',
+        'negativo'
+      ]
+
+      if (conditionalKeys.includes(rawTense) || conditionalKeys.includes(normalizedTense)) {
+        moodLabel = '条件式'
+      } else if (imperativeKeys.includes(rawTense) || imperativeKeys.includes(normalizedTense)) {
+        moodLabel = '命令式'
+      }
+
+      if (!rawTense) {
+        return {
+          mood: moodLabel || '',
+          tense: ''
+        }
+      }
+
+      const tenseDisplayMap = {
+        '陈述式': {
+          '现在时': '一般现在时',
+          presente: '一般现在时',
+          present: '一般现在时',
+          '现在完成时': '现在完成时',
+          perfecto: '现在完成时',
+          preterito_perfecto: '现在完成时',
+          preterite_perfect: '现在完成时',
+          '未完成过去时': '过去未完成时',
+          '过去未完成时': '过去未完成时',
+          imperfecto: '过去未完成时',
+          preterito_imperfecto: '过去未完成时',
+          imperfect: '过去未完成时',
+          '简单过去时': '简单过去时',
+          preterito: '简单过去时',
+          preterito_indefinido: '简单过去时',
+          preterite: '简单过去时',
+          '过去完成时': '过去完成时',
+          pluscuamperfecto: '过去完成时',
+          pluperfect: '过去完成时',
+          '将来时': '将来未完成时',
+          futuro: '将来未完成时',
+          future: '将来未完成时',
+          '将来完成时': '将来完成时',
+          futuro_perfecto: '将来完成时',
+          future_perfect: '将来完成时',
+          '前过去时': '前过去时',
+          '先过去时': '前过去时',
+          preterito_anterior: '前过去时',
+          preterite_anterior: '前过去时'
+        },
+        '虚拟式': {
+          '虚拟现在时': '现在时',
+          subjuntivo_presente: '现在时',
+          presente: '现在时',
+          present: '现在时',
+          '虚拟过去时': '过去未完成时',
+          '虚拟过去未完成时': '过去未完成时',
+          subjuntivo_imperfecto: '过去未完成时',
+          imperfecto: '过去未完成时',
+          imperfect: '过去未完成时',
+          preterito_imperfecto: '过去未完成时',
+          '虚拟现在完成时': '现在完成时',
+          subjuntivo_perfecto: '现在完成时',
+          perfecto: '现在完成时',
+          preterito_perfecto: '现在完成时',
+          preterite_perfect: '现在完成时',
+          '虚拟过去完成时': '过去完成时',
+          subjuntivo_pluscuamperfecto: '过去完成时',
+          pluscuamperfecto: '过去完成时',
+          pluperfect: '过去完成时',
+          '虚拟将来未完成时': '将来未完成时',
+          '虚拟将来时': '将来未完成时',
+          subjuntivo_futuro: '将来未完成时',
+          futuro: '将来未完成时',
+          future: '将来未完成时',
+          '虚拟将来完成时': '将来完成时',
+          subjuntivo_futuro_perfecto: '将来完成时',
+          futuro_perfecto: '将来完成时',
+          future_perfect: '将来完成时'
+        },
+        '条件式': {
+          '条件式': '简单条件式',
+          condicional: '简单条件式',
+          conditional: '简单条件式',
+          '条件完成时': '复合条件式',
+          condicional_perfecto: '复合条件式',
+          conditional_perfect: '复合条件式'
+        },
+        '命令式': {
+          '肯定命令式': '命令式',
+          imperativo_afirmativo: '命令式',
+          afirmativo: '命令式',
+          '否定命令式': '否定命令式',
+          imperativo_negativo: '否定命令式',
+          negativo: '否定命令式'
+        }
+      }
+
+      const moodMap = tenseDisplayMap[moodLabel] || {}
+      const display = moodMap[rawTense] || moodMap[normalizedTense]
+      if (display) {
+        return {
+          mood: moodLabel || '',
+          tense: display
+        }
+      }
+
+      let normalizedDisplay = rawTense
+      if (moodLabel && rawTense.startsWith(`${moodLabel} `)) {
+        normalizedDisplay = rawTense.slice(moodLabel.length).trim()
+      }
+
+      return {
+        mood: moodLabel || '',
+        tense: normalizedDisplay || rawTense
+      }
+    },
+
+    formatExerciseMoodLabel(mood, tense) {
+      return this.resolveExerciseMoodAndTense(mood, tense).mood
+    },
+
+    formatExerciseTenseLabel(mood, tense) {
+      return this.resolveExerciseMoodAndTense(mood, tense).tense
     },
 
     hasHintData(exercise) {
