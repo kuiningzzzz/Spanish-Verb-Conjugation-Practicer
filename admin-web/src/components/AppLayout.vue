@@ -7,6 +7,7 @@
         <RouterLink to="/users">用户管理</RouterLink>
         <RouterLink to="/lexicon">词库管理</RouterLink>
         <RouterLink to="/questions">题库管理</RouterLink>
+        <RouterLink to="/course-materials">课程教材管理</RouterLink>
         <RouterLink v-if="isDev" to="/feedback">反馈处理</RouterLink>
         <RouterLink v-if="isDev" to="/practice-records">用户数据</RouterLink>
         <RouterLink v-if="isDev" to="/announcements">公告管理</RouterLink>
@@ -48,6 +49,7 @@ const titles = {
   Users: '用户管理',
   Lexicon: '词库管理',
   QuestionBank: '题库管理',
+  CourseMaterials: '课程教材管理',
   Logs: '日志查看',
   Feedback: '反馈处理',
   PracticeRecords: '用户数据',
