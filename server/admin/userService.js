@@ -13,6 +13,7 @@ function buildUserFromRow(row) {
     id: row.id,
     username: row.username,
     email: row.email,
+    user_type: row.user_type,
     role: row.role,
     is_initial_admin: !!row.is_initial_admin,
     is_initial_dev: !!row.is_initial_dev,
@@ -33,7 +34,7 @@ function verifyCredentials(identifier, password) {
 
 function listUsers(role = 'user', { limit = 50, offset = 0 } = {}) {
   const stmt = userDb.prepare(
-    'SELECT id, username, email, role, is_initial_admin, is_initial_dev, created_at, updated_at FROM users WHERE role = ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
+    'SELECT id, username, email, user_type, role, is_initial_admin, is_initial_dev, created_at, updated_at FROM users WHERE role = ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
   )
   const rows = stmt.all(role, limit, offset)
   const total = userDb.prepare('SELECT COUNT(*) as total FROM users WHERE role = ?').get(role).total
@@ -43,7 +44,7 @@ function listUsers(role = 'user', { limit = 50, offset = 0 } = {}) {
 function listAllUsers({ limit = 50, offset = 0 } = {}) {
   const rows = userDb
     .prepare(
-      'SELECT id, username, email, role, is_initial_admin, is_initial_dev, created_at, updated_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?'
+      'SELECT id, username, email, user_type, role, is_initial_admin, is_initial_dev, created_at, updated_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?'
     )
     .all(limit, offset)
   const total = userDb.prepare('SELECT COUNT(*) as total FROM users').get().total
@@ -52,7 +53,7 @@ function listAllUsers({ limit = 50, offset = 0 } = {}) {
 
 function findUser(id) {
   const stmt = userDb.prepare(
-    'SELECT id, username, email, role, is_initial_admin, is_initial_dev, created_at, updated_at FROM users WHERE id = ?'
+    'SELECT id, username, email, user_type, role, is_initial_admin, is_initial_dev, created_at, updated_at FROM users WHERE id = ?'
   )
   return stmt.get(id)
 }

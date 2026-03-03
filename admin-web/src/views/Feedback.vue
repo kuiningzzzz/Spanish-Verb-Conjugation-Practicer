@@ -1,50 +1,72 @@
 <template>
-  <section class="card feedback-page">
-    <div class="header-row">
+  <section class="card feedback-page management-page">
+    <div class="management-header">
       <div>
         <h2>反馈处理</h2>
-        <p class="muted">处理用户反馈与题目反馈，支持状态标记、备注与删除。</p>
-        <p class="muted total-count">共 {{ total }} 条</p>
       </div>
-      <div class="toolbar">
-        <select v-model="tab">
-          <option value="general">用户反馈</option>
-          <option value="question">题目反馈</option>
-        </select>
-        <input v-model.trim="keyword" placeholder="搜索用户/内容/动词/题目ID" />
-        <select v-if="tab==='general'" v-model="statusFilter">
-          <option value="all">全部状态</option>
-          <option value="open">open</option>
-          <option value="handled">handled</option>
-          <option value="closed">closed</option>
-        </select>
-        <select v-if="tab==='general'" v-model.number="satisfactionFilter">
-          <option :value="0">全部满意度</option>
-          <option :value="1">1</option>
-          <option :value="2">2</option>
-          <option :value="3">3</option>
-          <option :value="4">4</option>
-        </select>
-        <button
-          v-if="tab === 'question'"
-          class="ghost"
-          :disabled="downloadingAll"
-          @click="downloadAllQuestionFeedbackJson"
-        >
-          下载题目反馈JSON
-        </button>
-        <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
+      <div class="toolbar management-toolbar">
+        <div class="toolbar-left">
+          <select v-model="tab">
+            <option value="general">用户反馈</option>
+            <option value="question">题目反馈</option>
+          </select>
+          <input v-model.trim="keyword" placeholder="搜索用户/内容/动词/题目ID" />
+          <select v-if="tab==='general'" v-model="statusFilter">
+            <option value="all">全部状态</option>
+            <option value="open">open</option>
+            <option value="handled">handled</option>
+            <option value="closed">closed</option>
+          </select>
+          <select v-if="tab==='general'" v-model.number="satisfactionFilter">
+            <option :value="0">全部满意度</option>
+            <option :value="1">1</option>
+            <option :value="2">2</option>
+            <option :value="3">3</option>
+            <option :value="4">4</option>
+          </select>
+          <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
+        </div>
+        <div class="management-actions">
+          <button
+            v-if="tab === 'question'"
+            class="ghost"
+            :disabled="downloadingAll"
+            @click="downloadAllQuestionFeedbackJson"
+          >
+            下载题目反馈JSON
+          </button>
+          <div class="pagination inline-pagination management-inline-pagination">
+            <span class="muted management-pagination-total">共 {{ total }} 条</span>
+            <template v-if="total > pageSize">
+              <button class="ghost" :disabled="page === 1 || loading" @click="changePage(page - 1)">上一页</button>
+              <label class="management-pagination-jump" for="feedback-page-jump">
+                第
+                <input
+                  id="feedback-page-jump"
+                  v-model.number="pageJump"
+                  class="page-jump-input management-page-number-input"
+                  type="number"
+                  min="1"
+                  :max="totalPages"
+                  @keydown.enter.prevent="jumpToPage"
+                  @blur="jumpToPage"
+                />
+                / {{ totalPages }} 页
+              </label>
+              <button class="ghost" :disabled="page === totalPages || loading" @click="changePage(page + 1)">下一页</button>
+            </template>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div v-if="error" class="error-block">
-      <p class="error">{{ error }}</p>
-      <button class="ghost" @click="refresh">重试</button>
-    </div>
-
-    <div v-else>
-      <div v-if="loading" class="loading">加载中...</div>
-      <div v-else>
+    <div class="management-page-body">
+      <div v-if="error" class="error-block">
+        <p class="error">{{ error }}</p>
+        <button class="ghost" @click="refresh">重试</button>
+      </div>
+      <div v-else-if="loading" class="loading">加载中...</div>
+      <div v-else class="management-table-scroll">
         <table class="table">
           <thead>
             <tr v-if="tab === 'general'">
@@ -105,13 +127,7 @@
       </div>
     </div>
 
-    <div class="pagination" v-if="total > pageSize">
-      <button class="ghost" :disabled="page === 1 || loading" @click="changePage(page - 1)">上一页</button>
-      <span>第 {{ page }} / {{ totalPages }} 页</span>
-      <button class="ghost" :disabled="page === totalPages || loading" @click="changePage(page + 1)">下一页</button>
-    </div>
-
-    <div v-if="drawerOpen" class="overlay" @click.self="closeDrawer">
+    <div v-if="drawerOpen" class="overlay">
       <div class="drawer">
         <header>
           <h3>反馈详情</h3>
@@ -212,9 +228,12 @@
       </div>
     </div>
 
-    <div v-if="deleteDialog" class="overlay" @click.self="closeDelete">
+    <div v-if="deleteDialog" class="overlay">
       <div class="modal">
-        <h3>确认删除</h3>
+        <div class="modal-header">
+          <h3>确认删除</h3>
+          <button class="ghost" @click="closeDelete">关闭</button>
+        </div>
         <p>即将删除反馈：<strong>{{ deleteDialog.id }}</strong></p>
         <div class="modal-actions">
           <button class="ghost" @click="closeDelete">取消</button>
@@ -242,6 +261,7 @@ const statusFilter = ref('all');
 const satisfactionFilter = ref(0);
 const page = ref(1);
 const pageSize = ref(10);
+const pageJump = ref(1);
 const total = ref(0);
 const loading = ref(false);
 const error = ref('');
@@ -351,13 +371,23 @@ async function fetchQuestion() {
 }
 
 function refresh() {
-  page.value = 1;
   if (tab.value === 'general') fetchGeneral();
   else fetchQuestion();
 }
 
 function changePage(nextPage) {
   page.value = Math.min(Math.max(nextPage, 1), totalPages.value);
+}
+
+function jumpToPage() {
+  const target = Number(pageJump.value);
+  if (!Number.isFinite(target)) {
+    pageJump.value = page.value;
+    return;
+  }
+  const nextPage = Math.min(Math.max(Math.trunc(target), 1), totalPages.value);
+  pageJump.value = nextPage;
+  changePage(nextPage);
 }
 
 function formatDate(value) {
@@ -586,7 +616,19 @@ async function submitDelete() {
   }
 }
 
-watch([page, pageSize, tab], () => {
+watch(page, (value) => {
+  pageJump.value = value;
+}, { immediate: true });
+
+watch([page, pageSize], () => {
+  refresh();
+});
+
+watch(tab, () => {
+  if (page.value !== 1) {
+    page.value = 1;
+    return;
+  }
   refresh();
 });
 

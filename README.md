@@ -117,10 +117,51 @@ DEEPSEEK_API_KEY=your-api-key
 
 4. 启动后端服务：
 ```bash
-npm run dev
+npm start
 ```
 
 服务将在`http://localhost:3000`启动。访问`http://localhost:3000/api/health`检查服务状态。
+
+### Admin 后台本地开发（Docker）
+
+如果只想在本地开发机测试 Admin 后台，推荐使用专门的本地开发 Compose 覆盖文件。该方式不依赖域名、不需要证书，也不会启动生产用 Nginx。
+
+1. 进入 `server` 目录：
+```bash
+cd server
+```
+
+2. 确保已配置后端环境变量：
+```bash
+cp .env.example .env
+# 编辑 .env，填写 INITIAL_ADMIN_EMAIL / INITIAL_ADMIN_PASSWORD 等必要配置
+```
+
+3. 启动本地开发用的后端和 Admin 前端：
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build spanish-verb-api admin-web-dev
+```
+
+4. 访问地址：
+- Admin 登录页：`http://localhost:8080/login`
+- Admin 前端：`http://localhost:8080`
+- 后端健康检查：`http://localhost:3000/api/health`
+
+5. 查看日志：
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml logs -f admin-web-dev
+docker compose -f docker-compose.yml -f docker-compose.local.yml logs -f spanish-verb-api
+```
+
+6. 停止本地开发服务：
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml down
+```
+
+说明：
+- `docker-compose.local.yml` 会额外开放宿主机端口 `3000` 和 `8080`。
+- `admin-web-dev` 容器内部运行 `npm run serve`，支持热更新，修改 `admin-web` 代码后刷新浏览器即可看到变更。
+- 本地开发模式下不要访问 `/admin/` 路径，也不要使用 `https://`；生产部署时的 `/admin/` 是由服务器侧 Nginx 提供的路径前缀。
 
 ### 前端应用开发
 
@@ -203,7 +244,7 @@ cp .env.example .env
 docker-compose up -d --build
 ```
 
-Compose 会启动 API（默认 3000）和 Admin Web（默认 3001）。确保在 `server/.env` 中填写 `INITIAL_ADMIN_EMAIL`、`INITIAL_ADMIN_PASSWORD` 等变量，初始管理员会在容器启动时自动注入，幂等执行。
+Compose 会启动 `spanish-verb-api`、`admin-web` 和对外入口 `nginx`。该编排面向服务器部署，默认监听宿主机 `80/443`，并依赖 `server/certs` 中的证书文件。确保在 `server/.env` 中填写 `INITIAL_ADMIN_EMAIL`、`INITIAL_ADMIN_PASSWORD` 等变量，初始管理员会在容器启动时自动注入，幂等执行。
 
 5. 查看服务状态：
 ```bash
@@ -236,7 +277,8 @@ docker-compose -f docker-compose.yml -f docker-compose.observability.yml up -d -
 
 #### 访问地址
 
-- Web 前端：`http://localhost:3001`
+- 应用入口（经 Nginx 转发，需证书）：`https://<你的域名>/`
+- Admin 管理端（经 Nginx 转发，需证书）：`https://<你的域名>/admin/`
 - 后端：`http://localhost:3000`
 - Grafana：`http://localhost:3002`（默认账号/密码：`admin` / `admin`，可通过环境变量 `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` 修改）
 - Prometheus：`http://localhost:9090`
@@ -281,17 +323,22 @@ Grafana 不建议直接暴露公网，请配合反向代理与鉴权（如 Nginx
 
 ### Admin 管理端
 
-- API 基础地址：`http://localhost:3000/admin`
-- Web 入口：`http://localhost:3001`
+- 生产部署入口（经 Nginx 转发）：`https://<你的域名>/admin/`
+- 生产部署管理 API（经 Nginx 转发）：`https://<你的域名>/admin-api/`
 - 管理员登录仅限 `role=admin` 用户，且只有初始管理员可以删除其他管理员账号。
 
-如需本地开发 Admin Web：
+如需本地开发 Admin Web（非 Docker 方式）：
 
 ```bash
+cd server
+npm start
+
 cd admin-web
 npm install
-VUE_APP_ADMIN_API_BASE_URL=http://localhost:3000 npm run serve
+npm run serve
 ```
+
+非 Docker 开发时，默认通过 `admin-web/vue.config.js` 将 `/admin/*` 代理到 `http://localhost:3000`。
 
 ### 传统方式部署
 
@@ -340,6 +387,7 @@ Spanish-Verb-Conjugation-Practicer/
 │   ├── .env                        # 本地环境文件（可选）
 │   ├── Dockerfile                  # Docker构建文件
 │   ├── docker-compose.yml          # Docker编排配置
+│   ├── docker-compose.local.yml    # 本地开发用 Docker 覆盖配置
 │   ├── index.js                    # 服务入口文件
 │   ├── data/                       # 运行时的 SQLite 数据文件
 │   │   ├── feedback.db
@@ -450,8 +498,9 @@ Spanish-Verb-Conjugation-Practicer/
   - `INITIAL_ADMIN_EMAIL/INITIAL_ADMIN_PASSWORD/INITIAL_ADMIN_USERNAME`
   - `DEV_USER_EMAIL/DEV_USER_PASSWORD/DEV_USER_NAME`
 - 本地启动：
-  - `cd server && npm run dev`
-  - `cd admin-web && npm install && npm run serve`
+  - Docker 本地开发：`cd server && docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build spanish-verb-api admin-web-dev`
+  - Docker 本地访问：`http://localhost:8080/login`
+  - 非 Docker 本地开发：`cd server && npm start` + `cd admin-web && npm install && npm run serve`
   - 开发时默认通过 `vue.config.js` 将 `/admin/*` 代理到 `http://localhost:3000`，浏览器无需访问 Docker 内部域名。
 - 管理端鉴权接口：`POST /admin/auth/login`（identifier/email/username + password）、`GET /admin/auth/me`、`POST /admin/auth/logout`
 - 前端可选环境变量：`VUE_APP_ADMIN_API_BASE_URL`（默认 `/admin`，建议保持相对路径以避免 CORS）、`VUE_APP_ADMIN_PROXY_TARGET`（开发代理目标）。

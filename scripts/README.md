@@ -174,6 +174,31 @@ python3 scripts/utils/tag_pronoun_support.py
 - 浏览器打开：`/Users/tomorikaho/Projects/Spanish-Verb-Conjugation-Practicer/scripts/utils/experiment-results.html`
 - 点击“上传 CSV”查看结果。
 
+---
+
+### 3.7 `test_question_cleanup.js`
+**作用**
+- 以事务回滚方式验证题库自动清理逻辑，不会实际修改数据库。
+- 校验删除后是否仍满足：
+  - 每课至少 `QUESTION_CLEANUP_MIN_COUNT` 题
+  - 传统变位每个时态至少 `QUESTION_CLEANUP_MIN_COUNT` 题
+  - 带代词变位每个 `host_form` 至少 `QUESTION_CLEANUP_MIN_COUNT` 题
+- 默认先按 `server/.env` 的配置测试；若当前没有可删题，会自动补跑一轮 `daysOld=0` 的强制候选测试，专门覆盖“实际发生删除”的路径。
+
+**运行**
+```bash
+cd /Users/tomorikaho/Projects/Spanish-Verb-Conjugation-Practicer
+node scripts/test_question_cleanup.js
+```
+
+**常用参数**
+- `--days-old <n>`：临时覆盖清理天数阈值
+- `--min-count <n>`：临时覆盖保底题量
+- `--force-all-candidates`：无论当前是否有超期题，都额外跑一轮 `daysOld=0`
+- `--no-forced`：跳过额外的强制候选测试
+- `--fail-on-baseline`：若当前数据库本身已低于保底阈值，则返回失败
+- `--json`：输出完整 JSON 结果，便于后续自动化解析
+
 ## 4. Prompt 文件约定
 
 ### 4.1 传统变位实验
