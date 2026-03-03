@@ -7,9 +7,19 @@
   >
     <view class="inapp-text" :class="textAlignClass">
       <text v-if="!localText" class="inapp-placeholder">{{ placeholder }}</text>
-      <text class="inapp-before">{{ displayBefore }}</text>
+      <text
+        v-for="(char, index) in beforeChars"
+        :key="'b-' + index"
+        class="inapp-char"
+        @tap.stop="handleCharTap(index + 1)"
+      >{{ char }}</text>
       <view v-if="isFocused" class="inapp-caret" />
-      <text class="inapp-after">{{ displayAfter }}</text>
+      <text
+        v-for="(char, index) in afterChars"
+        :key="'a-' + index"
+        class="inapp-char"
+        @tap.stop="handleCharTap(cursor + index)"
+      >{{ char }}</text>
     </view>
   </view>
 </template>
@@ -60,6 +70,12 @@ export default {
     },
     displayAfter() {
       return this.localText.slice(this.cursor)
+    },
+    beforeChars() {
+      return this.localText.slice(0, this.cursor).split('')
+    },
+    afterChars() {
+      return this.localText.slice(this.cursor).split('')
     },
     textAlignClass() {
       return this.textAlign === 'left' ? 'align-left' : 'align-center'
@@ -124,7 +140,18 @@ export default {
     handleTap() {
       if (this.disabled) return
       if (!getUseInAppIME()) return
+      // 点击输入框空白区域时激活并将光标移到末尾
       setActiveTarget(this.inputTarget)
+      this.cursor = this.localText.length
+    },
+    handleCharTap(charIndex) {
+      if (this.disabled) return
+      if (!getUseInAppIME()) return
+      setActiveTarget(this.inputTarget)
+      // beforeChars[i] 点击时传入 i+1（光标置于字符右侧）
+      // afterChars[i] 点击时传入 cursor+i（光标置于字符左侧）
+      const pos = Math.max(0, Math.min(charIndex, this.localText.length))
+      this.cursor = pos
     },
     focus() {
       if (this.disabled) return
@@ -178,7 +205,8 @@ export default {
 }
 
 .inapp-before,
-.inapp-after {
+.inapp-after,
+.inapp-char {
   white-space: pre;
 }
 
