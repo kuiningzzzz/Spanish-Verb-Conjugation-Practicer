@@ -1,36 +1,53 @@
 <template>
-  <section class="card announcement-page">
-    <div class="users-header">
+  <section class="card announcement-page management-page">
+    <div class="management-header">
       <div>
         <h2>公告管理</h2>
-        <p class="muted">仅 dev 可管理公告，支持发布、编辑与删除。</p>
-        <p class="muted total-count">共 {{ announcements.length }} 条</p>
       </div>
-      <div class="toolbar">
-        <input v-model.trim="keyword" placeholder="搜索标题/内容/发布者" />
-        <select v-model="statusFilter">
-          <option value="all">全部状态</option>
-          <option value="active">仅启用</option>
-          <option value="inactive">仅停用</option>
-        </select>
-        <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
-        <button @click="openCreate">发布公告</button>
-        <div v-if="totalPages > 0" class="pagination-inline">
-          <button class="ghost" :disabled="currentPage <= 1" @click="goPrevPage">上一页</button>
-          <span class="page-info">共 {{ currentPage }} / {{ totalPages }} 页</span>
-          <button class="ghost" :disabled="currentPage >= totalPages" @click="goNextPage">下一页</button>
+      <div class="toolbar management-toolbar">
+        <div class="toolbar-left">
+          <input v-model.trim="keyword" placeholder="搜索标题/内容/发布者" />
+          <select v-model="statusFilter">
+            <option value="all">全部状态</option>
+            <option value="active">仅启用</option>
+            <option value="inactive">仅停用</option>
+          </select>
+          <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
+        </div>
+        <div class="management-actions">
+          <div class="pagination inline-pagination management-inline-pagination">
+            <span class="muted management-pagination-total">共 {{ filteredAnnouncements.length }} 条</span>
+            <template v-if="totalPages > 1">
+              <button class="ghost" :disabled="currentPage <= 1" @click="goPrevPage">上一页</button>
+              <label class="management-pagination-jump" for="announcements-page-jump">
+                第
+                <input
+                  id="announcements-page-jump"
+                  v-model.number="pageJump"
+                  class="page-jump-input management-page-number-input"
+                  type="number"
+                  min="1"
+                  :max="totalPages"
+                  @keydown.enter.prevent="jumpToPage"
+                  @blur="jumpToPage"
+                />
+                / {{ totalPages }} 页
+              </label>
+              <button class="ghost" :disabled="currentPage >= totalPages" @click="goNextPage">下一页</button>
+            </template>
+          </div>
+          <button @click="openCreate">发布公告</button>
         </div>
       </div>
     </div>
 
-    <div v-if="error" class="error-block">
-      <p class="error">{{ error }}</p>
-      <button class="ghost" @click="refresh">重试</button>
-    </div>
-
-    <div v-else>
-      <div v-if="loading" class="loading">加载中...</div>
-      <div v-else>
+    <div class="management-page-body">
+      <div v-if="error" class="error-block">
+        <p class="error">{{ error }}</p>
+        <button class="ghost" @click="refresh">重试</button>
+      </div>
+      <div v-else-if="loading" class="loading">加载中...</div>
+      <div v-else class="management-table-scroll">
         <table class="table">
           <thead>
             <tr>
@@ -90,7 +107,7 @@
       </div>
     </div>
 
-    <div v-if="drawerOpen" class="overlay" @click.self="closeDrawer">
+    <div v-if="drawerOpen" class="overlay">
       <div class="drawer">
         <header>
           <h3>{{ drawerMode === 'create' ? '发布公告' : '编辑公告' }}</h3>
@@ -142,9 +159,12 @@
       </div>
     </div>
 
-    <div v-if="deleteDialog" class="overlay" @click.self="closeDelete">
+    <div v-if="deleteDialog" class="overlay">
       <div class="modal">
-        <h3>确认删除</h3>
+        <div class="modal-header">
+          <h3>确认删除</h3>
+          <button class="ghost" @click="closeDelete">关闭</button>
+        </div>
         <p>即将删除公告：<strong>{{ deleteDialog.title || deleteDialog.id }}</strong></p>
         <p class="muted">删除后不可恢复，请谨慎操作。</p>
         <div class="modal-actions">
@@ -176,6 +196,7 @@ const sortKey = ref('id');
 const sortOrder = ref('desc');
 const pageSize = ref(5);
 const currentPage = ref(1);
+const pageJump = ref(1);
 
 const drawerOpen = ref(false);
 const drawerMode = ref('create');
@@ -236,6 +257,10 @@ watch(
     currentPage.value = 1;
   }
 );
+
+watch(currentPage, (value) => {
+  pageJump.value = value;
+}, { immediate: true });
 
 function showToast(message, type = 'info') {
   toast.message = message;
@@ -367,6 +392,17 @@ function goNextPage() {
   currentPage.value += 1;
 }
 
+function jumpToPage() {
+  const target = Number(pageJump.value);
+  if (!Number.isFinite(target) || totalPages.value <= 0) {
+    pageJump.value = currentPage.value;
+    return;
+  }
+  const nextPage = Math.min(Math.max(Math.trunc(target), 1), totalPages.value);
+  pageJump.value = nextPage;
+  currentPage.value = nextPage;
+}
+
 async function fetchAnnouncements() {
   loading.value = true;
   error.value = '';
@@ -495,18 +531,3 @@ async function submitDelete() {
 
 onMounted(fetchAnnouncements);
 </script>
-
-<style scoped>
-.pagination-inline {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.page-info {
-  color: #6b7280;
-  font-size: 14px;
-  white-space: nowrap;
-}
-</style>

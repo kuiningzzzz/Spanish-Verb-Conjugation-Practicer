@@ -28,49 +28,54 @@
           </div>
         </div>
 
-        <table class="table history-table">
-          <colgroup>
-            <col style="width: 26%" />
-            <col style="width: 20%" />
-            <col style="width: 34%" />
-            <col style="width: 20%" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>修改人</th>
-              <th>{{ panel.targetLabel }}</th>
-              <th>修改时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in pagedItems(panel)" :key="item.id" class="history-row">
-              <td class="history-cell">
-                <span class="ellipsis" :title="item.username">{{ item.username }}</span>
-              </td>
-              <td class="history-cell">
-                <span class="ellipsis" :title="String(item.targetId)">{{ item.targetId }}</span>
-              </td>
-              <td class="history-cell">
-                <span class="ellipsis" :title="formatDate(item.modifiedAt)">
-                  {{ formatDateDay(item.modifiedAt) }}
-                </span>
-              </td>
-              <td class="actions">
-                <button class="ghost" @click="openDetail(panel.key, item)">详情</button>
-              </td>
-            </tr>
-            <tr v-if="!pagedItems(panel).length">
-              <td colspan="4" class="empty">暂无记录</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="history-table-shell">
+          <table class="table history-table">
+            <colgroup>
+              <col style="width: 26%" />
+              <col style="width: 20%" />
+              <col style="width: 34%" />
+              <col style="width: 20%" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>修改人</th>
+                <th>{{ panel.targetLabel }}</th>
+                <th>修改时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in pagedItems(panel)" :key="item.id" class="history-row">
+                <td class="history-cell">
+                  <span class="ellipsis" :title="item.username">{{ item.username }}</span>
+                </td>
+                <td class="history-cell">
+                  <span class="ellipsis" :title="String(item.targetId)">{{ item.targetId }}</span>
+                </td>
+                <td class="history-cell">
+                  <span class="ellipsis" :title="formatDate(item.modifiedAt)">
+                    {{ formatDateDay(item.modifiedAt) }}
+                  </span>
+                </td>
+                <td class="history-actions-cell">
+                  <button class="ghost" @click="openDetail(panel.key, item)">详情</button>
+                </td>
+              </tr>
+              <tr v-if="!pagedItems(panel).length">
+                <td colspan="4" class="empty">暂无记录</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
 
-    <div v-if="detailOpen" class="overlay" @click.self="closeDetail">
+    <div v-if="detailOpen" class="overlay">
       <div class="modal history-detail">
-        <h3>{{ detailTitle }}</h3>
+        <div class="modal-header">
+          <h3>{{ detailTitle }}</h3>
+          <button class="ghost" @click="closeDetail">关闭</button>
+        </div>
         <div class="detail-grid">
           <div class="detail-item">
             <span class="detail-label">修改人</span>
@@ -93,9 +98,6 @@
             <span class="detail-value muted">{{ detailItem?.description || '暂无更多信息' }}</span>
           </div>
         </div>
-        <div class="modal-actions">
-          <button class="ghost" @click="closeDetail">关闭</button>
-        </div>
       </div>
     </div>
   </div>
@@ -104,7 +106,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
 
-const pageSize = 5;
+const pageSize = 10;
 
 function buildHistory({ count, usernames, targetStart, actions, descriptions, prefix }) {
   const now = Date.now();
@@ -128,7 +130,7 @@ const userHistory = ref(
     descriptions: [
       '角色由 user 调整为 admin',
       '通过后台重置密码并触发通知',
-      '更新昵称与邮箱信息',
+      '更新用户名与邮箱信息',
       '因违规操作暂时禁用账号'
     ]
   })
@@ -264,6 +266,9 @@ function formatDateDay(value) {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  height: min(calc(100vh - 150px), 760px);
+  min-height: 560px;
+  overflow: hidden;
 }
 
 .history-panel h3 {
@@ -295,6 +300,21 @@ function formatDateDay(value) {
   table-layout: fixed;
 }
 
+.history-table-shell {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid #d8dce6;
+  border-radius: 16px;
+}
+
+.history-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fff;
+}
+
 .history-row {
   height: 52px;
 }
@@ -305,7 +325,11 @@ function formatDateDay(value) {
   text-overflow: ellipsis;
 }
 
-.history-table .actions .ghost {
+.history-actions-cell {
+  text-align: right;
+}
+
+.history-actions-cell .ghost {
   font-size: 12px;
   padding: 4px 8px;
   line-height: 1.1;
@@ -326,5 +350,12 @@ function formatDateDay(value) {
 
 .history-detail {
   width: min(560px, 96vw);
+}
+
+@media (max-width: 960px) {
+  .history-panel {
+    height: 66vh;
+    min-height: 460px;
+  }
 }
 </style>

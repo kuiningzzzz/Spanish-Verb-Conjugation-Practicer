@@ -7,12 +7,13 @@
         <RouterLink to="/users">用户管理</RouterLink>
         <RouterLink to="/lexicon">词库管理</RouterLink>
         <RouterLink to="/questions">题库管理</RouterLink>
-        <RouterLink v-if="isDev" to="/logs">日志查看</RouterLink>
+        <RouterLink to="/course-materials">课程教材管理</RouterLink>
         <RouterLink v-if="isDev" to="/feedback">反馈处理</RouterLink>
         <RouterLink v-if="isDev" to="/practice-records">用户数据</RouterLink>
         <RouterLink v-if="isDev" to="/announcements">公告管理</RouterLink>
         <RouterLink v-if="isDev" to="/versions">版本管理</RouterLink>
         <RouterLink v-if="isDev" to="/database">数据库管理</RouterLink>
+        <RouterLink v-if="isDev" to="/logs">日志查看</RouterLink>
         <RouterLink v-if="isDev" to="/experiment-results">实验结果分析</RouterLink>
       </nav>
     </aside>
@@ -20,7 +21,6 @@
       <header class="topbar">
         <div class="topbar-left">
           <h1>{{ title }}</h1>
-          <p class="subtitle"></p>
         </div>
         <div class="topbar-right" v-if="user">
           <span class="chip">{{ user.username || user.email }}</span>
@@ -49,6 +49,7 @@ const titles = {
   Users: '用户管理',
   Lexicon: '词库管理',
   QuestionBank: '题库管理',
+  CourseMaterials: '课程教材管理',
   Logs: '日志查看',
   Feedback: '反馈处理',
   PracticeRecords: '用户数据',

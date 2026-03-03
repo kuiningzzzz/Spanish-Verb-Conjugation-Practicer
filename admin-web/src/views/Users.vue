@@ -1,40 +1,67 @@
 <template>
-  <section class="card users-page">
-    <div class="users-header">
+  <section class="card users-page management-page">
+    <div class="management-header">
       <div>
         <h2>用户管理</h2>
-        <p class="muted">
-          管理平台所有用户账号信息
-        </p>
-        <p class="muted total-count">共 {{ total }} 条</p>
       </div>
-      <div class="toolbar">
-        <input v-model.trim="keyword" placeholder="搜索邮箱/昵称/ID" />
-        <select v-model="roleFilter">
-          <option value="all">全部角色</option>
-          <option value="dev">DEV</option>
-          <option value="admin">ADMIN</option>
-          <option value="user">USER</option>
-        </select>
-        <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
-        <button v-if="isDev" @click="openCreate">新建用户</button>
+      <div class="toolbar management-toolbar">
+        <div class="toolbar-left">
+          <input v-model.trim="keyword" placeholder="搜索邮箱/昵称/ID" />
+          <select v-model="roleFilter">
+            <option value="all">全部角色</option>
+            <option v-if="isDev" value="dev">DEV</option>
+            <option value="admin">ADMIN</option>
+            <option value="user">USER</option>
+          </select>
+          <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
+        </div>
+        <div class="management-actions">
+          <div class="pagination inline-pagination management-inline-pagination">
+            <span class="muted management-pagination-total">共 {{ total }} 条</span>
+            <template v-if="total > pageSize">
+              <button class="ghost" :disabled="page === 1 || loading" @click="changePage(page - 1)">上一页</button>
+              <label class="management-pagination-jump" for="users-page-jump">
+                第
+                <input
+                  id="users-page-jump"
+                  v-model.number="pageJump"
+                  class="page-jump-input management-page-number-input"
+                  type="number"
+                  min="1"
+                  :max="totalPages"
+                  @keydown.enter.prevent="jumpToPage"
+                  @blur="jumpToPage"
+                />
+                / {{ totalPages }} 页
+              </label>
+              <button
+                class="ghost"
+                :disabled="page === totalPages || loading"
+                @click="changePage(page + 1)"
+              >
+                下一页
+              </button>
+            </template>
+          </div>
+          <button v-if="isDev" @click="openCreate">新建用户</button>
+        </div>
       </div>
     </div>
 
-    <div v-if="error" class="error-block">
-      <p class="error">{{ error }}</p>
-      <button class="ghost" @click="refresh">重试</button>
-    </div>
-
-    <div v-else>
-      <div v-if="loading" class="loading">加载中...</div>
-      <div v-else>
+    <div class="management-page-body">
+      <div v-if="error" class="error-block">
+        <p class="error">{{ error }}</p>
+        <button class="ghost" @click="refresh">重试</button>
+      </div>
+      <div v-else-if="loading" class="loading">加载中...</div>
+      <div v-else class="management-table-scroll">
         <table class="table">
           <thead>
             <tr>
               <th>ID</th>
               <th>邮箱</th>
-              <th>昵称</th>
+              <th>用户名</th>
+              <th>类型</th>
               <th>角色</th>
               <th>创建时间</th>
               <th>操作</th>
@@ -45,6 +72,9 @@
               <td>{{ user.id }}</td>
               <td>{{ user.email || '-' }}</td>
               <td>{{ user.username || '-' }}</td>
+              <td>
+                <span class="tag" :class="typeTagClass(user.user_type)">{{ userTypeLabel(user.user_type) }}</span>
+              </td>
               <td>
                 <span class="tag" :class="user.role">{{ roleLabel(user.role) }}</span>
               </td>
@@ -69,26 +99,14 @@
               </td>
             </tr>
             <tr v-if="!filteredUsers.length">
-              <td colspan="6" class="empty">暂无用户数据</td>
+              <td colspan="7" class="empty">暂无用户数据</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <div class="pagination" v-if="total > pageSize">
-      <button class="ghost" :disabled="page === 1 || loading" @click="changePage(page - 1)">上一页</button>
-      <span>第 {{ page }} / {{ totalPages }} 页</span>
-      <button
-        class="ghost"
-        :disabled="page === totalPages || loading"
-        @click="changePage(page + 1)"
-      >
-        下一页
-      </button>
-    </div>
-
-    <div v-if="drawerOpen" class="overlay" @click.self="closeDrawer">
+    <div v-if="drawerOpen" class="overlay">
       <div class="drawer">
         <header>
           <h3>编辑用户</h3>
@@ -101,7 +119,7 @@
             <span v-if="formErrors.email" class="field-error">{{ formErrors.email }}</span>
           </label>
           <label>
-            昵称
+            用户名
             <input v-model="form.username" />
             <span v-if="formErrors.username" class="field-error">{{ formErrors.username }}</span>
           </label>
@@ -124,7 +142,7 @@
       </div>
     </div>
 
-    <div v-if="createOpen" class="overlay" @click.self="closeCreate">
+    <div v-if="createOpen" class="overlay">
       <div class="drawer">
         <header>
           <h3>新建用户</h3>
@@ -137,7 +155,7 @@
             <span v-if="createErrors.email" class="field-error">{{ createErrors.email }}</span>
           </label>
           <label>
-            昵称
+            用户名
             <input v-model="createForm.username" />
             <span v-if="createErrors.username" class="field-error">{{ createErrors.username }}</span>
           </label>
@@ -159,9 +177,12 @@
       </div>
     </div>
 
-    <div v-if="deleteDialog" class="overlay" @click.self="closeDelete">
+    <div v-if="deleteDialog" class="overlay">
       <div class="modal">
-        <h3>确认删除</h3>
+        <div class="modal-header">
+          <h3>确认删除</h3>
+          <button class="ghost" @click="closeDelete">关闭</button>
+        </div>
         <p>
           即将删除用户：<strong>{{ deleteDialog.username || deleteDialog.email || deleteDialog.id }}</strong>
         </p>
@@ -190,6 +211,7 @@ const users = ref([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(10);
+const pageJump = ref(1);
 const roleFilter = ref('all');
 const keyword = ref('');
 const loading = ref(false);
@@ -259,6 +281,10 @@ const roleHelp = computed(() => {
 watch([page, pageSize, roleFilter], () => {
   fetchUsers();
 });
+
+watch(page, (value) => {
+  pageJump.value = value;
+}, { immediate: true });
 
 function showToast(message, type = 'info') {
   toast.message = message;
@@ -344,6 +370,17 @@ function changePage(nextPage) {
   page.value = Math.min(Math.max(nextPage, 1), totalPages.value);
 }
 
+function jumpToPage() {
+  const target = Number(pageJump.value);
+  if (!Number.isFinite(target)) {
+    pageJump.value = page.value;
+    return;
+  }
+  const nextPage = Math.min(Math.max(Math.trunc(target), 1), totalPages.value);
+  pageJump.value = nextPage;
+  changePage(nextPage);
+}
+
 function formatDate(value) {
   if (!value) return '-';
   const date = new Date(value.replace(' ', 'T'));
@@ -354,6 +391,19 @@ function roleLabel(role) {
   if (role === 'dev') return 'DEV';
   if (role === 'admin') return 'ADMIN';
   return 'USER';
+}
+
+function userTypeLabel(userType) {
+  const normalized = String(userType || '').trim().toLowerCase();
+  if (normalized === 'student') return 'STUDENT';
+  if (normalized === 'public') return 'PUBLIC';
+  if (!normalized) return '-';
+  return normalized.toUpperCase();
+}
+
+function typeTagClass(userType) {
+  const normalized = String(userType || '').trim().toLowerCase();
+  return normalized ? `type-${normalized}` : 'type-unknown';
 }
 
 function canEdit(user) {

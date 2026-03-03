@@ -1,26 +1,48 @@
 <template>
   <section class="card lexicon-page">
     <div class="header-row">
-      <div>
+      <div class="header-copy">
         <h2>词库条目管理</h2>
-        <p class="muted">管理所有动词词库条目信息</p>
-        <p class="muted total-count">共 {{ total }} 条</p>
       </div>
       <div class="toolbar">
-        <input v-model.trim="keyword" placeholder="搜索动词/释义/ID" />
-        <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
-        <button @click="openCreate">新建条目</button>
+        <div class="toolbar-left">
+          <input v-model.trim="keyword" placeholder="搜索动词/释义/ID" />
+          <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
+        </div>
+        <div class="toolbar-right">
+          <div class="pagination inline-pagination">
+            <span class="muted pagination-total">共 {{ total }} 条</span>
+            <template v-if="total > pageSize">
+              <button class="ghost" :disabled="page === 1 || loading" @click="changePage(page - 1)">上一页</button>
+              <label class="pagination-jump" for="lexicon-page-jump">
+                第
+                <input
+                  id="lexicon-page-jump"
+                  v-model.number="pageJump"
+                  class="page-jump-input page-number-input"
+                  type="number"
+                  min="1"
+                  :max="totalPages"
+                  @keydown.enter.prevent="jumpToPage"
+                  @blur="jumpToPage"
+                />
+                / {{ totalPages }} 页
+              </label>
+              <button class="ghost" :disabled="page === totalPages || loading" @click="changePage(page + 1)">下一页</button>
+            </template>
+          </div>
+          <button @click="openCreate">新建条目</button>
+        </div>
       </div>
     </div>
 
-    <div v-if="error" class="error-block">
-      <p class="error">{{ error }}</p>
-      <button class="ghost" @click="refresh">重试</button>
-    </div>
-
-    <div v-else>
-      <div v-if="loading" class="loading">加载中...</div>
-      <div v-else>
+    <div class="lexicon-body">
+      <div v-if="error" class="error-block">
+        <p class="error">{{ error }}</p>
+        <button class="ghost" @click="refresh">重试</button>
+      </div>
+      <div v-else-if="loading" class="loading">加载中...</div>
+      <div v-else class="table-scroll">
         <table class="table">
           <thead>
             <tr>
@@ -53,13 +75,7 @@
       </div>
     </div>
 
-    <div class="pagination" v-if="total > pageSize">
-      <button class="ghost" :disabled="page === 1 || loading" @click="changePage(page - 1)">上一页</button>
-      <span>第 {{ page }} / {{ totalPages }} 页</span>
-      <button class="ghost" :disabled="page === totalPages || loading" @click="changePage(page + 1)">下一页</button>
-    </div>
-
-    <div v-if="drawerOpen" class="overlay" @click.self="closeDrawer">
+    <div v-if="drawerOpen" class="overlay">
       <div class="drawer">
         <header>
           <h3>{{ editingId ? '编辑动词' : '新建动词' }}</h3>
@@ -135,7 +151,7 @@
     </div>
 
     <!-- 变位抽屉 -->
-    <div v-if="conjDrawerOpen" class="overlay" @click.self="closeConjDrawer">
+    <div v-if="conjDrawerOpen" class="overlay">
       <div class="drawer">
         <header>
           <h3>动词：{{ activeVerb?.infinitive || '' }} 的变位</h3>
@@ -205,9 +221,12 @@
       </div>
     </div>
 
-    <div v-if="deleteDialog" class="overlay" @click.self="closeDelete">
+    <div v-if="deleteDialog" class="overlay">
       <div class="modal">
-        <h3>确认删除</h3>
+        <div class="modal-header">
+          <h3>确认删除</h3>
+          <button class="ghost" @click="closeDelete">关闭</button>
+        </div>
         <p>即将删除条目：<strong>{{ deleteDialog.infinitive || deleteDialog.id }}</strong></p>
         <div class="modal-actions">
           <button class="ghost" @click="closeDelete">取消</button>
@@ -228,6 +247,7 @@ const rows = ref([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(10);
+const pageJump = ref(1);
 const keyword = ref('');
 const loading = ref(false);
 const error = ref('');
@@ -343,12 +363,27 @@ watch(keyword, (val) => {
   }, 260);
 });
 
+watch(page, (value) => {
+  pageJump.value = value;
+}, { immediate: true });
+
 function refresh() {
   fetchRows();
 }
 
 function changePage(p) {
   page.value = Math.min(Math.max(p, 1), totalPages.value);
+}
+
+function jumpToPage() {
+  const target = Number(pageJump.value);
+  if (!Number.isFinite(target)) {
+    pageJump.value = page.value;
+    return;
+  }
+  const nextPage = Math.min(Math.max(Math.trunc(target), 1), totalPages.value);
+  pageJump.value = nextPage;
+  changePage(nextPage);
 }
 
 function formatDate(value) {
@@ -567,8 +602,89 @@ fetchRows();
 </script>
 
 <style scoped>
-.lexicon-page .header-row { display:flex; justify-content:space-between; align-items:center; gap:16px; }
-.toolbar { display:flex; gap:8px; align-items:center; }
+.lexicon-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: min(calc(100vh - 110px), 860px);
+  overflow: hidden;
+}
+
+.lexicon-page .header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.header-copy h2 {
+  margin: 0;
+}
+
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: nowrap;
+  margin-left: auto;
+  width: auto;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.lexicon-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.table-scroll .table th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+}
+
+.pagination-total {
+  white-space: nowrap;
+}
+
+.pagination.inline-pagination {
+  flex-wrap: nowrap;
+}
+
+.pagination-jump {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  white-space: nowrap;
+  min-width: 160px;
+}
+
+.page-number-input {
+  width: 88px;
+  min-width: 88px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 .table td.desc { max-width:360px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .drawer textarea { width:100%; }
 .drawer-actions { display:flex; gap:8px; margin-top:12px; }
@@ -583,4 +699,19 @@ fetchRows();
 .conj-list td.actions > button { min-width:88px; padding:6px 10px; white-space:nowrap; display:inline-flex; align-items:center; justify-content:center; margin:0; }
 .modal { background:#fff; padding:16px; border-radius:6px; width:420px; }
 .field-error { color:#c33; font-size:12px; }
+
+@media (max-width: 960px) {
+  .lexicon-page {
+    height: min(72vh, 700px);
+  }
+
+  .lexicon-page .header-row,
+  .toolbar {
+    flex-wrap: wrap;
+  }
+
+  .toolbar {
+    width: 100%;
+  }
+}
 </style>

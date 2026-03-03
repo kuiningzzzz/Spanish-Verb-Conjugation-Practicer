@@ -596,6 +596,8 @@ class Question {
       'infinitive',
       'question_text',
       'translation',
+      'host_form',
+      'pronoun_pattern',
       'tense',
       'mood',
       'person',
@@ -732,17 +734,8 @@ class Question {
   }
 
   static deleteOldPublicQuestions(daysOld = 30) {
-    const traditionalDeleted = questionDb.prepare(`
-      DELETE FROM public_traditional_conjugation
-      WHERE datetime(created_at) <= datetime('now', '-' || ? || ' days')
-    `).run(daysOld).changes
-
-    const pronounDeleted = questionDb.prepare(`
-      DELETE FROM public_conjugation_with_pronoun
-      WHERE datetime(created_at) <= datetime('now', '-' || ? || ' days')
-    `).run(daysOld).changes
-
-    return traditionalDeleted + pronounDeleted
+    const plan = this.planOldPublicQuestionCleanup(daysOld)
+    return this.deletePublicQuestionsByIds(plan)
   }
 
   static getPublicCount(filters = {}) {
@@ -1089,18 +1082,124 @@ class Question {
     return result ? result.correct_count : 0
   }
 
-  static deleteOldQuestionRecords(daysOld = 30) {
-    const traditionalIds = questionDb.prepare(`
-      SELECT id
+  static planOldPublicQuestionCleanup(options = {}) {
+    const rawOptions = Number.isFinite(Number(options))
+      ? { daysOld: Number(options) }
+      : (options || {})
+    const normalizedDays = Number.isFinite(Number(rawOptions.daysOld)) && Number(rawOptions.daysOld) >= 0
+      ? Math.floor(Number(rawOptions.daysOld))
+      : 30
+    const normalizedMinCount = Number.isFinite(Number(rawOptions.minCount)) && Number(rawOptions.minCount) >= 0
+      ? Math.floor(Number(rawOptions.minCount))
+      : 0
+
+    const allTraditionalRows = questionDb.prepare(`
+      SELECT id, verb_id, tense
+      FROM public_traditional_conjugation
+    `).all()
+    const allPronounRows = questionDb.prepare(`
+      SELECT id, verb_id, host_form
+      FROM public_conjugation_with_pronoun
+    `).all()
+
+    const oldTraditionalRows = questionDb.prepare(`
+      SELECT id, verb_id, tense
       FROM public_traditional_conjugation
       WHERE datetime(created_at) <= datetime('now', '-' || ? || ' days')
-    `).all(daysOld).map(item => item.id)
-
-    const pronounIds = questionDb.prepare(`
-      SELECT id
+      ORDER BY datetime(created_at) ASC, id ASC
+    `).all(normalizedDays)
+    const oldPronounRows = questionDb.prepare(`
+      SELECT id, verb_id, host_form
       FROM public_conjugation_with_pronoun
       WHERE datetime(created_at) <= datetime('now', '-' || ? || ' days')
-    `).all(daysOld).map(item => item.id)
+      ORDER BY datetime(created_at) ASC, id ASC
+    `).all(normalizedDays)
+
+    const lessonVerbRows = vocabularyDb.prepare(`
+      SELECT lesson_id, verb_id
+      FROM lesson_verbs
+    `).all()
+
+    const lessonIdsByVerb = Object.create(null)
+    lessonVerbRows.forEach((row) => {
+      if (!lessonIdsByVerb[row.verb_id]) {
+        lessonIdsByVerb[row.verb_id] = []
+      }
+      lessonIdsByVerb[row.verb_id].push(row.lesson_id)
+    })
+
+    const lessonCounts = Object.create(null)
+    const countLesson = (row) => {
+      const lessonIds = lessonIdsByVerb[row.verb_id] || []
+      lessonIds.forEach((lessonId) => {
+        lessonCounts[lessonId] = (lessonCounts[lessonId] || 0) + 1
+      })
+    }
+
+    allTraditionalRows.forEach(countLesson)
+    allPronounRows.forEach(countLesson)
+
+    const traditionalTenseCounts = Object.create(null)
+    allTraditionalRows.forEach((row) => {
+      traditionalTenseCounts[row.tense] = (traditionalTenseCounts[row.tense] || 0) + 1
+    })
+
+    const pronounModeCounts = Object.create(null)
+    allPronounRows.forEach((row) => {
+      const modeKey = String(row.host_form || '').trim().toLowerCase() || 'unknown'
+      pronounModeCounts[modeKey] = (pronounModeCounts[modeKey] || 0) + 1
+    })
+
+    const traditionalIds = []
+    oldTraditionalRows.forEach((row) => {
+      const lessonIds = lessonIdsByVerb[row.verb_id] || []
+      const blocksLessonDeletion = lessonIds.some((lessonId) => (lessonCounts[lessonId] || 0) <= normalizedMinCount)
+      if (blocksLessonDeletion) return
+
+      if ((traditionalTenseCounts[row.tense] || 0) <= normalizedMinCount) {
+        return
+      }
+
+      traditionalIds.push(row.id)
+      lessonIds.forEach((lessonId) => {
+        lessonCounts[lessonId] -= 1
+      })
+      traditionalTenseCounts[row.tense] -= 1
+    })
+
+    const pronounIds = []
+    oldPronounRows.forEach((row) => {
+      const lessonIds = lessonIdsByVerb[row.verb_id] || []
+      const modeKey = String(row.host_form || '').trim().toLowerCase() || 'unknown'
+      const blocksLessonDeletion = lessonIds.some((lessonId) => (lessonCounts[lessonId] || 0) <= normalizedMinCount)
+      if (blocksLessonDeletion) return
+
+      if ((pronounModeCounts[modeKey] || 0) <= normalizedMinCount) {
+        return
+      }
+
+      pronounIds.push(row.id)
+      lessonIds.forEach((lessonId) => {
+        lessonCounts[lessonId] -= 1
+      })
+      pronounModeCounts[modeKey] -= 1
+    })
+
+    return {
+      daysOld: normalizedDays,
+      minCount: normalizedMinCount,
+      traditionalIds,
+      pronounIds,
+      candidates: {
+        traditional: oldTraditionalRows.length,
+        pronoun: oldPronounRows.length
+      }
+    }
+  }
+
+  static deleteQuestionRecordsByIds(plan = {}) {
+    const traditionalIds = Array.isArray(plan.traditionalIds) ? plan.traditionalIds : []
+    const pronounIds = Array.isArray(plan.pronounIds) ? plan.pronounIds : []
 
     let deleted = 0
 
@@ -1123,6 +1222,38 @@ class Question {
     }
 
     return deleted
+  }
+
+  static deletePublicQuestionsByIds(plan = {}) {
+    const traditionalIds = Array.isArray(plan.traditionalIds) ? plan.traditionalIds : []
+    const pronounIds = Array.isArray(plan.pronounIds) ? plan.pronounIds : []
+
+    let deleted = 0
+
+    if (traditionalIds.length > 0) {
+      const placeholders = traditionalIds.map(() => '?').join(',')
+      const result = questionDb.prepare(`
+        DELETE FROM public_traditional_conjugation
+        WHERE id IN (${placeholders})
+      `).run(...traditionalIds)
+      deleted += result.changes
+    }
+
+    if (pronounIds.length > 0) {
+      const placeholders = pronounIds.map(() => '?').join(',')
+      const result = questionDb.prepare(`
+        DELETE FROM public_conjugation_with_pronoun
+        WHERE id IN (${placeholders})
+      `).run(...pronounIds)
+      deleted += result.changes
+    }
+
+    return deleted
+  }
+
+  static deleteOldQuestionRecords(daysOld = 30) {
+    const plan = this.planOldPublicQuestionCleanup(daysOld)
+    return this.deleteQuestionRecordsByIds(plan)
   }
 
   static existsInPublic(verbId, questionText, source = PUBLIC_SOURCE_TRADITIONAL) {
