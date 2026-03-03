@@ -49,8 +49,6 @@
               <th>ID</th>
               <th>原形</th>
               <th>释义</th>
-              <th>变位</th>
-              <th>课号</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -59,8 +57,6 @@
               <td>{{ item.id }}</td>
               <td>{{ item.infinitive }}</td>
               <td class="desc">{{ item.meaning || '-' }}</td>
-              <td>{{ conjugationLabel(item.conjugation_type) }}</td>
-              <td>{{ item.lesson_number || '-' }}</td>
               <td class="actions">
                 <button class="ghost" @click="openEdit(item)">编辑</button>
                 <button class="ghost" @click="openConjugations(item)">变位</button>
@@ -68,7 +64,7 @@
               </td>
             </tr>
             <tr v-if="!filteredRows.length">
-              <td colspan="6" class="empty">暂无条目</td>
+              <td colspan="4" class="empty">暂无条目</td>
             </tr>
           </tbody>
         </table>
@@ -298,13 +294,6 @@ const filteredRows = computed(() => {
     );
   });
 });
-
-function conjugationLabel(val) {
-  if (val === 1) return '-ar';
-  if (val === 2) return '-er';
-  if (val === 3) return '-ir';
-  return String(val || '-')
-}
 
 function showToast(message, type = 'info') {
   toast.message = message;
