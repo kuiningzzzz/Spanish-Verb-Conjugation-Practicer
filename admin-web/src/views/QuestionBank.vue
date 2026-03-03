@@ -1,5 +1,5 @@
 <template>
-  <Teleport to=".topbar-left">
+  <Teleport v-if="isDev" to=".topbar-left">
     <button
       class="ghost question-bank-download-button"
       :disabled="downloadingAll"
@@ -89,11 +89,11 @@
                 </th>
               </template>
               <template v-else>
-                <th class="col-tense sortable" @click="toggleSort('tense')">
-                  时态 <span class="sort-indicator">{{ sortIndicator('tense') }}</span>
-                </th>
                 <th class="col-mood sortable" @click="toggleSort('mood')">
                   语气 <span class="sort-indicator">{{ sortIndicator('mood') }}</span>
+                </th>
+                <th class="col-tense sortable" @click="toggleSort('tense')">
+                  时态 <span class="sort-indicator">{{ sortIndicator('tense') }}</span>
                 </th>
                 <th class="col-person sortable" @click="toggleSort('person')">
                   人称 <span class="sort-indicator">{{ sortIndicator('person') }}</span>
@@ -122,8 +122,8 @@
                 <td class="col-pronoun-mode">{{ formatPronounPattern(question) }}</td>
               </template>
               <template v-else>
-                <td class="col-tense">{{ question.tense }}</td>
-                <td class="col-mood">{{ question.mood }}</td>
+                <td class="col-mood">{{ formatTableMoodLabel(question.mood) }}</td>
+                <td class="col-tense">{{ formatTableTenseLabel(question.tense) }}</td>
                 <td class="col-person">{{ question.person }}</td>
               </template>
               <td v-if="isDev" class="col-confidence">{{ question.confidence_score ?? '-' }}</td>
@@ -172,13 +172,44 @@
             提示（可选）
             <input v-model="form.hint" />
           </label>
-          <div class="inline-fields">
+          <div v-if="isEditingPronounQuestion" class="inline-fields">
+            <label>
+              变位类型
+              <select v-model="form.host_form">
+                <option value="" disabled>请选择变位类型</option>
+                <option
+                  v-for="hostForm in resolvedHostFormOptions"
+                  :key="hostForm"
+                  :value="hostForm"
+                >
+                  {{ formatHostFormOptionLabel(hostForm) }}
+                </option>
+              </select>
+              <span v-if="formErrors.host_form" class="field-error">{{ formErrors.host_form }}</span>
+            </label>
+            <label>
+              代词模式
+              <select v-model="form.pronoun_pattern" :disabled="isPrnlHostForm(form.host_form)">
+                <option v-if="isPrnlHostForm(form.host_form)" value="">不适用</option>
+                <option v-else value="" disabled>请选择代词模式</option>
+                <option
+                  v-for="pattern in resolvedPronounPatternOptions"
+                  :key="pattern"
+                  :value="pattern"
+                >
+                  {{ formatPronounPatternOptionLabel(pattern) }}
+                </option>
+              </select>
+              <span v-if="formErrors.pronoun_pattern" class="field-error">{{ formErrors.pronoun_pattern }}</span>
+            </label>
+          </div>
+          <div v-else class="inline-fields">
             <label>
               时态
               <select v-model="form.tense">
                 <option value="" disabled>请选择时态</option>
                 <option v-for="tense in resolvedTenseOptions" :key="tense" :value="tense">
-                  {{ tense }}
+                  {{ formatTenseOptionLabel(tense) }}
                 </option>
               </select>
               <span v-if="formErrors.tense" class="field-error">{{ formErrors.tense }}</span>
@@ -255,6 +286,87 @@ const tenseOptions = ref([]);
 const personOptions = ref([]);
 const tenseMoodMap = ref({});
 
+const TENSE_LABELS = {
+  '现在时': '陈述式 一般现在时',
+  presente: '陈述式 一般现在时',
+  '现在完成时': '陈述式 现在完成时',
+  perfecto: '陈述式 现在完成时',
+  '未完成过去时': '陈述式 过去未完成时',
+  '过去未完成时': '陈述式 过去未完成时',
+  imperfecto: '陈述式 过去未完成时',
+  '简单过去时': '陈述式 简单过去时',
+  preterito: '陈述式 简单过去时',
+  pretérito: '陈述式 简单过去时',
+  '将来时': '陈述式 将来未完成时',
+  futuro: '陈述式 将来未完成时',
+  '过去完成时': '陈述式 过去完成时',
+  pluscuamperfecto: '陈述式 过去完成时',
+  '将来完成时': '陈述式 将来完成时',
+  futuro_perfecto: '陈述式 将来完成时',
+  '前过去时': '陈述式 前过去时',
+  '先过去时': '陈述式 前过去时',
+  preterito_anterior: '陈述式 前过去时',
+  pretérito_anterior: '陈述式 前过去时',
+  '虚拟现在时': '虚拟式 现在时',
+  subjuntivo_presente: '虚拟式 现在时',
+  '虚拟过去时': '虚拟式 过去未完成时',
+  subjuntivo_imperfecto: '虚拟式 过去未完成时',
+  '虚拟现在完成时': '虚拟式 现在完成时',
+  subjuntivo_perfecto: '虚拟式 现在完成时',
+  '虚拟过去完成时': '虚拟式 过去完成时',
+  subjuntivo_pluscuamperfecto: '虚拟式 过去完成时',
+  '虚拟将来未完成时': '虚拟式 将来未完成时',
+  '虚拟将来时': '虚拟式 将来未完成时',
+  subjuntivo_futuro: '虚拟式 将来未完成时',
+  '虚拟将来完成时': '虚拟式 将来完成时',
+  subjuntivo_futuro_perfecto: '虚拟式 将来完成时',
+  '条件式': '简单条件式',
+  condicional: '简单条件式',
+  '条件完成时': '复合条件式',
+  condicional_perfecto: '复合条件式',
+  '肯定命令式': '命令式',
+  imperativo_afirmativo: '命令式',
+  '否定命令式': '否定命令式',
+  imperativo_negativo: '否定命令式'
+};
+
+const HOST_FORM_LABELS = {
+  finite: '陈述式/时态变位',
+  imperative: '命令式',
+  infinitive: '不定式',
+  gerund: '副动词',
+  prnl: '自反形式'
+};
+
+const PRONOUN_PATTERN_LABELS = {
+  DO: 'DO',
+  IO: 'IO',
+  DO_IO: 'DO+IO'
+};
+
+const TABLE_MOOD_LABELS = {
+  '陈述式': '陈述式',
+  indicativo: '陈述式',
+  '复合陈述式': '陈述式',
+  indicativo_compuesto: '陈述式',
+  '虚拟式': '虚拟式',
+  subjuntivo: '虚拟式',
+  '复合虚拟式': '虚拟式',
+  subjuntivo_compuesto: '虚拟式',
+  '命令式': '命令式',
+  imperativo: '命令式',
+  '条件式': '条件式',
+  condicional: '条件式',
+  '不定式': '不定式',
+  infinitivo: '不定式',
+  '副动词': '副动词',
+  gerundio: '副动词',
+  '自反动词': '自反动词',
+  pronominal: '自反动词',
+  '不适用': '不适用',
+  'no aplica': '不适用'
+};
+
 const drawerOpen = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
@@ -275,6 +387,9 @@ const form = reactive({
   tense: '',
   mood: '',
   person: '',
+  host_form: '',
+  host_form_zh: '',
+  pronoun_pattern: '',
   confidence_score: 50
 });
 
@@ -287,6 +402,12 @@ const toast = reactive({
 });
 
 const isPronounBank = computed(() => questionBankFilter.value === 'pronoun');
+const isEditingPronounQuestion = computed(() => {
+  if (!activeQuestion.value) return false;
+  return activeQuestion.value.question_bank === 'pronoun'
+    || activeQuestion.value.public_question_source === 'public_pronoun'
+    || !!activeQuestion.value.host_form;
+});
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
 const emptyColspan = computed(() => {
   const baseColumns = isPronounBank.value ? 6 : 7;
@@ -294,6 +415,11 @@ const emptyColspan = computed(() => {
 });
 const resolvedTenseOptions = computed(() => mergeOptions(tenseOptions.value, form.tense));
 const resolvedPersonOptions = computed(() => mergeOptions(personOptions.value, form.person));
+const resolvedHostFormOptions = computed(() => mergeOptions(Object.keys(HOST_FORM_LABELS), form.host_form));
+const resolvedPronounPatternOptions = computed(() => {
+  if (isPrnlHostForm(form.host_form)) return [];
+  return mergeOptions(Object.keys(PRONOUN_PATTERN_LABELS), form.pronoun_pattern);
+});
 
 const emptyText = computed(() => {
   if (keyword.value.trim()) return '未找到匹配题目';
@@ -357,6 +483,17 @@ watch(
   () => {
     if (!drawerOpen.value) return;
     syncMoodFromTense({ force: true });
+  }
+);
+
+watch(
+  () => form.host_form,
+  (value) => {
+    if (!drawerOpen.value || !isEditingPronounQuestion.value) return;
+    if (isPrnlHostForm(value)) {
+      form.pronoun_pattern = '';
+      formErrors.pronoun_pattern = '';
+    }
   }
 );
 
@@ -596,7 +733,8 @@ function formatText(value) {
 
 function formatHostForm(question) {
   const value = String(question?.host_form || '').trim();
-  return value || '-';
+  if (!value) return '-';
+  return HOST_FORM_LABELS[normalizeOptionKey(value)] || value;
 }
 
 function formatPronounPattern(question) {
@@ -609,6 +747,69 @@ function briefQuestion(value) {
   const text = String(value);
   return text.length <= 20 ? text : `${text.slice(0, 20)}...`;
 }
+
+function normalizeOptionKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function formatTenseOptionLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '-';
+  return TENSE_LABELS[normalizeOptionKey(raw)] || raw;
+}
+
+function formatTableTenseLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '-';
+  const resolved = TENSE_LABELS[normalizeOptionKey(raw)] || raw;
+  const separatorIndex = resolved.indexOf(' ');
+  if (separatorIndex >= 0) {
+    return resolved.slice(separatorIndex + 1).trim() || resolved;
+  }
+  return resolved;
+}
+
+function formatTableMoodLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '-';
+  return TABLE_MOOD_LABELS[normalizeOptionKey(raw)] || raw;
+}
+
+function formatHostFormOptionLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '-';
+  return HOST_FORM_LABELS[normalizeOptionKey(raw)] || raw;
+}
+
+function formatPronounPatternOptionLabel(value) {
+  const raw = String(value || '').trim().toUpperCase();
+  if (!raw) return '-';
+  return PRONOUN_PATTERN_LABELS[raw] || raw;
+}
+
+function isPrnlHostForm(value) {
+  return normalizeOptionKey(value) === 'prnl';
+}
+
+function resolveHostFormZh(value) {
+  const key = normalizeOptionKey(value);
+  return HOST_FORM_LABELS[key] || String(value || '').trim();
+}
+
+function resolveSubmittedHostFormZh(value) {
+  const normalizedValue = normalizeOptionKey(value);
+  if (!normalizedValue) return null;
+
+  const originalHostForm = normalizeOptionKey(activeQuestion.value?.host_form);
+  if (normalizedValue === originalHostForm) {
+    const originalLabel = String(activeQuestion.value?.host_form_zh || '').trim();
+    if (originalLabel) return originalLabel;
+  }
+
+  const currentLabel = String(form.host_form_zh || '').trim();
+  return resolveHostFormZh(value) || currentLabel || null;
+}
+
 function toggleSort(key) {
   if (sortKey.value === key) {
     sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
@@ -666,6 +867,9 @@ async function openEdit(question) {
     form.tense = data.tense || '';
     form.mood = data.mood || '';
     form.person = data.person || '';
+    form.host_form = data.host_form || '';
+    form.host_form_zh = data.host_form_zh || '';
+    form.pronoun_pattern = data.pronoun_pattern || '';
     form.confidence_score = data.confidence_score ?? 50;
     syncMoodFromTense();
     if (form.verb_id && !form.verb_infinitive) {
@@ -695,14 +899,23 @@ async function submitEdit() {
   if (!form.question_text || !form.question_text.trim()) {
     formErrors.question_text = '题干不能为空';
   }
-  if (!form.tense || !form.tense.trim()) {
-    formErrors.tense = '时态不能为空';
-  }
-  if (!form.mood || !form.mood.trim()) {
-    formErrors.mood = formErrors.mood || '语气不能为空';
-  }
-  if (!form.person || !form.person.trim()) {
-    formErrors.person = '人称不能为空';
+  if (isEditingPronounQuestion.value) {
+    if (!form.host_form || !form.host_form.trim()) {
+      formErrors.host_form = '变位类型不能为空';
+    }
+    if (!isPrnlHostForm(form.host_form) && (!form.pronoun_pattern || !form.pronoun_pattern.trim())) {
+      formErrors.pronoun_pattern = '代词模式不能为空';
+    }
+  } else {
+    if (!form.tense || !form.tense.trim()) {
+      formErrors.tense = '时态不能为空';
+    }
+    if (!form.mood || !form.mood.trim()) {
+      formErrors.mood = formErrors.mood || '语气不能为空';
+    }
+    if (!form.person || !form.person.trim()) {
+      formErrors.person = '人称不能为空';
+    }
   }
   if (form.confidence_score < 0 || form.confidence_score > 100) {
     formErrors.confidence_score = '置信度需在 0-100 之间';
@@ -713,6 +926,10 @@ async function submitEdit() {
 
   saving.value = true;
   try {
+    const normalizedHostForm = form.host_form?.trim() || null;
+    const normalizedPronounPattern = isPrnlHostForm(normalizedHostForm)
+      ? null
+      : (form.pronoun_pattern?.trim().toUpperCase() || null);
     await apiRequest(`/questions/${form.id}`, {
       method: 'PUT',
       body: {
@@ -724,6 +941,11 @@ async function submitEdit() {
         tense: form.tense.trim(),
         mood: form.mood.trim(),
         person: form.person.trim(),
+        host_form: isEditingPronounQuestion.value ? normalizedHostForm : undefined,
+        host_form_zh: isEditingPronounQuestion.value
+          ? resolveSubmittedHostFormZh(normalizedHostForm)
+          : undefined,
+        pronoun_pattern: isEditingPronounQuestion.value ? normalizedPronounPattern : undefined,
         confidence_score: form.confidence_score
       }
     });
