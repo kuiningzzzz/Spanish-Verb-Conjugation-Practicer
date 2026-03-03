@@ -829,21 +829,22 @@ fetchConjugationOptions();
 
 .question-bank-page .table th,
 .question-bank-page .table td {
+  padding: 12px 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .question-bank-page .col-id {
-  width: 64px;
+  width: 56px;
 }
 
 .question-bank-page .col-verb {
-  width: 110px;
+  width: 92px;
 }
 
 .question-bank-page .col-tense {
-  width: 116px;
+  width: 100px;
 }
 
 .question-bank-page .col-host-form {
@@ -854,13 +855,16 @@ fetchConjugationOptions();
   width: 104px;
 }
 
-.question-bank-page .col-mood,
+.question-bank-page .col-mood {
+  width: 80px;
+}
+
 .question-bank-page .col-person {
   width: 92px;
 }
 
 .question-bank-page .col-confidence {
-  width: 76px;
+  width: 68px;
 }
 
 .question-bank-page .col-created {
@@ -877,7 +881,7 @@ fetchConjugationOptions();
 }
 
 .question-bank-page .table td.actions {
-  gap: 6px;
+  gap: 4px;
   flex-wrap: nowrap;
 }
 

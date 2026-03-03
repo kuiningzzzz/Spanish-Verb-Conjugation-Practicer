@@ -9,7 +9,7 @@
           <input v-model.trim="keyword" placeholder="搜索邮箱/昵称/ID" />
           <select v-model="roleFilter">
             <option value="all">全部角色</option>
-            <option value="dev">DEV</option>
+            <option v-if="isDev" value="dev">DEV</option>
             <option value="admin">ADMIN</option>
             <option value="user">USER</option>
           </select>
@@ -60,7 +60,7 @@
             <tr>
               <th>ID</th>
               <th>邮箱</th>
-              <th>昵称</th>
+              <th>用户名</th>
               <th>类型</th>
               <th>角色</th>
               <th>创建时间</th>
@@ -119,7 +119,7 @@
             <span v-if="formErrors.email" class="field-error">{{ formErrors.email }}</span>
           </label>
           <label>
-            昵称
+            用户名
             <input v-model="form.username" />
             <span v-if="formErrors.username" class="field-error">{{ formErrors.username }}</span>
           </label>
@@ -155,7 +155,7 @@
             <span v-if="createErrors.email" class="field-error">{{ createErrors.email }}</span>
           </label>
           <label>
-            昵称
+            用户名
             <input v-model="createForm.username" />
             <span v-if="createErrors.username" class="field-error">{{ createErrors.username }}</span>
           </label>

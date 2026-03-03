@@ -131,7 +131,7 @@ const userHistory = ref(
     descriptions: [
       '角色由 user 调整为 admin',
       '通过后台重置密码并触发通知',
-      '更新昵称与邮箱信息',
+      '更新用户名与邮箱信息',
       '因违规操作暂时禁用账号'
     ]
   })

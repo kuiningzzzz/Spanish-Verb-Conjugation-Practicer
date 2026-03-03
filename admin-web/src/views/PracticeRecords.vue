@@ -392,7 +392,7 @@ const currentStats = computed(() => {
     );
   });
   return {
-    placeholder: '筛选用户ID/昵称/邮箱',
+    placeholder: '筛选用户ID/用户名/邮箱',
     columns: [
       {
         key: 'user',
