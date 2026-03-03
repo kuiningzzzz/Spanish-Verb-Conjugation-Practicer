@@ -389,11 +389,13 @@ async function downloadBackup(record) {
   if (!record) return;
   try {
     const data = await apiRequest(`/db-backups/${record.id}/download-link`);
-    if (!data?.url) {
+    const token = data?.token;
+    if (!token) {
       showToast('下载链接获取失败', 'error');
       return;
     }
-    window.open(data.url, '_blank');
+    const downloadUrl = `${getApiBase()}/db-backups/download?token=${token}`;
+    window.open(downloadUrl, '_blank');
   } catch (err) {
     handleApiError(err);
   }
