@@ -1118,7 +1118,7 @@ router.get('/db-backups/:id/download-link', requireAdmin, (req, res) => {
   }
   const token = issueDownloadToken(record.id)
   const baseUrl = `${req.protocol}://${req.get('host')}`
-  res.json({ url: `${baseUrl}/admin/db-backups/download?token=${token}` })
+  res.json({ url: `${baseUrl}/admin/db-backups/download?token=${token}`, token })
 })
 
 router.get('/db-backups/download', (req, res) => {

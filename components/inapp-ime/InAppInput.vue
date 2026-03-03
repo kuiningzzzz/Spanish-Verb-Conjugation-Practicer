@@ -7,9 +7,19 @@
   >
     <view class="inapp-text" :class="textAlignClass">
       <text v-if="!localText" class="inapp-placeholder">{{ placeholder }}</text>
-      <text class="inapp-before">{{ displayBefore }}</text>
+      <text
+        v-for="(char, index) in beforeChars"
+        :key="'b-' + index"
+        class="inapp-char"
+        @tap.stop="handleCharTap(index + 1)"
+      >{{ char }}</text>
       <view v-if="isFocused" class="inapp-caret" />
-      <text class="inapp-after">{{ displayAfter }}</text>
+      <text
+        v-for="(char, index) in afterChars"
+        :key="'a-' + index"
+        class="inapp-char"
+        @tap.stop="handleCharTap(cursor + index)"
+      >{{ char }}</text>
     </view>
   </view>
 </template>
@@ -51,7 +61,8 @@ export default {
       localText: this.value || '',
       cursor: (this.value || '').length,
       isFocused: false,
-      unsubscribeFocus: null
+      unsubscribeFocus: null,
+      inputRect: null
     }
   },
   computed: {
@@ -60,6 +71,12 @@ export default {
     },
     displayAfter() {
       return this.localText.slice(this.cursor)
+    },
+    beforeChars() {
+      return this.localText.slice(0, this.cursor).split('')
+    },
+    afterChars() {
+      return this.localText.slice(this.cursor).split('')
     },
     textAlignClass() {
       return this.textAlign === 'left' ? 'align-left' : 'align-center'
@@ -91,6 +108,32 @@ export default {
       },
       onSubmit: (text) => {
         this.$emit('confirm', text)
+      },
+      // 由 InAppKeyboardHost 在遮罩点击时调用，用于光标重定位。
+      // 若点击坐标落在本输入框内则处理并返回 true，否则返回 false。
+      handleExternalTap: (point) => {
+        if (!point || !this.inputRect) return false
+        const { left, right, top, bottom } = this.inputRect
+        if (point.x < left || point.x > right || point.y < top || point.y > bottom) return false
+        // 坐标在输入框内，查询各字符的位置后计算光标落点
+        const query = uni.createSelectorQuery().in(this)
+        query.selectAll('.inapp-char').boundingClientRect((charRects) => {
+          if (!charRects || charRects.length === 0) {
+            this.cursor = 0
+            return
+          }
+          let newCursor = 0
+          for (let i = 0; i < charRects.length; i++) {
+            const mid = charRects[i].left + charRects[i].width / 2
+            if (point.x > mid) {
+              newCursor = i + 1
+            } else {
+              break
+            }
+          }
+          this.cursor = newCursor
+        }).exec()
+        return true
       }
     }
     this.unsubscribeFocus = subscribeActiveTarget((target) => {
@@ -98,8 +141,16 @@ export default {
       this.isFocused = target === this.inputTarget
       if (this.isFocused && !wasFocused) {
         this.$emit('focus')
+        // 缓存元素位置，供遮罩点击时判断坐标是否落在输入框内
+        this.$nextTick(() => {
+          const query = uni.createSelectorQuery().in(this)
+          query.select('.inapp-input').boundingClientRect((rect) => {
+            this.inputRect = rect
+          }).exec()
+        })
       }
       if (!this.isFocused && wasFocused) {
+        this.inputRect = null
         this.$emit('blur')
       }
     })
@@ -124,7 +175,18 @@ export default {
     handleTap() {
       if (this.disabled) return
       if (!getUseInAppIME()) return
+      // 点击输入框空白区域时激活并将光标移到末尾
       setActiveTarget(this.inputTarget)
+      this.cursor = this.localText.length
+    },
+    handleCharTap(charIndex) {
+      if (this.disabled) return
+      if (!getUseInAppIME()) return
+      setActiveTarget(this.inputTarget)
+      // beforeChars[i] 点击时传入 i+1（光标置于字符右侧）
+      // afterChars[i] 点击时传入 cursor+i（光标置于字符左侧）
+      const pos = Math.max(0, Math.min(charIndex, this.localText.length))
+      this.cursor = pos
     },
     focus() {
       if (this.disabled) return
@@ -178,7 +240,8 @@ export default {
 }
 
 .inapp-before,
-.inapp-after {
+.inapp-after,
+.inapp-char {
   white-space: pre;
 }
 
