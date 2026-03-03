@@ -56,7 +56,7 @@
                   {{ formatDateDay(item.modifiedAt) }}
                 </span>
               </td>
-              <td class="actions">
+              <td class="history-actions-cell">
                 <button class="ghost" @click="openDetail(panel.key, item)">详情</button>
               </td>
             </tr>
@@ -95,9 +95,6 @@
             <span class="detail-label">操作说明</span>
             <span class="detail-value muted">{{ detailItem?.description || '暂无更多信息' }}</span>
           </div>
-        </div>
-        <div class="modal-actions">
-          <button class="ghost" @click="closeDetail">关闭</button>
         </div>
       </div>
     </div>
@@ -308,7 +305,11 @@ function formatDateDay(value) {
   text-overflow: ellipsis;
 }
 
-.history-table .actions .ghost {
+.history-actions-cell {
+  text-align: right;
+}
+
+.history-actions-cell .ghost {
   font-size: 12px;
   padding: 4px 8px;
   line-height: 1.1;
