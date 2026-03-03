@@ -5,6 +5,7 @@ import Dashboard from '../views/Dashboard.vue';
 import Users from '../views/Users.vue';
 import Lexicon from '../views/Lexicon.vue';
 import QuestionBank from '../views/QuestionBank.vue';
+import CourseMaterials from '../views/CourseMaterials.vue';
 import Logs from '../views/Logs.vue';
 import Feedback from '../views/Feedback.vue';
 import PracticeRecords from '../views/PracticeRecords.vue';
@@ -30,6 +31,7 @@ const routes = [
       { path: 'users', name: 'Users', component: Users },
       { path: 'lexicon', name: 'Lexicon', component: Lexicon },
       { path: 'questions', name: 'QuestionBank', component: QuestionBank },
+      { path: 'course-materials', name: 'CourseMaterials', component: CourseMaterials },
       { path: 'logs', name: 'Logs', component: Logs, meta: { requiresDev: true } },
       { path: 'feedback', name: 'Feedback', component: Feedback, meta: { requiresDev: true } },
       { path: 'practice-records', name: 'PracticeRecords', component: PracticeRecords, meta: { requiresDev: true } },

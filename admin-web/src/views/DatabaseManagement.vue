@@ -1,37 +1,39 @@
 <template>
-  <section class="card db-page">
-    <div class="users-header">
+  <section class="card db-page management-page">
+    <div class="management-header">
       <div>
         <h2>数据库管理</h2>
-        <p class="muted">仅 dev 可进行备份、还原与导入操作。</p>
       </div>
-      <div class="toolbar">
-        <div class="toggle-group">
-          <span class="toggle-label" :class="{ active: activeTab === 'backup' }">备份</span>
-          <label class="switch">
-            <input type="checkbox" v-model="isImportMode" />
-            <span class="slider"></span>
-          </label>
-          <span class="toggle-label" :class="{ active: activeTab === 'import' }">导入</span>
+      <div class="toolbar management-toolbar">
+        <div class="toolbar-left">
+          <div class="toggle-group">
+            <span class="toggle-label" :class="{ active: activeTab === 'backup' }">备份</span>
+            <label class="switch">
+              <input type="checkbox" v-model="isImportMode" />
+              <span class="slider"></span>
+            </label>
+            <span class="toggle-label" :class="{ active: activeTab === 'import' }">导入</span>
+          </div>
         </div>
-        <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
-        <button v-if="activeTab === 'backup'" @click="openBackupCreate">新增备份</button>
-        <button v-else @click="openImportDialog">导入 .zip</button>
+        <div class="management-actions">
+          <span class="muted management-pagination-total">共 {{ activeRecordCount }} 条</span>
+          <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
+          <button v-if="activeTab === 'backup'" @click="openBackupCreate">新增备份</button>
+          <button v-else @click="openImportDialog">导入 .zip</button>
+        </div>
       </div>
     </div>
 
-    <div v-if="error" class="error-block">
-      <p class="error">{{ error }}</p>
-      <button class="ghost" @click="refresh">重试</button>
-    </div>
-
-    <div v-else>
-      <div v-if="loading" class="loading">加载中...</div>
-      <div v-else>
+    <div class="management-page-body">
+      <div v-if="error" class="error-block">
+        <p class="error">{{ error }}</p>
+        <button class="ghost" @click="refresh">重试</button>
+      </div>
+      <div v-else-if="loading" class="loading">加载中...</div>
+      <div v-else class="management-scroll">
         <div v-if="activeTab === 'backup'" class="db-panel">
           <div class="panel-header">
             <h3>备份记录</h3>
-            <span class="muted">共 {{ backups.length }} 条</span>
           </div>
           <table class="table compact-table">
             <thead>
@@ -67,7 +69,6 @@
         <div v-else class="db-panel">
           <div class="panel-header">
             <h3>导入记录</h3>
-            <span class="muted">共 {{ imports.length }} 条</span>
           </div>
           <table class="table compact-table">
             <thead>
@@ -100,7 +101,7 @@
       </div>
     </div>
 
-    <div v-if="backupDialogOpen" class="overlay" @click.self="closeBackupCreate">
+    <div v-if="backupDialogOpen" class="overlay">
       <div class="drawer">
         <header>
           <h3>新增备份</h3>
@@ -120,9 +121,12 @@
       </div>
     </div>
 
-    <div v-if="deleteBackupDialog" class="overlay" @click.self="closeDeleteBackup">
+    <div v-if="deleteBackupDialog" class="overlay">
       <div class="modal">
-        <h3>确认删除备份</h3>
+        <div class="modal-header">
+          <h3>确认删除备份</h3>
+          <button class="ghost" @click="closeDeleteBackup">关闭</button>
+        </div>
         <p>即将删除备份：<strong>{{ deleteBackupDialog.createdAt }}</strong></p>
         <p class="muted">此操作会同时删除备份文件，且不可恢复。</p>
         <div class="modal-actions">
@@ -132,9 +136,12 @@
       </div>
     </div>
 
-    <div v-if="restoreDialog" class="overlay" @click.self="closeRestore">
+    <div v-if="restoreDialog" class="overlay">
       <div class="modal warning">
-        <h3>确认还原备份</h3>
+        <div class="modal-header">
+          <h3>确认还原备份</h3>
+          <button class="ghost" @click="closeRestore">关闭</button>
+        </div>
         <p>将使用备份覆盖当前数据：<strong>{{ restoreDialog.createdAt }}</strong></p>
         <p class="muted">还原会丢失未备份的数据，请确认无误。</p>
         <div class="modal-actions">
@@ -144,7 +151,7 @@
       </div>
     </div>
 
-    <div v-if="importDialogOpen" class="overlay" @click.self="closeImportDialog">
+    <div v-if="importDialogOpen" class="overlay">
       <div class="drawer">
         <header>
           <h3>导入数据</h3>
@@ -165,9 +172,12 @@
       </div>
     </div>
 
-    <div v-if="importConfirmDialog" class="overlay" @click.self="closeImportConfirm">
+    <div v-if="importConfirmDialog" class="overlay">
       <div class="modal warning">
-        <h3>确认导入</h3>
+        <div class="modal-header">
+          <h3>确认导入</h3>
+          <button class="ghost" @click="closeImportConfirm">关闭</button>
+        </div>
         <p>导入将覆盖现有数据，请确认已完成备份。</p>
         <div class="modal-actions">
           <button class="ghost" @click="closeImportConfirm">取消</button>
@@ -176,9 +186,12 @@
       </div>
     </div>
 
-    <div v-if="deleteImportDialog" class="overlay" @click.self="closeDeleteImport">
+    <div v-if="deleteImportDialog" class="overlay">
       <div class="modal">
-        <h3>确认删除导入记录</h3>
+        <div class="modal-header">
+          <h3>确认删除导入记录</h3>
+          <button class="ghost" @click="closeDeleteImport">关闭</button>
+        </div>
         <p>即将删除导入记录：<strong>{{ deleteImportDialog.createdAt }}</strong></p>
         <p class="muted">删除导入记录不会还原到导入前的状态，请务必在导入前进行备份。</p>
         <div class="modal-actions">
@@ -234,6 +247,8 @@ const toast = reactive({
   message: '',
   type: 'info'
 });
+
+const activeRecordCount = computed(() => (activeTab.value === 'backup' ? backups.value.length : imports.value.length));
 
 function showToast(message, type = 'info') {
   toast.message = message;

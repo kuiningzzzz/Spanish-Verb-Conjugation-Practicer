@@ -1,103 +1,134 @@
 <template>
-  <section class="card question-bank-page">
-    <div class="users-header">
+  <Teleport v-if="isDev" to=".topbar-left">
+    <button
+      class="ghost question-bank-download-button"
+      :disabled="downloadingAll"
+      @click="downloadAllQuestionsJson"
+    >
+      下载题库JSON
+    </button>
+  </Teleport>
+
+  <section class="card question-bank-page management-page">
+    <div class="management-header">
       <div>
         <h2>题库管理</h2>
-        <p class="muted">
-          管理所有动词变位例句题目
-        </p>
-        <p class="muted total-count">共 {{ total }} 条</p>
       </div>
-      <div class="toolbar">
+      <div class="toolbar management-toolbar">
         <div class="toolbar-left">
           <input
             v-model.trim="keyword"
+            class="question-search-input"
             placeholder="搜索题干/动词原形"
             @keydown.enter="triggerSearch"
           />
           <button class="ghost" :disabled="!keyword" @click="clearSearch">清空</button>
           <button class="ghost" :disabled="loading" @click="refresh">刷新</button>
         </div>
-        <div class="toolbar-right">
-          <button class="ghost" :disabled="downloadingAll" @click="downloadAllQuestionsJson">下载题库JSON</button>
-          <div class="pagination inline-pagination" v-if="total > pageSize">
-            <button class="ghost" :disabled="page === 1 || loading" @click="changePage(page - 1)">上一页</button>
-            <span>第 {{ page }} / {{ totalPages }} 页</span>
-            <button
-              class="ghost"
-              :disabled="page === totalPages || loading"
-              @click="changePage(page + 1)"
-            >
-              下一页
-            </button>
-            <input
-              v-model.number="pageJump"
-              class="page-jump-input"
-              type="number"
-              min="1"
-              :max="totalPages"
-              placeholder="跳转页"
-              @keydown.enter="jumpToPage"
-            />
-            <button class="ghost" :disabled="loading" @click="jumpToPage">跳转</button>
+        <div class="management-actions">
+          <select v-model="questionBankFilter" class="question-bank-mode-select">
+            <option value="traditional">传统变位</option>
+            <option value="pronoun">带代词变位</option>
+          </select>
+          <div class="pagination inline-pagination management-inline-pagination">
+            <span class="muted management-pagination-total">共 {{ total }} 条</span>
+            <template v-if="total > pageSize">
+              <button class="ghost" :disabled="page === 1 || loading" @click="changePage(page - 1)">上一页</button>
+              <label class="management-pagination-jump" for="questions-page-jump">
+                第
+                <input
+                  id="questions-page-jump"
+                  v-model.number="pageJump"
+                  class="page-jump-input management-page-number-input"
+                  type="number"
+                  min="1"
+                  :max="totalPages"
+                  @keydown.enter.prevent="jumpToPage"
+                  @blur="jumpToPage"
+                />
+                / {{ totalPages }} 页
+              </label>
+              <button
+                class="ghost"
+                :disabled="page === totalPages || loading"
+                @click="changePage(page + 1)"
+              >
+                下一页
+              </button>
+            </template>
           </div>
         </div>
       </div>
     </div>
 
-    <div v-if="error" class="error-block">
-      <p class="error">{{ error }}</p>
-      <button class="ghost" @click="refresh">重试</button>
-    </div>
-
-    <div v-else>
-      <div v-if="loading" class="loading">加载中...</div>
-      <div v-else>
+    <div class="management-page-body">
+      <div v-if="error" class="error-block">
+        <p class="error">{{ error }}</p>
+        <button class="ghost" @click="refresh">重试</button>
+      </div>
+      <div v-else-if="loading" class="loading">加载中...</div>
+      <div v-else class="management-table-scroll">
         <table class="table">
           <thead>
             <tr>
-              <th class="sortable" @click="toggleSort('id')">
+              <th class="col-id sortable" @click="toggleSort('id')">
                 ID <span class="sort-indicator">{{ sortIndicator('id') }}</span>
               </th>
-              <th class="sortable" @click="toggleSort('infinitive')">
+              <th class="col-verb sortable" @click="toggleSort('infinitive')">
                 动词原形 <span class="sort-indicator">{{ sortIndicator('infinitive') }}</span>
               </th>
-              <th class="sortable" @click="toggleSort('question_text')">
+              <th class="col-question sortable" @click="toggleSort('question_text')">
                 题干 <span class="sort-indicator">{{ sortIndicator('question_text') }}</span>
               </th>
-              <th class="sortable" @click="toggleSort('tense')">
-                时态 <span class="sort-indicator">{{ sortIndicator('tense') }}</span>
-              </th>
-              <th class="sortable" @click="toggleSort('mood')">
-                语气 <span class="sort-indicator">{{ sortIndicator('mood') }}</span>
-              </th>
-              <th class="sortable" @click="toggleSort('person')">
-                人称 <span class="sort-indicator">{{ sortIndicator('person') }}</span>
-              </th>
-              <th v-if="isDev" class="sortable" @click="toggleSort('confidence_score')">
+              <template v-if="isPronounBank">
+                <th class="col-host-form sortable" @click="toggleSort('host_form')">
+                  变位形式 <span class="sort-indicator">{{ sortIndicator('host_form') }}</span>
+                </th>
+                <th class="col-pronoun-mode sortable" @click="toggleSort('pronoun_pattern')">
+                  代词模式 <span class="sort-indicator">{{ sortIndicator('pronoun_pattern') }}</span>
+                </th>
+              </template>
+              <template v-else>
+                <th class="col-mood sortable" @click="toggleSort('mood')">
+                  语气 <span class="sort-indicator">{{ sortIndicator('mood') }}</span>
+                </th>
+                <th class="col-tense sortable" @click="toggleSort('tense')">
+                  时态 <span class="sort-indicator">{{ sortIndicator('tense') }}</span>
+                </th>
+                <th class="col-person sortable" @click="toggleSort('person')">
+                  人称 <span class="sort-indicator">{{ sortIndicator('person') }}</span>
+                </th>
+              </template>
+              <th v-if="isDev" class="col-confidence sortable" @click="toggleSort('confidence_score')">
                 置信度 <span class="sort-indicator">{{ sortIndicator('confidence_score') }}</span>
               </th>
-              <th v-if="isDev" class="sortable" @click="toggleSort('created_at')">
+              <th v-if="isDev" class="col-created sortable" @click="toggleSort('created_at')">
                 创建时间 <span class="sort-indicator">{{ sortIndicator('created_at') }}</span>
               </th>
-              <th>操作</th>
+              <th class="col-actions">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="question in questions" :key="question.id">
-              <td>{{ question.id }}</td>
-              <td>{{ question.infinitive || '-' }}</td>
-              <td>
-                <span class="ellipsis" :title="question.question_text">
+              <td class="col-id">{{ question.id }}</td>
+              <td class="col-verb">{{ question.infinitive || '-' }}</td>
+              <td class="col-question">
+                <span class="ellipsis question-ellipsis" :title="question.question_text">
                   {{ formatText(question.question_text) }}
                 </span>
               </td>
-              <td>{{ question.tense }}</td>
-              <td>{{ question.mood }}</td>
-              <td>{{ question.person }}</td>
-              <td v-if="isDev">{{ question.confidence_score ?? '-' }}</td>
-              <td v-if="isDev">{{ formatDate(question.created_at) }}</td>
-              <td class="actions">
+              <template v-if="isPronounBank">
+                <td class="col-host-form">{{ formatHostForm(question) }}</td>
+                <td class="col-pronoun-mode">{{ formatPronounPattern(question) }}</td>
+              </template>
+              <template v-else>
+                <td class="col-mood">{{ formatTableMoodLabel(question.mood) }}</td>
+                <td class="col-tense">{{ formatTableTenseLabel(question.tense) }}</td>
+                <td class="col-person">{{ question.person }}</td>
+              </template>
+              <td v-if="isDev" class="col-confidence">{{ question.confidence_score ?? '-' }}</td>
+              <td v-if="isDev" class="col-created">{{ formatDate(question.created_at) }}</td>
+              <td class="actions col-actions">
                 <button class="ghost" @click="openEdit(question)">编辑</button>
                 <button class="danger" @click="confirmDelete(question)">删除</button>
               </td>
@@ -110,7 +141,7 @@
       </div>
     </div>
 
-    <div v-if="drawerOpen" class="overlay" @click.self="closeDrawer">
+    <div v-if="drawerOpen" class="overlay">
       <div class="drawer">
         <header>
           <h3>编辑题目</h3>
@@ -141,13 +172,44 @@
             提示（可选）
             <input v-model="form.hint" />
           </label>
-          <div class="inline-fields">
+          <div v-if="isEditingPronounQuestion" class="inline-fields">
+            <label>
+              变位类型
+              <select v-model="form.host_form">
+                <option value="" disabled>请选择变位类型</option>
+                <option
+                  v-for="hostForm in resolvedHostFormOptions"
+                  :key="hostForm"
+                  :value="hostForm"
+                >
+                  {{ formatHostFormOptionLabel(hostForm) }}
+                </option>
+              </select>
+              <span v-if="formErrors.host_form" class="field-error">{{ formErrors.host_form }}</span>
+            </label>
+            <label>
+              代词模式
+              <select v-model="form.pronoun_pattern" :disabled="isPrnlHostForm(form.host_form)">
+                <option v-if="isPrnlHostForm(form.host_form)" value="">不适用</option>
+                <option v-else value="" disabled>请选择代词模式</option>
+                <option
+                  v-for="pattern in resolvedPronounPatternOptions"
+                  :key="pattern"
+                  :value="pattern"
+                >
+                  {{ formatPronounPatternOptionLabel(pattern) }}
+                </option>
+              </select>
+              <span v-if="formErrors.pronoun_pattern" class="field-error">{{ formErrors.pronoun_pattern }}</span>
+            </label>
+          </div>
+          <div v-else class="inline-fields">
             <label>
               时态
               <select v-model="form.tense">
                 <option value="" disabled>请选择时态</option>
                 <option v-for="tense in resolvedTenseOptions" :key="tense" :value="tense">
-                  {{ tense }}
+                  {{ formatTenseOptionLabel(tense) }}
                 </option>
               </select>
               <span v-if="formErrors.tense" class="field-error">{{ formErrors.tense }}</span>
@@ -178,9 +240,12 @@
       </div>
     </div>
 
-    <div v-if="deleteDialog" class="overlay" @click.self="closeDelete">
+    <div v-if="deleteDialog" class="overlay">
       <div class="modal">
-        <h3>确认删除</h3>
+        <div class="modal-header">
+          <h3>确认删除</h3>
+          <button class="ghost" @click="closeDelete">关闭</button>
+        </div>
         <p>
           即将删除题目：<strong>{{ briefQuestion(deleteDialog.question_text) }}</strong>（ID: {{ deleteDialog.id }}）
         </p>
@@ -209,7 +274,8 @@ const questions = ref([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(10);
-const pageJump = ref(null);
+const pageJump = ref(1);
+const questionBankFilter = ref('traditional');
 const keyword = ref('');
 const debouncedKeyword = ref('');
 const loading = ref(false);
@@ -219,6 +285,87 @@ const sortOrder = ref('desc');
 const tenseOptions = ref([]);
 const personOptions = ref([]);
 const tenseMoodMap = ref({});
+
+const TENSE_LABELS = {
+  '现在时': '陈述式 一般现在时',
+  presente: '陈述式 一般现在时',
+  '现在完成时': '陈述式 现在完成时',
+  perfecto: '陈述式 现在完成时',
+  '未完成过去时': '陈述式 过去未完成时',
+  '过去未完成时': '陈述式 过去未完成时',
+  imperfecto: '陈述式 过去未完成时',
+  '简单过去时': '陈述式 简单过去时',
+  preterito: '陈述式 简单过去时',
+  pretérito: '陈述式 简单过去时',
+  '将来时': '陈述式 将来未完成时',
+  futuro: '陈述式 将来未完成时',
+  '过去完成时': '陈述式 过去完成时',
+  pluscuamperfecto: '陈述式 过去完成时',
+  '将来完成时': '陈述式 将来完成时',
+  futuro_perfecto: '陈述式 将来完成时',
+  '前过去时': '陈述式 前过去时',
+  '先过去时': '陈述式 前过去时',
+  preterito_anterior: '陈述式 前过去时',
+  pretérito_anterior: '陈述式 前过去时',
+  '虚拟现在时': '虚拟式 现在时',
+  subjuntivo_presente: '虚拟式 现在时',
+  '虚拟过去时': '虚拟式 过去未完成时',
+  subjuntivo_imperfecto: '虚拟式 过去未完成时',
+  '虚拟现在完成时': '虚拟式 现在完成时',
+  subjuntivo_perfecto: '虚拟式 现在完成时',
+  '虚拟过去完成时': '虚拟式 过去完成时',
+  subjuntivo_pluscuamperfecto: '虚拟式 过去完成时',
+  '虚拟将来未完成时': '虚拟式 将来未完成时',
+  '虚拟将来时': '虚拟式 将来未完成时',
+  subjuntivo_futuro: '虚拟式 将来未完成时',
+  '虚拟将来完成时': '虚拟式 将来完成时',
+  subjuntivo_futuro_perfecto: '虚拟式 将来完成时',
+  '条件式': '简单条件式',
+  condicional: '简单条件式',
+  '条件完成时': '复合条件式',
+  condicional_perfecto: '复合条件式',
+  '肯定命令式': '命令式',
+  imperativo_afirmativo: '命令式',
+  '否定命令式': '否定命令式',
+  imperativo_negativo: '否定命令式'
+};
+
+const HOST_FORM_LABELS = {
+  finite: '陈述式/时态变位',
+  imperative: '命令式',
+  infinitive: '不定式',
+  gerund: '副动词',
+  prnl: '自反形式'
+};
+
+const PRONOUN_PATTERN_LABELS = {
+  DO: 'DO',
+  IO: 'IO',
+  DO_IO: 'DO+IO'
+};
+
+const TABLE_MOOD_LABELS = {
+  '陈述式': '陈述式',
+  indicativo: '陈述式',
+  '复合陈述式': '陈述式',
+  indicativo_compuesto: '陈述式',
+  '虚拟式': '虚拟式',
+  subjuntivo: '虚拟式',
+  '复合虚拟式': '虚拟式',
+  subjuntivo_compuesto: '虚拟式',
+  '命令式': '命令式',
+  imperativo: '命令式',
+  '条件式': '条件式',
+  condicional: '条件式',
+  '不定式': '不定式',
+  infinitivo: '不定式',
+  '副动词': '副动词',
+  gerundio: '副动词',
+  '自反动词': '自反动词',
+  pronominal: '自反动词',
+  '不适用': '不适用',
+  'no aplica': '不适用'
+};
 
 const drawerOpen = ref(false);
 const saving = ref(false);
@@ -240,6 +387,9 @@ const form = reactive({
   tense: '',
   mood: '',
   person: '',
+  host_form: '',
+  host_form_zh: '',
+  pronoun_pattern: '',
   confidence_score: 50
 });
 
@@ -251,10 +401,25 @@ const toast = reactive({
   type: 'info'
 });
 
+const isPronounBank = computed(() => questionBankFilter.value === 'pronoun');
+const isEditingPronounQuestion = computed(() => {
+  if (!activeQuestion.value) return false;
+  return activeQuestion.value.question_bank === 'pronoun'
+    || activeQuestion.value.public_question_source === 'public_pronoun'
+    || !!activeQuestion.value.host_form;
+});
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
-const emptyColspan = computed(() => (isDev.value ? 9 : 7));
+const emptyColspan = computed(() => {
+  const baseColumns = isPronounBank.value ? 6 : 7;
+  return isDev.value ? baseColumns + 2 : baseColumns;
+});
 const resolvedTenseOptions = computed(() => mergeOptions(tenseOptions.value, form.tense));
 const resolvedPersonOptions = computed(() => mergeOptions(personOptions.value, form.person));
+const resolvedHostFormOptions = computed(() => mergeOptions(Object.keys(HOST_FORM_LABELS), form.host_form));
+const resolvedPronounPatternOptions = computed(() => {
+  if (isPrnlHostForm(form.host_form)) return [];
+  return mergeOptions(Object.keys(PRONOUN_PATTERN_LABELS), form.pronoun_pattern);
+});
 
 const emptyText = computed(() => {
   if (keyword.value.trim()) return '未找到匹配题目';
@@ -276,6 +441,18 @@ watch(keyword, (value) => {
 watch([page, pageSize, debouncedKeyword, sortKey, sortOrder], () => {
   fetchQuestions();
 });
+
+watch(questionBankFilter, () => {
+  if (page.value !== 1) {
+    page.value = 1;
+    return;
+  }
+  fetchQuestions();
+});
+
+watch(page, (value) => {
+  pageJump.value = value;
+}, { immediate: true });
 
 watch(
   () => form.verb_id,
@@ -306,6 +483,17 @@ watch(
   () => {
     if (!drawerOpen.value) return;
     syncMoodFromTense({ force: true });
+  }
+);
+
+watch(
+  () => form.host_form,
+  (value) => {
+    if (!drawerOpen.value || !isEditingPronounQuestion.value) return;
+    if (isPrnlHostForm(value)) {
+      form.pronoun_pattern = '';
+      formErrors.pronoun_pattern = '';
+    }
   }
 );
 
@@ -401,6 +589,7 @@ async function fetchQuestions() {
     if (debouncedKeyword.value) {
       params.keyword = debouncedKeyword.value;
     }
+    params.questionBank = questionBankFilter.value;
     params.sortBy = sortKey.value;
     params.sortOrder = sortOrder.value;
     const data = await apiRequest('/questions', { params });
@@ -437,10 +626,14 @@ function changePage(nextPage) {
 }
 
 function jumpToPage() {
-  if (!pageJump.value) return;
-  const target = Math.min(Math.max(Number(pageJump.value), 1), totalPages.value);
-  page.value = target;
-  pageJump.value = null;
+  const target = Number(pageJump.value);
+  if (!Number.isFinite(target)) {
+    pageJump.value = page.value;
+    return;
+  }
+  const nextPage = Math.min(Math.max(Math.trunc(target), 1), totalPages.value);
+  pageJump.value = nextPage;
+  page.value = nextPage;
 }
 
 function triggerSearch() {
@@ -469,6 +662,7 @@ function downloadJsonFile(payload, fileName) {
 
 function buildDownloadFileName() {
   const now = new Date();
+  const bank = questionBankFilter.value === 'pronoun' ? 'pronoun' : 'traditional';
   const stamp = [
     now.getFullYear(),
     String(now.getMonth() + 1).padStart(2, '0'),
@@ -477,7 +671,7 @@ function buildDownloadFileName() {
     String(now.getMinutes()).padStart(2, '0'),
     String(now.getSeconds()).padStart(2, '0')
   ].join('');
-  return `question-bank-list-${stamp}.json`;
+  return `question-bank-${bank}-${stamp}.json`;
 }
 
 async function fetchAllQuestions() {
@@ -487,7 +681,13 @@ async function fetchAllQuestions() {
   const all = [];
   while (true) {
     const data = await apiRequest('/questions', {
-      params: { limit, offset, sortBy: 'id', sortOrder: 'asc' }
+      params: {
+        limit,
+        offset,
+        sortBy: 'id',
+        sortOrder: 'asc',
+        questionBank: questionBankFilter.value
+      }
     });
     const rows = data?.rows || [];
     if (!rows.length) break;
@@ -531,11 +731,85 @@ function formatText(value) {
   return `${text.slice(0, 60)}...`;
 }
 
+function formatHostForm(question) {
+  const value = String(question?.host_form || '').trim();
+  if (!value) return '-';
+  return HOST_FORM_LABELS[normalizeOptionKey(value)] || value;
+}
+
+function formatPronounPattern(question) {
+  const value = String(question?.pronoun_pattern || '').trim().toUpperCase();
+  return value || '-';
+}
+
 function briefQuestion(value) {
   if (!value) return '（空题干）';
   const text = String(value);
   return text.length <= 20 ? text : `${text.slice(0, 20)}...`;
 }
+
+function normalizeOptionKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function formatTenseOptionLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '-';
+  return TENSE_LABELS[normalizeOptionKey(raw)] || raw;
+}
+
+function formatTableTenseLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '-';
+  const resolved = TENSE_LABELS[normalizeOptionKey(raw)] || raw;
+  const separatorIndex = resolved.indexOf(' ');
+  if (separatorIndex >= 0) {
+    return resolved.slice(separatorIndex + 1).trim() || resolved;
+  }
+  return resolved;
+}
+
+function formatTableMoodLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '-';
+  return TABLE_MOOD_LABELS[normalizeOptionKey(raw)] || raw;
+}
+
+function formatHostFormOptionLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '-';
+  return HOST_FORM_LABELS[normalizeOptionKey(raw)] || raw;
+}
+
+function formatPronounPatternOptionLabel(value) {
+  const raw = String(value || '').trim().toUpperCase();
+  if (!raw) return '-';
+  return PRONOUN_PATTERN_LABELS[raw] || raw;
+}
+
+function isPrnlHostForm(value) {
+  return normalizeOptionKey(value) === 'prnl';
+}
+
+function resolveHostFormZh(value) {
+  const key = normalizeOptionKey(value);
+  return HOST_FORM_LABELS[key] || String(value || '').trim();
+}
+
+function resolveSubmittedHostFormZh(value) {
+  const normalizedValue = normalizeOptionKey(value);
+  if (!normalizedValue) return null;
+
+  const originalHostForm = normalizeOptionKey(activeQuestion.value?.host_form);
+  if (normalizedValue === originalHostForm) {
+    const originalLabel = String(activeQuestion.value?.host_form_zh || '').trim();
+    if (originalLabel) return originalLabel;
+  }
+
+  const currentLabel = String(form.host_form_zh || '').trim();
+  return resolveHostFormZh(value) || currentLabel || null;
+}
+
 function toggleSort(key) {
   if (sortKey.value === key) {
     sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
@@ -577,7 +851,9 @@ async function openEdit(question) {
   resetErrors(formErrors);
   saving.value = false;
   try {
-    const data = await apiRequest(`/questions/${question.id}`);
+    const data = await apiRequest(`/questions/${question.id}`, {
+      params: { source: question.public_question_source }
+    });
     activeQuestion.value = data;
     form.id = data.id;
     form.verb_id = data.verb_id ? String(data.verb_id) : '';
@@ -591,6 +867,9 @@ async function openEdit(question) {
     form.tense = data.tense || '';
     form.mood = data.mood || '';
     form.person = data.person || '';
+    form.host_form = data.host_form || '';
+    form.host_form_zh = data.host_form_zh || '';
+    form.pronoun_pattern = data.pronoun_pattern || '';
     form.confidence_score = data.confidence_score ?? 50;
     syncMoodFromTense();
     if (form.verb_id && !form.verb_infinitive) {
@@ -620,14 +899,23 @@ async function submitEdit() {
   if (!form.question_text || !form.question_text.trim()) {
     formErrors.question_text = '题干不能为空';
   }
-  if (!form.tense || !form.tense.trim()) {
-    formErrors.tense = '时态不能为空';
-  }
-  if (!form.mood || !form.mood.trim()) {
-    formErrors.mood = formErrors.mood || '语气不能为空';
-  }
-  if (!form.person || !form.person.trim()) {
-    formErrors.person = '人称不能为空';
+  if (isEditingPronounQuestion.value) {
+    if (!form.host_form || !form.host_form.trim()) {
+      formErrors.host_form = '变位类型不能为空';
+    }
+    if (!isPrnlHostForm(form.host_form) && (!form.pronoun_pattern || !form.pronoun_pattern.trim())) {
+      formErrors.pronoun_pattern = '代词模式不能为空';
+    }
+  } else {
+    if (!form.tense || !form.tense.trim()) {
+      formErrors.tense = '时态不能为空';
+    }
+    if (!form.mood || !form.mood.trim()) {
+      formErrors.mood = formErrors.mood || '语气不能为空';
+    }
+    if (!form.person || !form.person.trim()) {
+      formErrors.person = '人称不能为空';
+    }
   }
   if (form.confidence_score < 0 || form.confidence_score > 100) {
     formErrors.confidence_score = '置信度需在 0-100 之间';
@@ -638,9 +926,14 @@ async function submitEdit() {
 
   saving.value = true;
   try {
+    const normalizedHostForm = form.host_form?.trim() || null;
+    const normalizedPronounPattern = isPrnlHostForm(normalizedHostForm)
+      ? null
+      : (form.pronoun_pattern?.trim().toUpperCase() || null);
     await apiRequest(`/questions/${form.id}`, {
       method: 'PUT',
       body: {
+        public_question_source: activeQuestion.value?.public_question_source,
         verb_id: verbId,
         question_text: form.question_text.trim(),
         translation: form.translation?.trim() || null,
@@ -648,6 +941,11 @@ async function submitEdit() {
         tense: form.tense.trim(),
         mood: form.mood.trim(),
         person: form.person.trim(),
+        host_form: isEditingPronounQuestion.value ? normalizedHostForm : undefined,
+        host_form_zh: isEditingPronounQuestion.value
+          ? resolveSubmittedHostFormZh(normalizedHostForm)
+          : undefined,
+        pronoun_pattern: isEditingPronounQuestion.value ? normalizedPronounPattern : undefined,
         confidence_score: form.confidence_score
       }
     });
@@ -673,7 +971,10 @@ async function submitDelete() {
   if (!deleteDialog.value) return;
   deleting.value = true;
   try {
-    await apiRequest(`/questions/${deleteDialog.value.id}`, { method: 'DELETE' });
+    await apiRequest(`/questions/${deleteDialog.value.id}`, {
+      method: 'DELETE',
+      params: { source: deleteDialog.value.public_question_source }
+    });
     showToast('删除成功', 'success');
     closeDelete();
     fetchQuestions();
@@ -687,3 +988,141 @@ async function submitDelete() {
 fetchQuestions();
 fetchConjugationOptions();
 </script>
+
+<style scoped>
+.question-bank-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.question-bank-page h2 {
+  white-space: nowrap;
+}
+
+.question-bank-page .management-header > div:first-child {
+  flex-shrink: 0;
+}
+
+.question-bank-page .management-header,
+.question-bank-page .management-toolbar,
+.question-bank-page .toolbar-left,
+.question-bank-page .management-actions {
+  flex-wrap: nowrap;
+}
+
+.question-bank-page .management-toolbar,
+.question-bank-page .toolbar-left,
+.question-bank-page .management-actions {
+  gap: 8px;
+}
+
+.question-bank-page .management-table-scroll {
+  width: 100%;
+}
+
+.question-bank-page .question-search-input {
+  width: 180px;
+  min-width: 180px;
+}
+
+.question-bank-page .question-bank-mode-select {
+  width: 136px;
+  min-width: 136px;
+}
+
+.question-bank-page .question-bank-download-button {
+  padding: 7px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.question-bank-page .management-toolbar button {
+  padding: 8px 10px;
+  font-size: 14px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.question-bank-page .table {
+  table-layout: fixed;
+}
+
+.question-bank-page .table th,
+.question-bank-page .table td {
+  padding: 12px 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.question-bank-page .col-id {
+  width: 56px;
+}
+
+.question-bank-page .col-verb {
+  width: 92px;
+}
+
+.question-bank-page .col-tense {
+  width: 100px;
+}
+
+.question-bank-page .col-host-form {
+  width: 112px;
+}
+
+.question-bank-page .col-pronoun-mode {
+  width: 104px;
+}
+
+.question-bank-page .col-mood {
+  width: 80px;
+}
+
+.question-bank-page .col-person {
+  width: 92px;
+}
+
+.question-bank-page .col-confidence {
+  width: 68px;
+}
+
+.question-bank-page .col-created {
+  width: 168px;
+}
+
+.question-bank-page .col-actions {
+  width: 164px;
+}
+
+.question-bank-page .question-ellipsis {
+  display: block;
+  max-width: 100%;
+}
+
+.question-bank-page .table td.actions {
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 960px) {
+  .question-bank-page .management-header,
+  .question-bank-page .management-toolbar,
+  .question-bank-page .toolbar-left,
+  .question-bank-page .management-actions {
+    flex-wrap: wrap;
+  }
+
+  .question-bank-page .question-search-input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .question-bank-page .question-bank-mode-select {
+    width: 100%;
+    min-width: 0;
+  }
+}
+</style>
