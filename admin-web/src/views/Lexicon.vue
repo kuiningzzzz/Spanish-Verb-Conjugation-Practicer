@@ -194,64 +194,95 @@
         </header>
         <div class="drawer-body">
           <div class="conj-list">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>时态 (tense)</th>
-                  <th>语气 (mood)</th>
-                  <th>人称 (person)</th>
-                  <th>变位形式</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="c in conjugations" :key="c.id">
-                  <td>{{ c.id }}</td>
-                  <td>{{ c.tense }}</td>
-                  <td>{{ c.mood }}</td>
-                  <td>{{ c.person }}</td>
-                  <td class="desc">{{ c.conjugated_form }}</td>
-                  <td class="actions">
-                    <button class="ghost" @click="openEditConj(c)">编辑</button>
-                    <button class="danger" @click="confirmDeleteConj(c)">删除</button>
-                  </td>
-                </tr>
-                <tr v-if="!conjugations.length">
-                  <td colspan="6" class="empty">暂无变位</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+            <div v-if="groupedConjugationSections.length" class="conj-groups">
+              <section
+                v-for="group in groupedConjugationSections"
+                :key="group.moodKey"
+                class="conj-group"
+              >
+                <button type="button" class="conj-group-header" @click="toggleConjMood(group.moodKey)">
+                  <span class="conj-group-title">{{ getConjMoodName(group.moodKey) }}</span>
+                  <span class="conj-group-meta">{{ group.tenses.length }} 项 {{ isConjMoodExpanded(group.moodKey) ? '▼' : '▶' }}</span>
+                </button>
 
-          <div class="conj-form">
-            <h4>{{ editingConjId ? '编辑变位' : '新建变位' }}</h4>
-            <form @submit.prevent="submitConjSave">
-              <label>
-                时态 (tense)
-                <input v-model="conjForm.tense" />
-              </label>
-              <label>
-                语气 (mood)
-                <input v-model="conjForm.mood" />
-              </label>
-              <label>
-                人称 (person)
-                <input v-model="conjForm.person" />
-              </label>
-              <label>
-                变位形式
-                <input v-model="conjForm.conjugated_form" />
-              </label>
-              <label>
-                Irreg. 不规则
-                <input type="checkbox" v-model="conjForm.is_irregular" />
-              </label>
-              <div style="margin-top:8px;display:flex;gap:8px;">
-                <button type="submit" :disabled="conjSaving">保存</button>
-                <button type="button" class="ghost" @click="resetConjForm">重置</button>
-              </div>
-            </form>
+                <div v-if="isConjMoodExpanded(group.moodKey)" class="conj-tense-list">
+                  <section
+                    v-for="tense in group.tenses"
+                    :key="`${group.moodKey}-${tense.tenseKey}`"
+                    class="conj-tense-card"
+                  >
+                    <button
+                      type="button"
+                      class="conj-tense-header"
+                      @click="toggleConjTense(group.moodKey, tense.tenseKey)"
+                    >
+                      <span class="conj-tense-title">
+                        <span class="conj-tense-es">{{ tense.display.es }}</span>
+                        <span class="conj-tense-cn">（{{ tense.display.cn }}）</span>
+                      </span>
+                      <span class="conj-group-meta">{{ tense.rows.length }} 项 {{ isConjTenseExpanded(group.moodKey, tense.tenseKey) ? '▼' : '▶' }}</span>
+                    </button>
+
+                    <div v-if="isConjTenseExpanded(group.moodKey, tense.tenseKey)" class="conj-row-list">
+                      <template v-for="row in tense.rows" :key="`${group.moodKey}-${tense.tenseKey}-${row.person}`">
+                        <div v-if="row.isVos" class="conj-vos-divider">
+                          <span class="conj-divider-line"></span>
+                          <span class="conj-divider-text">特殊变位</span>
+                          <span class="conj-divider-line"></span>
+                        </div>
+
+                        <div class="conj-row" :class="{ 'conj-row-empty': !row.record, 'conj-row-vos': row.isVos }">
+                          <div class="conj-row-person">{{ getConjPersonLabel(row.person) }}</div>
+                          <div class="conj-row-value">
+                            <input
+                              v-if="isConjRowEditing(row)"
+                              v-model="activeConjDraft"
+                              class="conj-inline-input"
+                              type="text"
+                              placeholder="输入变位形式"
+                            />
+                            <span v-else>{{ row.record?.conjugated_form || '未填写' }}</span>
+                          </div>
+                          <div class="conj-row-flag">
+                            <span class="conj-row-flag-label">不规则：</span>
+                            <input
+                              v-if="isConjRowEditing(row)"
+                              class="conj-row-checkbox"
+                              type="checkbox"
+                              v-model="activeConjIrregular"
+                            />
+                            <input
+                              v-else
+                              class="conj-row-checkbox conj-row-checkbox-readonly"
+                              type="checkbox"
+                              :checked="!!row.record?.is_irregular"
+                              aria-disabled="true"
+                              tabindex="-1"
+                              @click.prevent
+                              @keydown.prevent
+                            />
+                          </div>
+                          <div class="conj-row-actions">
+                            <template v-if="isConjRowEditing(row)">
+                              <button type="button" class="ghost" @click="cancelConjRowEdit">取消</button>
+                              <button
+                                type="button"
+                                :disabled="activeConjSavingKey === getConjRowKey(row)"
+                                @click="submitConjRowSave(row)"
+                              >
+                                保存
+                              </button>
+                            </template>
+                            <button v-else type="button" class="ghost" @click="startConjRowEdit(row)">{{ row.record ? '编辑' : '新建' }}</button>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </section>
+                </div>
+              </section>
+            </div>
+            <div v-else class="empty">暂无变位</div>
           </div>
         </div>
       </div>
@@ -320,10 +351,170 @@ const toast = reactive({ visible: false, message: '', type: 'info' });
 const conjDrawerOpen = ref(false);
 const activeVerb = ref(null);
 const conjugations = ref([]);
-const editingConjId = ref(null);
-const conjForm = reactive({ tense: '', mood: '', person: '', conjugated_form: '', is_irregular: false });
-const conjSaving = ref(false);
-const conjDeleting = ref(false);
+const expandedConjMoods = ref({});
+const expandedConjTenses = ref({});
+const activeConjEditKey = ref('');
+const activeConjDraft = ref('');
+const activeConjIrregular = ref(false);
+const activeConjSavingKey = ref('');
+
+const CONJ_MOOD_ORDER = {
+  '陈述式': 1,
+  '虚拟式': 2,
+  '条件式': 3,
+  '命令式': 4
+};
+
+const CONJ_TENSE_ORDER = {
+  '陈述式': {
+    '现在时': 1,
+    '现在完成时': 2,
+    '未完成过去时': 3,
+    '简单过去时': 4,
+    '将来时': 5,
+    '过去完成时': 6,
+    '将来完成时': 7,
+    '前过去时': 8,
+    '先过去时': 8
+  },
+  '虚拟式': {
+    '虚拟现在时': 1,
+    '虚拟过去时': 2,
+    '虚拟现在完成时': 3,
+    '虚拟过去完成时': 4,
+    '虚拟将来未完成时': 5,
+    '虚拟将来时': 5,
+    '虚拟将来完成时': 6
+  },
+  '条件式': {
+    '条件式': 1,
+    '条件完成时': 2
+  },
+  '命令式': {
+    '肯定命令式': 1,
+    '否定命令式': 2
+  }
+};
+
+const CONJ_MOOD_LABELS = {
+  '陈述式': 'Indicativo (陈述式)',
+  '虚拟式': 'Subjuntivo (虚拟式)',
+  '条件式': 'Condicional (条件式)',
+  '命令式': 'Imperativo (命令式)'
+};
+
+const CONJ_TENSE_DISPLAY = {
+  '陈述式': {
+    '现在时': { es: 'Presente', cn: '陈述式 一般现在时' },
+    '现在完成时': { es: 'Pretérito Perfecto', cn: '陈述式 现在完成时' },
+    '未完成过去时': { es: 'Pretérito Imperfecto', cn: '陈述式 过去未完成时' },
+    '简单过去时': { es: 'Pretérito Indefinido', cn: '陈述式 简单过去时' },
+    '过去完成时': { es: 'Pretérito Pluscuamperfecto', cn: '陈述式 过去完成时' },
+    '将来时': { es: 'Futuro Imperfecto', cn: '陈述式 将来未完成时' },
+    '将来完成时': { es: 'Futuro Perfecto', cn: '陈述式 将来完成时' },
+    '前过去时': { es: 'Pretérito Anterior', cn: '陈述式 前过去时' },
+    '先过去时': { es: 'Pretérito Anterior', cn: '陈述式 前过去时' }
+  },
+  '虚拟式': {
+    '虚拟现在时': { es: 'Presente', cn: '虚拟式 现在时' },
+    '虚拟过去时': { es: 'Pretérito Imperfecto', cn: '虚拟式 过去未完成时' },
+    '虚拟现在完成时': { es: 'Pretérito Perfecto', cn: '虚拟式 现在完成时' },
+    '虚拟过去完成时': { es: 'Pretérito Pluscuamperfecto', cn: '虚拟式 过去完成时' },
+    '虚拟将来未完成时': { es: 'Futuro', cn: '虚拟式 将来未完成时' },
+    '虚拟将来时': { es: 'Futuro', cn: '虚拟式 将来未完成时' },
+    '虚拟将来完成时': { es: 'Futuro Perfecto', cn: '虚拟式 将来完成时' }
+  },
+  '条件式': {
+    '条件式': { es: 'Condicional Simple', cn: '简单条件式' },
+    '条件完成时': { es: 'Condicional Compuesto', cn: '复合条件式' }
+  },
+  '命令式': {
+    '肯定命令式': { es: 'Imperativo', cn: '命令式' },
+    '否定命令式': { es: 'Imperativo Negativo', cn: '否定命令式' }
+  }
+};
+
+const CONJ_DIMMED_KEYS = new Set([
+  '陈述式|前过去时',
+  '陈述式|先过去时',
+  '虚拟式|虚拟将来未完成时',
+  '虚拟式|虚拟将来时',
+  '虚拟式|虚拟过去完成时',
+  '虚拟式|虚拟将来完成时'
+]);
+
+const STANDARD_CONJ_PERSONS = ['yo', 'tú', 'él/ella/usted', 'nosotros', 'vosotros', 'ellos/ellas/ustedes', 'vos'];
+const IMPERATIVE_CONJ_PERSONS = {
+  '肯定命令式': ['tú (afirmativo)', 'usted', 'nosotros/nosotras', 'vosotros/vosotras', 'ustedes', 'vos'],
+  '否定命令式': ['tú (negativo)', 'usted', 'nosotros/nosotras', 'vosotros/vosotras', 'ustedes', 'vos']
+};
+
+const groupedConjugationSections = computed(() => {
+  const groups = {};
+
+  conjugations.value.forEach((item) => {
+    const moodKey = getConjDisplayMoodKey(item.mood, item.tense);
+    const tenseKey = getConjTenseKey(item.tense, moodKey);
+    const personKey = getConjPersonKey(item.person, moodKey, tenseKey);
+
+    if (!groups[moodKey]) groups[moodKey] = {};
+    if (!groups[moodKey][tenseKey]) groups[moodKey][tenseKey] = new Map();
+
+    const current = groups[moodKey][tenseKey].get(personKey);
+    if (!current || Number(item.id) < Number(current.id)) {
+      groups[moodKey][tenseKey].set(personKey, item);
+    }
+  });
+
+  const allMoodKeys = Array.from(new Set([
+    ...Object.keys(CONJ_TENSE_ORDER),
+    ...Object.keys(groups)
+  ]));
+
+  return allMoodKeys
+    .sort((a, b) => getConjMoodOrder(a) - getConjMoodOrder(b))
+    .map((moodKey) => ({
+      moodKey,
+      tenses: [
+        ...Object.keys(CONJ_TENSE_ORDER[moodKey] || {}),
+        ...Object.keys(groups[moodKey] || {}).filter((tenseKey) => !(tenseKey in (CONJ_TENSE_ORDER[moodKey] || {})))
+      ]
+        .sort((a, b) => getConjTenseOrder(moodKey, a) - getConjTenseOrder(moodKey, b))
+        .map((tenseKey) => {
+          const records = groups[moodKey]?.[tenseKey] || new Map();
+          const slotKeys = getConjPersonSlots(moodKey, tenseKey);
+          const used = new Set();
+
+          const rows = slotKeys.map((person) => {
+            used.add(person);
+            return {
+              moodKey,
+              tenseKey,
+              person,
+              isVos: person === 'vos',
+              record: records.get(person) || null
+            };
+          });
+
+          const extraRows = Array.from(records.keys())
+            .filter((person) => !used.has(person))
+            .sort((a, b) => getConjPersonOrder(a) - getConjPersonOrder(b))
+            .map((person) => ({
+              moodKey,
+              tenseKey,
+              person,
+              isVos: person === 'vos',
+              record: records.get(person) || null
+            }));
+
+          return {
+            tenseKey,
+            display: getConjTenseDisplay(tenseKey, moodKey),
+            rows: [...rows, ...extraRows]
+          };
+        })
+    }));
+});
 
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
@@ -367,6 +558,282 @@ function handleApiError(err, targetErrors) {
     return;
   }
   showToast('网络异常：无法连接到服务器', 'error');
+}
+
+function normalizeConjText(value) {
+  return String(value || '').trim();
+}
+
+function getConjDisplayMoodKey(rawMood, rawTense) {
+  const mood = normalizeConjText(rawMood);
+  const tense = normalizeConjText(rawTense);
+  const moodLower = mood.toLowerCase();
+  const tenseLower = tense.toLowerCase();
+
+  if (['条件式', '条件完成时', 'condicional', 'condicional_perfecto', 'conditional', 'conditional_perfect'].includes(tense) ||
+      ['condicional', 'condicional_perfecto', 'conditional', 'conditional_perfect'].includes(tenseLower)) {
+    return '条件式';
+  }
+
+  if (['陈述式', '复合陈述式'].includes(mood) || ['indicativo', 'indicativo_compuesto'].includes(moodLower)) {
+    return '陈述式';
+  }
+  if (['虚拟式', '复合虚拟式'].includes(mood) || ['subjuntivo', 'subjuntivo_compuesto'].includes(moodLower)) {
+    return '虚拟式';
+  }
+  if (mood === '命令式' || moodLower === 'imperativo') {
+    return '命令式';
+  }
+  if (mood === '条件式' || moodLower === 'condicional') {
+    return '条件式';
+  }
+  return mood || '未分类';
+}
+
+function getConjTenseKey(rawTense, moodKey) {
+  const tense = normalizeConjText(rawTense);
+  const tenseLower = tense.toLowerCase();
+  const aliases = {
+    '陈述式': {
+      '现在时': '现在时',
+      presente: '现在时',
+      '现在完成时': '现在完成时',
+      perfecto: '现在完成时',
+      '未完成过去时': '未完成过去时',
+      '过去未完成时': '未完成过去时',
+      imperfecto: '未完成过去时',
+      '简单过去时': '简单过去时',
+      preterito: '简单过去时',
+      '过去完成时': '过去完成时',
+      pluscuamperfecto: '过去完成时',
+      '将来时': '将来时',
+      '将来未完成时': '将来时',
+      futuro: '将来时',
+      '将来完成时': '将来完成时',
+      futuro_perfecto: '将来完成时',
+      '前过去时': '前过去时',
+      '先过去时': '先过去时',
+      preterito_anterior: '前过去时'
+    },
+    '虚拟式': {
+      '虚拟现在时': '虚拟现在时',
+      subjuntivo_presente: '虚拟现在时',
+      '虚拟过去时': '虚拟过去时',
+      subjuntivo_imperfecto: '虚拟过去时',
+      '虚拟现在完成时': '虚拟现在完成时',
+      subjuntivo_perfecto: '虚拟现在完成时',
+      '虚拟过去完成时': '虚拟过去完成时',
+      subjuntivo_pluscuamperfecto: '虚拟过去完成时',
+      '虚拟将来未完成时': '虚拟将来未完成时',
+      '虚拟将来时': '虚拟将来时',
+      subjuntivo_futuro: '虚拟将来未完成时',
+      '虚拟将来完成时': '虚拟将来完成时',
+      subjuntivo_futuro_perfecto: '虚拟将来完成时'
+    },
+    '条件式': {
+      '条件式': '条件式',
+      condicional: '条件式',
+      conditional: '条件式',
+      '条件完成时': '条件完成时',
+      condicional_perfecto: '条件完成时',
+      conditional_perfect: '条件完成时'
+    },
+    '命令式': {
+      '肯定命令式': '肯定命令式',
+      imperativo_afirmativo: '肯定命令式',
+      afirmativo: '肯定命令式',
+      '否定命令式': '否定命令式',
+      imperativo_negativo: '否定命令式',
+      negativo: '否定命令式'
+    }
+  };
+
+  const moodAliases = aliases[moodKey] || {};
+  return moodAliases[tense] || moodAliases[tenseLower] || tense || '未命名时态';
+}
+
+function getConjPersonKey(rawPerson, moodKey, tenseKey) {
+  const person = normalizeConjText(rawPerson);
+  const personLower = person.toLowerCase();
+
+  if (moodKey === '命令式') {
+    if (['tú (afirmativo)', 'tú'].includes(person) && tenseKey === '肯定命令式') return 'tú (afirmativo)';
+    if (['tú (negativo)', 'tú'].includes(person) && tenseKey === '否定命令式') return 'tú (negativo)';
+    if (['usted', 'él/ella/usted'].includes(person)) return 'usted';
+    if (['nosotros', 'nosotros/nosotras'].includes(person)) return 'nosotros/nosotras';
+    if (['vosotros', 'vosotros/vosotras'].includes(person)) return 'vosotros/vosotras';
+    if (['ustedes', 'ellos/ellas/ustedes'].includes(person)) return 'ustedes';
+    if (personLower === 'vos') return 'vos';
+    return person || '未命名人称';
+  }
+
+  if (personLower === 'yo') return 'yo';
+  if (person === 'tú') return 'tú';
+  if (['él/ella/usted', 'usted'].includes(person)) return 'él/ella/usted';
+  if (['nosotros', 'nosotros/nosotras'].includes(person)) return 'nosotros';
+  if (['vosotros', 'vosotros/vosotras'].includes(person)) return 'vosotros';
+  if (['ellos/ellas/ustedes', 'ustedes'].includes(person)) return 'ellos/ellas/ustedes';
+  if (personLower === 'vos') return 'vos';
+
+  return person || '未命名人称';
+}
+
+function getConjMoodOrder(moodKey) {
+  return CONJ_MOOD_ORDER[moodKey] || 99;
+}
+
+function getConjTenseOrder(moodKey, tenseKey) {
+  return CONJ_TENSE_ORDER[moodKey]?.[tenseKey] || 99;
+}
+
+function getConjTenseDisplay(tenseKey, moodKey) {
+  const display = CONJ_TENSE_DISPLAY[moodKey]?.[tenseKey];
+  if (!display) {
+    return { es: tenseKey, cn: tenseKey, dimmed: false };
+  }
+  return {
+    ...display,
+    dimmed: CONJ_DIMMED_KEYS.has(`${moodKey}|${tenseKey}`)
+  };
+}
+
+function getConjMoodName(moodKey) {
+  return CONJ_MOOD_LABELS[moodKey] || moodKey;
+}
+
+function getConjPersonLabel(personKey) {
+  return personKey;
+}
+
+function getConjPersonOrder(personKey) {
+  const order = {
+    'yo': 1,
+    'tú': 2,
+    'tú (afirmativo)': 2.1,
+    'tú (negativo)': 2.2,
+    'él/ella/usted': 3,
+    'usted': 3,
+    'nosotros': 4,
+    'nosotros/nosotras': 4,
+    'vosotros': 5,
+    'vosotros/vosotras': 5,
+    'ellos/ellas/ustedes': 6,
+    'ustedes': 6,
+    'vos': 100
+  };
+  return order[personKey] || 99;
+}
+
+function getConjPersonSlots(moodKey, tenseKey) {
+  if (moodKey === '命令式') {
+    return IMPERATIVE_CONJ_PERSONS[tenseKey] || [];
+  }
+  return STANDARD_CONJ_PERSONS;
+}
+
+function resetConjExpandState(preserve = false) {
+  const previousMoods = expandedConjMoods.value;
+  const previousTenses = expandedConjTenses.value;
+  const nextMoods = {};
+  const nextTenses = {};
+
+  groupedConjugationSections.value.forEach((group) => {
+    nextMoods[group.moodKey] = preserve
+      ? (previousMoods[group.moodKey] ?? false)
+      : false;
+    nextTenses[group.moodKey] = {};
+    group.tenses.forEach((tense) => {
+      nextTenses[group.moodKey][tense.tenseKey] = preserve
+        ? (previousTenses[group.moodKey]?.[tense.tenseKey] ?? false)
+        : false;
+    });
+  });
+
+  expandedConjMoods.value = nextMoods;
+  expandedConjTenses.value = nextTenses;
+}
+
+function toggleConjMood(moodKey) {
+  expandedConjMoods.value = {
+    ...expandedConjMoods.value,
+    [moodKey]: !expandedConjMoods.value[moodKey]
+  };
+}
+
+function isConjMoodExpanded(moodKey) {
+  return !!expandedConjMoods.value[moodKey];
+}
+
+function toggleConjTense(moodKey, tenseKey) {
+  expandedConjTenses.value = {
+    ...expandedConjTenses.value,
+    [moodKey]: {
+      ...(expandedConjTenses.value[moodKey] || {}),
+      [tenseKey]: !expandedConjTenses.value[moodKey]?.[tenseKey]
+    }
+  };
+}
+
+function isConjTenseExpanded(moodKey, tenseKey) {
+  return !!expandedConjTenses.value[moodKey]?.[tenseKey];
+}
+
+function getConjRowKey(row) {
+  return `${row.moodKey}|${row.tenseKey}|${row.person}`;
+}
+
+function isConjRowEditing(row) {
+  return activeConjEditKey.value === getConjRowKey(row);
+}
+
+function startConjRowEdit(row) {
+  activeConjEditKey.value = getConjRowKey(row);
+  activeConjDraft.value = row.record?.conjugated_form || '';
+  activeConjIrregular.value = !!row.record?.is_irregular;
+}
+
+function cancelConjRowEdit() {
+  activeConjEditKey.value = '';
+  activeConjDraft.value = '';
+  activeConjIrregular.value = false;
+  activeConjSavingKey.value = '';
+}
+
+async function submitConjRowSave(row) {
+  if (!activeVerb.value) return;
+
+  const nextValue = activeConjDraft.value.trim();
+  if (!nextValue) {
+    showToast('请填写变位形式', 'error');
+    return;
+  }
+
+  const rowKey = getConjRowKey(row);
+  activeConjSavingKey.value = rowKey;
+
+  const payload = {
+    tense: row.tenseKey,
+    mood: row.moodKey,
+    person: row.person,
+    conjugated_form: nextValue,
+    is_irregular: activeConjIrregular.value ? 1 : 0
+  };
+
+  try {
+    if (row.record) {
+      await apiRequest(`/conjugations/${row.record.id}`, { method: 'PUT', body: payload });
+      showToast('变位已更新', 'success');
+    } else {
+      await apiRequest(`/verbs/${activeVerb.value.id}/conjugations`, { method: 'POST', body: payload });
+      showToast('已创建变位', 'success');
+    }
+    await fetchConjugations(activeVerb.value.id, { preserveExpand: true });
+    cancelConjRowEdit();
+  } catch (err) {
+    handleApiError(err);
+  } finally {
+    activeConjSavingKey.value = '';
+  }
 }
 
 let _keywordTimer = null;
@@ -458,8 +925,7 @@ function openCreate() {
 // 变位相关方法
 function openConjugations(verb) {
   activeVerb.value = verb;
-  editingConjId.value = null;
-  resetConjForm();
+  cancelConjRowEdit();
   fetchConjugations(verb.id);
   conjDrawerOpen.value = true;
 }
@@ -468,74 +934,18 @@ function closeConjDrawer() {
   conjDrawerOpen.value = false;
   activeVerb.value = null;
   conjugations.value = [];
+  expandedConjMoods.value = {};
+  expandedConjTenses.value = {};
+  cancelConjRowEdit();
 }
 
-async function fetchConjugations(verbId) {
+async function fetchConjugations(verbId, options = {}) {
   try {
     const data = await apiRequest(`/verbs/${verbId}/conjugations`);
     conjugations.value = data.rows || [];
+    resetConjExpandState(options.preserveExpand === true);
   } catch (err) {
     handleApiError(err);
-  }
-}
-
-function resetConjForm() {
-  editingConjId.value = null;
-  conjForm.tense = '';
-  conjForm.mood = '';
-  conjForm.person = '';
-  conjForm.conjugated_form = '';
-  conjForm.is_irregular = false;
-}
-
-function openEditConj(c) {
-  editingConjId.value = c.id;
-  conjForm.tense = c.tense || '';
-  conjForm.mood = c.mood || '';
-  conjForm.person = c.person || '';
-  conjForm.conjugated_form = c.conjugated_form || '';
-  conjForm.is_irregular = !!c.is_irregular;
-}
-
-function confirmDeleteConj(c) {
-  if (!confirm('确认删除该变位？')) return;
-  submitDeleteConj(c.id);
-}
-
-async function submitConjSave() {
-  if (!activeVerb.value) return;
-  if (!conjForm.tense || !conjForm.mood || !conjForm.person || !conjForm.conjugated_form) {
-    showToast('请填写时态/语气/人称/变位形式', 'error');
-    return;
-  }
-  conjSaving.value = true;
-  try {
-    if (editingConjId.value) {
-      await apiRequest(`/conjugations/${editingConjId.value}`, { method: 'PUT', body: conjForm });
-      showToast('变位已更新', 'success');
-    } else {
-      await apiRequest(`/verbs/${activeVerb.value.id}/conjugations`, { method: 'POST', body: conjForm });
-      showToast('已创建变位', 'success');
-    }
-    fetchConjugations(activeVerb.value.id);
-    resetConjForm();
-  } catch (err) {
-    handleApiError(err);
-  } finally {
-    conjSaving.value = false;
-  }
-}
-
-async function submitDeleteConj(conjId) {
-  conjDeleting.value = true;
-  try {
-    await apiRequest(`/conjugations/${conjId}`, { method: 'DELETE' });
-    showToast('删除成功', 'success');
-    if (activeVerb.value) fetchConjugations(activeVerb.value.id);
-  } catch (err) {
-    handleApiError(err);
-  } finally {
-    conjDeleting.value = false;
   }
 }
 
@@ -911,12 +1321,204 @@ fetchRows();
   margin-bottom:16px;
 }
 
-.conj-list .table { width:100%; table-layout: fixed; border-collapse:collapse; }
-.conj-list td.desc { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-/* 固定最后一列宽度，避免滚动时列错位 */
-.conj-list th:nth-child(6), .conj-list td.actions { width:180px; flex-shrink:0; }
-.conj-list td.actions { display:flex; gap:8px; align-items:center; justify-content:flex-start; white-space:nowrap; }
-.conj-list td.actions > button { min-width:88px; padding:6px 10px; white-space:nowrap; display:inline-flex; align-items:center; justify-content:center; margin:0; }
+.conj-groups {
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.conj-group {
+  border:1px solid #c7d7eb;
+  border-radius:12px;
+  overflow:hidden;
+  background:#eef4fb;
+  box-shadow:0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.conj-group-header,
+.conj-tense-header {
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  font:inherit;
+  color:inherit;
+  text-align:left;
+  cursor:pointer;
+}
+
+.conj-group-header {
+  padding:12px 14px;
+  background:linear-gradient(180deg, #dcecff 0%, #e7f1ff 100%);
+  border-bottom:1px solid #c8d9ef;
+}
+
+.conj-group-title {
+  font-weight:700;
+  color:#1e293b;
+}
+
+.conj-group-meta {
+  font-size:12px;
+  color:#64748b;
+  white-space:nowrap;
+}
+
+.conj-tense-list {
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  background:#f4f8fc;
+}
+
+.conj-tense-card {
+  border:1px solid #d7e3ef;
+  border-radius:10px;
+  overflow:hidden;
+  background:#fbfdff;
+  box-shadow:0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.conj-tense-header {
+  padding:10px 12px;
+  background:#f8fbff;
+  border-bottom:1px solid #e1eaf3;
+}
+
+.conj-tense-title {
+  min-width:0;
+  display:flex;
+  align-items:baseline;
+  flex-wrap:wrap;
+  gap:4px;
+}
+
+.conj-tense-es {
+  font-weight:700;
+  color:#0f172a;
+}
+
+.conj-tense-cn {
+  color:#475569;
+}
+
+.conj-row-list {
+  padding:8px 12px 12px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  background:#edf3f8;
+}
+
+.conj-vos-divider {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 0 2px;
+}
+
+.conj-divider-line {
+  flex:1;
+  height:1px;
+  background:#e2e8f0;
+}
+
+.conj-divider-text {
+  font-size:12px;
+  color:#64748b;
+  white-space:nowrap;
+}
+
+.conj-row {
+  display:grid;
+  grid-template-columns: 176px 220px 92px 152px;
+  gap:10px;
+  align-items:center;
+  padding:10px 12px;
+  border:1px solid #dbe6f1;
+  border-radius:10px;
+  background:#fff;
+}
+
+.conj-row-person {
+  font-weight:600;
+  color:#334155;
+}
+
+.conj-row-value {
+  min-width:0;
+  width:220px;
+}
+
+.conj-row-value > span {
+  display:block;
+  color:#0f172a;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.conj-row-empty .conj-row-value {
+  color:#94a3b8;
+}
+
+.conj-inline-input {
+  width:100%;
+  max-width:220px;
+  margin:0;
+}
+
+.conj-row-flag {
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:6px;
+  min-width:0;
+}
+
+.conj-row-flag-label {
+  font-size:12px;
+  font-weight:600;
+  color:#64748b;
+  white-space:nowrap;
+}
+
+.conj-row-checkbox {
+  width:16px;
+  height:16px;
+  margin:0;
+  accent-color:#2563eb;
+}
+
+.conj-row-checkbox[aria-disabled='true'] {
+  cursor:default;
+}
+
+.conj-row-checkbox-readonly {
+  pointer-events:none;
+}
+
+.conj-row-actions {
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  justify-self:stretch;
+  gap:8px;
+  width:160px;
+  min-width:160px;
+}
+
+.conj-row-actions > button {
+  width:76px;
+  min-width:76px;
+  justify-self:end;
+}
+
 .modal { background:#fff; padding:16px; border-radius:6px; width:420px; }
 .field-error { color:#c33; font-size:12px; }
 
@@ -930,6 +1532,11 @@ fetchRows();
   .drawer-flags-row-four,
   .drawer-flags-row-three {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .conj-row {
+    grid-template-columns: minmax(0, 1fr) 168px 92px 144px;
+    gap:8px;
   }
 
   .lexicon-page .header-row,
