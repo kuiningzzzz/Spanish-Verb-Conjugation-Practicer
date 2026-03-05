@@ -76,6 +76,12 @@
         <header>
           <h3>{{ editingId ? '编辑动词' : '新建动词' }}</h3>
           <div class="drawer-header-actions">
+            <span
+              v-if="isCreateMode && createDrawerView !== 'queue' && activeQueueItem"
+              class="drawer-current-item"
+            >
+              当前词条：{{ form.infinitive || activeQueueItem.infinitive }}
+            </span>
             <button
               v-if="!isCreateMode || createDrawerView !== 'queue'"
               type="submit"
@@ -148,7 +154,7 @@
                 </div>
 
                 <p class="queue-hint">
-                  仅需录入动词原形，系统将按队列逐条生成并反馈结果。成功项可点“详情”进入现有窗口调整，最终统一入库。
+                  仅需录入动词原形，系统将逐条自动生成变位信息并反馈结果。AI生成可能存在错误，请核实相关信息。完成后点击按钮保存完整的词条。
                 </p>
 
                 <div class="queue-table-wrap">
@@ -307,7 +313,7 @@
             </template>
 
             <template v-else>
-              <p class="drawer-tip">请填写全部语气、时态、人称的变位后再保存词条。</p>
+              <p class="drawer-tip">请检查词条各时态、人称的变位信息。</p>
               <div v-if="!isCreateMode || activeQueueItem" class="conj-list create-conj-list">
                 <div class="conj-groups">
                   <section
@@ -2147,6 +2153,15 @@ fetchRows();
   display:flex;
   align-items:center;
   gap:8px;
+}
+
+.drawer-current-item {
+  max-width:240px;
+  color:#475569;
+  font-size:13px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .drawer-body {
