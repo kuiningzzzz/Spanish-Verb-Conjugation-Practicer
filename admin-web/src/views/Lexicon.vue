@@ -76,12 +76,31 @@
         <header>
           <h3>{{ editingId ? '编辑动词' : '新建动词' }}</h3>
           <div class="drawer-header-actions">
-            <button type="submit" form="lexicon-edit-form" :disabled="saving">保存</button>
-            <button class="ghost" @click="closeDrawer">关闭</button>
+            <button
+              v-if="!isCreateMode || createDrawerView !== 'queue'"
+              type="submit"
+              form="lexicon-edit-form"
+              :disabled="saving"
+            >
+              {{ isCreateMode ? '保存到队列' : '保存' }}
+            </button>
+            <button
+              v-if="isCreateMode && createDrawerView !== 'queue'"
+              class="ghost"
+              @click="switchCreateDrawerView('queue')"
+            >
+              返回队列
+            </button>
+            <button v-else class="ghost" @click="closeDrawer">关闭</button>
           </div>
         </header>
         <div class="drawer-body">
-          <div v-if="isCreateMode" class="drawer-view-switch" role="tablist" aria-label="新建动词内容切换">
+          <div
+            v-if="isCreateMode && createDrawerView !== 'queue'"
+            class="drawer-view-switch"
+            role="tablist"
+            aria-label="新建动词内容切换"
+          >
             <div class="drawer-view-switch-buttons">
               <button
                 type="button"
@@ -99,125 +118,197 @@
               >
                 变位字段
               </button>
-              <button type="button" class="drawer-auto-fill-btn" :disabled="autoFilling" @click="handleAutoFill">
-                {{ autoFilling ? '补充中...' : '自动补充' }}
-              </button>
             </div>
-            <p class="drawer-ai-note">
-              <span>输入动词原型后，点击自动补充按钮由AI自动补充各字段。</span>
-              <span>AI可能会犯错，请核查相关信息。</span>
-            </p>
           </div>
 
           <form id="lexicon-edit-form" @submit.prevent="submitSave">
-            <template v-if="!isCreateMode || createDrawerView === 'details'">
-              <div class="drawer-inline-row drawer-field-row">
-                <label class="drawer-field drawer-id-field">
-                  动词ID
-                  <input :value="editingId || '自动生成'" disabled />
-                </label>
+            <template v-if="isCreateMode && createDrawerView === 'queue'">
+              <div class="queue-panel">
+                <div class="queue-input-row">
+                  <input
+                    v-model.trim="queueInput"
+                    class="queue-input"
+                    placeholder="输入动词原型词干（逐条添加）"
+                    @keydown.enter.prevent="addQueueInfinitive"
+                  />
+                  <button type="button" class="ghost" @click="addQueueInfinitive" :disabled="queueProcessing || queueSaving">
+                    添加
+                  </button>
+                  <button type="button" :disabled="queueProcessing || queueSaving || !queueItems.length" @click="runQueueGenerate">
+                    {{ queueProcessing ? '生成中...' : '一键生成' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="drawer-auto-fill-btn"
+                    :disabled="queueSaving || queueProcessing || !queueSuccessItems.length"
+                    @click="saveQueueSuccessItems"
+                  >
+                    {{ queueSaving ? '保存中...' : '一键保存成功项' }}
+                  </button>
+                </div>
 
-                <label class="drawer-field">
-                  原形
-                  <input v-model="form.infinitive" placeholder="仅输入动词原型词干" />
-                  <span v-if="formErrors.infinitive" class="field-error">{{ formErrors.infinitive }}</span>
-                </label>
+                <p class="queue-hint">
+                  仅需录入动词原形，系统将按队列逐条生成并反馈结果。成功项可点“详情”进入现有窗口调整，最终统一入库。
+                </p>
+
+                <div class="queue-table-wrap">
+                  <table class="table queue-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>原形</th>
+                        <th>状态</th>
+                        <th>反馈</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(item, index) in queueItems" :key="item.id">
+                        <td>{{ index + 1 }}</td>
+                        <td>{{ item.infinitive }}</td>
+                        <td>
+                          <span class="queue-status" :class="`queue-status-${item.status}`">
+                            {{ getQueueStatusLabel(item.status) }}
+                          </span>
+                        </td>
+                        <td class="queue-message">{{ item.message || '-' }}</td>
+                        <td class="actions queue-actions-cell">
+                          <button
+                            type="button"
+                            class="ghost queue-action-btn"
+                            :disabled="!canOpenQueueDetail(item)"
+                            @click="openQueueDetail(item.id)"
+                          >
+                            详情
+                          </button>
+                          <button
+                            type="button"
+                            class="danger queue-action-btn"
+                            :disabled="queueProcessing || queueSaving"
+                            @click="requestRemoveQueueItem(item)"
+                          >
+                            移除
+                          </button>
+                        </td>
+                      </tr>
+                      <tr v-if="!queueItems.length">
+                        <td colspan="5" class="empty">队列为空，请先添加动词原形</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
-
-              <div class="drawer-inline-row drawer-field-row">
-                <label class="drawer-field">
-                  释义
-                  <input v-model="form.meaning" />
-                  <span v-if="formErrors.meaning" class="field-error">{{ formErrors.meaning }}</span>
-                </label>
-
-                <label class="drawer-field">
-                  副动词
-                  <input v-model="form.gerund" />
-                  <span v-if="formErrors.gerund" class="field-error">{{ formErrors.gerund }}</span>
-                </label>
-              </div>
-
-              <div class="drawer-inline-row drawer-field-row">
-                <label class="drawer-field">
-                  过去分词
-                  <input v-model="form.participle" />
-                  <span v-if="formErrors.participle" class="field-error">{{ formErrors.participle }}</span>
-                </label>
-
-                <label class="drawer-field">
-                  过去分词其它形式
-                  <input v-model="form.participle_forms" />
-                  <span v-if="formErrors.participle_forms" class="field-error">{{ formErrors.participle_forms }}</span>
-                </label>
-              </div>
-
-              <div class="drawer-flags-wrap">
-                <div class="drawer-flags-row drawer-flags-row-four">
-                  <label class="drawer-flag-chip">
-                    <span class="drawer-flag-label">Irreg. 不规则</span>
-                    <span class="drawer-flag-control">
-                      <input class="drawer-flag-input" type="checkbox" v-model="form.is_irregular" />
-                      <span class="drawer-flag-switch" aria-hidden="true"></span>
-                    </span>
+            </template>
+            <template v-else-if="!isCreateMode || createDrawerView === 'details'">
+              <template v-if="!isCreateMode || activeQueueItem">
+                <div class="drawer-inline-row drawer-field-row">
+                  <label class="drawer-field drawer-id-field">
+                    动词ID
+                    <input :value="editingId || '自动生成'" disabled />
                   </label>
 
-                  <label class="drawer-flag-chip">
-                    <span class="drawer-flag-label">Prnl. 自反</span>
-                    <span class="drawer-flag-control">
-                      <input class="drawer-flag-input" type="checkbox" v-model="form.is_reflexive" />
-                      <span class="drawer-flag-switch" aria-hidden="true"></span>
-                    </span>
-                  </label>
-
-                  <label class="drawer-flag-chip">
-                    <span class="drawer-flag-label">tr. 及物用法</span>
-                    <span class="drawer-flag-control">
-                      <input class="drawer-flag-input" type="checkbox" v-model="form.has_tr_use" />
-                      <span class="drawer-flag-switch" aria-hidden="true"></span>
-                    </span>
-                  </label>
-
-                  <label class="drawer-flag-chip">
-                    <span class="drawer-flag-label">intr. 不及物用法</span>
-                    <span class="drawer-flag-control">
-                      <input class="drawer-flag-input" type="checkbox" v-model="form.has_intr_use" />
-                      <span class="drawer-flag-switch" aria-hidden="true"></span>
-                    </span>
+                  <label class="drawer-field">
+                    原形
+                    <input v-model="form.infinitive" placeholder="仅输入动词原型词干" />
+                    <span v-if="formErrors.infinitive" class="field-error">{{ formErrors.infinitive }}</span>
                   </label>
                 </div>
 
-                <div v-if="form.has_tr_use" class="drawer-flags-row drawer-flags-row-three">
-                  <label class="drawer-flag-chip">
-                    <span class="drawer-flag-label">动词+DO</span>
-                    <span class="drawer-flag-control">
-                      <input class="drawer-flag-input" type="checkbox" v-model="form.supports_do" />
-                      <span class="drawer-flag-switch" aria-hidden="true"></span>
-                    </span>
+                <div class="drawer-inline-row drawer-field-row">
+                  <label class="drawer-field">
+                    释义
+                    <input v-model="form.meaning" />
+                    <span v-if="formErrors.meaning" class="field-error">{{ formErrors.meaning }}</span>
                   </label>
 
-                  <label class="drawer-flag-chip">
-                    <span class="drawer-flag-label">动词+IO</span>
-                    <span class="drawer-flag-control">
-                      <input class="drawer-flag-input" type="checkbox" v-model="form.supports_io" />
-                      <span class="drawer-flag-switch" aria-hidden="true"></span>
-                    </span>
-                  </label>
-
-                  <label class="drawer-flag-chip">
-                    <span class="drawer-flag-label">动词+IO+DO</span>
-                    <span class="drawer-flag-control">
-                      <input class="drawer-flag-input" type="checkbox" v-model="form.supports_do_io" />
-                      <span class="drawer-flag-switch" aria-hidden="true"></span>
-                    </span>
+                  <label class="drawer-field">
+                    副动词
+                    <input v-model="form.gerund" />
+                    <span v-if="formErrors.gerund" class="field-error">{{ formErrors.gerund }}</span>
                   </label>
                 </div>
-              </div>
+
+                <div class="drawer-inline-row drawer-field-row">
+                  <label class="drawer-field">
+                    过去分词
+                    <input v-model="form.participle" />
+                    <span v-if="formErrors.participle" class="field-error">{{ formErrors.participle }}</span>
+                  </label>
+
+                  <label class="drawer-field">
+                    过去分词其它形式
+                    <input v-model="form.participle_forms" />
+                    <span v-if="formErrors.participle_forms" class="field-error">{{ formErrors.participle_forms }}</span>
+                  </label>
+                </div>
+
+                <div class="drawer-flags-wrap">
+                  <div class="drawer-flags-row drawer-flags-row-four">
+                    <label class="drawer-flag-chip">
+                      <span class="drawer-flag-label">Irreg. 不规则</span>
+                      <span class="drawer-flag-control">
+                        <input class="drawer-flag-input" type="checkbox" v-model="form.is_irregular" />
+                        <span class="drawer-flag-switch" aria-hidden="true"></span>
+                      </span>
+                    </label>
+
+                    <label class="drawer-flag-chip">
+                      <span class="drawer-flag-label">Prnl. 自反</span>
+                      <span class="drawer-flag-control">
+                        <input class="drawer-flag-input" type="checkbox" v-model="form.is_reflexive" />
+                        <span class="drawer-flag-switch" aria-hidden="true"></span>
+                      </span>
+                    </label>
+
+                    <label class="drawer-flag-chip">
+                      <span class="drawer-flag-label">tr. 及物用法</span>
+                      <span class="drawer-flag-control">
+                        <input class="drawer-flag-input" type="checkbox" v-model="form.has_tr_use" />
+                        <span class="drawer-flag-switch" aria-hidden="true"></span>
+                      </span>
+                    </label>
+
+                    <label class="drawer-flag-chip">
+                      <span class="drawer-flag-label">intr. 不及物用法</span>
+                      <span class="drawer-flag-control">
+                        <input class="drawer-flag-input" type="checkbox" v-model="form.has_intr_use" />
+                        <span class="drawer-flag-switch" aria-hidden="true"></span>
+                      </span>
+                    </label>
+                  </div>
+
+                  <div v-if="form.has_tr_use" class="drawer-flags-row drawer-flags-row-three">
+                    <label class="drawer-flag-chip">
+                      <span class="drawer-flag-label">动词+DO</span>
+                      <span class="drawer-flag-control">
+                        <input class="drawer-flag-input" type="checkbox" v-model="form.supports_do" />
+                        <span class="drawer-flag-switch" aria-hidden="true"></span>
+                      </span>
+                    </label>
+
+                    <label class="drawer-flag-chip">
+                      <span class="drawer-flag-label">动词+IO</span>
+                      <span class="drawer-flag-control">
+                        <input class="drawer-flag-input" type="checkbox" v-model="form.supports_io" />
+                        <span class="drawer-flag-switch" aria-hidden="true"></span>
+                      </span>
+                    </label>
+
+                    <label class="drawer-flag-chip">
+                      <span class="drawer-flag-label">动词+IO+DO</span>
+                      <span class="drawer-flag-control">
+                        <input class="drawer-flag-input" type="checkbox" v-model="form.supports_do_io" />
+                        <span class="drawer-flag-switch" aria-hidden="true"></span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </template>
             </template>
 
             <template v-else>
               <p class="drawer-tip">请填写全部语气、时态、人称的变位后再保存词条。</p>
-              <div class="conj-list create-conj-list">
+              <div v-if="!isCreateMode || activeQueueItem" class="conj-list create-conj-list">
                 <div class="conj-groups">
                   <section
                     v-for="group in createConjugationSections"
@@ -400,6 +491,20 @@
       </div>
     </div>
 
+    <div v-if="queueRemoveDialog" class="overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>确认移除</h3>
+          <button class="ghost" @click="closeQueueRemoveDialog">关闭</button>
+        </div>
+        <p>该词条已完成生成，确定从队列移除：<strong>{{ queueRemoveDialog.infinitive }}</strong>？</p>
+        <div class="modal-actions">
+          <button class="ghost" @click="closeQueueRemoveDialog">取消</button>
+          <button class="danger" @click="confirmQueueRemoveDialog">确认移除</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="toast.visible" class="toast" :class="toast.type">{{ toast.message }}</div>
   </section>
 </template>
@@ -420,29 +525,33 @@ const error = ref('');
 const drawerOpen = ref(false);
 const editingId = ref(null);
 const saving = ref(false);
-const autoFilling = ref(false);
 const deleting = ref(false);
 const deleteDialog = ref(null);
-const createDrawerView = ref('details');
+const queueRemoveDialog = ref(null);
+const createDrawerView = ref('queue');
 
-const form = reactive({
-  infinitive: '',
-  meaning: '',
-  conjugation_type: 1,
-  is_irregular: false,
-  is_reflexive: false,
-  has_tr_use: false,
-  has_intr_use: false,
-  supports_do: false,
-  supports_io: false,
-  supports_do_io: false,
-  lesson_number: null,
-  textbook_volume: 1,
-  frequency_level: 1,
-  gerund: '',
-  participle: '',
-  participle_forms: ''
-});
+function createDefaultFormData(infinitive = '') {
+  return {
+    infinitive,
+    meaning: '',
+    conjugation_type: 1,
+    is_irregular: false,
+    is_reflexive: false,
+    has_tr_use: false,
+    has_intr_use: false,
+    supports_do: false,
+    supports_io: false,
+    supports_do_io: false,
+    lesson_number: null,
+    textbook_volume: 1,
+    frequency_level: 1,
+    gerund: '',
+    participle: '',
+    participle_forms: ''
+  };
+}
+
+const form = reactive(createDefaultFormData());
 const formErrors = reactive({
   infinitive: '',
   meaning: '',
@@ -456,7 +565,18 @@ const createConjDrafts = reactive({});
 const createExpandedConjMoods = ref({});
 const createExpandedConjTenses = ref({});
 const isCreateMode = computed(() => editingId.value === null);
-const createDraftCache = ref(null);
+const queueInput = ref('');
+const queueItems = ref([]);
+const queueSeed = ref(1);
+const queueProcessing = ref(false);
+const queueSaving = ref(false);
+const activeQueueItemId = ref('');
+const activeQueueItem = computed(
+  () => queueItems.value.find((item) => item.id === activeQueueItemId.value) || null
+);
+const queueSuccessItems = computed(
+  () => queueItems.value.filter((item) => ['success', 'saved'].includes(item.status))
+);
 
 const CREATE_FORM_KEYS = [
   'infinitive',
@@ -476,6 +596,8 @@ const CREATE_FORM_KEYS = [
   'participle',
   'participle_forms'
 ];
+const QUEUE_CACHE_KEY = 'admin_lexicon_create_queue_cache_v1';
+const QUEUE_STATUS_VALUES = new Set(['pending', 'processing', 'success', 'error', 'saved']);
 
 // conjugations state
 const conjDrawerOpen = ref(false);
@@ -883,22 +1005,154 @@ function getConjCompositeKey(moodKey, tenseKey, person) {
   return `${moodKey}|${tenseKey}|${person}`;
 }
 
-function resetCreateConjDrafts() {
-  Object.keys(createConjDrafts).forEach((key) => {
-    delete createConjDrafts[key];
-  });
-
+function buildEmptyConjugationDrafts() {
+  const next = {};
   Object.keys(CONJ_TENSE_ORDER).forEach((moodKey) => {
     Object.keys(CONJ_TENSE_ORDER[moodKey] || {}).forEach((tenseKey) => {
       getConjPersonSlots(moodKey, tenseKey).forEach((person) => {
         const key = getConjCompositeKey(moodKey, tenseKey, person);
-        createConjDrafts[key] = {
+        next[key] = {
           conjugated_form: '',
           is_irregular: false
         };
       });
     });
   });
+  return next;
+}
+
+function buildEmptyCreateDraft(infinitive = '') {
+  return {
+    form: createDefaultFormData(infinitive),
+    conjugations: buildEmptyConjugationDrafts()
+  };
+}
+
+function normalizeQueueStatus(status) {
+  return QUEUE_STATUS_VALUES.has(status) ? status : 'pending';
+}
+
+function normalizeDraft(rawDraft, fallbackInfinitive = '') {
+  const normalizedInfinitive = String(fallbackInfinitive || '').trim();
+  const base = buildEmptyCreateDraft(normalizedInfinitive);
+  const sourceForm = rawDraft?.form || {};
+
+  CREATE_FORM_KEYS.forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(sourceForm, key)) {
+      base.form[key] = sourceForm[key];
+    }
+  });
+
+  const sourceConjugations = rawDraft?.conjugations || {};
+  Object.keys(base.conjugations).forEach((key) => {
+    if (!Object.prototype.hasOwnProperty.call(sourceConjugations, key)) return;
+    const row = sourceConjugations[key] || {};
+    base.conjugations[key] = {
+      conjugated_form: String(row.conjugated_form || ''),
+      is_irregular: !!row.is_irregular
+    };
+  });
+
+  if (!String(base.form.infinitive || '').trim() && normalizedInfinitive) {
+    base.form.infinitive = normalizedInfinitive;
+  }
+  return base;
+}
+
+function snapshotQueueCacheState() {
+  const items = queueItems.value
+    .map((item) => {
+      const id = String(item?.id || '').trim();
+      const infinitive = String(item?.infinitive || '').trim();
+      if (!id || !infinitive) return null;
+
+      return {
+        id,
+        infinitive,
+        status: normalizeQueueStatus(item?.status),
+        message: String(item?.message || ''),
+        draft: normalizeDraft(item?.draft, infinitive)
+      };
+    })
+    .filter(Boolean);
+
+  const maxSeedFromIds = items.reduce((max, item) => {
+    const matched = String(item.id).match(/^queue-(\d+)$/);
+    const next = matched ? Number(matched[1]) + 1 : 1;
+    return Math.max(max, next);
+  }, 1);
+
+  const cachedActiveId = String(activeQueueItemId.value || '');
+  return {
+    version: 1,
+    queueSeed: Math.max(queueSeed.value, maxSeedFromIds),
+    queueInput: String(queueInput.value || ''),
+    activeQueueItemId: items.some((item) => item.id === cachedActiveId) ? cachedActiveId : '',
+    queueItems: items
+  };
+}
+
+function persistQueueCache() {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    window.localStorage.setItem(QUEUE_CACHE_KEY, JSON.stringify(snapshotQueueCacheState()));
+  } catch (error) {
+    console.warn('保存词条队列缓存失败:', error);
+  }
+}
+
+function restoreQueueCache() {
+  if (typeof window === 'undefined' || !window.localStorage) return false;
+  try {
+    const raw = window.localStorage.getItem(QUEUE_CACHE_KEY);
+    if (!raw) return false;
+
+    const parsed = JSON.parse(raw);
+    const cachedItems = Array.isArray(parsed?.queueItems) ? parsed.queueItems : [];
+    const restoredItems = cachedItems
+      .map((item, index) => {
+        const infinitive = String(item?.infinitive || '').trim();
+        if (!infinitive) return null;
+
+        const idRaw = String(item?.id || '').trim();
+        const id = idRaw || `queue-${index + 1}`;
+        return {
+          id,
+          infinitive,
+          status: normalizeQueueStatus(item?.status),
+          message: String(item?.message || ''),
+          draft: normalizeDraft(item?.draft, infinitive)
+        };
+      })
+      .filter(Boolean);
+
+    queueItems.value = restoredItems;
+    const maxSeedFromIds = restoredItems.reduce((max, item) => {
+      const matched = String(item.id).match(/^queue-(\d+)$/);
+      const next = matched ? Number(matched[1]) + 1 : 1;
+      return Math.max(max, next);
+    }, 1);
+    const parsedSeed = Number.parseInt(parsed?.queueSeed, 10);
+    queueSeed.value = Math.max(Number.isFinite(parsedSeed) ? parsedSeed : 1, maxSeedFromIds);
+    queueInput.value = String(parsed?.queueInput || '');
+
+    const cachedActiveId = String(parsed?.activeQueueItemId || '');
+    activeQueueItemId.value = restoredItems.some((item) => item.id === cachedActiveId)
+      ? cachedActiveId
+      : '';
+    return true;
+  } catch (error) {
+    console.warn('恢复词条队列缓存失败:', error);
+    return false;
+  }
+}
+
+function resetCreateConjDrafts() {
+  Object.keys(createConjDrafts).forEach((key) => {
+    delete createConjDrafts[key];
+  });
+
+  Object.assign(createConjDrafts, buildEmptyConjugationDrafts());
 }
 
 function resetCreateConjExpandState() {
@@ -916,39 +1170,53 @@ function resetCreateConjExpandState() {
 }
 
 function switchCreateDrawerView(view) {
+  if (view === 'queue') {
+    syncCurrentEditorToQueue();
+    createDrawerView.value = 'queue';
+    return;
+  }
+
+  if (isCreateMode.value && !activeQueueItemId.value) {
+    showToast('请先在队列中选择已处理成功的词条详情', 'error');
+    createDrawerView.value = 'queue';
+    return;
+  }
   createDrawerView.value = view === 'conjugations' ? 'conjugations' : 'details';
 }
 
-function isCreateFormCompleteWithoutSwitches() {
-  const textFields = [form.infinitive, form.meaning, form.gerund, form.participle];
+function isDraftCompleteWithoutSwitches(draft) {
+  const source = draft || buildEmptyCreateDraft();
+  const textFields = [source.form.infinitive, source.form.meaning, source.form.gerund, source.form.participle];
   const textComplete = textFields.every((value) => String(value || '').trim());
   if (!textComplete) return false;
 
-  return createConjugationSections.value.every((group) =>
-    group.tenses.every((tense) =>
-      tense.rows.every((row) => String(row.draft?.conjugated_form || '').trim())
-    )
+  return Object.values(source.conjugations || {}).every((row) =>
+    String(row?.conjugated_form || '').trim()
   );
 }
 
-function applyAutoFillResult(result) {
+function applyAutoFillResultToDraft(result, targetDraft) {
+  if (!targetDraft || !targetDraft.form || !targetDraft.conjugations) return;
+
+  const targetForm = targetDraft.form;
+  const targetConjugations = targetDraft.conjugations;
   const fields = result?.fields || {};
   const textFieldKeys = ['meaning', 'gerund', 'participle', 'participle_forms'];
   textFieldKeys.forEach((key) => {
-    const current = String(form[key] || '').trim();
+    const current = String(targetForm[key] || '').trim();
     const incoming = String(fields[key] || '').trim();
     if (!current && incoming) {
-      form[key] = incoming;
+      targetForm[key] = incoming;
     }
   });
 
-  if (typeof fields.is_irregular === 'boolean') form.is_irregular = fields.is_irregular;
-  if (typeof fields.is_reflexive === 'boolean') form.is_reflexive = fields.is_reflexive;
-  if (typeof fields.has_tr_use === 'boolean') form.has_tr_use = fields.has_tr_use;
-  if (typeof fields.has_intr_use === 'boolean') form.has_intr_use = fields.has_intr_use;
-  if (typeof fields.supports_do === 'boolean') form.supports_do = fields.supports_do;
-  if (typeof fields.supports_io === 'boolean') form.supports_io = fields.supports_io;
-  if (typeof fields.supports_do_io === 'boolean') form.supports_do_io = fields.supports_do_io;
+  if (typeof fields.is_irregular === 'boolean') targetForm.is_irregular = fields.is_irregular;
+  if (typeof fields.is_reflexive === 'boolean') targetForm.is_reflexive = fields.is_reflexive;
+  if (typeof fields.has_tr_use === 'boolean') targetForm.has_tr_use = fields.has_tr_use;
+  if (typeof fields.has_intr_use === 'boolean') targetForm.has_intr_use = fields.has_intr_use;
+  if (typeof fields.supports_do === 'boolean') targetForm.supports_do = fields.supports_do;
+  if (typeof fields.supports_io === 'boolean') targetForm.supports_io = fields.supports_io;
+  if (typeof fields.supports_do_io === 'boolean') targetForm.supports_do_io = fields.supports_do_io;
 
   const suggestionMap = new Map(
     (Array.isArray(result?.conjugations) ? result.conjugations : []).map((item) => [
@@ -957,8 +1225,8 @@ function applyAutoFillResult(result) {
     ])
   );
 
-  Object.keys(createConjDrafts).forEach((key) => {
-    const draft = createConjDrafts[key];
+  Object.keys(targetConjugations).forEach((key) => {
+    const draft = targetConjugations[key];
     const suggestion = suggestionMap.get(key);
     if (!draft || !suggestion) return;
 
@@ -971,63 +1239,370 @@ function applyAutoFillResult(result) {
   });
 }
 
-async function handleAutoFill() {
-  if (!isCreateMode.value || autoFilling.value) return;
+function getActionErrorMessage(err, fallback = '操作失败') {
+  if (err instanceof ApiError) return err.message || fallback;
+  if (err instanceof Error) return err.message || fallback;
+  return fallback;
+}
 
-  formErrors.infinitive = '';
-  const infinitive = String(form.infinitive || '').trim();
+async function hasDuplicateInLexicon(infinitive) {
+  const target = String(infinitive || '').trim();
+  if (!target) return false;
+  const duplicateResult = await apiRequest('/verbs', {
+    params: { q: target, limit: 100, offset: 0 },
+    timeout: 20000
+  });
+  return !!(duplicateResult?.rows || []).find((item) =>
+    String(item?.infinitive || '').trim().toLowerCase() === target.toLowerCase()
+  );
+}
+
+async function runAutoFillForDraft(draft) {
+  const targetDraft = draft || buildEmptyCreateDraft();
+  const infinitive = String(targetDraft.form?.infinitive || '').trim();
   if (!infinitive) {
-    formErrors.infinitive = '未填写动词原形';
-    switchCreateDrawerView('details');
+    throw new Error('未填写动词原形');
+  }
+
+  if (await hasDuplicateInLexicon(infinitive)) {
+    throw new Error('已在词库中');
+  }
+
+  const validation = await apiRequest('/verbs/autofill/validate', {
+    method: 'POST',
+    body: { infinitive },
+    timeout: 30000
+  });
+  if (!validation?.isValid) {
+    throw new Error('生成失败，请检查是否是一个合法的西语单词。');
+  }
+
+  if (isDraftCompleteWithoutSwitches(targetDraft)) {
+    return { skipped: true };
+  }
+
+  const generated = await apiRequest('/verbs/autofill', {
+    method: 'POST',
+    body: { infinitive },
+    timeout: 120000
+  });
+  applyAutoFillResultToDraft(generated, targetDraft);
+  return { skipped: false };
+}
+
+function getQueueStatusLabel(status) {
+  const map = {
+    pending: '待处理',
+    processing: '处理中',
+    success: '已完成',
+    error: '失败',
+    saved: '已入库'
+  };
+  return map[status] || '未知';
+}
+
+function canOpenQueueDetail(item) {
+  return !!item && ['success', 'saved'].includes(item.status);
+}
+
+function createQueueItem(infinitive) {
+  const normalized = String(infinitive || '').trim();
+  return {
+    id: `queue-${queueSeed.value++}`,
+    infinitive: normalized,
+    status: 'pending',
+    message: '等待处理',
+    draft: buildEmptyCreateDraft(normalized)
+  };
+}
+
+function addQueueInfinitive() {
+  const infinitive = String(queueInput.value || '').trim();
+  if (!infinitive) {
     return;
   }
 
-  autoFilling.value = true;
-  createDraftCache.value = snapshotCreateDraft();
-  try {
-    const duplicateResult = await apiRequest('/verbs', {
-      params: { q: infinitive, limit: 100, offset: 0 },
-      timeout: 20000
-    });
-    const duplicate = (duplicateResult?.rows || []).find((item) =>
-      String(item?.infinitive || '').trim().toLowerCase() === infinitive.toLowerCase()
-    );
-    if (duplicate) {
-      formErrors.infinitive = '已在词库中';
-      switchCreateDrawerView('details');
-      showToast('已在词库中', 'error');
-      return;
-    }
-
-    const validation = await apiRequest('/verbs/autofill/validate', {
-      method: 'POST',
-      body: { infinitive },
-      timeout: 30000
-    });
-    if (!validation?.isValid) {
-      switchCreateDrawerView('details');
-      showToast('生成失败，请检查是否是一个合法的西语单词。', 'error');
-      return;
-    }
-
-    if (isCreateFormCompleteWithoutSwitches()) {
-      return;
-    }
-
-    const generated = await apiRequest('/verbs/autofill', {
-      method: 'POST',
-      body: { infinitive },
-      timeout: 120000
-    });
-
-    applyAutoFillResult(generated);
-    showToast('已自动补充未填写字段，请核查相关信息。', 'success');
-  } catch (err) {
-    handleApiError(err, formErrors);
-  } finally {
-    createDraftCache.value = snapshotCreateDraft();
-    autoFilling.value = false;
+  const duplicatedInQueue = queueItems.value.some(
+    (item) => String(item.infinitive || '').toLowerCase() === infinitive.toLowerCase()
+  );
+  if (duplicatedInQueue) {
+    showToast('队列中已存在该动词原形', 'error');
+    return;
   }
+
+  queueItems.value.push(createQueueItem(infinitive));
+  queueInput.value = '';
+  persistQueueCache();
+}
+
+function removeQueueItem(queueId) {
+  if (queueProcessing.value || queueSaving.value) return;
+  queueItems.value = queueItems.value.filter((item) => item.id !== queueId);
+  if (activeQueueItemId.value === queueId) {
+    activeQueueItemId.value = '';
+    createDrawerView.value = 'queue';
+    resetCreateForm();
+    resetErrors(formErrors);
+  }
+  persistQueueCache();
+}
+
+function requestRemoveQueueItem(item) {
+  if (!item || queueProcessing.value || queueSaving.value) return;
+  if (item.status === 'success') {
+    queueRemoveDialog.value = {
+      id: item.id,
+      infinitive: item.infinitive || item.id
+    };
+    return;
+  }
+  removeQueueItem(item.id);
+}
+
+function closeQueueRemoveDialog() {
+  queueRemoveDialog.value = null;
+}
+
+function confirmQueueRemoveDialog() {
+  if (!queueRemoveDialog.value) return;
+  removeQueueItem(queueRemoveDialog.value.id);
+  closeQueueRemoveDialog();
+}
+
+function syncCurrentEditorToQueue() {
+  if (!isCreateMode.value || !activeQueueItemId.value) return;
+  const item = queueItems.value.find((entry) => entry.id === activeQueueItemId.value);
+  if (!item) return;
+
+  item.draft = snapshotCreateDraft();
+  const nextInfinitive = String(item.draft.form?.infinitive || '').trim();
+  if (nextInfinitive) {
+    item.infinitive = nextInfinitive;
+  }
+  persistQueueCache();
+}
+
+function openQueueDetail(queueId) {
+  const item = queueItems.value.find((entry) => entry.id === queueId);
+  if (!canOpenQueueDetail(item)) {
+    showToast('仅已处理成功的词条可查看详情', 'error');
+    return;
+  }
+
+  syncCurrentEditorToQueue();
+  activeQueueItemId.value = queueId;
+  restoreCreateDraft(item.draft);
+  resetErrors(formErrors);
+  createDrawerView.value = 'details';
+  persistQueueCache();
+}
+
+async function processQueueItem(item) {
+  item.status = 'processing';
+  item.message = '处理中...';
+
+  try {
+    const draft = item.draft || buildEmptyCreateDraft(item.infinitive);
+    draft.form.infinitive = String(draft.form.infinitive || item.infinitive || '').trim();
+    const result = await runAutoFillForDraft(draft);
+    item.draft = draft;
+    item.infinitive = String(draft.form.infinitive || item.infinitive || '').trim();
+    item.status = 'success';
+    item.message = result.skipped ? '字段已完整，跳过自动补充' : '处理完成，可点击详情调整';
+    persistQueueCache();
+    return true;
+  } catch (err) {
+    item.status = 'error';
+    item.message = getActionErrorMessage(err, '处理失败');
+    persistQueueCache();
+    return false;
+  }
+}
+
+async function runQueueGenerate() {
+  if (queueProcessing.value || queueSaving.value) return;
+  if (!queueItems.value.length) {
+    showToast('队列为空，请先添加动词原形', 'error');
+    return;
+  }
+
+  syncCurrentEditorToQueue();
+  createDrawerView.value = 'queue';
+  const targets = queueItems.value.filter((item) => item.status === 'pending');
+  if (!targets.length) {
+    showToast('队列中没有待处理项', 'info');
+    return;
+  }
+
+  queueProcessing.value = true;
+  let successCount = 0;
+  let failedCount = 0;
+
+  for (const item of targets) {
+    const ok = await processQueueItem(item);
+    if (ok) successCount += 1;
+    else failedCount += 1;
+  }
+
+  queueProcessing.value = false;
+  persistQueueCache();
+  showToast(`队列处理完成：成功 ${successCount}，失败 ${failedCount}`, failedCount ? 'info' : 'success');
+}
+
+function findMissingConjugationsFromMap(conjugationMap) {
+  const missing = [];
+  Object.keys(CONJ_TENSE_ORDER).forEach((moodKey) => {
+    Object.keys(CONJ_TENSE_ORDER[moodKey] || {}).forEach((tenseKey) => {
+      getConjPersonSlots(moodKey, tenseKey).forEach((person) => {
+        const key = getConjCompositeKey(moodKey, tenseKey, person);
+        const value = String(conjugationMap?.[key]?.conjugated_form || '').trim();
+        if (!value) {
+          missing.push({ moodKey, tenseKey, person });
+        }
+      });
+    });
+  });
+  return missing;
+}
+
+function buildConjugationPayloadFromMap(conjugationMap) {
+  const rows = [];
+  Object.keys(CONJ_TENSE_ORDER).forEach((moodKey) => {
+    Object.keys(CONJ_TENSE_ORDER[moodKey] || {}).forEach((tenseKey) => {
+      getConjPersonSlots(moodKey, tenseKey).forEach((person) => {
+        const key = getConjCompositeKey(moodKey, tenseKey, person);
+        rows.push({
+          mood: moodKey,
+          tense: tenseKey,
+          person,
+          conjugated_form: String(conjugationMap?.[key]?.conjugated_form || '').trim(),
+          is_irregular: conjugationMap?.[key]?.is_irregular ? 1 : 0
+        });
+      });
+    });
+  });
+  return rows;
+}
+
+function buildPayloadFromDraft(draft, includeConjugations = false) {
+  const source = draft || buildEmptyCreateDraft();
+  const sourceForm = source.form || createDefaultFormData();
+  const meaning = String(sourceForm.meaning || '').trim();
+  const gerund = String(sourceForm.gerund || '').trim();
+  const participle = String(sourceForm.participle || '').trim();
+  const participleForms = String(sourceForm.participle_forms || '').trim();
+
+  const payload = {
+    infinitive: String(sourceForm.infinitive || '').trim(),
+    meaning: meaning || null,
+    conjugation_type: sourceForm.conjugation_type || 1,
+    is_irregular: sourceForm.is_irregular ? 1 : 0,
+    is_reflexive: sourceForm.is_reflexive ? 1 : 0,
+    has_tr_use: sourceForm.has_tr_use ? 1 : 0,
+    has_intr_use: sourceForm.has_intr_use ? 1 : 0,
+    supports_do: sourceForm.supports_do ? 1 : 0,
+    supports_io: sourceForm.supports_io ? 1 : 0,
+    supports_do_io: sourceForm.supports_do_io ? 1 : 0,
+    gerund: gerund || null,
+    participle: participle || null,
+    participle_forms: participleForms || null,
+    lesson_number: sourceForm.lesson_number || null,
+    textbook_volume: sourceForm.textbook_volume || 1,
+    frequency_level: sourceForm.frequency_level || 1
+  };
+
+  if (includeConjugations) {
+    payload.conjugations = buildConjugationPayloadFromMap(source.conjugations || {});
+  }
+  return payload;
+}
+
+function validateDraftBeforePersist(draft) {
+  const source = draft || buildEmptyCreateDraft();
+  const sourceForm = source.form || {};
+  if (!String(sourceForm.infinitive || '').trim()) return '未填写动词原形';
+  if (!String(sourceForm.meaning || '').trim()) return '释义未填写';
+  if (!String(sourceForm.gerund || '').trim()) return '副动词未填写';
+  if (!String(sourceForm.participle || '').trim()) return '过去分词未填写';
+  const missing = findMissingConjugationsFromMap(source.conjugations || {});
+  if (missing.length) return `变位缺失（${missing.length} 项）`;
+  return '';
+}
+
+function saveCurrentQueueDraft() {
+  if (!activeQueueItem.value) {
+    showToast('请先从队列进入一个词条详情', 'error');
+    createDrawerView.value = 'queue';
+    return false;
+  }
+
+  if (!validateVerbForm(true)) {
+    switchCreateDrawerView('details');
+    showToast('请先补全编辑字段中的全部必填项', 'error');
+    return false;
+  }
+
+  const missingConjugations = findMissingCreateConjugations();
+  if (missingConjugations.length) {
+    const firstMissing = missingConjugations[0];
+    switchCreateDrawerView('conjugations');
+    revealCreateConjRow(firstMissing.moodKey, firstMissing.tenseKey);
+    showToast(`请先填写全部变位（仍缺 ${missingConjugations.length} 项）`, 'error');
+    return false;
+  }
+
+  syncCurrentEditorToQueue();
+  if (activeQueueItem.value) {
+    activeQueueItem.value.status = 'success';
+    activeQueueItem.value.message = '已更新，待统一入库';
+  }
+  persistQueueCache();
+  showToast('已保存到队列', 'success');
+  return true;
+}
+
+async function saveQueueSuccessItems() {
+  if (queueSaving.value || queueProcessing.value) return;
+  syncCurrentEditorToQueue();
+
+  const candidates = queueItems.value.filter((item) => item.status === 'success');
+  if (!candidates.length) {
+    showToast('暂无可入库的成功词条', 'info');
+    return;
+  }
+
+  queueSaving.value = true;
+  let savedCount = 0;
+  let failedCount = 0;
+
+  for (const item of candidates) {
+    const invalidReason = validateDraftBeforePersist(item.draft);
+    if (invalidReason) {
+      item.status = 'error';
+      item.message = invalidReason;
+      failedCount += 1;
+      continue;
+    }
+
+    try {
+      const payload = buildPayloadFromDraft(item.draft, true);
+      await apiRequest('/verbs', { method: 'POST', body: payload, timeout: 120000 });
+      item.status = 'saved';
+      item.message = '已保存到词库';
+      savedCount += 1;
+    } catch (err) {
+      item.status = 'error';
+      item.message = getActionErrorMessage(err, '保存失败');
+      failedCount += 1;
+    }
+  }
+
+  queueSaving.value = false;
+  if (savedCount) {
+    fetchRows();
+  }
+  persistQueueCache();
+  showToast(`入库完成：成功 ${savedCount}，失败 ${failedCount}`, failedCount ? 'info' : 'success');
 }
 
 function toggleCreateConjMood(moodKey) {
@@ -1206,13 +1781,6 @@ watch(page, (value) => {
   pageJump.value = value;
 }, { immediate: true });
 
-watch(() => form.has_tr_use, (enabled) => {
-  if (enabled) return;
-  form.supports_do = false;
-  form.supports_io = false;
-  form.supports_do_io = false;
-});
-
 function refresh() {
   fetchRows();
 }
@@ -1239,22 +1807,10 @@ function formatDate(value) {
 }
 
 function resetCreateForm() {
-  form.infinitive = '';
-  form.meaning = '';
-  form.conjugation_type = 1;
-  form.is_irregular = false;
-  form.is_reflexive = false;
-  form.has_tr_use = false;
-  form.has_intr_use = false;
-  form.supports_do = false;
-  form.supports_io = false;
-  form.supports_do_io = false;
-  form.lesson_number = null;
-  form.textbook_volume = 1;
-  form.frequency_level = 1;
-  form.gerund = '';
-  form.participle = '';
-  form.participle_forms = '';
+  const defaults = createDefaultFormData();
+  CREATE_FORM_KEYS.forEach((key) => {
+    form[key] = defaults[key];
+  });
   resetCreateConjDrafts();
   resetCreateConjExpandState();
 }
@@ -1298,13 +1854,13 @@ function restoreCreateDraft(cache) {
 }
 
 function openCreate() {
-  editingId.value = null;
-  createDrawerView.value = 'details';
-  if (createDraftCache.value) {
-    restoreCreateDraft(createDraftCache.value);
-  } else {
-    resetCreateForm();
+  if (!queueItems.value.length) {
+    restoreQueueCache();
   }
+  editingId.value = null;
+  createDrawerView.value = 'queue';
+  activeQueueItemId.value = '';
+  resetCreateForm();
   resetErrors(formErrors);
   drawerOpen.value = true;
 }
@@ -1352,11 +1908,6 @@ async function openEdit(item) {
     form.supports_do = !!data.supports_do;
     form.supports_io = !!data.supports_io;
     form.supports_do_io = !!data.supports_do_io;
-    if (!form.has_tr_use) {
-      form.supports_do = false;
-      form.supports_io = false;
-      form.supports_do_io = false;
-    }
     form.lesson_number = data.lesson_number || null;
     form.textbook_volume = data.textbook_volume || 1;
     form.frequency_level = data.frequency_level || 1;
@@ -1369,12 +1920,16 @@ async function openEdit(item) {
   }
 }
 
-function closeDrawer(preserveCreateDraft = true) {
-  if (preserveCreateDraft && isCreateMode.value) {
-    createDraftCache.value = snapshotCreateDraft();
+function closeDrawer() {
+  if (isCreateMode.value) {
+    syncCurrentEditorToQueue();
+    activeQueueItemId.value = '';
+    resetCreateForm();
+    closeQueueRemoveDialog();
   }
+  persistQueueCache();
   drawerOpen.value = false;
-  createDrawerView.value = 'details';
+  createDrawerView.value = isCreateMode.value ? 'queue' : 'details';
 }
 
 function openDelete(item) {
@@ -1428,85 +1983,23 @@ function findMissingCreateConjugations() {
   return missing;
 }
 
-function buildCreateConjugationPayloads() {
-  const rows = [];
-  createConjugationSections.value.forEach((group) => {
-    group.tenses.forEach((tense) => {
-      tense.rows.forEach((row) => {
-        rows.push({
-          mood: group.moodKey,
-          tense: tense.tenseKey,
-          person: row.person,
-          conjugated_form: String(row.draft?.conjugated_form || '').trim(),
-          is_irregular: row.draft?.is_irregular ? 1 : 0
-        });
-      });
-    });
-  });
-  return rows;
-}
-
 async function submitSave() {
   const creating = isCreateMode.value;
-  if (!validateVerbForm(creating)) {
-    if (creating) {
-      switchCreateDrawerView('details');
-      showToast('请先补全编辑字段中的全部必填项', 'error');
-    }
+  if (creating) {
+    saveCurrentQueueDraft();
     return;
   }
 
-  let createConjugations = [];
-  if (creating) {
-    const missingConjugations = findMissingCreateConjugations();
-    if (missingConjugations.length) {
-      const firstMissing = missingConjugations[0];
-      switchCreateDrawerView('conjugations');
-      revealCreateConjRow(firstMissing.moodKey, firstMissing.tenseKey);
-      showToast(`请先填写全部变位（仍缺 ${missingConjugations.length} 项）`, 'error');
-      return;
-    }
-    createConjugations = buildCreateConjugationPayloads();
+  if (!validateVerbForm(false)) {
+    return;
   }
 
   saving.value = true;
-  const supportsEnabled = form.has_tr_use;
-  const meaning = String(form.meaning || '').trim();
-  const gerund = String(form.gerund || '').trim();
-  const participle = String(form.participle || '').trim();
-  const participleForms = String(form.participle_forms || '').trim();
-  const payload = {
-    infinitive: form.infinitive.trim(),
-    meaning: meaning || null,
-    conjugation_type: form.conjugation_type || 1,
-    is_irregular: form.is_irregular ? 1 : 0,
-    is_reflexive: form.is_reflexive ? 1 : 0,
-    has_tr_use: form.has_tr_use ? 1 : 0,
-    has_intr_use: form.has_intr_use ? 1 : 0,
-    supports_do: supportsEnabled && form.supports_do ? 1 : 0,
-    supports_io: supportsEnabled && form.supports_io ? 1 : 0,
-    supports_do_io: supportsEnabled && form.supports_do_io ? 1 : 0,
-    gerund: gerund || null,
-    participle: participle || null,
-    participle_forms: participleForms || null,
-    lesson_number: form.lesson_number || null,
-    textbook_volume: form.textbook_volume || 1,
-    frequency_level: form.frequency_level || 1
-  };
-  if (creating) {
-    payload.conjugations = createConjugations;
-  }
+  const payload = buildPayloadFromDraft(snapshotCreateDraft(), false);
   try {
-    if (editingId.value) {
-      await apiRequest(`/verbs/${editingId.value}`, { method: 'PUT', body: payload });
-      showToast('保存成功', 'success');
-      closeDrawer(false);
-    } else {
-      await apiRequest('/verbs', { method: 'POST', body: payload });
-      createDraftCache.value = null;
-      showToast('创建成功', 'success');
-      closeDrawer(false);
-    }
+    await apiRequest(`/verbs/${editingId.value}`, { method: 'PUT', body: payload });
+    showToast('保存成功', 'success');
+    closeDrawer();
     fetchRows();
   } catch (err) {
     handleApiError(err, formErrors);
@@ -1695,17 +2188,137 @@ fetchRows();
   background:#1d4ed8;
 }
 
-.drawer-ai-note {
-  margin:4px 0 0;
-  max-width:340px;
+.queue-panel {
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.queue-input-row {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.queue-input {
+  width:280px;
+  max-width:100%;
+}
+
+.queue-hint {
+  margin:0;
   font-size:12px;
   line-height:1.5;
   color:#64748b;
-  text-align:right;
 }
 
-.drawer-ai-note > span {
-  display:block;
+.queue-table-wrap {
+  border:1px solid var(--border);
+  border-radius:10px;
+  overflow:auto;
+  max-height:420px;
+}
+
+.queue-table {
+  width:100%;
+  table-layout:fixed;
+}
+
+.queue-table td {
+  vertical-align:top;
+}
+
+.queue-table th:nth-child(1),
+.queue-table td:nth-child(1) {
+  width:56px;
+}
+
+.queue-table th:nth-child(2),
+.queue-table td:nth-child(2) {
+  width:136px;
+}
+
+.queue-table th:nth-child(3),
+.queue-table td:nth-child(3) {
+  width:96px;
+}
+
+.queue-table th:nth-child(5),
+.queue-table td:nth-child(5) {
+  width:118px;
+}
+
+.queue-table td:nth-child(2) {
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.queue-table .queue-message {
+  max-width:none;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  word-break:break-word;
+  line-height:1.5;
+}
+
+.queue-table td.queue-actions-cell {
+  padding-left:6px;
+  padding-right:6px;
+}
+
+.queue-table td.queue-actions-cell.actions {
+  gap:6px;
+  justify-content:flex-start;
+  align-items:flex-start;
+  flex-wrap:nowrap;
+}
+
+.queue-action-btn {
+  padding:6px 10px;
+  line-height:1.2;
+  white-space:nowrap;
+}
+
+.queue-action-btn.danger {
+  color:#fff;
+  border:1px solid #dc2626;
+}
+
+.queue-status {
+  display:inline-flex;
+  align-items:center;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:600;
+}
+
+.queue-status-pending {
+  color:#475569;
+  background:#e2e8f0;
+}
+
+.queue-status-processing {
+  color:#1d4ed8;
+  background:#dbeafe;
+}
+
+.queue-status-success {
+  color:#166534;
+  background:#dcfce7;
+}
+
+.queue-status-error {
+  color:#991b1b;
+  background:#fee2e2;
+}
+
+.queue-status-saved {
+  color:#065f46;
+  background:#d1fae5;
 }
 
 .drawer-tip {
@@ -1722,7 +2335,8 @@ fetchRows();
 }
 
 .lexicon-edit-drawer {
-  width:700px;
+  width:920px;
+  min-width:920px;
 }
 
 .drawer-inline-row {
@@ -2087,10 +2701,32 @@ fetchRows();
     flex-wrap:wrap;
   }
 
-  .drawer-ai-note {
-    max-width:none;
-    text-align:left;
-    margin-top:0;
+  .queue-input {
+    width:100%;
+  }
+
+  .lexicon-edit-drawer {
+    width:100%;
+    min-width:0;
+  }
+
+  .queue-table th:nth-child(2),
+  .queue-table td:nth-child(2) {
+    width:120px;
+  }
+
+  .queue-table th:nth-child(3),
+  .queue-table td:nth-child(3) {
+    width:92px;
+  }
+
+  .queue-table th:nth-child(5),
+  .queue-table td:nth-child(5) {
+    width:112px;
+  }
+
+  .queue-table .queue-message {
+    word-break:break-all;
   }
 
   .lexicon-page .header-row,
