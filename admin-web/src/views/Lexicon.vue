@@ -81,105 +81,201 @@
           </div>
         </header>
         <div class="drawer-body">
+          <div v-if="isCreateMode" class="drawer-view-switch" role="tablist" aria-label="新建动词内容切换">
+            <div class="drawer-view-switch-buttons">
+              <button
+                type="button"
+                class="ghost"
+                :class="{ active: createDrawerView === 'details' }"
+                @click="switchCreateDrawerView('details')"
+              >
+                编辑字段
+              </button>
+              <button
+                type="button"
+                class="ghost"
+                :class="{ active: createDrawerView === 'conjugations' }"
+                @click="switchCreateDrawerView('conjugations')"
+              >
+                变位字段
+              </button>
+              <button type="button" class="drawer-auto-fill-btn" @click="handleAutoFillPlaceholder">自动补充</button>
+            </div>
+            <p class="drawer-ai-note">
+              <span>输入动词原型后，点击自动补充按钮由AI自动补充各字段。</span>
+              <span>AI可能会犯错，请核查相关信息。</span>
+            </p>
+          </div>
+
           <form id="lexicon-edit-form" @submit.prevent="submitSave">
-            <div class="drawer-inline-row drawer-field-row">
-              <label class="drawer-field drawer-id-field">
-                动词ID
-                <input :value="editingId || '自动生成'" disabled />
-              </label>
-
-              <label class="drawer-field">
-                原形
-                <input v-model="form.infinitive" />
-                <span v-if="formErrors.infinitive" class="field-error">{{ formErrors.infinitive }}</span>
-              </label>
-            </div>
-
-            <div class="drawer-inline-row drawer-field-row">
-              <label class="drawer-field">
-                释义
-                <input v-model="form.meaning" />
-              </label>
-
-              <label class="drawer-field">
-                副动词
-                <input v-model="form.gerund" />
-              </label>
-            </div>
-
-            <div class="drawer-inline-row drawer-field-row">
-              <label class="drawer-field">
-                过去分词
-                <input v-model="form.participle" />
-              </label>
-
-              <label class="drawer-field">
-                过去分词其它形式
-                <input v-model="form.participle_forms" />
-              </label>
-            </div>
-
-            <div class="drawer-flags-wrap">
-              <div class="drawer-flags-row drawer-flags-row-four">
-                <label class="drawer-flag-chip">
-                  <span class="drawer-flag-label">Irreg. 不规则</span>
-                  <span class="drawer-flag-control">
-                    <input class="drawer-flag-input" type="checkbox" v-model="form.is_irregular" />
-                    <span class="drawer-flag-switch" aria-hidden="true"></span>
-                  </span>
+            <template v-if="!isCreateMode || createDrawerView === 'details'">
+              <div class="drawer-inline-row drawer-field-row">
+                <label class="drawer-field drawer-id-field">
+                  动词ID
+                  <input :value="editingId || '自动生成'" disabled />
                 </label>
 
-                <label class="drawer-flag-chip">
-                  <span class="drawer-flag-label">Prnl. 自反</span>
-                  <span class="drawer-flag-control">
-                    <input class="drawer-flag-input" type="checkbox" v-model="form.is_reflexive" />
-                    <span class="drawer-flag-switch" aria-hidden="true"></span>
-                  </span>
-                </label>
-
-                <label class="drawer-flag-chip">
-                  <span class="drawer-flag-label">tr. 及物用法</span>
-                  <span class="drawer-flag-control">
-                    <input class="drawer-flag-input" type="checkbox" v-model="form.has_tr_use" />
-                    <span class="drawer-flag-switch" aria-hidden="true"></span>
-                  </span>
-                </label>
-
-                <label class="drawer-flag-chip">
-                  <span class="drawer-flag-label">intr. 不及物用法</span>
-                  <span class="drawer-flag-control">
-                    <input class="drawer-flag-input" type="checkbox" v-model="form.has_intr_use" />
-                    <span class="drawer-flag-switch" aria-hidden="true"></span>
-                  </span>
+                <label class="drawer-field">
+                  原形
+                  <input v-model="form.infinitive" />
+                  <span v-if="formErrors.infinitive" class="field-error">{{ formErrors.infinitive }}</span>
                 </label>
               </div>
 
-              <div v-if="form.has_tr_use" class="drawer-flags-row drawer-flags-row-three">
-                <label class="drawer-flag-chip">
-                  <span class="drawer-flag-label">动词+DO</span>
-                  <span class="drawer-flag-control">
-                    <input class="drawer-flag-input" type="checkbox" v-model="form.supports_do" />
-                    <span class="drawer-flag-switch" aria-hidden="true"></span>
-                  </span>
+              <div class="drawer-inline-row drawer-field-row">
+                <label class="drawer-field">
+                  释义
+                  <input v-model="form.meaning" />
+                  <span v-if="formErrors.meaning" class="field-error">{{ formErrors.meaning }}</span>
                 </label>
 
-                <label class="drawer-flag-chip">
-                  <span class="drawer-flag-label">动词+IO</span>
-                  <span class="drawer-flag-control">
-                    <input class="drawer-flag-input" type="checkbox" v-model="form.supports_io" />
-                    <span class="drawer-flag-switch" aria-hidden="true"></span>
-                  </span>
-                </label>
-
-                <label class="drawer-flag-chip">
-                  <span class="drawer-flag-label">动词+IO+DO</span>
-                  <span class="drawer-flag-control">
-                    <input class="drawer-flag-input" type="checkbox" v-model="form.supports_do_io" />
-                    <span class="drawer-flag-switch" aria-hidden="true"></span>
-                  </span>
+                <label class="drawer-field">
+                  副动词
+                  <input v-model="form.gerund" />
+                  <span v-if="formErrors.gerund" class="field-error">{{ formErrors.gerund }}</span>
                 </label>
               </div>
-            </div>
+
+              <div class="drawer-inline-row drawer-field-row">
+                <label class="drawer-field">
+                  过去分词
+                  <input v-model="form.participle" />
+                  <span v-if="formErrors.participle" class="field-error">{{ formErrors.participle }}</span>
+                </label>
+
+                <label class="drawer-field">
+                  过去分词其它形式
+                  <input v-model="form.participle_forms" />
+                  <span v-if="formErrors.participle_forms" class="field-error">{{ formErrors.participle_forms }}</span>
+                </label>
+              </div>
+
+              <div class="drawer-flags-wrap">
+                <div class="drawer-flags-row drawer-flags-row-four">
+                  <label class="drawer-flag-chip">
+                    <span class="drawer-flag-label">Irreg. 不规则</span>
+                    <span class="drawer-flag-control">
+                      <input class="drawer-flag-input" type="checkbox" v-model="form.is_irregular" />
+                      <span class="drawer-flag-switch" aria-hidden="true"></span>
+                    </span>
+                  </label>
+
+                  <label class="drawer-flag-chip">
+                    <span class="drawer-flag-label">Prnl. 自反</span>
+                    <span class="drawer-flag-control">
+                      <input class="drawer-flag-input" type="checkbox" v-model="form.is_reflexive" />
+                      <span class="drawer-flag-switch" aria-hidden="true"></span>
+                    </span>
+                  </label>
+
+                  <label class="drawer-flag-chip">
+                    <span class="drawer-flag-label">tr. 及物用法</span>
+                    <span class="drawer-flag-control">
+                      <input class="drawer-flag-input" type="checkbox" v-model="form.has_tr_use" />
+                      <span class="drawer-flag-switch" aria-hidden="true"></span>
+                    </span>
+                  </label>
+
+                  <label class="drawer-flag-chip">
+                    <span class="drawer-flag-label">intr. 不及物用法</span>
+                    <span class="drawer-flag-control">
+                      <input class="drawer-flag-input" type="checkbox" v-model="form.has_intr_use" />
+                      <span class="drawer-flag-switch" aria-hidden="true"></span>
+                    </span>
+                  </label>
+                </div>
+
+                <div v-if="form.has_tr_use" class="drawer-flags-row drawer-flags-row-three">
+                  <label class="drawer-flag-chip">
+                    <span class="drawer-flag-label">动词+DO</span>
+                    <span class="drawer-flag-control">
+                      <input class="drawer-flag-input" type="checkbox" v-model="form.supports_do" />
+                      <span class="drawer-flag-switch" aria-hidden="true"></span>
+                    </span>
+                  </label>
+
+                  <label class="drawer-flag-chip">
+                    <span class="drawer-flag-label">动词+IO</span>
+                    <span class="drawer-flag-control">
+                      <input class="drawer-flag-input" type="checkbox" v-model="form.supports_io" />
+                      <span class="drawer-flag-switch" aria-hidden="true"></span>
+                    </span>
+                  </label>
+
+                  <label class="drawer-flag-chip">
+                    <span class="drawer-flag-label">动词+IO+DO</span>
+                    <span class="drawer-flag-control">
+                      <input class="drawer-flag-input" type="checkbox" v-model="form.supports_do_io" />
+                      <span class="drawer-flag-switch" aria-hidden="true"></span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </template>
+
+            <template v-else>
+              <p class="drawer-tip">请填写全部语气、时态、人称的变位后再保存词条。</p>
+              <div class="conj-list create-conj-list">
+                <div class="conj-groups">
+                  <section
+                    v-for="group in createConjugationSections"
+                    :key="`create-${group.moodKey}`"
+                    class="conj-group"
+                  >
+                    <button type="button" class="conj-group-header" @click="toggleCreateConjMood(group.moodKey)">
+                      <span class="conj-group-title">{{ getConjMoodName(group.moodKey) }}</span>
+                      <span class="conj-group-meta">{{ group.tenses.length }} 项 {{ isCreateConjMoodExpanded(group.moodKey) ? '▼' : '▶' }}</span>
+                    </button>
+
+                    <div v-if="isCreateConjMoodExpanded(group.moodKey)" class="conj-tense-list">
+                      <section
+                        v-for="tense in group.tenses"
+                        :key="`create-${group.moodKey}-${tense.tenseKey}`"
+                        class="conj-tense-card"
+                      >
+                        <button
+                          type="button"
+                          class="conj-tense-header"
+                          @click="toggleCreateConjTense(group.moodKey, tense.tenseKey)"
+                        >
+                          <span class="conj-tense-title">
+                            <span class="conj-tense-es">{{ tense.display.es }}</span>
+                            <span class="conj-tense-cn">（{{ tense.display.cn }}）</span>
+                          </span>
+                          <span class="conj-group-meta">{{ tense.rows.length }} 项 {{ isCreateConjTenseExpanded(group.moodKey, tense.tenseKey) ? '▼' : '▶' }}</span>
+                        </button>
+
+                        <div v-if="isCreateConjTenseExpanded(group.moodKey, tense.tenseKey)" class="conj-row-list">
+                          <template v-for="row in tense.rows" :key="row.key">
+                            <div v-if="row.isVos" class="conj-vos-divider">
+                              <span class="conj-divider-line"></span>
+                              <span class="conj-divider-text">特殊变位</span>
+                              <span class="conj-divider-line"></span>
+                            </div>
+
+                            <div class="conj-row conj-row-create">
+                              <div class="conj-row-person">{{ getConjPersonLabel(row.person) }}</div>
+                              <div class="conj-row-value">
+                                <input
+                                  v-model="row.draft.conjugated_form"
+                                  class="conj-inline-input"
+                                  type="text"
+                                  placeholder="输入变位形式"
+                                />
+                              </div>
+                              <div class="conj-row-flag">
+                                <span class="conj-row-flag-label">不规则：</span>
+                                <input class="conj-row-checkbox" type="checkbox" v-model="row.draft.is_irregular" />
+                              </div>
+                            </div>
+                          </template>
+                        </div>
+                      </section>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </template>
           </form>
         </div>
       </div>
@@ -324,6 +420,7 @@ const editingId = ref(null);
 const saving = ref(false);
 const deleting = ref(false);
 const deleteDialog = ref(null);
+const createDrawerView = ref('details');
 
 const form = reactive({
   infinitive: '',
@@ -343,9 +440,19 @@ const form = reactive({
   participle: '',
   participle_forms: ''
 });
-const formErrors = reactive({});
+const formErrors = reactive({
+  infinitive: '',
+  meaning: '',
+  gerund: '',
+  participle: '',
+  participle_forms: ''
+});
 
 const toast = reactive({ visible: false, message: '', type: 'info' });
+const createConjDrafts = reactive({});
+const createExpandedConjMoods = ref({});
+const createExpandedConjTenses = ref({});
+const isCreateMode = computed(() => editingId.value === null);
 
 // conjugations state
 const conjDrawerOpen = ref(false);
@@ -514,6 +621,30 @@ const groupedConjugationSections = computed(() => {
           };
         })
     }));
+});
+
+const createConjugationSections = computed(() => {
+  const moodKeys = Object.keys(CONJ_TENSE_ORDER).sort((a, b) => getConjMoodOrder(a) - getConjMoodOrder(b));
+  return moodKeys.map((moodKey) => ({
+    moodKey,
+    tenses: Object.keys(CONJ_TENSE_ORDER[moodKey] || {})
+      .sort((a, b) => getConjTenseOrder(moodKey, a) - getConjTenseOrder(moodKey, b))
+      .map((tenseKey) => ({
+        tenseKey,
+        display: getConjTenseDisplay(tenseKey, moodKey),
+        rows: getConjPersonSlots(moodKey, tenseKey).map((person) => {
+          const key = getConjCompositeKey(moodKey, tenseKey, person);
+          return {
+            key,
+            moodKey,
+            tenseKey,
+            person,
+            isVos: person === 'vos',
+            draft: createConjDrafts[key]
+          };
+        })
+      }))
+  }));
 });
 
 
@@ -731,6 +862,89 @@ function getConjPersonSlots(moodKey, tenseKey) {
   return STANDARD_CONJ_PERSONS;
 }
 
+function getConjCompositeKey(moodKey, tenseKey, person) {
+  return `${moodKey}|${tenseKey}|${person}`;
+}
+
+function resetCreateConjDrafts() {
+  Object.keys(createConjDrafts).forEach((key) => {
+    delete createConjDrafts[key];
+  });
+
+  Object.keys(CONJ_TENSE_ORDER).forEach((moodKey) => {
+    Object.keys(CONJ_TENSE_ORDER[moodKey] || {}).forEach((tenseKey) => {
+      getConjPersonSlots(moodKey, tenseKey).forEach((person) => {
+        const key = getConjCompositeKey(moodKey, tenseKey, person);
+        createConjDrafts[key] = {
+          conjugated_form: '',
+          is_irregular: false
+        };
+      });
+    });
+  });
+}
+
+function resetCreateConjExpandState() {
+  const nextMoods = {};
+  const nextTenses = {};
+  createConjugationSections.value.forEach((group) => {
+    nextMoods[group.moodKey] = false;
+    nextTenses[group.moodKey] = {};
+    group.tenses.forEach((tense) => {
+      nextTenses[group.moodKey][tense.tenseKey] = false;
+    });
+  });
+  createExpandedConjMoods.value = nextMoods;
+  createExpandedConjTenses.value = nextTenses;
+}
+
+function switchCreateDrawerView(view) {
+  createDrawerView.value = view === 'conjugations' ? 'conjugations' : 'details';
+}
+
+function handleAutoFillPlaceholder() {
+  showToast('自动补充功能暂未接入', 'info');
+}
+
+function toggleCreateConjMood(moodKey) {
+  createExpandedConjMoods.value = {
+    ...createExpandedConjMoods.value,
+    [moodKey]: !createExpandedConjMoods.value[moodKey]
+  };
+}
+
+function isCreateConjMoodExpanded(moodKey) {
+  return !!createExpandedConjMoods.value[moodKey];
+}
+
+function toggleCreateConjTense(moodKey, tenseKey) {
+  createExpandedConjTenses.value = {
+    ...createExpandedConjTenses.value,
+    [moodKey]: {
+      ...(createExpandedConjTenses.value[moodKey] || {}),
+      [tenseKey]: !createExpandedConjTenses.value[moodKey]?.[tenseKey]
+    }
+  };
+}
+
+function isCreateConjTenseExpanded(moodKey, tenseKey) {
+  return !!createExpandedConjTenses.value[moodKey]?.[tenseKey];
+}
+
+function revealCreateConjRow(moodKey, tenseKey) {
+  createExpandedConjMoods.value = {
+    ...createExpandedConjMoods.value,
+    [moodKey]: true
+  };
+  createExpandedConjTenses.value = {
+    ...createExpandedConjTenses.value,
+    [moodKey]: {
+      ...(createExpandedConjTenses.value[moodKey] || {}),
+      [tenseKey]: true
+    }
+  };
+}
+
 function resetConjExpandState(preserve = false) {
   const previousMoods = expandedConjMoods.value;
   const previousTenses = expandedConjTenses.value;
@@ -779,7 +993,7 @@ function isConjTenseExpanded(moodKey, tenseKey) {
 }
 
 function getConjRowKey(row) {
-  return `${row.moodKey}|${row.tenseKey}|${row.person}`;
+  return getConjCompositeKey(row.moodKey, row.tenseKey, row.person);
 }
 
 function isConjRowEditing(row) {
@@ -902,6 +1116,7 @@ function formatDate(value) {
 
 function openCreate() {
   editingId.value = null;
+  createDrawerView.value = 'details';
   form.infinitive = '';
   form.meaning = '';
   form.conjugation_type = 1;
@@ -918,6 +1133,8 @@ function openCreate() {
   form.gerund = '';
   form.participle = '';
   form.participle_forms = '';
+  resetCreateConjDrafts();
+  resetCreateConjExpandState();
   resetErrors(formErrors);
   drawerOpen.value = true;
 }
@@ -954,6 +1171,7 @@ async function openEdit(item) {
   try {
     const data = await apiRequest(`/verbs/${item.id}`);
     editingId.value = data.id;
+    createDrawerView.value = 'details';
     form.infinitive = data.infinitive || '';
     form.meaning = data.meaning || '';
     form.conjugation_type = data.conjugation_type || 1;
@@ -983,6 +1201,7 @@ async function openEdit(item) {
 
 function closeDrawer() {
   drawerOpen.value = false;
+  createDrawerView.value = 'details';
 }
 
 function openDelete(item) {
@@ -997,28 +1216,98 @@ function closeDelete() {
   deleteDialog.value = null;
 }
 
-function validatePayload(value) {
-  if (!value) return true;
-  try {
-    JSON.parse(value);
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-async function submitSave() {
+function validateVerbForm(requireAllFields = false) {
   resetErrors(formErrors);
+
   if (!form.infinitive || !form.infinitive.trim()) {
     formErrors.infinitive = '请输入动词原形';
   }
-  if (Object.values(formErrors).some((v) => v)) return;
+  if (requireAllFields) {
+    if (!form.meaning || !form.meaning.trim()) {
+      formErrors.meaning = '请输入释义';
+    }
+    if (!form.gerund || !form.gerund.trim()) {
+      formErrors.gerund = '请输入副动词';
+    }
+    if (!form.participle || !form.participle.trim()) {
+      formErrors.participle = '请输入过去分词';
+    }
+    if (!form.participle_forms || !form.participle_forms.trim()) {
+      formErrors.participle_forms = '请输入过去分词其它形式';
+    }
+  }
+  return !Object.values(formErrors).some((v) => v);
+}
+
+function findMissingCreateConjugations() {
+  const missing = [];
+  createConjugationSections.value.forEach((group) => {
+    group.tenses.forEach((tense) => {
+      tense.rows.forEach((row) => {
+        const value = row.draft?.conjugated_form || '';
+        if (!String(value).trim()) {
+          missing.push({
+            moodKey: group.moodKey,
+            tenseKey: tense.tenseKey,
+            person: row.person
+          });
+        }
+      });
+    });
+  });
+  return missing;
+}
+
+function buildCreateConjugationPayloads() {
+  const rows = [];
+  createConjugationSections.value.forEach((group) => {
+    group.tenses.forEach((tense) => {
+      tense.rows.forEach((row) => {
+        rows.push({
+          mood: group.moodKey,
+          tense: tense.tenseKey,
+          person: row.person,
+          conjugated_form: String(row.draft?.conjugated_form || '').trim(),
+          is_irregular: row.draft?.is_irregular ? 1 : 0
+        });
+      });
+    });
+  });
+  return rows;
+}
+
+async function submitSave() {
+  const creating = isCreateMode.value;
+  if (!validateVerbForm(creating)) {
+    if (creating) {
+      switchCreateDrawerView('details');
+      showToast('请先补全编辑字段中的全部必填项', 'error');
+    }
+    return;
+  }
+
+  let createConjugations = [];
+  if (creating) {
+    const missingConjugations = findMissingCreateConjugations();
+    if (missingConjugations.length) {
+      const firstMissing = missingConjugations[0];
+      switchCreateDrawerView('conjugations');
+      revealCreateConjRow(firstMissing.moodKey, firstMissing.tenseKey);
+      showToast(`请先填写全部变位（仍缺 ${missingConjugations.length} 项）`, 'error');
+      return;
+    }
+    createConjugations = buildCreateConjugationPayloads();
+  }
 
   saving.value = true;
   const supportsEnabled = form.has_tr_use;
+  const meaning = String(form.meaning || '').trim();
+  const gerund = String(form.gerund || '').trim();
+  const participle = String(form.participle || '').trim();
+  const participleForms = String(form.participle_forms || '').trim();
   const payload = {
     infinitive: form.infinitive.trim(),
-    meaning: form.meaning || null,
+    meaning: meaning || null,
     conjugation_type: form.conjugation_type || 1,
     is_irregular: form.is_irregular ? 1 : 0,
     is_reflexive: form.is_reflexive ? 1 : 0,
@@ -1027,13 +1316,16 @@ async function submitSave() {
     supports_do: supportsEnabled && form.supports_do ? 1 : 0,
     supports_io: supportsEnabled && form.supports_io ? 1 : 0,
     supports_do_io: supportsEnabled && form.supports_do_io ? 1 : 0,
-    gerund: form.gerund || null,
-    participle: form.participle || null,
-    participle_forms: form.participle_forms || null,
+    gerund: gerund || null,
+    participle: participle || null,
+    participle_forms: participleForms || null,
     lesson_number: form.lesson_number || null,
     textbook_volume: form.textbook_volume || 1,
     frequency_level: form.frequency_level || 1
   };
+  if (creating) {
+    payload.conjugations = createConjugations;
+  }
   try {
     if (editingId.value) {
       await apiRequest(`/verbs/${editingId.value}`, { method: 'PUT', body: payload });
@@ -1197,6 +1489,64 @@ fetchRows();
   min-height:0;
   overflow:auto;
   padding:16px;
+}
+
+.drawer-view-switch {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.drawer-view-switch-buttons {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:nowrap;
+}
+
+.drawer-view-switch-buttons > button.active {
+  color:#1d4ed8;
+  border-color:#3b82f6;
+  background:#eff6ff;
+}
+
+.drawer-auto-fill-btn {
+  border:1px solid #2563eb;
+  background:#2563eb;
+  color:#fff;
+}
+
+.drawer-auto-fill-btn:hover {
+  border-color:#1d4ed8;
+  background:#1d4ed8;
+}
+
+.drawer-ai-note {
+  margin:4px 0 0;
+  max-width:340px;
+  font-size:12px;
+  line-height:1.5;
+  color:#64748b;
+  text-align:right;
+}
+
+.drawer-ai-note > span {
+  display:block;
+}
+
+.drawer-tip {
+  margin:0 0 12px;
+  color:#475569;
+  font-size:13px;
+}
+
+.create-conj-list {
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px;
+  background:#f8fafc;
 }
 
 .lexicon-edit-drawer {
@@ -1445,6 +1795,18 @@ fetchRows();
   background:#fff;
 }
 
+.conj-row-create {
+  grid-template-columns: 176px minmax(0, 1fr) 92px;
+}
+
+.conj-row-create .conj-row-value {
+  width:auto;
+}
+
+.conj-row-create .conj-inline-input {
+  max-width:none;
+}
+
 .conj-row-person {
   font-weight:600;
   color:#334155;
@@ -1537,6 +1899,26 @@ fetchRows();
   .conj-row {
     grid-template-columns: minmax(0, 1fr) 168px 92px 144px;
     gap:8px;
+  }
+
+  .conj-row-create {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 92px;
+  }
+
+  .drawer-view-switch {
+    flex-direction:column;
+    align-items:flex-start;
+  }
+
+  .drawer-view-switch-buttons {
+    width:100%;
+    flex-wrap:wrap;
+  }
+
+  .drawer-ai-note {
+    max-width:none;
+    text-align:left;
+    margin-top:0;
   }
 
   .lexicon-page .header-row,

@@ -665,25 +665,58 @@ router.delete('/conjugations/:id', requireAdmin, (req, res) => {
 router.post('/verbs', requireAdmin, (req, res) => {
   const data = req.body || {}
   if (!data.infinitive) return res.status(400).json({ error: '缺少动词原形 (infinitive)' })
-  const id = VerbAdmin.create({
-    infinitive: data.infinitive,
-    meaning: data.meaning || null,
-    conjugationType: data.conjugation_type || data.conjugationType || 1,
-    isIrregular: data.is_irregular || data.isIrregular || 0,
-    isReflexive: data.is_reflexive || data.isReflexive || 0,
-    hasTrUse: data.has_tr_use ?? data.hasTrUse ?? 0,
-    hasIntrUse: data.has_intr_use ?? data.hasIntrUse ?? 0,
-    supportsDo: data.supports_do ?? data.supportsDo ?? null,
-    supportsIo: data.supports_io ?? data.supportsIo ?? null,
-    supportsDoIo: data.supports_do_io ?? data.supportsDoIo ?? null,
-    gerund: data.gerund || null,
-    participle: data.participle || null,
-    participleForms: data.participle_forms || null,
-    lessonNumber: data.lesson_number || null,
-    textbookVolume: data.textbook_volume || 1,
-    frequencyLevel: data.frequency_level || 1
+  const conjugations = Array.isArray(data.conjugations) ? data.conjugations : []
+  const createVerbWithConjugations = vocabularyDb.transaction((payload, rows) => {
+    const verbId = VerbAdmin.create({
+      infinitive: payload.infinitive,
+      meaning: payload.meaning || null,
+      conjugationType: payload.conjugation_type || payload.conjugationType || 1,
+      isIrregular: payload.is_irregular || payload.isIrregular || 0,
+      isReflexive: payload.is_reflexive || payload.isReflexive || 0,
+      hasTrUse: payload.has_tr_use ?? payload.hasTrUse ?? 0,
+      hasIntrUse: payload.has_intr_use ?? payload.hasIntrUse ?? 0,
+      supportsDo: payload.supports_do ?? payload.supportsDo ?? null,
+      supportsIo: payload.supports_io ?? payload.supportsIo ?? null,
+      supportsDoIo: payload.supports_do_io ?? payload.supportsDoIo ?? null,
+      gerund: payload.gerund || null,
+      participle: payload.participle || null,
+      participleForms: payload.participle_forms || null,
+      lessonNumber: payload.lesson_number || null,
+      textbookVolume: payload.textbook_volume || 1,
+      frequencyLevel: payload.frequency_level || 1
+    })
+
+    if (rows.length) {
+      const insertStmt = vocabularyDb.prepare(`
+        INSERT INTO conjugations (verb_id, tense, mood, person, conjugated_form, is_irregular)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `)
+      rows.forEach((item, index) => {
+        const tense = String(item?.tense || '').trim()
+        const mood = String(item?.mood || '').trim()
+        const person = String(item?.person || '').trim()
+        const conjugatedForm = String(item?.conjugated_form || '').trim()
+        if (!tense || !mood || !person || !conjugatedForm) {
+          const error = new Error(`第 ${index + 1} 条变位缺少必填字段`)
+          error.status = 400
+          throw error
+        }
+        insertStmt.run(verbId, tense, mood, person, conjugatedForm, item?.is_irregular ? 1 : 0)
+      })
+    }
+    return verbId
   })
-  res.status(201).json({ id })
+
+  try {
+    const id = createVerbWithConjugations(data, conjugations)
+    res.status(201).json({ id })
+  } catch (error) {
+    if (error.status === 400) {
+      return res.status(400).json({ error: error.message || '变位数据不完整' })
+    }
+    console.error('创建动词失败:', error)
+    return res.status(500).json({ error: '创建失败' })
+  }
 })
 
 router.put('/verbs/:id', requireAdmin, (req, res) => {
