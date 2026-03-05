@@ -99,7 +99,9 @@
               >
                 变位字段
               </button>
-              <button type="button" class="drawer-auto-fill-btn" @click="handleAutoFillPlaceholder">自动补充</button>
+              <button type="button" class="drawer-auto-fill-btn" :disabled="autoFilling" @click="handleAutoFill">
+                {{ autoFilling ? '补充中...' : '自动补充' }}
+              </button>
             </div>
             <p class="drawer-ai-note">
               <span>输入动词原型后，点击自动补充按钮由AI自动补充各字段。</span>
@@ -117,7 +119,7 @@
 
                 <label class="drawer-field">
                   原形
-                  <input v-model="form.infinitive" />
+                  <input v-model="form.infinitive" placeholder="仅输入动词原型词干" />
                   <span v-if="formErrors.infinitive" class="field-error">{{ formErrors.infinitive }}</span>
                 </label>
               </div>
@@ -418,6 +420,7 @@ const error = ref('');
 const drawerOpen = ref(false);
 const editingId = ref(null);
 const saving = ref(false);
+const autoFilling = ref(false);
 const deleting = ref(false);
 const deleteDialog = ref(null);
 const createDrawerView = ref('details');
@@ -453,6 +456,26 @@ const createConjDrafts = reactive({});
 const createExpandedConjMoods = ref({});
 const createExpandedConjTenses = ref({});
 const isCreateMode = computed(() => editingId.value === null);
+const createDraftCache = ref(null);
+
+const CREATE_FORM_KEYS = [
+  'infinitive',
+  'meaning',
+  'conjugation_type',
+  'is_irregular',
+  'is_reflexive',
+  'has_tr_use',
+  'has_intr_use',
+  'supports_do',
+  'supports_io',
+  'supports_do_io',
+  'lesson_number',
+  'textbook_volume',
+  'frequency_level',
+  'gerund',
+  'participle',
+  'participle_forms'
+];
 
 // conjugations state
 const conjDrawerOpen = ref(false);
@@ -481,8 +504,7 @@ const CONJ_TENSE_ORDER = {
     '将来时': 5,
     '过去完成时': 6,
     '将来完成时': 7,
-    '前过去时': 8,
-    '先过去时': 8
+    '前过去时': 8
   },
   '虚拟式': {
     '虚拟现在时': 1,
@@ -490,7 +512,6 @@ const CONJ_TENSE_ORDER = {
     '虚拟现在完成时': 3,
     '虚拟过去完成时': 4,
     '虚拟将来未完成时': 5,
-    '虚拟将来时': 5,
     '虚拟将来完成时': 6
   },
   '条件式': {
@@ -519,8 +540,7 @@ const CONJ_TENSE_DISPLAY = {
     '过去完成时': { es: 'Pretérito Pluscuamperfecto', cn: '陈述式 过去完成时' },
     '将来时': { es: 'Futuro Imperfecto', cn: '陈述式 将来未完成时' },
     '将来完成时': { es: 'Futuro Perfecto', cn: '陈述式 将来完成时' },
-    '前过去时': { es: 'Pretérito Anterior', cn: '陈述式 前过去时' },
-    '先过去时': { es: 'Pretérito Anterior', cn: '陈述式 前过去时' }
+    '前过去时': { es: 'Pretérito Anterior', cn: '陈述式 前过去时' }
   },
   '虚拟式': {
     '虚拟现在时': { es: 'Presente', cn: '虚拟式 现在时' },
@@ -528,7 +548,6 @@ const CONJ_TENSE_DISPLAY = {
     '虚拟现在完成时': { es: 'Pretérito Perfecto', cn: '虚拟式 现在完成时' },
     '虚拟过去完成时': { es: 'Pretérito Pluscuamperfecto', cn: '虚拟式 过去完成时' },
     '虚拟将来未完成时': { es: 'Futuro', cn: '虚拟式 将来未完成时' },
-    '虚拟将来时': { es: 'Futuro', cn: '虚拟式 将来未完成时' },
     '虚拟将来完成时': { es: 'Futuro Perfecto', cn: '虚拟式 将来完成时' }
   },
   '条件式': {
@@ -543,9 +562,7 @@ const CONJ_TENSE_DISPLAY = {
 
 const CONJ_DIMMED_KEYS = new Set([
   '陈述式|前过去时',
-  '陈述式|先过去时',
   '虚拟式|虚拟将来未完成时',
-  '虚拟式|虚拟将来时',
   '虚拟式|虚拟过去完成时',
   '虚拟式|虚拟将来完成时'
 ]);
@@ -743,7 +760,7 @@ function getConjTenseKey(rawTense, moodKey) {
       '将来完成时': '将来完成时',
       futuro_perfecto: '将来完成时',
       '前过去时': '前过去时',
-      '先过去时': '先过去时',
+      '先过去时': '前过去时',
       preterito_anterior: '前过去时'
     },
     '虚拟式': {
@@ -756,7 +773,7 @@ function getConjTenseKey(rawTense, moodKey) {
       '虚拟过去完成时': '虚拟过去完成时',
       subjuntivo_pluscuamperfecto: '虚拟过去完成时',
       '虚拟将来未完成时': '虚拟将来未完成时',
-      '虚拟将来时': '虚拟将来时',
+      '虚拟将来时': '虚拟将来未完成时',
       subjuntivo_futuro: '虚拟将来未完成时',
       '虚拟将来完成时': '虚拟将来完成时',
       subjuntivo_futuro_perfecto: '虚拟将来完成时'
@@ -902,8 +919,115 @@ function switchCreateDrawerView(view) {
   createDrawerView.value = view === 'conjugations' ? 'conjugations' : 'details';
 }
 
-function handleAutoFillPlaceholder() {
-  showToast('自动补充功能暂未接入', 'info');
+function isCreateFormCompleteWithoutSwitches() {
+  const textFields = [form.infinitive, form.meaning, form.gerund, form.participle];
+  const textComplete = textFields.every((value) => String(value || '').trim());
+  if (!textComplete) return false;
+
+  return createConjugationSections.value.every((group) =>
+    group.tenses.every((tense) =>
+      tense.rows.every((row) => String(row.draft?.conjugated_form || '').trim())
+    )
+  );
+}
+
+function applyAutoFillResult(result) {
+  const fields = result?.fields || {};
+  const textFieldKeys = ['meaning', 'gerund', 'participle', 'participle_forms'];
+  textFieldKeys.forEach((key) => {
+    const current = String(form[key] || '').trim();
+    const incoming = String(fields[key] || '').trim();
+    if (!current && incoming) {
+      form[key] = incoming;
+    }
+  });
+
+  if (typeof fields.is_irregular === 'boolean') form.is_irregular = fields.is_irregular;
+  if (typeof fields.is_reflexive === 'boolean') form.is_reflexive = fields.is_reflexive;
+  if (typeof fields.has_tr_use === 'boolean') form.has_tr_use = fields.has_tr_use;
+  if (typeof fields.has_intr_use === 'boolean') form.has_intr_use = fields.has_intr_use;
+  if (typeof fields.supports_do === 'boolean') form.supports_do = fields.supports_do;
+  if (typeof fields.supports_io === 'boolean') form.supports_io = fields.supports_io;
+  if (typeof fields.supports_do_io === 'boolean') form.supports_do_io = fields.supports_do_io;
+
+  const suggestionMap = new Map(
+    (Array.isArray(result?.conjugations) ? result.conjugations : []).map((item) => [
+      getConjCompositeKey(item.mood, item.tense, item.person),
+      item
+    ])
+  );
+
+  Object.keys(createConjDrafts).forEach((key) => {
+    const draft = createConjDrafts[key];
+    const suggestion = suggestionMap.get(key);
+    if (!draft || !suggestion) return;
+
+    const currentForm = String(draft.conjugated_form || '').trim();
+    const incomingForm = String(suggestion.conjugated_form || '').trim();
+    if (!currentForm && incomingForm) {
+      draft.conjugated_form = incomingForm;
+      draft.is_irregular = !!suggestion.is_irregular;
+    }
+  });
+}
+
+async function handleAutoFill() {
+  if (!isCreateMode.value || autoFilling.value) return;
+
+  formErrors.infinitive = '';
+  const infinitive = String(form.infinitive || '').trim();
+  if (!infinitive) {
+    formErrors.infinitive = '未填写动词原形';
+    switchCreateDrawerView('details');
+    return;
+  }
+
+  autoFilling.value = true;
+  createDraftCache.value = snapshotCreateDraft();
+  try {
+    const duplicateResult = await apiRequest('/verbs', {
+      params: { q: infinitive, limit: 100, offset: 0 },
+      timeout: 20000
+    });
+    const duplicate = (duplicateResult?.rows || []).find((item) =>
+      String(item?.infinitive || '').trim().toLowerCase() === infinitive.toLowerCase()
+    );
+    if (duplicate) {
+      formErrors.infinitive = '已在词库中';
+      switchCreateDrawerView('details');
+      showToast('已在词库中', 'error');
+      return;
+    }
+
+    const validation = await apiRequest('/verbs/autofill/validate', {
+      method: 'POST',
+      body: { infinitive },
+      timeout: 30000
+    });
+    if (!validation?.isValid) {
+      switchCreateDrawerView('details');
+      showToast('生成失败，请检查是否是一个合法的西语单词。', 'error');
+      return;
+    }
+
+    if (isCreateFormCompleteWithoutSwitches()) {
+      return;
+    }
+
+    const generated = await apiRequest('/verbs/autofill', {
+      method: 'POST',
+      body: { infinitive },
+      timeout: 120000
+    });
+
+    applyAutoFillResult(generated);
+    showToast('已自动补充未填写字段，请核查相关信息。', 'success');
+  } catch (err) {
+    handleApiError(err, formErrors);
+  } finally {
+    createDraftCache.value = snapshotCreateDraft();
+    autoFilling.value = false;
+  }
 }
 
 function toggleCreateConjMood(moodKey) {
@@ -1114,9 +1238,7 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
-function openCreate() {
-  editingId.value = null;
-  createDrawerView.value = 'details';
+function resetCreateForm() {
   form.infinitive = '';
   form.meaning = '';
   form.conjugation_type = 1;
@@ -1135,6 +1257,54 @@ function openCreate() {
   form.participle_forms = '';
   resetCreateConjDrafts();
   resetCreateConjExpandState();
+}
+
+function snapshotCreateDraft() {
+  const formData = {};
+  CREATE_FORM_KEYS.forEach((key) => {
+    formData[key] = form[key];
+  });
+
+  const conjugations = {};
+  Object.keys(createConjDrafts).forEach((key) => {
+    const item = createConjDrafts[key] || {};
+    conjugations[key] = {
+      conjugated_form: String(item.conjugated_form || ''),
+      is_irregular: !!item.is_irregular
+    };
+  });
+
+  return { form: formData, conjugations };
+}
+
+function restoreCreateDraft(cache) {
+  resetCreateForm();
+  if (!cache || typeof cache !== 'object') return;
+
+  const formData = cache.form || {};
+  CREATE_FORM_KEYS.forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(formData, key)) {
+      form[key] = formData[key];
+    }
+  });
+
+  const conjugations = cache.conjugations || {};
+  Object.keys(conjugations).forEach((key) => {
+    if (!createConjDrafts[key]) return;
+    const item = conjugations[key] || {};
+    createConjDrafts[key].conjugated_form = String(item.conjugated_form || '');
+    createConjDrafts[key].is_irregular = !!item.is_irregular;
+  });
+}
+
+function openCreate() {
+  editingId.value = null;
+  createDrawerView.value = 'details';
+  if (createDraftCache.value) {
+    restoreCreateDraft(createDraftCache.value);
+  } else {
+    resetCreateForm();
+  }
   resetErrors(formErrors);
   drawerOpen.value = true;
 }
@@ -1199,7 +1369,10 @@ async function openEdit(item) {
   }
 }
 
-function closeDrawer() {
+function closeDrawer(preserveCreateDraft = true) {
+  if (preserveCreateDraft && isCreateMode.value) {
+    createDraftCache.value = snapshotCreateDraft();
+  }
   drawerOpen.value = false;
   createDrawerView.value = 'details';
 }
@@ -1231,9 +1404,6 @@ function validateVerbForm(requireAllFields = false) {
     }
     if (!form.participle || !form.participle.trim()) {
       formErrors.participle = '请输入过去分词';
-    }
-    if (!form.participle_forms || !form.participle_forms.trim()) {
-      formErrors.participle_forms = '请输入过去分词其它形式';
     }
   }
   return !Object.values(formErrors).some((v) => v);
@@ -1330,11 +1500,13 @@ async function submitSave() {
     if (editingId.value) {
       await apiRequest(`/verbs/${editingId.value}`, { method: 'PUT', body: payload });
       showToast('保存成功', 'success');
+      closeDrawer(false);
     } else {
       await apiRequest('/verbs', { method: 'POST', body: payload });
+      createDraftCache.value = null;
       showToast('创建成功', 'success');
+      closeDrawer(false);
     }
-    closeDrawer();
     fetchRows();
   } catch (err) {
     handleApiError(err, formErrors);

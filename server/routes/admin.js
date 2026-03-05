@@ -21,6 +21,7 @@ const AdminLog = require('../models/AdminLog')
 const PracticeRecord = require('../models/PracticeRecord')
 const Announcement = require('../models/Announcement')
 const { vocabularyDb } = require('../database/db')
+const VerbAutoFillService = require('../services/verbAutoFillService')
 const fs = require('fs')
 const path = require('path')
 const AdmZip = require('adm-zip')
@@ -607,6 +608,36 @@ router.get('/verbs', requireAdmin, (req, res) => {
   const rows = vocabularyDb.prepare('SELECT * FROM verbs ORDER BY lesson_number, id LIMIT ? OFFSET ?').all(limit, offset)
   const total = vocabularyDb.prepare('SELECT COUNT(*) as total FROM verbs').get().total
   res.json({ rows, total })
+})
+
+router.post('/verbs/autofill/validate', requireAdmin, async (req, res) => {
+  const infinitive = String(req.body?.infinitive || '').trim()
+  if (!infinitive) {
+    return res.status(400).json({ error: '缺少动词原形 (infinitive)' })
+  }
+
+  try {
+    const result = await VerbAutoFillService.validateInfinitive(infinitive)
+    return res.json({ isValid: !!result.isValid, reason: result.reason || '' })
+  } catch (error) {
+    console.error('自动补充合法性校验失败:', error)
+    return res.status(500).json({ error: '合法性校验失败' })
+  }
+})
+
+router.post('/verbs/autofill', requireAdmin, async (req, res) => {
+  const infinitive = String(req.body?.infinitive || '').trim()
+  if (!infinitive) {
+    return res.status(400).json({ error: '缺少动词原形 (infinitive)' })
+  }
+
+  try {
+    const generated = await VerbAutoFillService.generateAutofill(infinitive)
+    return res.json(generated)
+  } catch (error) {
+    console.error('自动补充生成失败:', error)
+    return res.status(500).json({ error: '自动补充失败' })
+  }
 })
 
 router.get('/verbs/:id', requireAdmin, (req, res) => {
