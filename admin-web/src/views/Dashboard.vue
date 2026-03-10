@@ -332,8 +332,8 @@ function formatDateDay(value) {
 }
 
 .history-tab.active {
-  color: #1e3a8a;
-  border-bottom-color: #2563eb;
+  color: var(--theme-red-dark);
+  border-bottom-color: var(--theme-gold);
 }
 
 .history-header-side {

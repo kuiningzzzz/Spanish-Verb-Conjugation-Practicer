@@ -30,9 +30,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed var(--border-strong);
   border-radius: 16px;
-  background: #f8fafc;
+  background: #ffffff;
 }
 
 .course-materials-placeholder-inner {

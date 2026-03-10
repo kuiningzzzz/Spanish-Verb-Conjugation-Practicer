@@ -1,7 +1,10 @@
 <template>
   <div class="layout">
     <aside class="sidebar">
-      <div class="brand">Conjugamos 控制台</div>
+      <div class="brand">
+        <span>Conjugamos</span>
+        <span>控制台</span>
+      </div>
       <nav>
         <RouterLink to="/" end>仪表盘</RouterLink>
         <RouterLink to="/users">用户管理</RouterLink>
