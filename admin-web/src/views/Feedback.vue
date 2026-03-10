@@ -636,6 +636,76 @@ fetchGeneral();
 </script>
 
 <style scoped>
+.feedback-page .management-header {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.feedback-page .management-header h2 {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.feedback-page .management-toolbar {
+  margin-left: auto;
+  width: auto;
+  min-width: 0;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.feedback-page .toolbar-left,
+.feedback-page .management-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.feedback-page .toolbar-left {
+  flex: 0 1 auto;
+}
+
+.feedback-page .toolbar-left input {
+  width: 150px;
+  min-width: 150px;
+}
+
+.feedback-page .toolbar-left select {
+  max-width: 132px;
+}
+
+.feedback-page .management-toolbar select,
+.feedback-page .management-toolbar button {
+  white-space: nowrap;
+}
+
+.feedback-page .management-toolbar button,
+.feedback-page .management-toolbar .ghost {
+  padding: 6px 10px;
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+.feedback-page .management-inline-pagination {
+  gap: 8px;
+}
+
+.feedback-page .management-pagination-total {
+  font-size: 13px;
+}
+
+.feedback-page .management-pagination-jump {
+  min-width: 112px;
+  gap: 4px;
+}
+
+.feedback-page .management-page-number-input {
+  width: 52px;
+  min-width: 52px;
+}
+
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -665,5 +735,17 @@ fetchGeneral();
 .detail-grid select,
 .detail-grid textarea {
   width: 100%;
+}
+
+@media (max-width: 1280px) {
+  .feedback-page .management-header,
+  .feedback-page .management-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .feedback-page .toolbar-left,
+  .feedback-page .management-actions {
+    flex-wrap: wrap;
+  }
 }
 </style>

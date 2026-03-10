@@ -588,25 +588,24 @@ router.get('/verbs', requireAdmin, (req, res) => {
   const limit = Number(req.query.limit || 50)
   const offset = Number(req.query.offset || 0)
   const q = (req.query.q || '').toString().trim()
+  const idOrder = String(req.query.id_order || 'asc').toLowerCase() === 'desc' ? 'DESC' : 'ASC'
   if (q) {
     const qLower = q.toLowerCase()
     const like = `%${qLower}%`
     const rows = vocabularyDb.prepare(`
-      SELECT *,
-        (CASE WHEN lower(infinitive) = ? THEN 200 WHEN lower(infinitive) LIKE ? THEN 100 ELSE 0 END)
-        + (CASE WHEN lower(meaning) LIKE ? THEN 20 ELSE 0 END) AS score
+      SELECT *
       FROM verbs
       WHERE lower(infinitive) LIKE ? OR lower(meaning) LIKE ?
-      ORDER BY score DESC, lesson_number, id
+      ORDER BY CAST(id AS INTEGER) ${idOrder}
       LIMIT ? OFFSET ?
-    `).all(qLower, like, like, like, like, limit, offset)
+    `).all(like, like, limit, offset)
 
     const total = vocabularyDb.prepare('SELECT COUNT(*) as total FROM verbs WHERE lower(infinitive) LIKE ? OR lower(meaning) LIKE ?').get(like, like).total
     res.json({ rows, total })
     return
   }
 
-  const rows = vocabularyDb.prepare('SELECT * FROM verbs ORDER BY lesson_number, id LIMIT ? OFFSET ?').all(limit, offset)
+  const rows = vocabularyDb.prepare(`SELECT * FROM verbs ORDER BY CAST(id AS INTEGER) ${idOrder} LIMIT ? OFFSET ?`).all(limit, offset)
   const total = vocabularyDb.prepare('SELECT COUNT(*) as total FROM verbs').get().total
   res.json({ rows, total })
 })

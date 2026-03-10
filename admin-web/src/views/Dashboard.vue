@@ -1,34 +1,23 @@
 <template>
   <div class="dashboard-page">
-    <section v-if="currentPanel" class="card history-panel history-panel-single">
+    <section v-if="mergedHistory.length" class="card history-panel history-panel-single">
       <div class="history-panel-header">
-        <div class="history-panel-tabs" role="tablist" aria-label="管理历史切换">
-          <button
-            v-for="panel in panels"
-            :key="panel.key"
-            class="history-tab"
-            :class="{ active: panel.key === currentPanel.key }"
-            type="button"
-            @click="selectPanel(panel.key)"
-          >
-            {{ panel.title }}
-          </button>
-        </div>
+        <h3 class="history-panel-title">管理历史</h3>
         <div class="history-header-side">
-          <span class="muted history-record-total">共 {{ currentPanel.items.length }} 条记录</span>
-          <div class="pagination inline-pagination compact-pagination" v-if="currentPanel.items.length > pageSize">
+          <span class="muted history-record-total">共 {{ mergedHistory.length }} 条记录</span>
+          <div class="pagination inline-pagination compact-pagination" v-if="mergedHistory.length > pageSize">
             <button
               class="ghost"
-              :disabled="pages[currentPanel.key] === 1"
-              @click="changePage(currentPanel, pages[currentPanel.key] - 1)"
+              :disabled="page === 1"
+              @click="changePage(page - 1)"
             >
               ←
             </button>
-            <span>第 {{ pages[currentPanel.key] }} / {{ totalPages(currentPanel) }} 页</span>
+            <span>第 {{ page }} / {{ totalPages }} 页</span>
             <button
               class="ghost"
-              :disabled="pages[currentPanel.key] === totalPages(currentPanel)"
-              @click="changePage(currentPanel, pages[currentPanel.key] + 1)"
+              :disabled="page === totalPages"
+              @click="changePage(page + 1)"
             >
               →
             </button>
@@ -39,23 +28,28 @@
       <div class="history-table-shell">
         <table class="table history-table">
           <colgroup>
-            <col style="width: 26%" />
-            <col style="width: 20%" />
-            <col style="width: 34%" />
-            <col style="width: 20%" />
+            <col style="width: 22%" />
+            <col style="width: 22%" />
+            <col style="width: 16%" />
+            <col style="width: 24%" />
+            <col style="width: 16%" />
           </colgroup>
           <thead>
             <tr>
               <th>修改人</th>
-              <th>{{ currentPanel.targetLabel }}</th>
+              <th>管理历史类型</th>
+              <th>目标ID</th>
               <th>修改时间</th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in pagedItems(currentPanel)" :key="item.id" class="history-row">
+            <tr v-for="item in pagedItems" :key="item.id" class="history-row">
               <td class="history-cell">
                 <span class="ellipsis" :title="item.username">{{ item.username }}</span>
+              </td>
+              <td class="history-cell">
+                <span class="ellipsis" :title="item.historyType">{{ item.historyType }}</span>
               </td>
               <td class="history-cell">
                 <span class="ellipsis" :title="String(item.targetId)">{{ item.targetId }}</span>
@@ -66,11 +60,11 @@
                 </span>
               </td>
               <td class="history-actions-cell">
-                <button class="ghost" @click="openDetail(currentPanel.key, item)">详情</button>
+                <button class="ghost" @click="openDetail(item)">详情</button>
               </td>
             </tr>
-            <tr v-if="!pagedItems(currentPanel).length">
-              <td colspan="4" class="empty">暂无记录</td>
+            <tr v-if="!pagedItems.length">
+              <td colspan="5" class="empty">暂无记录</td>
             </tr>
           </tbody>
         </table>
@@ -87,6 +81,10 @@
           <div class="detail-item">
             <span class="detail-label">修改人</span>
             <span class="detail-value">{{ detailItem?.username || '-' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">管理历史类型</span>
+            <span class="detail-value">{{ detailItem?.historyType || '-' }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">{{ detailTargetLabel }}</span>
@@ -111,7 +109,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue';
+import { computed, ref } from 'vue';
 
 const pageSize = 10;
 
@@ -218,43 +216,37 @@ const panels = computed(() => [
   }
 ]);
 
-const pages = reactive({
-  users: 1,
-  lexicon: 1,
-  questions: 1,
-  courseMaterials: 1
-});
-const activePanelKey = ref('users');
+const mergedHistory = computed(() =>
+  panels.value
+    .flatMap((panel) =>
+      panel.items.map((item) => ({
+        ...item,
+        panelKey: panel.key,
+        historyType: panel.title,
+        targetLabel: panel.targetLabel
+      }))
+    )
+    .sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime())
+);
+const page = ref(1);
 
 const detailOpen = ref(false);
 const detailItem = ref(null);
-const detailPanelKey = ref('');
 
-const currentPanel = computed(() => panels.value.find((panel) => panel.key === activePanelKey.value) || panels.value[0] || null);
-const detailPanel = computed(() => panels.value.find((panel) => panel.key === detailPanelKey.value) || null);
-const detailTitle = computed(() => (detailPanel.value ? `${detailPanel.value.title}详情` : '详情'));
-const detailTargetLabel = computed(() => detailPanel.value?.targetLabel || '目标ID');
+const detailTitle = computed(() => (detailItem.value?.historyType ? `${detailItem.value.historyType}详情` : '详情'));
+const detailTargetLabel = computed(() => detailItem.value?.targetLabel || '目标ID');
 
-function pagedItems(panel) {
-  const start = (pages[panel.key] - 1) * pageSize;
-  return panel.items.slice(start, start + pageSize);
+const totalPages = computed(() => Math.max(1, Math.ceil(mergedHistory.value.length / pageSize)));
+const pagedItems = computed(() => {
+  const start = (page.value - 1) * pageSize;
+  return mergedHistory.value.slice(start, start + pageSize);
+});
+
+function changePage(nextPage) {
+  page.value = Math.min(Math.max(nextPage, 1), totalPages.value);
 }
 
-function totalPages(panel) {
-  return Math.max(1, Math.ceil(panel.items.length / pageSize));
-}
-
-function changePage(panel, nextPage) {
-  const bounded = Math.min(Math.max(nextPage, 1), totalPages(panel));
-  pages[panel.key] = bounded;
-}
-
-function selectPanel(panelKey) {
-  activePanelKey.value = panelKey;
-}
-
-function openDetail(panelKey, item) {
-  detailPanelKey.value = panelKey;
+function openDetail(item) {
   detailItem.value = item;
   detailOpen.value = true;
 }
@@ -262,20 +254,35 @@ function openDetail(panelKey, item) {
 function closeDetail() {
   detailOpen.value = false;
   detailItem.value = null;
-  detailPanelKey.value = '';
 }
 
 function formatDate(value) {
   if (!value) return '-';
   const date = new Date(String(value).replace(' ', 'T'));
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString([], {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
 }
 
 function formatDateDay(value) {
   if (!value) return '-';
   const date = new Date(String(value).replace(' ', 'T'));
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString();
+  return date.toLocaleString([], {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
 }
 </script>
 
@@ -313,27 +320,10 @@ function formatDateDay(value) {
   flex-wrap: wrap;
 }
 
-.history-panel-tabs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.history-tab {
-  border: none;
-  background: transparent;
-  color: #6b7280;
-  font-size: 16px;
-  font-weight: 700;
-  padding: 4px 0;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-}
-
-.history-tab.active {
+.history-panel-title {
+  margin: 0;
+  font-size: 24px;
   color: var(--theme-red-dark);
-  border-bottom-color: var(--theme-gold);
 }
 
 .history-header-side {

@@ -17,6 +17,9 @@
       <div class="toolbar">
         <div class="toolbar-left">
           <input v-model.trim="keyword" placeholder="搜索动词/释义/ID" />
+          <button class="ghost" @click="toggleIdOrder" :disabled="loading">
+            {{ idOrder === 'asc' ? '倒序查看' : '顺序查看' }}
+          </button>
           <button class="ghost" @click="refresh" :disabled="loading">刷新</button>
         </div>
         <div class="toolbar-right">
@@ -532,6 +535,7 @@ const page = ref(1);
 const pageSize = ref(12);
 const pageJump = ref(1);
 const keyword = ref('');
+const idOrder = ref('asc');
 const loading = ref(false);
 const error = ref('');
 
@@ -1768,12 +1772,22 @@ async function fetchRows() {
   loading.value = true;
   error.value = '';
   try {
-    const params = { limit: pageSize.value, offset: (page.value - 1) * pageSize.value };
+    const params = {
+      limit: 100000,
+      offset: 0
+    };
     const q = keyword.value.trim();
     if (q) params.q = q;
     const data = await apiRequest('/verbs', { params });
-    rows.value = data.rows || [];
-    total.value = data.total || 0;
+    const fetchedRows = Array.isArray(data.rows) ? [...data.rows] : [];
+    fetchedRows.sort((a, b) => {
+      const left = Number(a.id) || 0;
+      const right = Number(b.id) || 0;
+      return idOrder.value === 'desc' ? right - left : left - right;
+    });
+    total.value = Number(data.total || fetchedRows.length || 0);
+    const start = (page.value - 1) * pageSize.value;
+    rows.value = fetchedRows.slice(start, start + pageSize.value);
   } catch (err) {
     error.value = err.message || '加载失败';
     handleApiError(err);
@@ -1796,6 +1810,15 @@ watch(page, (value) => {
 }, { immediate: true });
 
 function refresh() {
+  fetchRows();
+}
+
+function toggleIdOrder() {
+  idOrder.value = idOrder.value === 'asc' ? 'desc' : 'asc';
+  if (page.value !== 1) {
+    page.value = 1;
+    return;
+  }
   fetchRows();
 }
 
@@ -2100,27 +2123,58 @@ fetchRows();
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: nowrap;
+}
+
+.header-copy {
+  flex: 0 0 auto;
 }
 
 .header-copy h2 {
   margin: 0;
+  white-space: nowrap;
 }
 
 .toolbar {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
   flex-wrap: nowrap;
   margin-left: auto;
   width: auto;
+  min-width: 0;
+}
+
+.toolbar-left,
+.toolbar-right {
+  gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.toolbar-left {
+  flex: 0 1 auto;
+}
+
+.toolbar-left input {
+  width: 220px;
+  min-width: 220px;
+}
+
+.toolbar button,
+.toolbar .ghost,
+.toolbar-right .pagination .ghost {
+  padding: 6px 10px;
+  font-size: 13px;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
 .toolbar-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: nowrap;
 }
 
@@ -2239,25 +2293,27 @@ fetchRows();
 
 .pagination-total {
   white-space: nowrap;
+  font-size: 13px;
 }
 
 .pagination.inline-pagination {
   flex-wrap: nowrap;
+  gap: 8px;
 }
 
 .pagination-jump {
   display: inline-flex;
   flex-direction: row;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   font-weight: 500;
   white-space: nowrap;
-  min-width: 160px;
+  min-width: 128px;
 }
 
 .page-number-input {
-  width: 88px;
-  min-width: 88px;
+  width: 64px;
+  min-width: 64px;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
