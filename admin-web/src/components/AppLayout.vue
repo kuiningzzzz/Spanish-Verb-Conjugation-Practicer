@@ -11,6 +11,8 @@
         <RouterLink to="/lexicon">词库管理</RouterLink>
         <RouterLink to="/questions">题库管理</RouterLink>
         <RouterLink to="/course-materials">课程教材管理</RouterLink>
+        <RouterLink v-if="isTeacher" to="/class-management">班级管理</RouterLink>
+        <RouterLink v-if="isTeacher" to="/assignment-publishing">发布作业</RouterLink>
         <RouterLink v-if="isDev" to="/feedback">反馈处理</RouterLink>
         <RouterLink v-if="isDev" to="/practice-records">用户数据</RouterLink>
         <RouterLink v-if="isDev" to="/announcements">公告管理</RouterLink>
@@ -46,7 +48,7 @@ import { useAuth } from '../composables/useAuth';
 
 const route = useRoute();
 const router = useRouter();
-const { state, logout, isDev } = useAuth();
+const { state, logout, isDev, isTeacher } = useAuth();
 
 const titles = {
   Dashboard: '仪表盘',
@@ -54,6 +56,8 @@ const titles = {
   Lexicon: '词库管理',
   QuestionBank: '题库管理',
   CourseMaterials: '课程教材管理',
+  ClassManagement: '班级管理',
+  AssignmentPublishing: '发布作业',
   Logs: '日志查看',
   Feedback: '反馈处理',
   PracticeRecords: '用户数据',

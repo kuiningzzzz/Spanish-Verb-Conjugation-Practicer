@@ -76,6 +76,7 @@ const isAuthenticated = computed(() => Boolean(state.token && state.user));
 const isAdmin = computed(() => state.user?.role === 'admin');
 const isDev = computed(() => state.user?.role === 'dev');
 const isPrivileged = computed(() => ['admin', 'dev'].includes(state.user?.role));
+const isTeacher = computed(() => state.user?.user_type === 'teacher');
 const isInitialDev = computed(() => Boolean(state.user?.isInitialDev));
 
 export function useAuth() {
@@ -88,6 +89,7 @@ export function useAuth() {
     isAdmin,
     isDev,
     isPrivileged,
+    isTeacher,
     isInitialDev
   };
 }

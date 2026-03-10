@@ -137,6 +137,14 @@
             </select>
             <span v-if="roleHelp" class="hint">{{ roleHelp }}</span>
           </label>
+          <label>
+            类型
+            <select v-model="form.user_type">
+              <option v-for="type in userTypeOptions" :key="type" :value="type">
+                {{ userTypeLabel(type) }}
+              </option>
+            </select>
+          </label>
           <button type="submit" :disabled="saving">保存</button>
         </form>
       </div>
@@ -172,6 +180,14 @@
               <option value="dev">DEV</option>
             </select>
           </label>
+          <label>
+            类型
+            <select v-model="createForm.user_type">
+              <option v-for="type in userTypeOptions" :key="type" :value="type">
+                {{ userTypeLabel(type) }}
+              </option>
+            </select>
+          </label>
           <button type="submit" :disabled="creating">创建</button>
         </form>
       </div>
@@ -204,7 +220,7 @@ import { useRouter } from 'vue-router';
 import { apiRequest, ApiError } from '../utils/apiClient';
 import { useAuth } from '../composables/useAuth';
 
-const { state, isDev, isAdmin, logout } = useAuth();
+const { state, isDev, isAdmin, logout, fetchMe } = useAuth();
 const router = useRouter();
 
 const users = ref([]);
@@ -230,14 +246,16 @@ const form = reactive({
   email: '',
   username: '',
   password: '',
-  role: 'user'
+  role: 'user',
+  user_type: 'student'
 });
 
 const createForm = reactive({
   email: '',
   username: '',
   password: '',
-  role: 'user'
+  role: 'user',
+  user_type: 'student'
 });
 
 const formErrors = reactive({});
@@ -248,6 +266,7 @@ const toast = reactive({
   message: '',
   type: 'info'
 });
+const userTypeOptions = ['student', 'public', 'teacher'];
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
 
@@ -397,6 +416,7 @@ function userTypeLabel(userType) {
   const normalized = String(userType || '').trim().toLowerCase();
   if (normalized === 'student') return 'STUDENT';
   if (normalized === 'public') return 'PUBLIC';
+  if (normalized === 'teacher') return 'TEACHER';
   if (!normalized) return '-';
   return normalized.toUpperCase();
 }
@@ -509,6 +529,7 @@ async function openEdit(user) {
     form.username = data.username || '';
     form.password = '';
     form.role = data.role || 'user';
+    form.user_type = data.user_type || 'student';
     drawerOpen.value = true;
   } catch (err) {
     handleApiError(err);
@@ -526,6 +547,7 @@ function openCreate() {
   createForm.username = '';
   createForm.password = '';
   createForm.role = 'user';
+  createForm.user_type = 'student';
   createOpen.value = true;
 }
 
@@ -578,12 +600,18 @@ async function submitEdit() {
   if (form.role) {
     payload.role = form.role;
   }
+  if (form.user_type) {
+    payload.user_type = form.user_type;
+  }
 
   try {
     await apiRequest(`/users/${form.id}`, {
       method: 'PUT',
       body: payload
     });
+    if (state.user?.id === form.id) {
+      await fetchMe();
+    }
     showToast('保存成功', 'success');
     closeDrawer();
     fetchUsers();
@@ -619,7 +647,8 @@ async function submitCreate() {
         email: createForm.email.trim(),
         username: createForm.username.trim(),
         password: createForm.password.trim(),
-        role: createForm.role
+        role: createForm.role,
+        user_type: createForm.user_type
       }
     });
     showToast('保存成功', 'success');

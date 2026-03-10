@@ -58,13 +58,13 @@ function findUser(id) {
   return stmt.get(id)
 }
 
-function createUser({ username, email, password, role = 'user' }) {
+function createUser({ username, email, password, role = 'user', user_type = 'student' }) {
   const hashed = bcrypt.hashSync(password, 10)
   const stmt = userDb.prepare(
-    'INSERT INTO users (username, email, password, role, is_initial_admin) VALUES (?, ?, ?, ?, 0)'
+    'INSERT INTO users (username, email, password, user_type, role, is_initial_admin) VALUES (?, ?, ?, ?, ?, 0)'
   )
-  const result = stmt.run(username, email || null, hashed, role)
-  AdminLog.create('info', `${role} created`, { username, email })
+  const result = stmt.run(username, email || null, hashed, user_type, role)
+  AdminLog.create('info', `${role} created`, { username, email, user_type })
   return result.lastInsertRowid
 }
 
@@ -87,6 +87,10 @@ function updateUser(id, payload) {
   if (payload.role) {
     updates.push('role = ?')
     params.push(payload.role)
+  }
+  if (payload.user_type !== undefined) {
+    updates.push('user_type = ?')
+    params.push(payload.user_type)
   }
 
   updates.push("updated_at = datetime('now', 'localtime')")

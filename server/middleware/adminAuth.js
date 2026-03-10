@@ -9,6 +9,7 @@ function signAdminToken(user) {
     {
       userId: user.id,
       role: user.role,
+      userType: user.user_type,
       isInitialAdmin: !!user.is_initial_admin,
       isInitialDev: !!user.is_initial_dev
     },
@@ -27,7 +28,7 @@ function requireAdmin(req, res, next) {
   try {
     const payload = jwt.verify(token, ADMIN_JWT_SECRET)
     const user = userDb
-      .prepare('SELECT id, username, email, role, is_initial_admin, is_initial_dev FROM users WHERE id = ?')
+      .prepare('SELECT id, username, email, user_type, role, is_initial_admin, is_initial_dev FROM users WHERE id = ?')
       .get(payload.userId)
     if (!user || !['admin', 'dev'].includes(user.role)) {
       return res.status(403).json({ error: '无权限访问' })
@@ -36,6 +37,7 @@ function requireAdmin(req, res, next) {
       id: user.id,
       username: user.username,
       email: user.email,
+      user_type: user.user_type,
       role: user.role,
       isInitialAdmin: !!user.is_initial_admin,
       isInitialDev: !!user.is_initial_dev

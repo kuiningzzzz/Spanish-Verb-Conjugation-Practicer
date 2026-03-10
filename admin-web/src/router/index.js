@@ -6,6 +6,8 @@ import Users from '../views/Users.vue';
 import Lexicon from '../views/Lexicon.vue';
 import QuestionBank from '../views/QuestionBank.vue';
 import CourseMaterials from '../views/CourseMaterials.vue';
+import ClassManagement from '../views/ClassManagement.vue';
+import AssignmentPublishing from '../views/AssignmentPublishing.vue';
 import Logs from '../views/Logs.vue';
 import Feedback from '../views/Feedback.vue';
 import PracticeRecords from '../views/PracticeRecords.vue';
@@ -32,6 +34,8 @@ const routes = [
       { path: 'lexicon', name: 'Lexicon', component: Lexicon },
       { path: 'questions', name: 'QuestionBank', component: QuestionBank },
       { path: 'course-materials', name: 'CourseMaterials', component: CourseMaterials },
+      { path: 'class-management', name: 'ClassManagement', component: ClassManagement, meta: { requiresTeacher: true } },
+      { path: 'assignment-publishing', name: 'AssignmentPublishing', component: AssignmentPublishing, meta: { requiresTeacher: true } },
       { path: 'logs', name: 'Logs', component: Logs, meta: { requiresDev: true } },
       { path: 'feedback', name: 'Feedback', component: Feedback, meta: { requiresDev: true } },
       { path: 'practice-records', name: 'PracticeRecords', component: PracticeRecords, meta: { requiresDev: true } },
@@ -49,7 +53,7 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, from, next) => {
-  const { isAuthenticated, isAdmin, isDev, isPrivileged, fetchMe, state } = useAuth();
+  const { isAuthenticated, isAdmin, isDev, isPrivileged, isTeacher, fetchMe, state } = useAuth();
 
   if (!state.user && state.token) {
     await fetchMe();
@@ -74,6 +78,10 @@ router.beforeEach(async (to, from, next) => {
     return;
   }
   if (to.meta.requiresDev && !isDev.value) {
+    next({ name: 'Dashboard' });
+    return;
+  }
+  if (to.meta.requiresTeacher && !isTeacher.value) {
     next({ name: 'Dashboard' });
     return;
   }

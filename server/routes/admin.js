@@ -36,6 +36,7 @@ const BACKUP_RECORDS_FILE = path.join(DATA_DIR, 'backup_records.json')
 const IMPORT_RECORDS_FILE = path.join(DATA_DIR, 'import_records.json')
 const DOWNLOAD_TOKEN_TTL_MS = 5 * 60 * 1000
 const downloadTokens = new Map()
+const ALLOWED_USER_TYPES = ['student', 'public', 'teacher']
 
 function loadVersionInfo() {
   try {
@@ -191,6 +192,7 @@ router.post('/auth/login', (req, res) => {
       id: user.id,
       username: user.username,
       email: user.email,
+      user_type: user.user_type,
       role: user.role,
       isInitialAdmin: !!user.is_initial_admin,
       isInitialDev: !!user.is_initial_dev
@@ -227,14 +229,17 @@ router.post('/users', requireAdmin, (req, res) => {
   if (!isDev(req)) {
     return forbid(res, '仅 dev 可以创建用户')
   }
-  const { username, email, password, role = 'user' } = req.body
+  const { username, email, password, role = 'user', user_type = 'student' } = req.body
   if (!username || !password) {
     return res.status(400).json({ error: '缺少必要字段' })
   }
   if (!['user', 'admin', 'dev'].includes(role)) {
     return res.status(400).json({ error: '非法角色' })
   }
-  const id = createUser({ username, email, password, role })
+  if (!ALLOWED_USER_TYPES.includes(user_type)) {
+    return res.status(400).json({ error: '非法用户类型' })
+  }
+  const id = createUser({ username, email, password, role, user_type })
   res.status(201).json({ id })
 })
 
@@ -250,6 +255,10 @@ router.put('/users/:id', requireAdmin, (req, res) => {
   const target = findUser(req.params.id)
   if (!target) {
     return res.status(404).json({ error: '用户不存在' })
+  }
+
+  if (req.body.user_type !== undefined && !ALLOWED_USER_TYPES.includes(String(req.body.user_type))) {
+    return res.status(400).json({ error: '非法用户类型' })
   }
 
   if (target.is_initial_dev && req.body.role && req.body.role !== 'dev') {
