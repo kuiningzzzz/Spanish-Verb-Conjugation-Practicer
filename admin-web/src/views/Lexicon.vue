@@ -53,31 +53,25 @@
       </div>
       <div v-else-if="loading" class="loading">加载中...</div>
       <div v-else class="table-scroll">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>原形</th>
-              <th>释义</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in filteredRows" :key="item.id">
-              <td>{{ item.id }}</td>
-              <td>{{ item.infinitive }}</td>
-              <td class="desc">{{ item.meaning || '-' }}</td>
-              <td class="actions">
-                <button class="ghost" @click="openEdit(item)">编辑</button>
-                <button class="ghost" @click="openConjugations(item)">变位</button>
-                <button class="danger" @click="confirmDelete(item)">删除</button>
-              </td>
-            </tr>
-            <tr v-if="!filteredRows.length">
-              <td colspan="4" class="empty">暂无条目</td>
-            </tr>
-          </tbody>
-        </table>
+        <div v-if="filteredRows.length" class="lexicon-entry-grid">
+          <article v-for="item in filteredRows" :key="item.id" class="lexicon-entry-card">
+            <div class="lexicon-entry-main">
+              <div class="lexicon-entry-meta">
+                <div class="lexicon-entry-title">
+                  <span class="lexicon-entry-id">ID {{ item.id }}</span>
+                  <span class="lexicon-entry-verb">{{ item.infinitive }}</span>
+                </div>
+                <div class="lexicon-entry-actions">
+                  <button class="ghost" @click="openEdit(item)">编辑</button>
+                  <button class="ghost" @click="openConjugations(item)">变位</button>
+                  <button class="danger" @click="confirmDelete(item)">删除</button>
+                </div>
+              </div>
+              <p class="lexicon-entry-meaning">{{ item.meaning || '-' }}</p>
+            </div>
+          </article>
+        </div>
+        <div v-else class="empty">暂无条目</div>
       </div>
     </div>
 
@@ -535,7 +529,7 @@ const { isDev } = useAuth();
 const rows = ref([]);
 const total = ref(0);
 const page = ref(1);
-const pageSize = ref(10);
+const pageSize = ref(12);
 const pageJump = ref(1);
 const keyword = ref('');
 const loading = ref(false);
@@ -2147,16 +2141,100 @@ fetchRows();
 .table-scroll {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 10px;
+  padding: 14px;
 }
 
-.table-scroll .table th {
-  position: sticky;
-  top: 0;
-  background: #fff;
-  z-index: 1;
+.lexicon-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  height: 100%;
+  align-items: stretch;
+}
+
+.lexicon-entry-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  height: 100%;
+  min-width: 0;
+  padding: 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.lexicon-entry-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lexicon-entry-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lexicon-entry-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lexicon-entry-id {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.lexicon-entry-verb {
+  min-width: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--theme-red-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lexicon-entry-meaning {
+  margin: 0;
+  min-height: 32px;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lexicon-entry-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+.lexicon-entry-actions button {
+  padding: 3px 7px;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.1;
+  box-shadow: none;
 }
 
 .pagination-total {
@@ -2184,7 +2262,6 @@ fetchRows();
   font-variant-numeric: tabular-nums;
 }
 
-.table td.desc { max-width:360px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .drawer textarea { width:100%; }
 .overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:flex; align-items:flex-start; justify-content:center; padding:40px; }
 .drawer {
@@ -2752,6 +2829,16 @@ fetchRows();
 @media (max-width: 960px) {
   .lexicon-page {
     height: min(72vh, 700px);
+  }
+
+  .table-scroll {
+    overflow: auto;
+  }
+
+  .lexicon-entry-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    height: auto;
   }
 
   .drawer-field-row,
