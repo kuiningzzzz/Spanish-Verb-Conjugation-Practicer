@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard-page">
-    <section v-if="mergedHistory.length" class="card history-panel history-panel-single management-page">
+    <section v-if="isDev" class="card history-panel history-panel-single management-page">
       <div class="management-header history-panel-header">
         <h3 class="history-panel-title">管理历史</h3>
         <div class="history-header-side">
@@ -73,7 +73,11 @@
       </div>
     </section>
 
-    <div v-if="detailOpen" class="overlay">
+    <section v-else class="card dashboard-welcome-card">
+      <h2 class="dashboard-welcome-text">欢迎回来，{{ welcomeText }}</h2>
+    </section>
+
+    <div v-if="isDev && detailOpen" class="overlay">
       <div class="modal history-detail">
         <div class="modal-header">
           <h3>{{ detailTitle }}</h3>
@@ -112,6 +116,9 @@
 
 <script setup>
 import { computed, ref } from 'vue';
+import { useAuth } from '../composables/useAuth';
+
+const { state, isDev } = useAuth();
 
 const pageSize = 10;
 
@@ -237,6 +244,9 @@ const detailItem = ref(null);
 
 const detailTitle = computed(() => (detailItem.value?.historyType ? `${detailItem.value.historyType}详情` : '详情'));
 const detailTargetLabel = computed(() => detailItem.value?.targetLabel || '目标ID');
+const dashboardUserName = computed(() => state.user?.username || state.user?.email || '管理员');
+const dashboardUserSuffix = computed(() => (state.user?.user_type === 'teacher' ? '老师' : '同学'));
+const welcomeText = computed(() => `${dashboardUserName.value} ${dashboardUserSuffix.value}`);
 
 const totalPages = computed(() => Math.max(1, Math.ceil(mergedHistory.value.length / pageSize)));
 const pagedItems = computed(() => {
@@ -293,6 +303,20 @@ function formatDateDay(value) {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.dashboard-welcome-card {
+  display: flex;
+  align-items: center;
+  min-height: 220px;
+}
+
+.dashboard-welcome-text {
+  margin: 0;
+  font-size: clamp(22px, 2.8vw, 34px);
+  line-height: 1.2;
+  color: var(--theme-red-dark);
+  font-weight: 800;
 }
 
 .dashboard-intro {

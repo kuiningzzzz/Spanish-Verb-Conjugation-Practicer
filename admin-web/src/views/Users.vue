@@ -90,6 +90,7 @@
                     编辑
                   </button>
                   <button
+                    v-if="isDev"
                     class="danger"
                     :disabled="!canDelete(user)"
                     :title="deleteDisabledReason(user)"
@@ -483,11 +484,6 @@ function canDelete(user) {
     if (user.is_initial_dev) return false;
     return true;
   }
-  if (isAdmin.value) {
-    if (user.is_initial_dev) return false;
-    if (['admin', 'dev'].includes(user.role)) return false;
-    return true;
-  }
   return false;
 }
 
@@ -499,8 +495,7 @@ function deleteDisabledReason(user) {
     if (user.is_initial_dev) return '初始 dev 不可删除';
   }
   if (isAdmin.value) {
-    if (user.role === 'dev' || user.is_initial_dev) return 'admin 不能修改 dev 用户';
-    if (user.role === 'admin') return 'admin 不能删除管理员账号';
+    return '仅 dev 可删除用户';
   }
   return '';
 }

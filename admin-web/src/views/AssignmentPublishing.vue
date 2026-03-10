@@ -2,7 +2,7 @@
   <section class="card management-page assignment-publishing-page">
     <div class="management-header">
       <div>
-        <h2>发布作业</h2>
+        <h2>作业管理</h2>
       </div>
     </div>
 
@@ -10,7 +10,7 @@
       <div class="assignment-publishing-placeholder">
         <div class="assignment-publishing-placeholder-inner">
           <h3>功能预留</h3>
-          <p class="muted">发布作业界面将在后续版本中补充。</p>
+          <p class="muted">作业管理界面将在后续版本中补充。</p>
         </div>
       </div>
     </div>

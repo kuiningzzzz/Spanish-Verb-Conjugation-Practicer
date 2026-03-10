@@ -426,6 +426,9 @@ router.put('/users/:id', requireAdmin, (req, res) => {
 })
 
 router.delete('/users/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) {
+    return forbid(res, '仅 dev 可以删除用户')
+  }
   const target = findUser(req.params.id)
   if (!target) {
     return res.status(404).json({ error: '用户不存在' })
@@ -435,12 +438,6 @@ router.delete('/users/:id', requireAdmin, (req, res) => {
   }
   if (req.admin.id === target.id) {
     return forbid(res, '不能删除自己')
-  }
-  if (target.role === 'dev' && !isDev(req)) {
-    return forbid(res, '管理员不能删除 dev 用户')
-  }
-  if (!isDev(req) && ['admin', 'dev'].includes(target.role)) {
-    return forbid(res, '无权删除该用户')
   }
   deleteUser(req.params.id)
   res.json({ success: true })
@@ -466,15 +463,15 @@ router.post('/admins', requireAdmin, (req, res) => {
 })
 
 router.delete('/admins/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) {
+    return forbid(res, '仅 dev 可以删除管理员')
+  }
   const user = findUser(req.params.id)
   if (!user || user.role !== 'admin') {
     return res.status(404).json({ error: '管理员不存在' })
   }
   if (user.is_initial_admin) {
     return res.status(403).json({ error: '不可删除初始管理员' })
-  }
-  if (!isDev(req) && !req.admin.isInitialAdmin) {
-    return forbid(res, '仅初始管理员可删除管理员')
   }
   deleteUser(req.params.id)
   res.json({ success: true })

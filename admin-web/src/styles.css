@@ -204,46 +204,48 @@ a {
 .role-chip {
   font-weight: 700;
   letter-spacing: 0.2px;
+  border-color: rgba(255, 197, 164, 0.55);
 }
 
 .type-chip {
   font-weight: 700;
   letter-spacing: 0.3px;
+  border-color: rgba(162, 214, 255, 0.58);
 }
 
 .chip.role-chip.admin {
-  background: rgba(237, 205, 150, 0.26);
-  color: #fff2c9;
+  background: rgba(177, 96, 28, 0.48);
+  color: #fff2df;
 }
 
 .chip.role-chip.dev {
-  background: rgba(255, 255, 255, 0.18);
-  color: #fffdf8;
+  background: rgba(130, 58, 22, 0.5);
+  color: #fff3e6;
 }
 
 .chip.role-chip.user {
-  background: rgba(255, 236, 240, 0.16);
-  color: #ffe8ec;
+  background: rgba(155, 45, 55, 0.5);
+  color: #ffedf0;
 }
 
 .chip.type-chip.type-student {
-  background: rgba(223, 242, 228, 0.22);
-  color: #eefbf1;
+  background: rgba(20, 94, 74, 0.48);
+  color: #e8fff6;
 }
 
 .chip.type-chip.type-public {
-  background: rgba(227, 233, 244, 0.22);
-  color: #eef3ff;
+  background: rgba(24, 76, 121, 0.5);
+  color: #e7f2ff;
 }
 
 .chip.type-chip.type-teacher {
-  background: rgba(255, 225, 233, 0.28);
-  color: #fff0f4;
+  background: rgba(18, 103, 134, 0.5);
+  color: #e8f8ff;
 }
 
 .chip.type-chip.type-unknown {
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff6f7;
+  background: rgba(60, 86, 116, 0.46);
+  color: #eaf1f8;
 }
 
 .topbar .ghost {
