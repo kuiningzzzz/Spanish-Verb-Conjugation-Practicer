@@ -193,39 +193,57 @@ a {
   backdrop-filter: blur(8px);
 }
 
-.chip.admin {
-  background: rgba(222, 192, 138, 0.2);
-  color: var(--theme-gold-soft);
+.identity-chip {
+  background: #fff5f6;
+  color: #7d1623;
+  border-color: rgba(255, 255, 255, 0.38);
+  font-weight: 700;
+  font-size: 14px;
 }
 
-.chip.dev {
-  background: rgba(255, 255, 255, 0.14);
+.role-chip {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.type-chip {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.chip.role-chip.admin {
+  background: rgba(237, 205, 150, 0.26);
+  color: #fff2c9;
+}
+
+.chip.role-chip.dev {
+  background: rgba(255, 255, 255, 0.18);
   color: #fffdf8;
 }
 
-.chip.user {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 248, 237, 0.88);
+.chip.role-chip.user {
+  background: rgba(255, 236, 240, 0.16);
+  color: #ffe8ec;
 }
 
-.chip.type-student {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff8ed;
+.chip.type-chip.type-student {
+  background: rgba(223, 242, 228, 0.22);
+  color: #eefbf1;
 }
 
-.chip.type-public {
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff8ed;
+.chip.type-chip.type-public {
+  background: rgba(227, 233, 244, 0.22);
+  color: #eef3ff;
 }
 
-.chip.type-teacher {
-  background: rgba(255, 230, 234, 0.22);
-  color: #fff8ed;
+.chip.type-chip.type-teacher {
+  background: rgba(255, 225, 233, 0.28);
+  color: #fff0f4;
 }
 
-.chip.type-unknown {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 248, 237, 0.88);
+.chip.type-chip.type-unknown {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff6f7;
 }
 
 .topbar .ghost {

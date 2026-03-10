@@ -29,9 +29,9 @@
           <div class="topbar-left-actions"></div>
         </div>
         <div class="topbar-right" v-if="user">
-          <span class="chip">{{ user.username || user.email }}</span>
-          <span class="chip" :class="user.role">{{ user.role }}</span>
-          <span class="chip" :class="userTypeClass">{{ userTypeLabel }}</span>
+          <span class="chip identity-chip">{{ user.username || user.email }}</span>
+          <span class="chip role-chip" :class="user.role">{{ user.role }}</span>
+          <span class="chip type-chip" :class="userTypeClass">{{ userTypeLabel }}</span>
           <button class="ghost" @click="handleLogout">退出</button>
         </div>
       </header>
