@@ -400,8 +400,10 @@ function initVocabularyDatabase() {
       name TEXT NOT NULL,
       description TEXT,
       cover_image TEXT,
+      is_published INTEGER DEFAULT 1,
       order_index INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now', 'localtime'))
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      updated_at TEXT DEFAULT (datetime('now', 'localtime'))
     )
   `)
 
@@ -418,8 +420,24 @@ function initVocabularyDatabase() {
       tenses TEXT,
       conjugation_types TEXT,
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      updated_at TEXT DEFAULT (datetime('now', 'localtime')),
       FOREIGN KEY (textbook_id) REFERENCES textbooks(id) ON DELETE CASCADE
     )
+  `)
+
+  // 兼容旧数据库，补充教材/课程字段
+  ensureColumn(vocabularyDb, 'textbooks', 'is_published', 'is_published INTEGER DEFAULT 1')
+  ensureColumn(vocabularyDb, 'textbooks', 'updated_at', 'updated_at TEXT')
+  ensureColumn(vocabularyDb, 'lessons', 'updated_at', 'updated_at TEXT')
+  vocabularyDb.exec(`
+    UPDATE textbooks
+    SET
+      is_published = COALESCE(is_published, 1),
+      updated_at = COALESCE(updated_at, created_at, datetime('now', 'localtime'))
+  `)
+  vocabularyDb.exec(`
+    UPDATE lessons
+    SET updated_at = COALESCE(updated_at, created_at, datetime('now', 'localtime'))
   `)
 
   // 课程-单词关联表

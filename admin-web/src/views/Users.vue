@@ -58,44 +58,46 @@
         <table class="table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>邮箱</th>
-              <th>用户名</th>
-              <th>类型</th>
-              <th>角色</th>
-              <th>创建时间</th>
-              <th>操作</th>
+              <th class="col-id">ID</th>
+              <th class="col-email">邮箱</th>
+              <th class="col-username">用户名</th>
+              <th class="col-type">类型</th>
+              <th class="col-role">角色</th>
+              <th class="col-created-at">创建时间</th>
+              <th class="col-actions"><span class="col-actions-label">操作</span></th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="user in filteredUsers" :key="user.id">
-              <td>{{ user.id }}</td>
-              <td>{{ user.email || '-' }}</td>
-              <td>{{ user.username || '-' }}</td>
-              <td>
+              <td class="col-id">{{ user.id }}</td>
+              <td class="col-email">{{ user.email || '-' }}</td>
+              <td class="col-username">{{ user.username || '-' }}</td>
+              <td class="col-type">
                 <span class="tag" :class="typeTagClass(user.user_type)">{{ userTypeLabel(user.user_type) }}</span>
               </td>
-              <td>
+              <td class="col-role">
                 <span class="tag" :class="user.role">{{ roleLabel(user.role) }}</span>
               </td>
-              <td>{{ formatDate(user.created_at) }}</td>
+              <td class="col-created-at">{{ formatDate(user.created_at) }}</td>
               <td class="actions">
-                <button
-                  class="ghost"
-                  :disabled="!canEdit(user)"
-                  :title="editDisabledReason(user)"
-                  @click="openEdit(user)"
-                >
-                  编辑
-                </button>
-                <button
-                  class="danger"
-                  :disabled="!canDelete(user)"
-                  :title="deleteDisabledReason(user)"
-                  @click="confirmDelete(user)"
-                >
-                  删除
-                </button>
+                <div class="actions-group">
+                  <button
+                    class="ghost"
+                    :disabled="!canEdit(user)"
+                    :title="editDisabledReason(user)"
+                    @click="openEdit(user)"
+                  >
+                    编辑
+                  </button>
+                  <button
+                    class="danger"
+                    :disabled="!canDelete(user)"
+                    :title="deleteDisabledReason(user)"
+                    @click="confirmDelete(user)"
+                  >
+                    删除
+                  </button>
+                </div>
               </td>
             </tr>
             <tr v-if="!filteredUsers.length">
@@ -202,7 +204,7 @@
         <p>
           即将删除用户：<strong>{{ deleteDialog.username || deleteDialog.email || deleteDialog.id }}</strong>
         </p>
-        <p class="muted">规则：admin 仅能删除非 admin/dev；dev 不能删除自己/初始 dev。</p>
+        <p class="muted">注意：删除后账号无法恢复，需要重新注册。</p>
         <div class="modal-actions">
           <button class="ghost" @click="closeDelete">取消</button>
           <button class="danger" :disabled="deleting" @click="submitDelete">确认删除</button>
@@ -688,7 +690,27 @@ fetchUsers();
 </script>
 
 <style scoped>
+.users-page {
+  --users-col-id: 72px;
+  --users-col-type: 108px;
+  --users-col-role: 104px;
+  --users-col-created-at: 168px;
+  --users-col-actions: 132px;
+  --users-col-shift: 92px;
+  --users-fixed-width: calc(
+    var(--users-col-id) +
+    var(--users-col-type) +
+    var(--users-col-role) +
+    var(--users-col-created-at) +
+    var(--users-col-actions)
+  );
+  --users-col-flex: calc((100% - var(--users-fixed-width)) / 2);
+  --users-col-email: calc(var(--users-col-flex) + var(--users-col-shift));
+  --users-col-username: calc(var(--users-col-flex) - var(--users-col-shift));
+}
+
 .users-page .table {
+  width: 100%;
   table-layout: fixed;
   font-size: 13px;
 }
@@ -706,10 +728,73 @@ fetchUsers();
   height: 44px;
 }
 
+.users-page .table tbody td {
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  vertical-align: middle;
+}
+
 .users-page .table td.actions {
   display: table-cell;
-  text-align: center;
+  text-align: right;
   white-space: nowrap;
+}
+
+.users-page .table th.col-id,
+.users-page .table td.col-id {
+  width: var(--users-col-id);
+  min-width: var(--users-col-id);
+}
+
+.users-page .table th.col-type,
+.users-page .table td.col-type {
+  width: var(--users-col-type);
+  min-width: var(--users-col-type);
+}
+
+.users-page .table th.col-role,
+.users-page .table td.col-role {
+  width: var(--users-col-role);
+  min-width: var(--users-col-role);
+}
+
+.users-page .table th.col-email,
+.users-page .table td.col-email {
+  width: var(--users-col-email);
+  min-width: var(--users-col-email);
+}
+
+.users-page .table th.col-username,
+.users-page .table td.col-username {
+  width: var(--users-col-username);
+  min-width: var(--users-col-username);
+}
+
+.users-page .table th.col-actions {
+  text-align: right;
+  width: var(--users-col-actions);
+  min-width: var(--users-col-actions);
+}
+
+.users-page .table th.col-actions .col-actions-label {
+  display: inline-block;
+  min-width: 112px;
+  text-align: left;
+}
+
+.users-page .table th.col-created-at,
+.users-page .table td.col-created-at {
+  width: var(--users-col-created-at);
+  min-width: var(--users-col-created-at);
+  font-variant-numeric: tabular-nums;
+}
+
+.users-page .table td.actions .actions-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 112px;
 }
 
 .users-page .table td.actions button {

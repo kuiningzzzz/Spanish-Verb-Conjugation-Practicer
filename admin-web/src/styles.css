@@ -72,7 +72,7 @@ a {
 .sidebar {
   background: var(--theme-red);
   color: rgba(255, 245, 230, 0.82);
-  padding: 24px;
+  padding: 0 24px 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -89,7 +89,7 @@ a {
   color: #ffffff;
   letter-spacing: 2px;
   text-align: center;
-  padding: 8px 0 18px;
+  padding: 18px 0 15px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   display: flex;
   flex-direction: column;
@@ -1016,11 +1016,11 @@ textarea {
   box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
 }
 
-.switch input:checked + .slider {
+.switch input:checked+.slider {
   background-color: var(--theme-red);
 }
 
-.switch input:checked + .slider::before {
+.switch input:checked+.slider::before {
   transform: translateX(20px);
 }
 

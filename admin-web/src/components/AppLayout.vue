@@ -3,7 +3,6 @@
     <aside class="sidebar">
       <div class="brand">
         <span>Conjugamos</span>
-        <span>控制台</span>
       </div>
       <nav>
         <RouterLink to="/" end>仪表盘</RouterLink>
@@ -72,10 +71,10 @@ const title = computed(() => titles[route.name] || 'Admin');
 const user = computed(() => state.user);
 const userTypeLabel = computed(() => {
   const normalized = String(user.value?.user_type || '').trim().toLowerCase();
-  if (normalized === 'student') return 'STUDENT';
-  if (normalized === 'public') return 'PUBLIC';
-  if (normalized === 'teacher') return 'TEACHER';
-  return normalized ? normalized.toUpperCase() : '-';
+  if (normalized === 'student') return '学生用户';
+  if (normalized === 'public') return '社会人士';
+  if (normalized === 'teacher') return '教师用户';
+  return normalized || '-';
 });
 const userTypeClass = computed(() => {
   const normalized = String(user.value?.user_type || '').trim().toLowerCase();

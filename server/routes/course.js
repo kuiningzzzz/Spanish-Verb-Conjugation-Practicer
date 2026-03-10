@@ -11,7 +11,7 @@ const { authMiddleware } = require('../middleware/auth');
 router.get('/textbooks/available', authMiddleware, (req, res) => {
   try {
     const userId = req.user.id;
-    const allTextbooks = Textbook.getAll();
+    const allTextbooks = Textbook.getAll().filter((item) => Number(item.is_published) === 1);
     
     // 标记哪些教材用户已添加
     const textbooksWithStatus = allTextbooks.map(textbook => ({
@@ -62,6 +62,12 @@ router.post('/textbooks/:id/add', authMiddleware, (req, res) => {
       return res.status(404).json({
         success: false,
         message: '教材不存在'
+      });
+    }
+    if (Number(textbook.is_published) !== 1) {
+      return res.status(400).json({
+        success: false,
+        message: '教材尚未发布，暂不可添加'
       });
     }
     
@@ -343,7 +349,7 @@ router.delete('/lessons/:id/progress', authMiddleware, (req, res) => {
 // 创建教材（管理员功能，这里暂不需要额外验证）
 router.post('/textbooks', authMiddleware, (req, res) => {
   try {
-    const { name, description, coverImage, orderIndex } = req.body;
+    const { name, description, coverImage, orderIndex, isPublished } = req.body;
     
     if (!name) {
       return res.status(400).json({
@@ -352,7 +358,8 @@ router.post('/textbooks', authMiddleware, (req, res) => {
       });
     }
 
-    const result = Textbook.create(name, description, coverImage, orderIndex || 0);
+    const normalizedPublished = isPublished === undefined ? 0 : (isPublished ? 1 : 0);
+    const result = Textbook.create(name, description, coverImage, orderIndex || 0, normalizedPublished);
     
     res.json({
       success: true,
@@ -377,6 +384,7 @@ router.post('/lessons', authMiddleware, (req, res) => {
       lessonNumber, 
       description, 
       grammarPoints,
+      moods,
       tenses,
       conjugationTypes 
     } = req.body;
@@ -389,6 +397,7 @@ router.post('/lessons', authMiddleware, (req, res) => {
     }
 
     // 将数组转换为JSON字符串存储
+    const moodsStr = moods ? JSON.stringify(moods) : null;
     const tensesStr = tenses ? JSON.stringify(tenses) : null;
     const conjugationTypesStr = conjugationTypes ? JSON.stringify(conjugationTypes) : null;
 
@@ -398,6 +407,7 @@ router.post('/lessons', authMiddleware, (req, res) => {
       lessonNumber, 
       description, 
       grammarPoints,
+      moodsStr,
       tensesStr,
       conjugationTypesStr
     );

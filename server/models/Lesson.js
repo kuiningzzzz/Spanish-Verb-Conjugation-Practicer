@@ -20,8 +20,8 @@ class Lesson {
   // 创建课程
   static create(textbookId, title, lessonNumber, description = null, grammarPoints = null, moods = null, tenses = null, conjugationTypes = null) {
     const sql = `
-      INSERT INTO lessons (textbook_id, title, lesson_number, description, grammar_points, moods, tenses, conjugation_types)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO lessons (textbook_id, title, lesson_number, description, grammar_points, moods, tenses, conjugation_types, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
     `;
     return vocabularyDb.prepare(sql).run(textbookId, title, lessonNumber, description, grammarPoints, moods, tenses, conjugationTypes);
   }
@@ -30,7 +30,14 @@ class Lesson {
   static update(id, title, description = null, grammarPoints = null, moods = null, tenses = null, conjugationTypes = null) {
     const sql = `
       UPDATE lessons 
-      SET title = ?, description = ?, grammar_points = ?, moods = ?, tenses = ?, conjugation_types = ?
+      SET
+        title = ?,
+        description = ?,
+        grammar_points = ?,
+        moods = ?,
+        tenses = ?,
+        conjugation_types = ?,
+        updated_at = datetime('now', 'localtime')
       WHERE id = ?
     `;
     return vocabularyDb.prepare(sql).run(title, description, grammarPoints, moods, tenses, conjugationTypes, id);

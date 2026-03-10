@@ -37,6 +37,119 @@ const IMPORT_RECORDS_FILE = path.join(DATA_DIR, 'import_records.json')
 const DOWNLOAD_TOKEN_TTL_MS = 5 * 60 * 1000
 const downloadTokens = new Map()
 const ALLOWED_USER_TYPES = ['student', 'public', 'teacher']
+const COURSE_MATERIAL_MOOD_OPTIONS = [
+  { value: 'indicativo', label: 'Indicativo 陈述式' },
+  { value: 'subjuntivo', label: 'Subjuntivo 虚拟式' },
+  { value: 'condicional', label: 'Condicional 条件式' },
+  { value: 'imperativo', label: 'Imperativo 命令式' }
+]
+const COURSE_MATERIAL_TENSE_OPTIONS = [
+  { value: 'presente', label: 'Presente（陈述式 一般现在时）', mood: 'indicativo' },
+  { value: 'perfecto', label: 'Pretérito Perfecto（陈述式 现在完成时）', mood: 'indicativo' },
+  { value: 'imperfecto', label: 'Pretérito Imperfecto（陈述式 过去未完成时）', mood: 'indicativo' },
+  { value: 'preterito', label: 'Pretérito Indefinido（陈述式 简单过去时）', mood: 'indicativo' },
+  { value: 'futuro', label: 'Futuro Imperfecto（陈述式 将来未完成时）', mood: 'indicativo' },
+  { value: 'pluscuamperfecto', label: 'Pretérito Pluscuamperfecto（陈述式 过去完成时）', mood: 'indicativo' },
+  { value: 'futuro_perfecto', label: 'Futuro Perfecto（陈述式 将来完成时）', mood: 'indicativo' },
+  { value: 'preterito_anterior', label: 'Pretérito Anterior（陈述式 前过去时）', mood: 'indicativo' },
+  { value: 'subjuntivo_presente', label: 'Presente（虚拟式 现在时）', mood: 'subjuntivo' },
+  { value: 'subjuntivo_imperfecto', label: 'Pretérito Imperfecto（虚拟式 过去未完成时）', mood: 'subjuntivo' },
+  { value: 'subjuntivo_perfecto', label: 'Pretérito Perfecto（虚拟式 现在完成时）', mood: 'subjuntivo' },
+  { value: 'subjuntivo_pluscuamperfecto', label: 'Pretérito Pluscuamperfecto（虚拟式 过去完成时）', mood: 'subjuntivo' },
+  { value: 'subjuntivo_futuro', label: 'Futuro（虚拟式 将来未完成时）', mood: 'subjuntivo' },
+  { value: 'subjuntivo_futuro_perfecto', label: 'Futuro Perfecto（虚拟式 将来完成时）', mood: 'subjuntivo' },
+  { value: 'condicional', label: 'Condicional Simple（简单条件式）', mood: 'condicional' },
+  { value: 'condicional_perfecto', label: 'Condicional Compuesto（复合条件式）', mood: 'condicional' },
+  { value: 'imperativo_afirmativo', label: 'Imperativo（命令式）', mood: 'imperativo' },
+  { value: 'imperativo_negativo', label: 'Imperativo Negativo（否定命令式）', mood: 'imperativo' }
+]
+const COURSE_SECOND_CLASS_TENSE_KEYS = [
+  'pluscuamperfecto',
+  'futuro_perfecto',
+  'condicional_perfecto',
+  'subjuntivo_imperfecto',
+  'subjuntivo_perfecto'
+]
+const COURSE_THIRD_CLASS_TENSE_KEYS = [
+  'preterito_anterior',
+  'subjuntivo_futuro',
+  'subjuntivo_pluscuamperfecto',
+  'subjuntivo_futuro_perfecto'
+]
+const COURSE_ALL_TENSE_KEYS = COURSE_MATERIAL_TENSE_OPTIONS.map((item) => item.value)
+const COURSE_DEFAULT_TENSE_KEYS = COURSE_ALL_TENSE_KEYS.filter(
+  (value) => !COURSE_SECOND_CLASS_TENSE_KEYS.includes(value) && !COURSE_THIRD_CLASS_TENSE_KEYS.includes(value)
+)
+const COURSE_DEFAULT_CONJUGATION_TYPES = ['ar', 'er', 'ir']
+const COURSE_TENSE_TO_MOOD = COURSE_MATERIAL_TENSE_OPTIONS.reduce((acc, item) => {
+  acc[item.value] = item.mood
+  return acc
+}, {})
+
+function parseJsonArray(rawValue) {
+  if (!rawValue) return []
+  if (Array.isArray(rawValue)) return rawValue
+  try {
+    const parsed = JSON.parse(rawValue)
+    return Array.isArray(parsed) ? parsed : []
+  } catch (error) {
+    return []
+  }
+}
+
+function normalizeStringArray(values) {
+  if (!Array.isArray(values)) return []
+  return Array.from(
+    new Set(
+      values
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    )
+  )
+}
+
+function normalizeCourseTenses(values, fallbackValues = []) {
+  const fallback = Array.isArray(fallbackValues) ? fallbackValues : []
+  const source = Array.isArray(values) ? values : fallback
+  const normalized = normalizeStringArray(source)
+  return normalized.filter((item) => COURSE_ALL_TENSE_KEYS.includes(item))
+}
+
+function getCourseMoodsFromTenses(tenses) {
+  const moods = new Set()
+  normalizeStringArray(tenses).forEach((tense) => {
+    const mood = COURSE_TENSE_TO_MOOD[tense]
+    if (mood) {
+      moods.add(mood)
+    }
+  })
+  return Array.from(moods)
+}
+
+function touchCourseTextbook(textbookId) {
+  if (!textbookId) return
+  vocabularyDb.prepare(`
+    UPDATE textbooks
+    SET updated_at = datetime('now', 'localtime')
+    WHERE id = ?
+  `).run(textbookId)
+}
+
+function serializeCourseLesson(row) {
+  const parsedTenses = normalizeCourseTenses(parseJsonArray(row.tenses), [])
+  return {
+    id: row.id,
+    textbook_id: row.textbook_id,
+    title: row.title || '',
+    lesson_number: Number(row.lesson_number || 0),
+    vocabulary_count: Number(row.vocabulary_count || 0),
+    tense_count: parsedTenses.length,
+    tenses: parsedTenses,
+    moods: normalizeStringArray(parseJsonArray(row.moods)),
+    updated_at: row.updated_at || row.created_at || null,
+    created_at: row.created_at || null
+  }
+}
 
 function loadVersionInfo() {
   try {
@@ -221,7 +334,18 @@ router.get('/users', requireAdmin, (req, res) => {
   const limit = Number(req.query.limit || 50)
   const offset = Number(req.query.offset || 0)
   const role = req.query.role
-  const result = role ? listUsers(role, { limit, offset }) : listAllUsers({ limit, offset })
+  if (!isDev(req) && role === 'dev') {
+    return res.json({ rows: [], total: 0 })
+  }
+
+  const result = role
+    ? listUsers(role, { limit, offset })
+    : listAllUsers({
+      limit,
+      offset,
+      excludeRoles: isDev(req) ? [] : ['dev']
+    })
+
   res.json(result)
 })
 
@@ -584,6 +708,385 @@ router.delete('/announcements/:id', requireAdmin, (req, res) => {
       error: '删除公告失败'
     })
   }
+})
+
+router.get('/course-materials/options', requireAdmin, (req, res) => {
+  res.json({
+    moods: COURSE_MATERIAL_MOOD_OPTIONS,
+    tenses: COURSE_MATERIAL_TENSE_OPTIONS,
+    defaults: {
+      selectedTenses: COURSE_DEFAULT_TENSE_KEYS,
+      secondClassTenseKeys: COURSE_SECOND_CLASS_TENSE_KEYS,
+      thirdClassTenseKeys: COURSE_THIRD_CLASS_TENSE_KEYS
+    }
+  })
+})
+
+router.get('/course-materials/textbooks', requireAdmin, (req, res) => {
+  const rows = vocabularyDb.prepare(`
+    SELECT
+      t.*,
+      COUNT(l.id) AS lesson_count
+    FROM textbooks t
+    LEFT JOIN lessons l ON l.textbook_id = t.id
+    GROUP BY t.id
+    ORDER BY datetime(COALESCE(t.updated_at, t.created_at)) DESC, t.id DESC
+  `).all()
+
+  res.json({
+    rows: rows.map((item) => ({
+      ...item,
+      lesson_count: Number(item.lesson_count || 0),
+      is_published: Number(item.is_published) === 1,
+      updated_at: item.updated_at || item.created_at || null
+    }))
+  })
+})
+
+router.post('/course-materials/textbooks', requireAdmin, (req, res) => {
+  const name = String(req.body?.name || '').trim()
+  if (!name) {
+    return res.status(400).json({ error: '教材名称不能为空' })
+  }
+
+  const requestedOrderIndex = Number(req.body?.orderIndex)
+  const nextOrderRow = vocabularyDb.prepare('SELECT COALESCE(MAX(order_index), 0) + 1 AS next_order FROM textbooks').get()
+  const orderIndex = Number.isFinite(requestedOrderIndex) ? requestedOrderIndex : Number(nextOrderRow?.next_order || 1)
+
+  const result = vocabularyDb.prepare(`
+    INSERT INTO textbooks (name, description, cover_image, is_published, order_index, created_at, updated_at)
+    VALUES (?, NULL, NULL, 0, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
+  `).run(name, orderIndex)
+
+  const row = vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(result.lastInsertRowid)
+  res.status(201).json({
+    row: {
+      ...row,
+      lesson_count: 0,
+      is_published: Number(row.is_published) === 1,
+      updated_at: row.updated_at || row.created_at || null
+    }
+  })
+})
+
+router.put('/course-materials/textbooks/:id/publish', requireAdmin, (req, res) => {
+  const textbookId = Number(req.params.id)
+  if (!textbookId || Number.isNaN(textbookId)) {
+    return res.status(400).json({ error: '教材ID不合法' })
+  }
+
+  if (req.body?.isPublished === undefined) {
+    return res.status(400).json({ error: '缺少发布状态' })
+  }
+
+  const textbook = vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(textbookId)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+
+  const isPublished = req.body.isPublished ? 1 : 0
+  vocabularyDb.prepare(`
+    UPDATE textbooks
+    SET is_published = ?, updated_at = datetime('now', 'localtime')
+    WHERE id = ?
+  `).run(isPublished, textbookId)
+
+  const updated = vocabularyDb.prepare(`
+    SELECT
+      t.*,
+      COUNT(l.id) AS lesson_count
+    FROM textbooks t
+    LEFT JOIN lessons l ON l.textbook_id = t.id
+    WHERE t.id = ?
+    GROUP BY t.id
+  `).get(textbookId)
+  res.json({
+    success: true,
+    row: {
+      ...updated,
+      lesson_count: Number(updated.lesson_count || 0),
+      is_published: Number(updated.is_published) === 1,
+      updated_at: updated.updated_at || updated.created_at || null
+    }
+  })
+})
+
+router.delete('/course-materials/textbooks/:id', requireAdmin, (req, res) => {
+  const textbookId = Number(req.params.id)
+  if (!textbookId || Number.isNaN(textbookId)) {
+    return res.status(400).json({ error: '教材ID不合法' })
+  }
+
+  const textbook = vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(textbookId)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+
+  vocabularyDb.prepare('DELETE FROM textbooks WHERE id = ?').run(textbookId)
+  res.json({ success: true })
+})
+
+router.get('/course-materials/textbooks/:id/lessons', requireAdmin, (req, res) => {
+  const textbookId = Number(req.params.id)
+  if (!textbookId || Number.isNaN(textbookId)) {
+    return res.status(400).json({ error: '教材ID不合法' })
+  }
+
+  const textbook = vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(textbookId)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+
+  const rows = vocabularyDb.prepare(`
+    SELECT
+      l.*,
+      COALESCE(v.word_count, 0) AS vocabulary_count
+    FROM lessons l
+    LEFT JOIN (
+      SELECT lesson_id, COUNT(*) AS word_count
+      FROM lesson_verbs
+      GROUP BY lesson_id
+    ) v ON v.lesson_id = l.id
+    WHERE l.textbook_id = ?
+    ORDER BY l.lesson_number ASC, l.id ASC
+  `).all(textbookId)
+
+  res.json({
+    textbook: {
+      id: textbook.id,
+      name: textbook.name,
+      is_published: Number(textbook.is_published) === 1,
+      updated_at: textbook.updated_at || textbook.created_at || null
+    },
+    rows: rows.map((row) => serializeCourseLesson(row))
+  })
+})
+
+router.post('/course-materials/textbooks/:id/lessons', requireAdmin, (req, res) => {
+  const textbookId = Number(req.params.id)
+  if (!textbookId || Number.isNaN(textbookId)) {
+    return res.status(400).json({ error: '教材ID不合法' })
+  }
+
+  const textbook = vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(textbookId)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+
+  const maxNumberRow = vocabularyDb.prepare(`
+    SELECT COALESCE(MAX(lesson_number), 0) AS max_number
+    FROM lessons
+    WHERE textbook_id = ?
+  `).get(textbookId)
+
+  const nextLessonNumber = Number(maxNumberRow?.max_number || 0) + 1
+  const title = `第${nextLessonNumber}课`
+  const defaultTenses = [...COURSE_DEFAULT_TENSE_KEYS]
+  const defaultMoods = getCourseMoodsFromTenses(defaultTenses)
+
+  const result = vocabularyDb.prepare(`
+    INSERT INTO lessons (
+      textbook_id, title, lesson_number, description, grammar_points, moods, tenses, conjugation_types, created_at, updated_at
+    )
+    VALUES (?, ?, ?, NULL, NULL, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
+  `).run(
+    textbookId,
+    title,
+    nextLessonNumber,
+    JSON.stringify(defaultMoods),
+    JSON.stringify(defaultTenses),
+    JSON.stringify(COURSE_DEFAULT_CONJUGATION_TYPES)
+  )
+
+  touchCourseTextbook(textbookId)
+
+  const row = vocabularyDb.prepare(`
+    SELECT
+      l.*,
+      0 AS vocabulary_count
+    FROM lessons l
+    WHERE l.id = ?
+  `).get(result.lastInsertRowid)
+
+  res.status(201).json({
+    row: serializeCourseLesson(row)
+  })
+})
+
+router.put('/course-materials/lessons/:id', requireAdmin, (req, res) => {
+  const lessonId = Number(req.params.id)
+  if (!lessonId || Number.isNaN(lessonId)) {
+    return res.status(400).json({ error: '课程ID不合法' })
+  }
+
+  const lesson = vocabularyDb.prepare('SELECT * FROM lessons WHERE id = ?').get(lessonId)
+  if (!lesson) {
+    return res.status(404).json({ error: '课程不存在' })
+  }
+
+  const payload = req.body || {}
+  const hasTitle = Object.prototype.hasOwnProperty.call(payload, 'title')
+  const hasTenses = Object.prototype.hasOwnProperty.call(payload, 'tenses')
+  if (!hasTitle && !hasTenses) {
+    return res.status(400).json({ error: '缺少可更新字段' })
+  }
+
+  const nextTitle = hasTitle ? String(payload.title || '').trim() : String(lesson.title || '').trim()
+  if (!nextTitle) {
+    return res.status(400).json({ error: '课程名称不能为空' })
+  }
+
+  const existingTenses = normalizeCourseTenses(parseJsonArray(lesson.tenses), [])
+  const nextTenses = hasTenses ? normalizeCourseTenses(payload.tenses, []) : existingTenses
+  const nextMoods = getCourseMoodsFromTenses(nextTenses)
+
+  const existingConjugationTypes = normalizeStringArray(parseJsonArray(lesson.conjugation_types))
+  const conjugationTypes = existingConjugationTypes.length > 0
+    ? existingConjugationTypes
+    : [...COURSE_DEFAULT_CONJUGATION_TYPES]
+
+  vocabularyDb.prepare(`
+    UPDATE lessons
+    SET
+      title = ?,
+      moods = ?,
+      tenses = ?,
+      conjugation_types = ?,
+      updated_at = datetime('now', 'localtime')
+    WHERE id = ?
+  `).run(
+    nextTitle,
+    JSON.stringify(nextMoods),
+    JSON.stringify(nextTenses),
+    JSON.stringify(conjugationTypes),
+    lessonId
+  )
+
+  touchCourseTextbook(lesson.textbook_id)
+
+  const row = vocabularyDb.prepare(`
+    SELECT
+      l.*,
+      COALESCE(v.word_count, 0) AS vocabulary_count
+    FROM lessons l
+    LEFT JOIN (
+      SELECT lesson_id, COUNT(*) AS word_count
+      FROM lesson_verbs
+      GROUP BY lesson_id
+    ) v ON v.lesson_id = l.id
+    WHERE l.id = ?
+  `).get(lessonId)
+
+  res.json({
+    success: true,
+    row: serializeCourseLesson(row)
+  })
+})
+
+router.delete('/course-materials/lessons/:id', requireAdmin, (req, res) => {
+  const lessonId = Number(req.params.id)
+  if (!lessonId || Number.isNaN(lessonId)) {
+    return res.status(400).json({ error: '课程ID不合法' })
+  }
+
+  const lesson = vocabularyDb.prepare('SELECT * FROM lessons WHERE id = ?').get(lessonId)
+  if (!lesson) {
+    return res.status(404).json({ error: '课程不存在' })
+  }
+
+  vocabularyDb.prepare('DELETE FROM lessons WHERE id = ?').run(lessonId)
+  touchCourseTextbook(lesson.textbook_id)
+  res.json({ success: true })
+})
+
+router.get('/course-materials/lessons/:id/verbs', requireAdmin, (req, res) => {
+  const lessonId = Number(req.params.id)
+  if (!lessonId || Number.isNaN(lessonId)) {
+    return res.status(400).json({ error: '课程ID不合法' })
+  }
+
+  const lesson = vocabularyDb.prepare('SELECT * FROM lessons WHERE id = ?').get(lessonId)
+  if (!lesson) {
+    return res.status(404).json({ error: '课程不存在' })
+  }
+
+  const rows = vocabularyDb.prepare(`
+    SELECT
+      v.id,
+      v.infinitive,
+      v.meaning,
+      v.conjugation_type,
+      v.is_irregular,
+      v.is_reflexive,
+      lv.order_index
+    FROM lesson_verbs lv
+    INNER JOIN verbs v ON v.id = lv.verb_id
+    WHERE lv.lesson_id = ?
+    ORDER BY lv.order_index ASC, lv.id ASC
+  `).all(lessonId)
+
+  res.json({ rows })
+})
+
+router.put('/course-materials/lessons/:id/verbs', requireAdmin, (req, res) => {
+  const lessonId = Number(req.params.id)
+  if (!lessonId || Number.isNaN(lessonId)) {
+    return res.status(400).json({ error: '课程ID不合法' })
+  }
+
+  const lesson = vocabularyDb.prepare('SELECT * FROM lessons WHERE id = ?').get(lessonId)
+  if (!lesson) {
+    return res.status(404).json({ error: '课程不存在' })
+  }
+
+  const payloadVerbIds = req.body?.verbIds
+  if (!Array.isArray(payloadVerbIds)) {
+    return res.status(400).json({ error: 'verbIds 必须为数组' })
+  }
+
+  const hasInvalidId = payloadVerbIds.some((item) => {
+    const value = Number(item)
+    return !Number.isInteger(value) || value <= 0
+  })
+  if (hasInvalidId) {
+    return res.status(400).json({ error: 'verbIds 包含非法ID' })
+  }
+
+  const normalizedVerbIds = Array.from(new Set(payloadVerbIds.map((item) => Number(item))))
+
+  if (normalizedVerbIds.length > 0) {
+    const placeholders = normalizedVerbIds.map(() => '?').join(',')
+    const existingIds = vocabularyDb.prepare(`
+      SELECT id FROM verbs WHERE id IN (${placeholders})
+    `).all(...normalizedVerbIds).map((item) => Number(item.id))
+    if (existingIds.length !== normalizedVerbIds.length) {
+      const existingSet = new Set(existingIds)
+      const missing = normalizedVerbIds.filter((item) => !existingSet.has(item))
+      return res.status(400).json({ error: `以下动词不存在：${missing.join(', ')}` })
+    }
+  }
+
+  const syncLessonVerbs = vocabularyDb.transaction((targetLessonId, verbIds) => {
+    vocabularyDb.prepare('DELETE FROM lesson_verbs WHERE lesson_id = ?').run(targetLessonId)
+    if (verbIds.length > 0) {
+      const insertStmt = vocabularyDb.prepare(`
+        INSERT INTO lesson_verbs (lesson_id, verb_id, order_index)
+        VALUES (?, ?, ?)
+      `)
+      verbIds.forEach((verbId, index) => {
+        insertStmt.run(targetLessonId, verbId, index)
+      })
+    }
+    vocabularyDb.prepare(`
+      UPDATE lessons
+      SET updated_at = datetime('now', 'localtime')
+      WHERE id = ?
+    `).run(targetLessonId)
+  })
+  syncLessonVerbs(lessonId, normalizedVerbIds)
+
+  touchCourseTextbook(lesson.textbook_id)
+  res.json({ success: true, count: normalizedVerbIds.length })
 })
 
 router.get('/lexicon', requireAdmin, (req, res) => {

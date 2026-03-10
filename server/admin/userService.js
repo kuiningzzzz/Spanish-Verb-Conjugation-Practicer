@@ -41,13 +41,30 @@ function listUsers(role = 'user', { limit = 50, offset = 0 } = {}) {
   return { rows: rows.map(buildUserFromRow), total }
 }
 
-function listAllUsers({ limit = 50, offset = 0 } = {}) {
+function listAllUsers({ limit = 50, offset = 0, excludeRoles = [] } = {}) {
+  const normalizedExcludeRoles = Array.isArray(excludeRoles)
+    ? excludeRoles.map((role) => String(role || '').trim()).filter(Boolean)
+    : []
+
+  const whereClause = normalizedExcludeRoles.length
+    ? `WHERE role NOT IN (${normalizedExcludeRoles.map(() => '?').join(', ')})`
+    : ''
+
   const rows = userDb
     .prepare(
-      'SELECT id, username, email, user_type, role, is_initial_admin, is_initial_dev, created_at, updated_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?'
+      `SELECT id, username, email, user_type, role, is_initial_admin, is_initial_dev, created_at, updated_at
+       FROM users
+       ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT ? OFFSET ?`
     )
-    .all(limit, offset)
-  const total = userDb.prepare('SELECT COUNT(*) as total FROM users').get().total
+    .all(...normalizedExcludeRoles, limit, offset)
+
+  const total = userDb
+    .prepare(`SELECT COUNT(*) as total FROM users ${whereClause}`)
+    .get(...normalizedExcludeRoles)
+    .total
+
   return { rows: rows.map(buildUserFromRow), total }
 }
 
