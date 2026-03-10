@@ -1,5 +1,5 @@
 <template>
-  <Teleport v-if="isDev" to=".topbar-left">
+  <Teleport v-if="isDev" to=".topbar-left-actions">
     <button
       class="ghost question-bank-download-button"
       :disabled="downloadingAll"

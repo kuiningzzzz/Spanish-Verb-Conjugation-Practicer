@@ -1,4 +1,14 @@
 <template>
+  <Teleport v-if="isDev" to=".topbar-left-actions">
+    <button
+      class="ghost lexicon-download-button"
+      :disabled="downloadingAll"
+      @click="downloadAllVerbsJson"
+    >
+      下载词库JSON
+    </button>
+  </Teleport>
+
   <section class="card lexicon-page">
     <div class="header-row">
       <div class="header-copy">
@@ -518,6 +528,9 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue';
 import { apiRequest, ApiError } from '../utils/apiClient';
+import { useAuth } from '../composables/useAuth';
+
+const { isDev } = useAuth();
 
 const rows = ref([]);
 const total = ref(0);
@@ -531,6 +544,7 @@ const error = ref('');
 const drawerOpen = ref(false);
 const editingId = ref(null);
 const saving = ref(false);
+const downloadingAll = ref(false);
 const deleting = ref(false);
 const deleteDialog = ref(null);
 const queueRemoveDialog = ref(null);
@@ -1791,6 +1805,49 @@ function refresh() {
   fetchRows();
 }
 
+function downloadJsonFile(payload, fileName) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildVerbsDownloadFileName() {
+  const now = new Date();
+  const stamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+    String(now.getSeconds()).padStart(2, '0')
+  ].join('');
+  return `verbs-${stamp}.json`;
+}
+
+async function downloadAllVerbsJson() {
+  if (downloadingAll.value) return;
+  downloadingAll.value = true;
+  try {
+    const rows = await apiRequest('/verbs/export/json', { timeout: 120000 });
+    if (!Array.isArray(rows) || !rows.length) {
+      showToast('没有词条可下载', 'info');
+      return;
+    }
+    downloadJsonFile(rows, buildVerbsDownloadFileName());
+    showToast('JSON 已下载', 'success');
+  } catch (err) {
+    handleApiError(err);
+  } finally {
+    downloadingAll.value = false;
+  }
+}
+
 function changePage(p) {
   page.value = Math.min(Math.max(p, 1), totalPages.value);
 }
@@ -2071,6 +2128,13 @@ fetchRows();
   align-items: center;
   gap: 12px;
   flex-wrap: nowrap;
+}
+
+.lexicon-download-button {
+  padding: 7px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .lexicon-body {

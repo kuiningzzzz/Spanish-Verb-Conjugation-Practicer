@@ -21,6 +21,7 @@
       <header class="topbar">
         <div class="topbar-left">
           <h1>{{ title }}</h1>
+          <div class="topbar-left-actions"></div>
         </div>
         <div class="topbar-right" v-if="user">
           <span class="chip">{{ user.username || user.email }}</span>

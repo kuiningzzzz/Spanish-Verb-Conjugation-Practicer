@@ -22,6 +22,7 @@ const PracticeRecord = require('../models/PracticeRecord')
 const Announcement = require('../models/Announcement')
 const { vocabularyDb } = require('../database/db')
 const VerbAutoFillService = require('../services/verbAutoFillService')
+const { exportVerbsAsJson } = require('../services/verbExportService')
 const fs = require('fs')
 const path = require('path')
 const AdmZip = require('adm-zip')
@@ -637,6 +638,18 @@ router.post('/verbs/autofill', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('自动补充生成失败:', error)
     return res.status(500).json({ error: '自动补充失败' })
+  }
+})
+
+router.get('/verbs/export/json', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可下载词库 JSON')
+
+  try {
+    const payload = exportVerbsAsJson()
+    return res.json(payload)
+  } catch (error) {
+    console.error('导出词库 JSON 失败:', error)
+    return res.status(500).json({ error: '导出词库 JSON 失败' })
   }
 })
 
