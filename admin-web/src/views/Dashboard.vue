@@ -1,74 +1,81 @@
 <template>
   <div class="dashboard-page">
-    <div class="dashboard-grid">
-      <section v-for="panel in panels" :key="panel.key" class="card history-panel">
-        <div class="history-panel-header">
-          <div class="history-header-main">
-            <div class="history-title-row">
-              <h3>{{ panel.title }}</h3>
-              <div class="pagination inline-pagination compact-pagination" v-if="panel.items.length > pageSize">
-                <button
-                  class="ghost"
-                  :disabled="pages[panel.key] === 1"
-                  @click="changePage(panel, pages[panel.key] - 1)"
-                >
-                  ←
-                </button>
-                <span>第 {{ pages[panel.key] }} / {{ totalPages(panel) }} 页</span>
-                <button
-                  class="ghost"
-                  :disabled="pages[panel.key] === totalPages(panel)"
-                  @click="changePage(panel, pages[panel.key] + 1)"
-                >
-                  →
-                </button>
-              </div>
-            </div>
-            <p class="muted">共 {{ panel.items.length }} 条记录</p>
+    <section v-if="currentPanel" class="card history-panel history-panel-single">
+      <div class="history-panel-header">
+        <div class="history-panel-tabs" role="tablist" aria-label="管理历史切换">
+          <button
+            v-for="panel in panels"
+            :key="panel.key"
+            class="history-tab"
+            :class="{ active: panel.key === currentPanel.key }"
+            type="button"
+            @click="selectPanel(panel.key)"
+          >
+            {{ panel.title }}
+          </button>
+        </div>
+        <div class="history-header-side">
+          <span class="muted history-record-total">共 {{ currentPanel.items.length }} 条记录</span>
+          <div class="pagination inline-pagination compact-pagination" v-if="currentPanel.items.length > pageSize">
+            <button
+              class="ghost"
+              :disabled="pages[currentPanel.key] === 1"
+              @click="changePage(currentPanel, pages[currentPanel.key] - 1)"
+            >
+              ←
+            </button>
+            <span>第 {{ pages[currentPanel.key] }} / {{ totalPages(currentPanel) }} 页</span>
+            <button
+              class="ghost"
+              :disabled="pages[currentPanel.key] === totalPages(currentPanel)"
+              @click="changePage(currentPanel, pages[currentPanel.key] + 1)"
+            >
+              →
+            </button>
           </div>
         </div>
+      </div>
 
-        <div class="history-table-shell">
-          <table class="table history-table">
-            <colgroup>
-              <col style="width: 26%" />
-              <col style="width: 20%" />
-              <col style="width: 34%" />
-              <col style="width: 20%" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>修改人</th>
-                <th>{{ panel.targetLabel }}</th>
-                <th>修改时间</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in pagedItems(panel)" :key="item.id" class="history-row">
-                <td class="history-cell">
-                  <span class="ellipsis" :title="item.username">{{ item.username }}</span>
-                </td>
-                <td class="history-cell">
-                  <span class="ellipsis" :title="String(item.targetId)">{{ item.targetId }}</span>
-                </td>
-                <td class="history-cell">
-                  <span class="ellipsis" :title="formatDate(item.modifiedAt)">
-                    {{ formatDateDay(item.modifiedAt) }}
-                  </span>
-                </td>
-                <td class="history-actions-cell">
-                  <button class="ghost" @click="openDetail(panel.key, item)">详情</button>
-                </td>
-              </tr>
-              <tr v-if="!pagedItems(panel).length">
-                <td colspan="4" class="empty">暂无记录</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </div>
+      <div class="history-table-shell">
+        <table class="table history-table">
+          <colgroup>
+            <col style="width: 26%" />
+            <col style="width: 20%" />
+            <col style="width: 34%" />
+            <col style="width: 20%" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>修改人</th>
+              <th>{{ currentPanel.targetLabel }}</th>
+              <th>修改时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in pagedItems(currentPanel)" :key="item.id" class="history-row">
+              <td class="history-cell">
+                <span class="ellipsis" :title="item.username">{{ item.username }}</span>
+              </td>
+              <td class="history-cell">
+                <span class="ellipsis" :title="String(item.targetId)">{{ item.targetId }}</span>
+              </td>
+              <td class="history-cell">
+                <span class="ellipsis" :title="formatDate(item.modifiedAt)">
+                  {{ formatDateDay(item.modifiedAt) }}
+                </span>
+              </td>
+              <td class="history-actions-cell">
+                <button class="ghost" @click="openDetail(currentPanel.key, item)">详情</button>
+              </td>
+            </tr>
+            <tr v-if="!pagedItems(currentPanel).length">
+              <td colspan="4" class="empty">暂无记录</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
     <div v-if="detailOpen" class="overlay">
       <div class="modal history-detail">
@@ -168,6 +175,22 @@ const questionHistory = ref(
   })
 );
 
+const courseMaterialHistory = ref(
+  buildHistory({
+    count: 11,
+    prefix: 'course-material',
+    usernames: ['admin_zoe', 'dev_ming', 'editor_yan'],
+    targetStart: 501,
+    actions: ['更新教材信息', '调整课程排序', '补充教材说明', '修正课程标签'],
+    descriptions: [
+      '更新课程教材基础信息与展示文案',
+      '调整课程与教材的排序关系',
+      '补充教材说明与适用范围',
+      '修正课程教材标签与分类'
+    ]
+  })
+);
+
 const panels = computed(() => [
   {
     key: 'users',
@@ -186,19 +209,28 @@ const panels = computed(() => [
     title: '题库管理历史',
     targetLabel: '题目ID',
     items: questionHistory.value
+  },
+  {
+    key: 'courseMaterials',
+    title: '课程教材管理历史',
+    targetLabel: '教材ID',
+    items: courseMaterialHistory.value
   }
 ]);
 
 const pages = reactive({
   users: 1,
   lexicon: 1,
-  questions: 1
+  questions: 1,
+  courseMaterials: 1
 });
+const activePanelKey = ref('users');
 
 const detailOpen = ref(false);
 const detailItem = ref(null);
 const detailPanelKey = ref('');
 
+const currentPanel = computed(() => panels.value.find((panel) => panel.key === activePanelKey.value) || panels.value[0] || null);
 const detailPanel = computed(() => panels.value.find((panel) => panel.key === detailPanelKey.value) || null);
 const detailTitle = computed(() => (detailPanel.value ? `${detailPanel.value.title}详情` : '详情'));
 const detailTargetLabel = computed(() => detailPanel.value?.targetLabel || '目标ID');
@@ -215,6 +247,10 @@ function totalPages(panel) {
 function changePage(panel, nextPage) {
   const bounded = Math.min(Math.max(nextPage, 1), totalPages(panel));
   pages[panel.key] = bounded;
+}
+
+function selectPanel(panelKey) {
+  activePanelKey.value = panelKey;
 }
 
 function openDetail(panelKey, item) {
@@ -256,23 +292,17 @@ function formatDateDay(value) {
   gap: 6px;
 }
 
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 16px;
-}
-
 .history-panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  height: min(calc(100vh - 150px), 760px);
+  height: min(calc(100vh - 180px), 760px);
   min-height: 560px;
   overflow: hidden;
 }
 
-.history-panel h3 {
-  margin: 0 0 4px;
+.history-panel-single {
+  width: 100%;
 }
 
 .history-panel-header {
@@ -283,17 +313,40 @@ function formatDateDay(value) {
   flex-wrap: wrap;
 }
 
-.history-header-main {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.history-title-row {
+.history-panel-tabs {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
+}
+
+.history-tab {
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 4px 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.history-tab.active {
+  color: #1e3a8a;
+  border-bottom-color: #2563eb;
+}
+
+.history-header-side {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.history-record-total {
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .history-table {
@@ -340,6 +393,7 @@ function formatDateDay(value) {
 .compact-pagination {
   font-size: 12px;
   gap: 6px;
+  white-space: nowrap;
 }
 
 .compact-pagination .ghost {
@@ -356,6 +410,16 @@ function formatDateDay(value) {
   .history-panel {
     height: 66vh;
     min-height: 460px;
+  }
+
+  .history-panel-header {
+    align-items: flex-start;
+  }
+
+  .history-header-side {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
   }
 }
 </style>
