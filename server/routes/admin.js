@@ -219,6 +219,26 @@ function formatTimestamp(date = new Date()) {
   )
 }
 
+function toChineseLessonNumber(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number) || number < 1 || number > 100) {
+    return String(value || '')
+  }
+  const digits = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九']
+  if (number <= 10) {
+    return number === 10 ? '十' : digits[number]
+  }
+  if (number < 20) {
+    return `十${digits[number % 10]}`
+  }
+  if (number === 100) {
+    return '一百'
+  }
+  const tens = Math.floor(number / 10)
+  const ones = number % 10
+  return ones === 0 ? `${digits[tens]}十` : `${digits[tens]}十${digits[ones]}`
+}
+
 function issueDownloadToken(recordId) {
   const token = crypto.randomBytes(24).toString('hex')
   downloadTokens.set(token, { recordId, expiresAt: Date.now() + DOWNLOAD_TOKEN_TTL_MS })
@@ -880,7 +900,10 @@ router.post('/course-materials/textbooks/:id/lessons', requireAdmin, (req, res) 
   `).get(textbookId)
 
   const nextLessonNumber = Number(maxNumberRow?.max_number || 0) + 1
-  const title = `第${nextLessonNumber}课`
+  if (nextLessonNumber > 100) {
+    return res.status(400).json({ error: '添加课程失败：已达到第一百课上限' })
+  }
+  const title = `第${toChineseLessonNumber(nextLessonNumber)}课`
   const defaultTenses = [...COURSE_DEFAULT_TENSE_KEYS]
   const defaultMoods = getCourseMoodsFromTenses(defaultTenses)
 

@@ -105,7 +105,7 @@
               <th v-if="isDev" class="col-created sortable" @click="toggleSort('created_at')">
                 创建时间 <span class="sort-indicator">{{ sortIndicator('created_at') }}</span>
               </th>
-              <th class="col-actions">操作</th>
+              <th class="col-actions"><span class="col-actions-label">操作</span></th>
             </tr>
           </thead>
           <tbody>
@@ -129,8 +129,10 @@
               <td v-if="isDev" class="col-confidence">{{ question.confidence_score ?? '-' }}</td>
               <td v-if="isDev" class="col-created">{{ formatDate(question.created_at) }}</td>
               <td class="actions col-actions">
-                <button class="ghost" @click="openEdit(question)">编辑</button>
-                <button class="danger" @click="confirmDelete(question)">删除</button>
+                <div class="actions-group">
+                  <button class="ghost" @click="openEdit(question)">编辑</button>
+                  <button class="danger" @click="confirmDelete(question)">删除</button>
+                </div>
               </td>
             </tr>
             <tr v-if="!questions.length">
@@ -235,7 +237,10 @@
             <input v-model.number="form.confidence_score" type="number" min="0" max="100" />
             <span v-if="formErrors.confidence_score" class="field-error">{{ formErrors.confidence_score }}</span>
           </label>
-          <button type="submit" :disabled="saving">保存</button>
+          <div class="edit-drawer-actions">
+            <button type="button" class="ghost" :disabled="saving" @click="closeDrawer">不保存</button>
+            <button type="submit" :disabled="saving">保存</button>
+          </div>
         </form>
       </div>
     </div>
@@ -1103,9 +1108,14 @@ fetchConjugationOptions();
   width: 132px;
 }
 
-.question-bank-page .table th.col-actions,
-.question-bank-page .table td.actions.col-actions {
-  text-align: center;
+.question-bank-page .table th.col-actions {
+  text-align: right;
+}
+
+.question-bank-page .table th.col-actions .col-actions-label {
+  display: inline-block;
+  min-width: 108px;
+  text-align: left;
 }
 
 .question-bank-page .question-ellipsis {
@@ -1116,7 +1126,15 @@ fetchConjugationOptions();
 
 .question-bank-page .table td.actions {
   display: table-cell;
+  text-align: right;
   white-space: nowrap;
+}
+
+.question-bank-page .table td.actions .actions-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 108px;
 }
 
 .question-bank-page .table td.actions button {
@@ -1128,6 +1146,17 @@ fetchConjugationOptions();
 
 .question-bank-page .table td.actions button + button {
   margin-left: 4px;
+}
+
+.question-bank-page .edit-drawer-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.question-bank-page .edit-drawer-actions button {
+  flex: 1;
+  width: 50%;
 }
 
 @media (max-width: 960px) {

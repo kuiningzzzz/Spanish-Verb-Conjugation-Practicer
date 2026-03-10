@@ -71,6 +71,31 @@
                 </div>
               </div>
               <p class="lexicon-entry-meaning">{{ item.meaning || '-' }}</p>
+              <div
+                v-if="getLexiconEntryTopTags(item).length || getLexiconEntryBottomTags(item).length"
+                class="lexicon-entry-tags"
+              >
+                <div v-if="getLexiconEntryTopTags(item).length" class="lexicon-entry-tag-row">
+                  <span
+                    v-for="tag in getLexiconEntryTopTags(item)"
+                    :key="`${item.id}-top-${tag.key}`"
+                    class="lexicon-entry-tag"
+                    :class="`tag-${tag.key}`"
+                  >
+                    {{ tag.label }}
+                  </span>
+                </div>
+                <div v-if="getLexiconEntryBottomTags(item).length" class="lexicon-entry-tag-row">
+                  <span
+                    v-for="tag in getLexiconEntryBottomTags(item)"
+                    :key="`${item.id}-bottom-${tag.key}`"
+                    class="lexicon-entry-tag"
+                    :class="`tag-${tag.key}`"
+                  >
+                    {{ tag.label }}
+                  </span>
+                </div>
+              </div>
             </div>
           </article>
         </div>
@@ -532,7 +557,7 @@ const { isDev } = useAuth();
 const rows = ref([]);
 const total = ref(0);
 const page = ref(1);
-const pageSize = ref(12);
+const pageSize = ref(9);
 const pageJump = ref(1);
 const keyword = ref('');
 const idOrder = ref('asc');
@@ -818,6 +843,29 @@ const filteredRows = computed(() => {
     );
   });
 });
+
+function isEnabledFlag(value) {
+  return value === true || Number(value) === 1;
+}
+
+function getLexiconEntryTopTags(item) {
+  if (!item || typeof item !== 'object') return [];
+  const tags = [];
+  if (isEnabledFlag(item.is_reflexive)) tags.push({ key: 'prnl', label: 'Prnl.' });
+  if (isEnabledFlag(item.is_irregular)) tags.push({ key: 'irreg', label: 'Irreg.' });
+  if (isEnabledFlag(item.has_tr_use)) tags.push({ key: 'tr', label: 'tr.' });
+  if (isEnabledFlag(item.has_intr_use)) tags.push({ key: 'intr', label: 'intr.' });
+  return tags;
+}
+
+function getLexiconEntryBottomTags(item) {
+  if (!item || typeof item !== 'object') return [];
+  const tags = [];
+  if (isEnabledFlag(item.supports_io)) tags.push({ key: 'vio', label: 'V+IO' });
+  if (isEnabledFlag(item.supports_do)) tags.push({ key: 'vdo', label: 'V+DO' });
+  if (isEnabledFlag(item.supports_do_io)) tags.push({ key: 'viodo', label: 'V+IO+DO' });
+  return tags;
+}
 
 function showToast(message, type = 'info') {
   toast.message = message;
@@ -2204,7 +2252,7 @@ fetchRows();
 .lexicon-entry-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
   gap: 10px;
   height: 100%;
   align-items: stretch;
@@ -2274,6 +2322,73 @@ fetchRows();
   overflow: hidden;
 }
 
+.lexicon-entry-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.lexicon-entry-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lexicon-entry-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.1;
+  font-weight: 700;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.lexicon-entry-tag.tag-prnl {
+  background: rgba(15, 118, 110, 0.12);
+  color: #0f766e;
+  border-color: rgba(15, 118, 110, 0.24);
+}
+
+.lexicon-entry-tag.tag-irreg {
+  background: rgba(185, 28, 28, 0.12);
+  color: #9f1239;
+  border-color: rgba(185, 28, 28, 0.24);
+}
+
+.lexicon-entry-tag.tag-tr {
+  background: rgba(217, 119, 6, 0.14);
+  color: #92400e;
+  border-color: rgba(217, 119, 6, 0.26);
+}
+
+.lexicon-entry-tag.tag-intr {
+  background: rgba(71, 85, 105, 0.14);
+  color: #334155;
+  border-color: rgba(71, 85, 105, 0.26);
+}
+
+.lexicon-entry-tag.tag-vio {
+  background: rgba(2, 132, 199, 0.14);
+  color: #0369a1;
+  border-color: rgba(2, 132, 199, 0.26);
+}
+
+.lexicon-entry-tag.tag-vdo {
+  background: rgba(22, 163, 74, 0.14);
+  color: #166534;
+  border-color: rgba(22, 163, 74, 0.26);
+}
+
+.lexicon-entry-tag.tag-viodo {
+  background: rgba(202, 138, 4, 0.14);
+  color: #854d0e;
+  border-color: rgba(202, 138, 4, 0.26);
+}
+
 .lexicon-entry-actions {
   display: flex;
   justify-content: flex-end;
@@ -2284,9 +2399,9 @@ fetchRows();
 }
 
 .lexicon-entry-actions button {
-  padding: 3px 7px;
+  padding: 4px 9px;
   min-width: 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.1;
   box-shadow: none;
 }

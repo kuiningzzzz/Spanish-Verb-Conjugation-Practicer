@@ -147,7 +147,10 @@
               </option>
             </select>
           </label>
-          <button type="submit" :disabled="saving">保存</button>
+          <div class="edit-drawer-actions">
+            <button type="button" class="ghost" :disabled="saving" @click="closeDrawer">不保存</button>
+            <button type="submit" :disabled="saving">保存</button>
+          </div>
         </form>
       </div>
     </div>
@@ -806,5 +809,16 @@ fetchUsers();
 
 .users-page .table td.actions button + button {
   margin-left: 4px;
+}
+
+.edit-drawer-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.edit-drawer-actions button {
+  flex: 1;
+  width: 50%;
 }
 </style>

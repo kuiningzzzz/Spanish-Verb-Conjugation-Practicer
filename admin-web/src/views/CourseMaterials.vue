@@ -3,10 +3,8 @@
     <div class="management-header">
       <div>
         <div class="header-title-row">
-          <h2>{{ activeTextbook ? '教材课程设置' : '教材管理' }}</h2>
-          <p v-if="activeTextbook" class="current-textbook">
-            当前教材：{{ activeTextbook.name }}
-          </p>
+          <h2 v-if="!activeTextbook">教材管理</h2>
+          <h2 v-else>当前教材：{{ activeTextbook.name }}</h2>
         </div>
       </div>
       <div class="toolbar management-toolbar">
@@ -25,6 +23,14 @@
           </button>
           <button v-if="activeTextbook" class="ghost" @click="addLesson" :disabled="addingLesson || loadingLessons">
             {{ addingLesson ? '添加中...' : '添加课程' }}
+          </button>
+          <button
+            v-if="activeTextbook"
+            class="danger"
+            @click="loadLessons"
+            :disabled="loadingLessons || addingLesson"
+          >
+            {{ loadingLessons ? '刷新中...' : '刷新' }}
           </button>
         </div>
       </div>
@@ -98,15 +104,10 @@
                     v-model.trim="lesson.titleDraft"
                     class="lesson-title-input"
                     placeholder="课程名称"
-                    @keydown.enter.prevent="saveLessonTitle(lesson)"
+                    @input="queueLessonTitleSave(lesson)"
+                    @blur="flushLessonTitleSave(lesson, true)"
+                    @keydown.enter.prevent="handleLessonTitleEnter"
                   />
-                  <button
-                    class="ghost"
-                    :disabled="saveLessonTitleLoading[lesson.id]"
-                    @click="saveLessonTitle(lesson)"
-                  >
-                    {{ saveLessonTitleLoading[lesson.id] ? '保存中...' : '保存' }}
-                  </button>
                 </div>
               </td>
               <td>{{ lesson.vocabulary_count || 0 }}</td>
@@ -148,21 +149,29 @@
     <div v-if="wordDialogOpen" class="overlay">
       <div class="drawer course-drawer word-drawer">
         <header>
-          <h3>设置单词 - {{ wordDialogLesson?.title || '-' }}</h3>
-          <button class="ghost" @click="closeWordDialog">返回</button>
+          <h3>设置单词 - {{ activeTextbook?.name || '-' }} - {{ wordDialogLesson?.title || '-' }}</h3>
+          <button class="ghost" @click="closeWordDialog">关闭</button>
         </header>
 
         <div class="word-toolbar">
-          <input
-            v-model.trim="wordSearchKeyword"
-            placeholder="搜索词库（原形/释义）"
-            @keydown.enter.prevent="fetchWordSearchRows"
-          />
-          <button class="ghost" :disabled="wordSearchLoading" @click="fetchWordSearchRows">
+          <div class="word-search-input-wrap">
+            <input
+              v-model.trim="wordSearchKeyword"
+              placeholder="搜索词库（原形/释义）"
+              @keydown.enter.prevent="fetchWordSearchRows"
+            />
+            <button
+              v-if="wordSearchKeyword"
+              type="button"
+              class="word-search-clear"
+              :disabled="wordSearchLoading"
+              @click="clearWordSearch"
+            >
+              ×
+            </button>
+          </div>
+          <button class="word-search-button" :disabled="wordSearchLoading" @click="fetchWordSearchRows">
             {{ wordSearchLoading ? '搜索中...' : '搜索' }}
-          </button>
-          <button class="ghost" :disabled="wordDialogSaving || !wordSelectedRows.length" @click="confirmClearAllWords">
-            全清
           </button>
         </div>
 
@@ -205,7 +214,7 @@
         </div>
 
         <div class="modal-actions">
-          <button class="ghost" @click="closeWordDialog">返回（不保存）</button>
+          <button class="ghost" @click="closeWordDialog">不保存</button>
           <button :disabled="wordDialogSaving" @click="saveLessonWords">
             {{ wordDialogSaving ? '保存中...' : '保存' }}
           </button>
@@ -215,57 +224,57 @@
 
     <div v-if="tenseDialogOpen" class="overlay">
       <div class="drawer course-drawer tense-drawer">
-        <header>
-          <h3>设置时态 - {{ tenseDialogLesson?.title || '-' }}</h3>
-          <button class="ghost" @click="closeTenseDialog">返回</button>
+        <header class="tense-drawer-header">
+          <div class="tense-header-main">
+            <h3>设置时态 - {{ activeTextbook?.name || '-' }} - {{ tenseDialogLesson?.title || '-' }}</h3>
+            <div class="tense-header-actions">
+              <span class="muted">已选 {{ selectedTenses.length }} 项</span>
+              <button class="ghost tense-header-btn" @click="selectAllTenses">全选</button>
+              <button class="ghost tense-header-btn" @click="clearAllTenses">清除</button>
+            </div>
+          </div>
+          <button class="ghost" @click="closeTenseDialog">关闭</button>
         </header>
 
-        <div class="tense-toolbar">
-          <span class="muted">已选 {{ selectedTenses.length }} 项</span>
-          <button class="ghost" @click="selectAllTenses">全选</button>
-          <button class="ghost" @click="clearAllTenses">清除</button>
-        </div>
-
-        <div class="mood-accordion">
-          <section v-for="mood in moodOptions" :key="mood.value" class="mood-panel">
-            <button class="mood-panel-header" @click="toggleMoodPanel(mood.value)">
-              <span class="mood-panel-title">{{ mood.label }}</span>
-              <span class="mood-panel-right">
-                已选 {{ getSelectedTenseCountByMood(mood.value) }} 项
-                {{ isMoodPanelExpanded(mood.value) ? '▲' : '▼' }}
-              </span>
-            </button>
-
-            <div v-if="isMoodPanelExpanded(mood.value)" class="mood-panel-body">
-              <div class="mood-actions">
-                <button class="ghost" @click.stop="selectAllTensesInMood(mood.value)">全选</button>
-                <button class="ghost" @click.stop="clearTensesInMood(mood.value)">清除</button>
+        <div class="mood-grid">
+          <section v-for="mood in moodOptions" :key="mood.value" class="mood-column">
+            <div class="mood-column-header">
+              <div class="mood-column-head-main">
+                <span class="mood-column-title">{{ mood.label }}</span>
+                <span class="mood-column-count">已选 {{ getSelectedTenseCountByMood(mood.value) }} 项</span>
               </div>
-
-              <div class="checkbox-group">
-                <button
-                  v-for="tense in getTensesByMood(mood.value)"
-                  :key="tense.value"
-                  class="checkbox-item"
-                  :class="{ checked: selectedTenses.includes(tense.value) }"
-                  @click.prevent="toggleTense(tense.value)"
-                >
-                  <span class="checkbox-icon">{{ selectedTenses.includes(tense.value) ? '☑' : '☐' }}</span>
-                  <span class="checkbox-label">{{ tense.label }}</span>
-                  <span class="tense-level-tag" :class="tenseLevelClass(tense.value)">
-                    {{ tenseLevelLabel(tense.value) }}
-                  </span>
-                </button>
+              <div class="mood-actions mood-actions-mini">
+                <button class="ghost mood-mini-btn" @click="selectAllTensesInMood(mood.value)">全选</button>
+                <button class="ghost mood-mini-btn" @click="clearTensesInMood(mood.value)">清除</button>
               </div>
+            </div>
+
+            <div class="tense-list">
+              <button
+                v-for="tense in getTensesByMood(mood.value)"
+                :key="tense.value"
+                class="tense-row"
+                :class="{ checked: selectedTenses.includes(tense.value) }"
+                @click.prevent="toggleTense(tense.value)"
+              >
+                <span class="checkbox-icon">{{ selectedTenses.includes(tense.value) ? '☑' : '☐' }}</span>
+                <span class="checkbox-label">
+                  <span class="tense-label-es">{{ tense.labelEs }}</span>
+                  <span v-if="tense.labelZh" class="tense-label-zh">{{ tense.labelZh }}</span>
+                </span>
+              </button>
             </div>
           </section>
         </div>
 
-        <div class="modal-actions">
-          <button class="ghost" @click="closeTenseDialog">返回（不保存）</button>
-          <button :disabled="tenseDialogSaving" @click="saveLessonTenses">
-            {{ tenseDialogSaving ? '保存中...' : '保存' }}
-          </button>
+        <div class="modal-actions tense-footer">
+          <p class="tense-footer-note">默认勾选了9种常见时态，请根据需要进行调整。</p>
+          <div class="tense-footer-actions">
+            <button class="ghost" @click="closeTenseDialog">不保存</button>
+            <button :disabled="tenseDialogSaving" @click="saveLessonTenses">
+              {{ tenseDialogSaving ? '保存中...' : '保存' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -291,7 +300,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { ApiError, apiRequest } from '../utils/apiClient'
@@ -322,20 +331,6 @@ const DEFAULT_TENSE_OPTIONS = [
   { value: 'imperativo_afirmativo', label: 'Imperativo（命令式）', mood: 'imperativo' },
   { value: 'imperativo_negativo', label: 'Imperativo Negativo（否定命令式）', mood: 'imperativo' }
 ]
-const DEFAULT_SECOND_CLASS_TENSE_KEYS = [
-  'pluscuamperfecto',
-  'futuro_perfecto',
-  'condicional_perfecto',
-  'subjuntivo_imperfecto',
-  'subjuntivo_perfecto'
-]
-const DEFAULT_THIRD_CLASS_TENSE_KEYS = [
-  'preterito_anterior',
-  'subjuntivo_futuro',
-  'subjuntivo_pluscuamperfecto',
-  'subjuntivo_futuro_perfecto'
-]
-
 const router = useRouter()
 const { logout } = useAuth()
 
@@ -351,6 +346,7 @@ const creatingTextbook = ref(false)
 const publishLoading = reactive({})
 const deleteLoading = reactive({})
 const saveLessonTitleLoading = reactive({})
+const lessonTitleSaveTimers = new Map()
 
 const createTextbookDialogOpen = ref(false)
 const createTextbookForm = reactive({ name: '' })
@@ -370,10 +366,7 @@ const tenseDialogLesson = ref(null)
 const tenseDialogSaving = ref(false)
 const moodOptions = ref([...DEFAULT_MOOD_OPTIONS])
 const tenseOptions = ref([...DEFAULT_TENSE_OPTIONS])
-const secondClassTenseKeys = ref([...DEFAULT_SECOND_CLASS_TENSE_KEYS])
-const thirdClassTenseKeys = ref([...DEFAULT_THIRD_CLASS_TENSE_KEYS])
 const selectedTenses = ref([])
-const expandedMoodPanels = ref({})
 
 const confirmDialog = reactive({
   open: false,
@@ -392,6 +385,7 @@ const toast = reactive({
 })
 let toastTimer = null
 let wordSearchTimer = null
+const LESSON_TITLE_AUTO_SAVE_DEBOUNCE_MS = 450
 
 const loadingCurrentView = computed(() => (activeTextbook.value ? loadingLessons.value : loadingTextbooks.value))
 
@@ -453,6 +447,29 @@ function normalizeLessonRow(item) {
   }
 }
 
+function clearAllLessonTitleSaveTimers() {
+  lessonTitleSaveTimers.forEach((timer) => {
+    clearTimeout(timer)
+  })
+  lessonTitleSaveTimers.clear()
+}
+
+function clearLessonTitleSaveTimerById(lessonId) {
+  const targetId = Number(lessonId)
+  if (!targetId) return
+  const timer = lessonTitleSaveTimers.get(targetId)
+  if (timer) {
+    clearTimeout(timer)
+    lessonTitleSaveTimers.delete(targetId)
+  }
+}
+
+function getLessonById(lessonId) {
+  const targetId = Number(lessonId)
+  if (!targetId) return null
+  return lessons.value.find((item) => Number(item.id) === targetId) || null
+}
+
 function formatDateTime(value) {
   if (!value) return '-'
   const normalized = String(value).includes('T') ? String(value) : String(value).replace(' ', 'T')
@@ -471,12 +488,6 @@ async function loadCourseMaterialOptions() {
     }
     if (Array.isArray(data?.tenses) && data.tenses.length > 0) {
       tenseOptions.value = data.tenses
-    }
-    if (Array.isArray(data?.defaults?.secondClassTenseKeys)) {
-      secondClassTenseKeys.value = data.defaults.secondClassTenseKeys
-    }
-    if (Array.isArray(data?.defaults?.thirdClassTenseKeys)) {
-      thirdClassTenseKeys.value = data.defaults.thirdClassTenseKeys
     }
   } catch (error) {
     handleApiError(error, '加载时态选项失败，已使用默认配置')
@@ -507,6 +518,7 @@ async function refreshTextbooks() {
 
 async function loadLessons() {
   if (!activeTextbook.value?.id) return
+  clearAllLessonTitleSaveTimers()
   loadingLessons.value = true
   pageError.value = ''
   try {
@@ -529,12 +541,14 @@ async function loadLessons() {
 }
 
 function enterTextbook(textbook) {
+  clearAllLessonTitleSaveTimers()
   activeTextbook.value = normalizeTextbookRow(textbook)
   lessons.value = []
   loadLessons()
 }
 
 function backToTextbookList() {
+  clearAllLessonTitleSaveTimers()
   activeTextbook.value = null
   lessons.value = []
   pageError.value = ''
@@ -677,21 +691,59 @@ async function addLesson() {
   }
 }
 
-async function saveLessonTitle(lesson) {
+function handleLessonTitleEnter(event) {
+  if (event?.target && typeof event.target.blur === 'function') {
+    event.target.blur()
+  }
+}
+
+function queueLessonTitleSave(lesson) {
+  const lessonId = Number(lesson?.id)
+  if (!lessonId) return
+  clearLessonTitleSaveTimerById(lessonId)
+  const timer = setTimeout(() => {
+    lessonTitleSaveTimers.delete(lessonId)
+    const current = getLessonById(lessonId)
+    if (!current) return
+    saveLessonTitle(current, { revertOnEmpty: false, silentSuccess: true })
+  }, LESSON_TITLE_AUTO_SAVE_DEBOUNCE_MS)
+  lessonTitleSaveTimers.set(lessonId, timer)
+}
+
+function flushLessonTitleSave(lesson, revertOnEmpty = false) {
+  const lessonId = Number(lesson?.id)
+  if (!lessonId) return
+  clearLessonTitleSaveTimerById(lessonId)
+  const current = getLessonById(lessonId)
+  if (!current) return
+  saveLessonTitle(current, { revertOnEmpty, silentSuccess: true })
+}
+
+async function saveLessonTitle(lesson, options = {}) {
+  const { revertOnEmpty = false, silentSuccess = true } = options
+  const lessonId = Number(lesson?.id)
+  if (!lessonId) return
   const nextTitle = String(lesson.titleDraft || '').trim()
   if (!nextTitle) {
-    showToast('课程名称不能为空', 'error')
+    if (revertOnEmpty) {
+      lesson.titleDraft = lesson.title || ''
+      showToast('课程名称不能为空', 'error')
+    }
     return
   }
   if (nextTitle === lesson.title) return
-  saveLessonTitleLoading[lesson.id] = true
+  if (saveLessonTitleLoading[lessonId]) {
+    queueLessonTitleSave(lesson)
+    return
+  }
+  saveLessonTitleLoading[lessonId] = true
   try {
-    const data = await apiRequest(`/course-materials/lessons/${lesson.id}`, {
+    const data = await apiRequest(`/course-materials/lessons/${lessonId}`, {
       method: 'PUT',
       body: { title: nextTitle }
     })
     const updated = normalizeLessonRow(data?.row || lesson)
-    const index = lessons.value.findIndex((item) => item.id === lesson.id)
+    const index = lessons.value.findIndex((item) => Number(item.id) === lessonId)
     if (index > -1) {
       lessons.value[index] = {
         ...lessons.value[index],
@@ -699,13 +751,15 @@ async function saveLessonTitle(lesson) {
         titleDraft: updated.title
       }
     }
-    showToast('课程名称已更新', 'success')
+    if (!silentSuccess) {
+      showToast('课程名称已更新', 'success')
+    }
     await refreshTextbooks()
   } catch (error) {
     lesson.titleDraft = lesson.title
     handleApiError(error, '更新课程名称失败')
   } finally {
-    saveLessonTitleLoading[lesson.id] = false
+    saveLessonTitleLoading[lessonId] = false
   }
 }
 
@@ -716,6 +770,7 @@ function confirmDeleteLesson(lesson) {
     hint: '删除后不可恢复。',
     confirmText: '确认删除',
     onConfirm: async () => {
+      clearLessonTitleSaveTimerById(lesson.id)
       deleteLoading[lesson.id] = true
       try {
         await apiRequest(`/course-materials/lessons/${lesson.id}`, { method: 'DELETE' })
@@ -761,6 +816,13 @@ function closeWordDialog() {
   wordSearchKeyword.value = ''
   wordSearchRows.value = []
   wordSelectedRows.value = []
+}
+
+function clearWordSearch() {
+  if (!wordDialogOpen.value) return
+  wordSearchKeyword.value = ''
+  if (wordSearchTimer) clearTimeout(wordSearchTimer)
+  fetchWordSearchRows()
 }
 
 async function fetchWordSearchRows() {
@@ -811,19 +873,6 @@ function removeSelectedWord(verbId) {
   wordSelectedRows.value = wordSelectedRows.value.filter((item) => Number(item.id) !== targetId)
 }
 
-function confirmClearAllWords() {
-  openConfirmDialog({
-    title: '确认清空课程单词',
-    message: '这将清空当前课程已选单词。',
-    hint: '点击“保存”后才会真正生效。',
-    confirmText: '确认清空',
-    onConfirm: async () => {
-      wordSelectedRows.value = []
-      showToast('已清空当前编辑内容（未保存）', 'success')
-    }
-  })
-}
-
 async function saveLessonWords() {
   if (!wordDialogLesson.value?.id) return
   wordDialogSaving.value = true
@@ -847,7 +896,6 @@ async function saveLessonWords() {
 function openTenseDialog(lesson) {
   tenseDialogLesson.value = lesson
   selectedTenses.value = Array.isArray(lesson.tenses) ? [...lesson.tenses] : []
-  initMoodPanels()
   tenseDialogOpen.value = true
 }
 
@@ -858,29 +906,29 @@ function closeTenseDialog() {
   selectedTenses.value = []
 }
 
-function initMoodPanels() {
-  const next = {}
-  moodOptions.value.forEach((item, index) => {
-    next[item.value] = index === 0
-  })
-  expandedMoodPanels.value = next
-}
-
-function isMoodPanelExpanded(moodValue) {
-  return Boolean(expandedMoodPanels.value[moodValue])
-}
-
-function toggleMoodPanel(moodValue) {
-  const next = {}
-  moodOptions.value.forEach((item) => {
-    next[item.value] = false
-  })
-  next[moodValue] = !expandedMoodPanels.value[moodValue]
-  expandedMoodPanels.value = next
+function splitTenseLabel(label) {
+  const raw = String(label || '').trim()
+  const match = raw.match(/^(.+?)\s*[（(]\s*(.+?)\s*[）)]\s*$/)
+  if (!match) {
+    return { es: raw, zh: '' }
+  }
+  return {
+    es: String(match[1] || '').trim(),
+    zh: String(match[2] || '').trim()
+  }
 }
 
 function getTensesByMood(moodValue) {
-  return tenseOptions.value.filter((item) => item.mood === moodValue)
+  return tenseOptions.value
+    .filter((item) => item.mood === moodValue)
+    .map((item) => {
+      const parts = splitTenseLabel(item.label)
+      return {
+        ...item,
+        labelEs: parts.es,
+        labelZh: parts.zh
+      }
+    })
 }
 
 function getSelectedTenseCountByMood(moodValue) {
@@ -916,18 +964,6 @@ function selectAllTenses() {
 
 function clearAllTenses() {
   selectedTenses.value = []
-}
-
-function tenseLevelLabel(tenseValue) {
-  if (thirdClassTenseKeys.value.includes(tenseValue)) return '三类'
-  if (secondClassTenseKeys.value.includes(tenseValue)) return '二类'
-  return '一类'
-}
-
-function tenseLevelClass(tenseValue) {
-  if (thirdClassTenseKeys.value.includes(tenseValue)) return 'level-3'
-  if (secondClassTenseKeys.value.includes(tenseValue)) return 'level-2'
-  return 'level-1'
 }
 
 async function saveLessonTenses() {
@@ -973,6 +1009,10 @@ onMounted(async () => {
     refreshTextbooks()
   ])
 })
+
+onBeforeUnmount(() => {
+  clearAllLessonTitleSaveTimers()
+})
 </script>
 
 <style scoped>
@@ -987,14 +1027,6 @@ onMounted(async () => {
   align-items: baseline;
   gap: 14px;
   flex-wrap: wrap;
-}
-
-.current-textbook {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 700;
-  color: #111111;
-  line-height: 1.2;
 }
 
 .course-materials-page :deep(td.actions) {
@@ -1065,23 +1097,111 @@ onMounted(async () => {
   gap: 12px;
 }
 
-.word-toolbar,
-.tense-toolbar {
+.word-drawer {
+  height: 88vh;
+  max-height: 88vh;
+}
+
+.tense-drawer {
+  height: 88vh;
+  max-height: 88vh;
+}
+
+.word-toolbar {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.word-toolbar input {
+.tense-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tense-header-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tense-header-main h3 {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.tense-header-actions {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tense-header-actions .muted {
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.tense-header-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.1;
+  border-radius: 8px;
+}
+
+.word-search-input-wrap {
   min-width: 220px;
   flex: 1;
+  position: relative;
+}
+
+.word-search-input-wrap input {
+  width: 100%;
+  padding-right: 34px;
+}
+
+.word-search-button {
+  min-width: 144px;
+}
+
+.word-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  box-shadow: none;
+  line-height: 1;
+}
+
+.word-search-clear:hover {
+  transform: translateY(-50%);
+  background: rgba(139, 0, 18, 0.08);
+  color: var(--theme-red-dark);
+  box-shadow: none;
+}
+
+.word-search-clear:disabled {
+  transform: translateY(-50%);
 }
 
 .word-dialog-body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  flex: 1;
   min-height: 0;
 }
 
@@ -1129,49 +1249,66 @@ onMounted(async () => {
   font-weight: 700;
 }
 
+.word-item .muted {
+  font-size: 10px;
+  line-height: 1.15;
+}
+
 .ghost.active {
   border-color: rgba(139, 0, 18, 0.26);
   background: rgba(139, 0, 18, 0.08);
   color: var(--theme-red-dark);
 }
 
-.mood-accordion {
-  display: flex;
-  flex-direction: column;
+.mood-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
   gap: 10px;
-  overflow: auto;
+  flex: 1;
   min-height: 0;
+  overflow: auto;
   padding-right: 4px;
 }
 
-.mood-panel {
+.mood-column {
   border: 1px solid var(--border);
   border-radius: 12px;
   background: #ffffff;
-  overflow: hidden;
-}
-
-.mood-panel-header {
-  width: 100%;
-  border: none;
-  background: rgba(139, 0, 18, 0.06);
-  color: var(--theme-red-dark);
-  box-shadow: none;
-  border-radius: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.mood-panel-right {
-  font-size: 13px;
-}
-
-.mood-panel-body {
-  padding: 12px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  height: 100%;
+  min-height: 0;
+  gap: 8px;
+}
+
+.mood-column-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.mood-column-head-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.mood-column-title {
+  font-weight: 700;
+  color: var(--theme-red-dark);
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.mood-column-count {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .mood-actions {
@@ -1180,19 +1317,36 @@ onMounted(async () => {
   gap: 8px;
 }
 
-.checkbox-group {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 8px;
+.mood-actions-mini {
+  gap: 4px;
+  flex-shrink: 0;
 }
 
-.checkbox-item {
+.mood-mini-btn {
+  padding: 2px 7px;
+  font-size: 11px;
+  line-height: 1.1;
+  border-radius: 8px;
+}
+
+.tense-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.tense-row {
+  width: 100%;
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 8px 10px;
+  padding: 5px 7px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   justify-content: flex-start;
   background: #fffdf9;
   box-shadow: none;
@@ -1200,45 +1354,52 @@ onMounted(async () => {
   text-align: left;
 }
 
-.checkbox-item:hover {
+.tense-row:hover {
   transform: none;
   box-shadow: none;
 }
 
-.checkbox-item.checked {
+.tense-row.checked {
   border-color: rgba(139, 0, 18, 0.28);
   background: rgba(139, 0, 18, 0.08);
 }
 
 .checkbox-label {
   flex: 1;
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.25;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
-.tense-level-tag {
+.tense-label-es {
+  font-weight: 700;
+}
+
+.tense-label-zh {
+  color: var(--muted);
   font-size: 11px;
-  border-radius: 999px;
-  padding: 2px 7px;
-  border: 1px solid transparent;
-  white-space: nowrap;
 }
 
-.tense-level-tag.level-1 {
-  background: rgba(86, 125, 89, 0.14);
-  color: #365b3a;
-  border-color: rgba(86, 125, 89, 0.22);
+.tense-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.tense-level-tag.level-2 {
-  background: rgba(222, 192, 138, 0.22);
-  color: #845c2a;
-  border-color: rgba(222, 192, 138, 0.32);
+.tense-footer-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.3;
 }
 
-.tense-level-tag.level-3 {
-  background: rgba(161, 29, 35, 0.12);
-  color: #8d1a20;
-  border-color: rgba(161, 29, 35, 0.2);
+.tense-footer-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 @media (max-width: 960px) {
@@ -1256,8 +1417,5 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
-  .checkbox-group {
-    grid-template-columns: 1fr;
-  }
 }
 </style>
