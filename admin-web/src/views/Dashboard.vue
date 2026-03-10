@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard-page">
-    <section v-if="mergedHistory.length" class="card history-panel history-panel-single">
-      <div class="history-panel-header">
+    <section v-if="mergedHistory.length" class="card history-panel history-panel-single management-page">
+      <div class="management-header history-panel-header">
         <h3 class="history-panel-title">管理历史</h3>
         <div class="history-header-side">
           <span class="muted history-record-total">共 {{ mergedHistory.length }} 条记录</span>
@@ -25,49 +25,51 @@
         </div>
       </div>
 
-      <div class="history-table-shell">
-        <table class="table history-table">
-          <colgroup>
-            <col style="width: 22%" />
-            <col style="width: 22%" />
-            <col style="width: 16%" />
-            <col style="width: 24%" />
-            <col style="width: 16%" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>修改人</th>
-              <th>管理历史类型</th>
-              <th>目标ID</th>
-              <th>修改时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in pagedItems" :key="item.id" class="history-row">
-              <td class="history-cell">
-                <span class="ellipsis" :title="item.username">{{ item.username }}</span>
-              </td>
-              <td class="history-cell">
-                <span class="ellipsis" :title="item.historyType">{{ item.historyType }}</span>
-              </td>
-              <td class="history-cell">
-                <span class="ellipsis" :title="String(item.targetId)">{{ item.targetId }}</span>
-              </td>
-              <td class="history-cell">
-                <span class="ellipsis" :title="formatDate(item.modifiedAt)">
-                  {{ formatDateDay(item.modifiedAt) }}
-                </span>
-              </td>
-              <td class="history-actions-cell">
-                <button class="ghost" @click="openDetail(item)">详情</button>
-              </td>
-            </tr>
-            <tr v-if="!pagedItems.length">
-              <td colspan="5" class="empty">暂无记录</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="management-page-body">
+        <div class="management-table-scroll history-table-shell">
+          <table class="table history-table">
+            <colgroup>
+              <col style="width: 22%" />
+              <col style="width: 22%" />
+              <col style="width: 16%" />
+              <col style="width: 24%" />
+              <col style="width: 16%" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>修改人</th>
+                <th>管理历史类型</th>
+                <th>目标ID</th>
+                <th>修改时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in pagedItems" :key="item.id" class="history-row">
+                <td class="history-cell">
+                  <span class="ellipsis" :title="item.username">{{ item.username }}</span>
+                </td>
+                <td class="history-cell">
+                  <span class="ellipsis" :title="item.historyType">{{ item.historyType }}</span>
+                </td>
+                <td class="history-cell">
+                  <span class="ellipsis" :title="String(item.targetId)">{{ item.targetId }}</span>
+                </td>
+                <td class="history-cell">
+                  <span class="ellipsis" :title="formatDate(item.modifiedAt)">
+                    {{ formatDateDay(item.modifiedAt) }}
+                  </span>
+                </td>
+                <td class="history-actions-cell">
+                  <button class="ghost" @click="openDetail(item)">详情</button>
+                </td>
+              </tr>
+              <tr v-if="!pagedItems.length">
+                <td colspan="5" class="empty">暂无记录</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -290,7 +292,7 @@ function formatDateDay(value) {
 .dashboard-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .dashboard-intro {
@@ -303,8 +305,6 @@ function formatDateDay(value) {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  height: min(calc(100vh - 180px), 760px);
-  min-height: 560px;
   overflow: hidden;
 }
 
@@ -341,25 +341,17 @@ function formatDateDay(value) {
 
 .history-table {
   table-layout: fixed;
+  font-size: 13px;
 }
 
-.history-table-shell {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  border: 1px solid #d8dce6;
-  border-radius: 16px;
-}
-
-.history-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: #fff;
+.history-table th,
+.history-table td {
+  padding: 8px 8px;
+  line-height: 1.15;
 }
 
 .history-row {
-  height: 52px;
+  height: 44px;
 }
 
 .history-cell {
@@ -369,7 +361,7 @@ function formatDateDay(value) {
 }
 
 .history-actions-cell {
-  text-align: right;
+  text-align: center;
 }
 
 .history-actions-cell .ghost {
@@ -397,11 +389,6 @@ function formatDateDay(value) {
 }
 
 @media (max-width: 960px) {
-  .history-panel {
-    height: 66vh;
-    min-height: 460px;
-  }
-
   .history-panel-header {
     align-items: flex-start;
   }

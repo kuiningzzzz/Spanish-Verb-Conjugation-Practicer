@@ -19,7 +19,7 @@
           <input
             v-model.trim="keyword"
             class="question-search-input"
-            placeholder="搜索题干/动词原形"
+            placeholder="搜索题干/动词原形/时态"
             @keydown.enter="triggerSearch"
           />
           <button class="ghost" :disabled="!keyword" @click="clearSearch">清空</button>
@@ -1047,14 +1047,20 @@ fetchConjugationOptions();
 
 .question-bank-page .table {
   table-layout: fixed;
+  font-size: 13px;
 }
 
 .question-bank-page .table th,
 .question-bank-page .table td {
-  padding: 12px 6px;
+  padding: 8px 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.15;
+}
+
+.question-bank-page .table tbody tr {
+  height: 44px;
 }
 
 .question-bank-page .col-id {
@@ -1094,17 +1100,34 @@ fetchConjugationOptions();
 }
 
 .question-bank-page .col-actions {
-  width: 164px;
+  width: 132px;
+}
+
+.question-bank-page .table th.col-actions,
+.question-bank-page .table td.actions.col-actions {
+  text-align: center;
 }
 
 .question-bank-page .question-ellipsis {
   display: block;
   max-width: 100%;
+  line-height: 1.15;
 }
 
 .question-bank-page .table td.actions {
-  gap: 4px;
-  flex-wrap: nowrap;
+  display: table-cell;
+  white-space: nowrap;
+}
+
+.question-bank-page .table td.actions button {
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1.1;
+  border-radius: 8px;
+}
+
+.question-bank-page .table td.actions button + button {
+  margin-left: 4px;
 }
 
 @media (max-width: 960px) {

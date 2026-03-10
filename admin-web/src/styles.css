@@ -208,6 +208,26 @@ a {
   color: rgba(255, 248, 237, 0.88);
 }
 
+.chip.type-student {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff8ed;
+}
+
+.chip.type-public {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff8ed;
+}
+
+.chip.type-teacher {
+  background: rgba(255, 230, 234, 0.22);
+  color: #fff8ed;
+}
+
+.chip.type-unknown {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 248, 237, 0.88);
+}
+
 .topbar .ghost {
   padding: 8px 12px;
   color: #fff8ed;

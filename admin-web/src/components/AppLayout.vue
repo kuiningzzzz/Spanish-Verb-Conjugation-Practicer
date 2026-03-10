@@ -31,6 +31,7 @@
         <div class="topbar-right" v-if="user">
           <span class="chip">{{ user.username || user.email }}</span>
           <span class="chip" :class="user.role">{{ user.role }}</span>
+          <span class="chip" :class="userTypeClass">{{ userTypeLabel }}</span>
           <button class="ghost" @click="handleLogout">退出</button>
         </div>
       </header>
@@ -69,6 +70,17 @@ const titles = {
 
 const title = computed(() => titles[route.name] || 'Admin');
 const user = computed(() => state.user);
+const userTypeLabel = computed(() => {
+  const normalized = String(user.value?.user_type || '').trim().toLowerCase();
+  if (normalized === 'student') return 'STUDENT';
+  if (normalized === 'public') return 'PUBLIC';
+  if (normalized === 'teacher') return 'TEACHER';
+  return normalized ? normalized.toUpperCase() : '-';
+});
+const userTypeClass = computed(() => {
+  const normalized = String(user.value?.user_type || '').trim().toLowerCase();
+  return normalized ? `type-${normalized}` : 'type-unknown';
+});
 
 function handleLogout() {
   logout();

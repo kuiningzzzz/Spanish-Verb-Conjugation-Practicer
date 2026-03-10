@@ -686,3 +686,40 @@ async function submitDelete() {
 
 fetchUsers();
 </script>
+
+<style scoped>
+.users-page .table {
+  table-layout: fixed;
+  font-size: 13px;
+}
+
+.users-page .table th,
+.users-page .table td {
+  padding: 8px 8px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.users-page .table tbody tr {
+  height: 44px;
+}
+
+.users-page .table td.actions {
+  display: table-cell;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.users-page .table td.actions button {
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1.1;
+  border-radius: 8px;
+}
+
+.users-page .table td.actions button + button {
+  margin-left: 4px;
+}
+</style>
