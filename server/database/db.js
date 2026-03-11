@@ -402,6 +402,7 @@ function initVocabularyDatabase() {
       cover_image TEXT,
       is_published INTEGER DEFAULT 1,
       order_index INTEGER DEFAULT 0,
+      uploader_id INTEGER,
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
       updated_at TEXT DEFAULT (datetime('now', 'localtime'))
     )
@@ -428,6 +429,7 @@ function initVocabularyDatabase() {
   // 兼容旧数据库，补充教材/课程字段
   ensureColumn(vocabularyDb, 'textbooks', 'is_published', 'is_published INTEGER DEFAULT 1')
   ensureColumn(vocabularyDb, 'textbooks', 'updated_at', 'updated_at TEXT')
+  ensureColumn(vocabularyDb, 'textbooks', 'uploader_id', 'uploader_id INTEGER')
   ensureColumn(vocabularyDb, 'lessons', 'updated_at', 'updated_at TEXT')
   vocabularyDb.exec(`
     UPDATE textbooks

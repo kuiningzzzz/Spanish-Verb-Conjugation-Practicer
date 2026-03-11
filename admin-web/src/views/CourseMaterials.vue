@@ -5,11 +5,13 @@
         <div class="header-title-row">
           <h2 v-if="!activeTextbook">教材管理</h2>
           <h2 v-else>当前教材：{{ activeTextbook.name }}</h2>
+          <span v-if="!activeTextbook" class="header-note">仅可修改自己上传的教材</span>
         </div>
       </div>
       <div class="toolbar management-toolbar">
         <div class="toolbar-left">
           <button v-if="activeTextbook" class="ghost" @click="backToTextbookList">返回教材列表</button>
+          <span v-else class="toolbar-count">共 {{ textbooks.length }} 本</span>
           <button v-else class="ghost" @click="openCreateTextbookDialog">添加教材</button>
         </div>
         <div class="management-actions">
@@ -21,7 +23,13 @@
           >
             刷新
           </button>
-          <button v-if="activeTextbook" class="ghost" @click="addLesson" :disabled="addingLesson || loadingLessons">
+          <button
+            v-if="activeTextbook"
+            class="ghost"
+            @click="addLesson"
+            :disabled="addingLesson || loadingLessons || !canManageActiveTextbook"
+            :title="canManageActiveTextbook ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
+          >
             {{ addingLesson ? '添加中...' : '添加课程' }}
           </button>
           <button
@@ -49,6 +57,7 @@
           <thead>
             <tr>
               <th>教材名</th>
+              <th>上传者</th>
               <th>课程数</th>
               <th>发布状态</th>
               <th>最近修改时间</th>
@@ -58,6 +67,7 @@
           <tbody>
             <tr v-for="item in textbooks" :key="item.id">
               <td>{{ item.name }}</td>
+              <td>{{ displayUploader(item) }}</td>
               <td>{{ item.lesson_count || 0 }}</td>
               <td>
                 <div class="status-cell">
@@ -66,7 +76,8 @@
                   </span>
                   <button
                     class="ghost publish-btn"
-                    :disabled="publishLoading[item.id]"
+                    :disabled="publishLoading[item.id] || !canManageTextbook(item)"
+                    :title="canManageTextbook(item) ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
                     @click="togglePublished(item)"
                   >
                     {{ publishLoading[item.id] ? '处理中...' : (item.is_published ? '取消发布' : '发布教材') }}
@@ -75,12 +86,24 @@
               </td>
               <td>{{ formatDateTime(item.updated_at || item.created_at) }}</td>
               <td class="actions textbook-actions">
-                <button class="ghost" @click="enterTextbook(item)">设置课程</button>
-                <button class="danger" :disabled="deleteLoading[item.id]" @click="confirmDeleteTextbook(item)">删除</button>
+                <button
+                  class="ghost"
+                  @click="enterTextbook(item)"
+                >
+                  {{ canManageTextbook(item) ? '设置课程' : '查看教材' }}
+                </button>
+                <button
+                  class="danger"
+                  :disabled="deleteLoading[item.id] || !canManageTextbook(item)"
+                  :title="canManageTextbook(item) ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
+                  @click="confirmDeleteTextbook(item)"
+                >
+                  删除
+                </button>
               </td>
             </tr>
             <tr v-if="!textbooks.length">
-              <td colspan="5" class="empty">暂无教材，请先新增教材</td>
+              <td colspan="6" class="empty">暂无教材，请先新增教材</td>
             </tr>
           </tbody>
         </table>
@@ -104,6 +127,7 @@
                     v-model.trim="lesson.titleDraft"
                     class="lesson-title-input"
                     placeholder="课程名称"
+                    :disabled="!canManageActiveTextbook"
                     @input="queueLessonTitleSave(lesson)"
                     @blur="flushLessonTitleSave(lesson, true)"
                     @keydown.enter.prevent="handleLessonTitleEnter"
@@ -113,9 +137,30 @@
               <td>{{ lesson.vocabulary_count || 0 }}</td>
               <td>{{ lesson.tense_count || 0 }}</td>
               <td class="actions lesson-actions">
-                <button class="ghost" @click="openWordDialog(lesson)">设置单词</button>
-                <button class="ghost" @click="openTenseDialog(lesson)">设置时态</button>
-                <button class="danger" :disabled="deleteLoading[lesson.id]" @click="confirmDeleteLesson(lesson)">删除</button>
+                <button
+                  class="ghost"
+                  :disabled="!canManageActiveTextbook"
+                  :title="canManageActiveTextbook ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
+                  @click="openWordDialog(lesson)"
+                >
+                  设置单词
+                </button>
+                <button
+                  class="ghost"
+                  :disabled="!canManageActiveTextbook"
+                  :title="canManageActiveTextbook ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
+                  @click="openTenseDialog(lesson)"
+                >
+                  设置时态
+                </button>
+                <button
+                  class="danger"
+                  :disabled="deleteLoading[lesson.id] || !canManageActiveTextbook"
+                  :title="canManageActiveTextbook ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
+                  @click="confirmDeleteLesson(lesson)"
+                >
+                  删除
+                </button>
               </td>
             </tr>
             <tr v-if="!lessons.length">
@@ -215,7 +260,7 @@
 
         <div class="modal-actions">
           <button class="ghost" @click="closeWordDialog">不保存</button>
-          <button :disabled="wordDialogSaving" @click="saveLessonWords">
+          <button :disabled="wordDialogSaving || !canManageActiveTextbook" @click="saveLessonWords">
             {{ wordDialogSaving ? '保存中...' : '保存' }}
           </button>
         </div>
@@ -271,7 +316,7 @@
           <p class="tense-footer-note">默认勾选了9种常见时态，请根据需要进行调整。</p>
           <div class="tense-footer-actions">
             <button class="ghost" @click="closeTenseDialog">不保存</button>
-            <button :disabled="tenseDialogSaving" @click="saveLessonTenses">
+            <button :disabled="tenseDialogSaving || !canManageActiveTextbook" @click="saveLessonTenses">
               {{ tenseDialogSaving ? '保存中...' : '保存' }}
             </button>
           </div>
@@ -332,7 +377,8 @@ const DEFAULT_TENSE_OPTIONS = [
   { value: 'imperativo_negativo', label: 'Imperativo Negativo（否定命令式）', mood: 'imperativo' }
 ]
 const router = useRouter()
-const { logout } = useAuth()
+const { logout, state, isDev } = useAuth()
+const TEXTBOOK_MANAGE_LOCK_HINT = '仅可管理自己上传的教材'
 
 const textbooks = ref([])
 const lessons = ref([])
@@ -347,6 +393,7 @@ const publishLoading = reactive({})
 const deleteLoading = reactive({})
 const saveLessonTitleLoading = reactive({})
 const lessonTitleSaveTimers = new Map()
+const uploaderNameMap = reactive({})
 
 const createTextbookDialogOpen = ref(false)
 const createTextbookForm = reactive({ name: '' })
@@ -388,6 +435,8 @@ let wordSearchTimer = null
 const LESSON_TITLE_AUTO_SAVE_DEBOUNCE_MS = 450
 
 const loadingCurrentView = computed(() => (activeTextbook.value ? loadingLessons.value : loadingTextbooks.value))
+const currentAdminId = computed(() => Number(state.user?.id || 0))
+const canManageActiveTextbook = computed(() => canManageTextbook(activeTextbook.value))
 
 const selectedWordIdSet = computed(() => {
   const set = new Set()
@@ -430,11 +479,58 @@ function handleApiError(error, fallbackMessage = '操作失败') {
 }
 
 function normalizeTextbookRow(item) {
+  const rawUploaderId = item?.uploader_id
+  const normalizedUploaderId = rawUploaderId === null || rawUploaderId === undefined || rawUploaderId === ''
+    ? null
+    : Number(rawUploaderId)
   return {
     ...item,
     lesson_count: Number(item.lesson_count || 0),
-    is_published: item.is_published === true || Number(item.is_published) === 1
+    is_published: item.is_published === true || Number(item.is_published) === 1,
+    uploader_id: Number.isFinite(normalizedUploaderId) ? normalizedUploaderId : null
   }
+}
+
+function canManageTextbook(textbook) {
+  if (!textbook) return false
+  if (isDev.value) return true
+  const uploaderId = Number(textbook.uploader_id || 0)
+  const actorId = Number(currentAdminId.value || 0)
+  return uploaderId > 0 && actorId > 0 && uploaderId === actorId
+}
+
+function showTextbookManageForbiddenToast() {
+  showToast(TEXTBOOK_MANAGE_LOCK_HINT, 'error')
+}
+
+function displayUploader(textbook) {
+  const uploaderId = Number(textbook?.uploader_id || 0)
+  if (!uploaderId) return '-'
+  const username = String(uploaderNameMap[uploaderId] || '').trim()
+  return username || `ID ${uploaderId}`
+}
+
+async function ensureUploaderNames(rows = []) {
+  const missingIds = Array.from(
+    new Set(
+      (Array.isArray(rows) ? rows : [])
+        .map((item) => Number(item?.uploader_id || 0))
+        .filter((id) => id > 0 && !uploaderNameMap[id])
+    )
+  )
+  if (!missingIds.length) return
+
+  await Promise.allSettled(
+    missingIds.map(async (id) => {
+      try {
+        const user = await apiRequest(`/users/${id}`)
+        const username = String(user?.username || '').trim()
+        uploaderNameMap[id] = username || `ID ${id}`
+      } catch (error) {
+        uploaderNameMap[id] = `ID ${id}`
+      }
+    })
+  )
 }
 
 function normalizeLessonRow(item) {
@@ -508,6 +604,7 @@ async function refreshTextbooks() {
         activeTextbook.value = latest
       }
     }
+    ensureUploaderNames(textbooks.value)
   } catch (error) {
     pageError.value = error instanceof ApiError ? error.message : '加载教材失败'
     handleApiError(error, '加载教材失败')
@@ -588,6 +685,10 @@ async function submitCreateTextbook() {
 }
 
 async function togglePublished(item) {
+  if (!canManageTextbook(item)) {
+    showTextbookManageForbiddenToast()
+    return
+  }
   const isCancelPublish = Boolean(item.is_published)
   openConfirmDialog({
     title: isCancelPublish ? '确认取消发布' : '确认发布教材',
@@ -654,6 +755,10 @@ async function submitConfirmDialog() {
 }
 
 function confirmDeleteTextbook(item) {
+  if (!canManageTextbook(item)) {
+    showTextbookManageForbiddenToast()
+    return
+  }
   openConfirmDialog({
     title: '确认删除教材',
     message: `即将删除教材「${item.name}」。`,
@@ -677,6 +782,10 @@ function confirmDeleteTextbook(item) {
 
 async function addLesson() {
   if (!activeTextbook.value?.id) return
+  if (!canManageActiveTextbook.value) {
+    showTextbookManageForbiddenToast()
+    return
+  }
   addingLesson.value = true
   try {
     await apiRequest(`/course-materials/textbooks/${activeTextbook.value.id}/lessons`, {
@@ -698,6 +807,7 @@ function handleLessonTitleEnter(event) {
 }
 
 function queueLessonTitleSave(lesson) {
+  if (!canManageActiveTextbook.value) return
   const lessonId = Number(lesson?.id)
   if (!lessonId) return
   clearLessonTitleSaveTimerById(lessonId)
@@ -711,6 +821,7 @@ function queueLessonTitleSave(lesson) {
 }
 
 function flushLessonTitleSave(lesson, revertOnEmpty = false) {
+  if (!canManageActiveTextbook.value) return
   const lessonId = Number(lesson?.id)
   if (!lessonId) return
   clearLessonTitleSaveTimerById(lessonId)
@@ -720,6 +831,7 @@ function flushLessonTitleSave(lesson, revertOnEmpty = false) {
 }
 
 async function saveLessonTitle(lesson, options = {}) {
+  if (!canManageActiveTextbook.value) return
   const { revertOnEmpty = false, silentSuccess = true } = options
   const lessonId = Number(lesson?.id)
   if (!lessonId) return
@@ -764,6 +876,10 @@ async function saveLessonTitle(lesson, options = {}) {
 }
 
 function confirmDeleteLesson(lesson) {
+  if (!canManageActiveTextbook.value) {
+    showTextbookManageForbiddenToast()
+    return
+  }
   openConfirmDialog({
     title: '确认删除课程',
     message: `即将删除课程「${lesson.title}」。`,
@@ -784,6 +900,10 @@ function confirmDeleteLesson(lesson) {
 }
 
 async function openWordDialog(lesson) {
+  if (!canManageActiveTextbook.value) {
+    showTextbookManageForbiddenToast()
+    return
+  }
   wordDialogLesson.value = lesson
   wordDialogOpen.value = true
   wordDialogLoading.value = true
@@ -875,6 +995,10 @@ function removeSelectedWord(verbId) {
 
 async function saveLessonWords() {
   if (!wordDialogLesson.value?.id) return
+  if (!canManageActiveTextbook.value) {
+    showTextbookManageForbiddenToast()
+    return
+  }
   wordDialogSaving.value = true
   try {
     await apiRequest(`/course-materials/lessons/${wordDialogLesson.value.id}/verbs`, {
@@ -894,6 +1018,10 @@ async function saveLessonWords() {
 }
 
 function openTenseDialog(lesson) {
+  if (!canManageActiveTextbook.value) {
+    showTextbookManageForbiddenToast()
+    return
+  }
   tenseDialogLesson.value = lesson
   selectedTenses.value = Array.isArray(lesson.tenses) ? [...lesson.tenses] : []
   tenseDialogOpen.value = true
@@ -968,6 +1096,10 @@ function clearAllTenses() {
 
 async function saveLessonTenses() {
   if (!tenseDialogLesson.value?.id) return
+  if (!canManageActiveTextbook.value) {
+    showTextbookManageForbiddenToast()
+    return
+  }
   tenseDialogSaving.value = true
   try {
     const data = await apiRequest(`/course-materials/lessons/${tenseDialogLesson.value.id}`, {
@@ -1027,6 +1159,19 @@ onBeforeUnmount(() => {
   align-items: baseline;
   gap: 14px;
   flex-wrap: wrap;
+}
+
+.header-note {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.toolbar-count {
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
 }
 
 .course-materials-page :deep(td.actions) {

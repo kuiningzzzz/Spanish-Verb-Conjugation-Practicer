@@ -135,6 +135,37 @@ function touchCourseTextbook(textbookId) {
   `).run(textbookId)
 }
 
+function findCourseTextbookById(textbookId) {
+  return vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(textbookId)
+}
+
+function serializeCourseTextbook(row) {
+  return {
+    ...row,
+    lesson_count: Number(row.lesson_count || 0),
+    is_published: Number(row.is_published) === 1,
+    uploader_id: row?.uploader_id === null || row?.uploader_id === undefined
+      ? null
+      : Number(row.uploader_id),
+    updated_at: row.updated_at || row.created_at || null
+  }
+}
+
+function canManageCourseTextbook(req, textbook) {
+  if (!textbook) return false
+  if (isDev(req)) return true
+  if (req.admin?.role !== 'admin') return false
+  const uploaderId = Number(textbook.uploader_id || 0)
+  const actorId = Number(req.admin?.id || 0)
+  return uploaderId > 0 && actorId > 0 && uploaderId === actorId
+}
+
+function ensureCanManageCourseTextbook(req, res, textbook) {
+  if (canManageCourseTextbook(req, textbook)) return true
+  forbid(res, 'admin 仅可删改自己上传的教材')
+  return false
+}
+
 function serializeCourseLesson(row) {
   const parsedTenses = normalizeCourseTenses(parseJsonArray(row.tenses), [])
   return {
@@ -751,12 +782,7 @@ router.get('/course-materials/textbooks', requireAdmin, (req, res) => {
   `).all()
 
   res.json({
-    rows: rows.map((item) => ({
-      ...item,
-      lesson_count: Number(item.lesson_count || 0),
-      is_published: Number(item.is_published) === 1,
-      updated_at: item.updated_at || item.created_at || null
-    }))
+    rows: rows.map((item) => serializeCourseTextbook(item))
   })
 })
 
@@ -771,18 +797,13 @@ router.post('/course-materials/textbooks', requireAdmin, (req, res) => {
   const orderIndex = Number.isFinite(requestedOrderIndex) ? requestedOrderIndex : Number(nextOrderRow?.next_order || 1)
 
   const result = vocabularyDb.prepare(`
-    INSERT INTO textbooks (name, description, cover_image, is_published, order_index, created_at, updated_at)
-    VALUES (?, NULL, NULL, 0, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
-  `).run(name, orderIndex)
+    INSERT INTO textbooks (name, description, cover_image, is_published, order_index, uploader_id, created_at, updated_at)
+    VALUES (?, NULL, NULL, 0, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
+  `).run(name, orderIndex, Number(req.admin.id))
 
   const row = vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(result.lastInsertRowid)
   res.status(201).json({
-    row: {
-      ...row,
-      lesson_count: 0,
-      is_published: Number(row.is_published) === 1,
-      updated_at: row.updated_at || row.created_at || null
-    }
+    row: serializeCourseTextbook({ ...row, lesson_count: 0 })
   })
 })
 
@@ -796,10 +817,11 @@ router.put('/course-materials/textbooks/:id/publish', requireAdmin, (req, res) =
     return res.status(400).json({ error: '缺少发布状态' })
   }
 
-  const textbook = vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(textbookId)
+  const textbook = findCourseTextbookById(textbookId)
   if (!textbook) {
     return res.status(404).json({ error: '教材不存在' })
   }
+  if (!ensureCanManageCourseTextbook(req, res, textbook)) return
 
   const isPublished = req.body.isPublished ? 1 : 0
   vocabularyDb.prepare(`
@@ -819,12 +841,7 @@ router.put('/course-materials/textbooks/:id/publish', requireAdmin, (req, res) =
   `).get(textbookId)
   res.json({
     success: true,
-    row: {
-      ...updated,
-      lesson_count: Number(updated.lesson_count || 0),
-      is_published: Number(updated.is_published) === 1,
-      updated_at: updated.updated_at || updated.created_at || null
-    }
+    row: serializeCourseTextbook(updated)
   })
 })
 
@@ -834,10 +851,11 @@ router.delete('/course-materials/textbooks/:id', requireAdmin, (req, res) => {
     return res.status(400).json({ error: '教材ID不合法' })
   }
 
-  const textbook = vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(textbookId)
+  const textbook = findCourseTextbookById(textbookId)
   if (!textbook) {
     return res.status(404).json({ error: '教材不存在' })
   }
+  if (!ensureCanManageCourseTextbook(req, res, textbook)) return
 
   vocabularyDb.prepare('DELETE FROM textbooks WHERE id = ?').run(textbookId)
   res.json({ success: true })
@@ -849,7 +867,7 @@ router.get('/course-materials/textbooks/:id/lessons', requireAdmin, (req, res) =
     return res.status(400).json({ error: '教材ID不合法' })
   }
 
-  const textbook = vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(textbookId)
+  const textbook = findCourseTextbookById(textbookId)
   if (!textbook) {
     return res.status(404).json({ error: '教材不存在' })
   }
@@ -869,12 +887,7 @@ router.get('/course-materials/textbooks/:id/lessons', requireAdmin, (req, res) =
   `).all(textbookId)
 
   res.json({
-    textbook: {
-      id: textbook.id,
-      name: textbook.name,
-      is_published: Number(textbook.is_published) === 1,
-      updated_at: textbook.updated_at || textbook.created_at || null
-    },
+    textbook: serializeCourseTextbook(textbook),
     rows: rows.map((row) => serializeCourseLesson(row))
   })
 })
@@ -885,10 +898,11 @@ router.post('/course-materials/textbooks/:id/lessons', requireAdmin, (req, res) 
     return res.status(400).json({ error: '教材ID不合法' })
   }
 
-  const textbook = vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(textbookId)
+  const textbook = findCourseTextbookById(textbookId)
   if (!textbook) {
     return res.status(404).json({ error: '教材不存在' })
   }
+  if (!ensureCanManageCourseTextbook(req, res, textbook)) return
 
   const maxNumberRow = vocabularyDb.prepare(`
     SELECT COALESCE(MAX(lesson_number), 0) AS max_number
@@ -943,6 +957,11 @@ router.put('/course-materials/lessons/:id', requireAdmin, (req, res) => {
   if (!lesson) {
     return res.status(404).json({ error: '课程不存在' })
   }
+  const textbook = findCourseTextbookById(lesson.textbook_id)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+  if (!ensureCanManageCourseTextbook(req, res, textbook)) return
 
   const payload = req.body || {}
   const hasTitle = Object.prototype.hasOwnProperty.call(payload, 'title')
@@ -1013,6 +1032,11 @@ router.delete('/course-materials/lessons/:id', requireAdmin, (req, res) => {
   if (!lesson) {
     return res.status(404).json({ error: '课程不存在' })
   }
+  const textbook = findCourseTextbookById(lesson.textbook_id)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+  if (!ensureCanManageCourseTextbook(req, res, textbook)) return
 
   vocabularyDb.prepare('DELETE FROM lessons WHERE id = ?').run(lessonId)
   touchCourseTextbook(lesson.textbook_id)
@@ -1058,6 +1082,11 @@ router.put('/course-materials/lessons/:id/verbs', requireAdmin, (req, res) => {
   if (!lesson) {
     return res.status(404).json({ error: '课程不存在' })
   }
+  const textbook = findCourseTextbookById(lesson.textbook_id)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+  if (!ensureCanManageCourseTextbook(req, res, textbook)) return
 
   const payloadVerbIds = req.body?.verbIds
   if (!Array.isArray(payloadVerbIds)) {

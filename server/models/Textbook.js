@@ -14,12 +14,13 @@ class Textbook {
   }
 
   // 创建教材
-  static create(name, description, coverImage = null, orderIndex = 0, isPublished = 1) {
+  static create(name, description, coverImage = null, orderIndex = 0, isPublished = 1, uploaderId = null) {
     const sql = `
-      INSERT INTO textbooks (name, description, cover_image, is_published, order_index, updated_at)
-      VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
+      INSERT INTO textbooks (name, description, cover_image, is_published, order_index, uploader_id, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
     `;
-    return vocabularyDb.prepare(sql).run(name, description, coverImage, isPublished ? 1 : 0, orderIndex);
+    const normalizedUploaderId = uploaderId === null || uploaderId === undefined ? null : Number(uploaderId)
+    return vocabularyDb.prepare(sql).run(name, description, coverImage, isPublished ? 1 : 0, orderIndex, normalizedUploaderId);
   }
 
   // 更新教材

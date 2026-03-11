@@ -349,6 +349,7 @@ router.delete('/lessons/:id/progress', authMiddleware, (req, res) => {
 // 创建教材（管理员功能，这里暂不需要额外验证）
 router.post('/textbooks', authMiddleware, (req, res) => {
   try {
+    const userId = req.user.id;
     const { name, description, coverImage, orderIndex, isPublished } = req.body;
     
     if (!name) {
@@ -359,7 +360,7 @@ router.post('/textbooks', authMiddleware, (req, res) => {
     }
 
     const normalizedPublished = isPublished === undefined ? 0 : (isPublished ? 1 : 0);
-    const result = Textbook.create(name, description, coverImage, orderIndex || 0, normalizedPublished);
+    const result = Textbook.create(name, description, coverImage, orderIndex || 0, normalizedPublished, userId);
     
     res.json({
       success: true,
