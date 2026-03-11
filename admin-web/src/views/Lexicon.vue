@@ -67,6 +67,7 @@
                 <div class="lexicon-entry-actions">
                   <button class="ghost" @click="openEdit(item)">编辑</button>
                   <button class="ghost" @click="openConjugations(item)">变位</button>
+                  <button v-if="isDev" class="danger" @click="confirmDelete(item)">删除</button>
                 </div>
               </div>
               <p class="lexicon-entry-meaning">{{ item.meaning || '-' }}</p>

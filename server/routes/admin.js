@@ -839,14 +839,6 @@ router.delete('/course-materials/textbooks/:id', requireAdmin, (req, res) => {
     return res.status(404).json({ error: '教材不存在' })
   }
 
-  if (req.admin?.user_type === 'teacher') {
-    const lessonCountRow = vocabularyDb.prepare('SELECT COUNT(1) AS count FROM lessons WHERE textbook_id = ?').get(textbookId)
-    const lessonCount = Number(lessonCountRow?.count || 0)
-    if (lessonCount > 0) {
-      return res.status(403).json({ error: '教师不可删除已入库教材' })
-    }
-  }
-
   vocabularyDb.prepare('DELETE FROM textbooks WHERE id = ?').run(textbookId)
   res.json({ success: true })
 })
@@ -1351,6 +1343,7 @@ router.put('/verbs/:id', requireAdmin, (req, res) => {
 })
 
 router.delete('/verbs/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可删除动词')
   vocabularyDb.prepare('DELETE FROM verbs WHERE id = ?').run(req.params.id)
   res.json({ success: true })
 })
