@@ -154,7 +154,7 @@
                 :class="{ active: createDrawerView === 'conjugations' }"
                 @click="switchCreateDrawerView('conjugations')"
               >
-                变位字段
+                变位信息
               </button>
             </div>
           </div>
@@ -592,6 +592,13 @@ function createDefaultFormData(infinitive = '') {
     participle: '',
     participle_forms: ''
   };
+}
+
+function normalizeTransitiveFlags(targetForm) {
+  if (!targetForm || targetForm.has_tr_use) return;
+  targetForm.supports_do = false;
+  targetForm.supports_io = false;
+  targetForm.supports_do_io = false;
 }
 
 const form = reactive(createDefaultFormData());
@@ -1108,6 +1115,7 @@ function normalizeDraft(rawDraft, fallbackInfinitive = '') {
       base.form[key] = sourceForm[key];
     }
   });
+  normalizeTransitiveFlags(base.form);
 
   const sourceConjugations = rawDraft?.conjugations || {};
   Object.keys(base.conjugations).forEach((key) => {
@@ -1283,6 +1291,7 @@ function applyAutoFillResultToDraft(result, targetDraft) {
   if (typeof fields.supports_do === 'boolean') targetForm.supports_do = fields.supports_do;
   if (typeof fields.supports_io === 'boolean') targetForm.supports_io = fields.supports_io;
   if (typeof fields.supports_do_io === 'boolean') targetForm.supports_do_io = fields.supports_do_io;
+  normalizeTransitiveFlags(targetForm);
 
   const suggestionMap = new Map(
     (Array.isArray(result?.conjugations) ? result.conjugations : []).map((item) => [
@@ -1557,6 +1566,7 @@ function buildPayloadFromDraft(draft, includeConjugations = false) {
   const gerund = String(sourceForm.gerund || '').trim();
   const participle = String(sourceForm.participle || '').trim();
   const participleForms = String(sourceForm.participle_forms || '').trim();
+  const hasTrUse = !!sourceForm.has_tr_use;
 
   const payload = {
     infinitive: String(sourceForm.infinitive || '').trim(),
@@ -1564,11 +1574,11 @@ function buildPayloadFromDraft(draft, includeConjugations = false) {
     conjugation_type: sourceForm.conjugation_type || 1,
     is_irregular: sourceForm.is_irregular ? 1 : 0,
     is_reflexive: sourceForm.is_reflexive ? 1 : 0,
-    has_tr_use: sourceForm.has_tr_use ? 1 : 0,
+    has_tr_use: hasTrUse ? 1 : 0,
     has_intr_use: sourceForm.has_intr_use ? 1 : 0,
-    supports_do: sourceForm.supports_do ? 1 : 0,
-    supports_io: sourceForm.supports_io ? 1 : 0,
-    supports_do_io: sourceForm.supports_do_io ? 1 : 0,
+    supports_do: hasTrUse && sourceForm.supports_do ? 1 : 0,
+    supports_io: hasTrUse && sourceForm.supports_io ? 1 : 0,
+    supports_do_io: hasTrUse && sourceForm.supports_do_io ? 1 : 0,
     gerund: gerund || null,
     participle: participle || null,
     participle_forms: participleForms || null,
@@ -1857,6 +1867,11 @@ watch(page, (value) => {
   pageJump.value = value;
 }, { immediate: true });
 
+watch(() => form.has_tr_use, (enabled) => {
+  if (enabled) return;
+  normalizeTransitiveFlags(form);
+});
+
 function refresh() {
   fetchRows();
 }
@@ -1971,6 +1986,7 @@ function restoreCreateDraft(cache) {
       form[key] = formData[key];
     }
   });
+  normalizeTransitiveFlags(form);
 
   const conjugations = cache.conjugations || {};
   Object.keys(conjugations).forEach((key) => {
@@ -2031,11 +2047,12 @@ async function openEdit(item) {
     form.conjugation_type = data.conjugation_type || 1;
     form.is_irregular = !!data.is_irregular;
     form.is_reflexive = !!data.is_reflexive;
-    form.has_tr_use = !!data.has_tr_use;
     form.has_intr_use = !!data.has_intr_use;
     form.supports_do = !!data.supports_do;
     form.supports_io = !!data.supports_io;
     form.supports_do_io = !!data.supports_do_io;
+    form.has_tr_use = !!data.has_tr_use;
+    normalizeTransitiveFlags(form);
     form.lesson_number = data.lesson_number || null;
     form.textbook_volume = data.textbook_volume || 1;
     form.frequency_level = data.frequency_level || 1;
