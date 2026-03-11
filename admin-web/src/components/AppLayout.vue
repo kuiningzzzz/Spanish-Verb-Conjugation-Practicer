@@ -12,9 +12,9 @@
         <RouterLink to="/course-materials">课程教材管理</RouterLink>
         <RouterLink v-if="isTeacher" to="/class-management">班级管理</RouterLink>
         <RouterLink v-if="isTeacher" to="/assignment-publishing">作业管理</RouterLink>
-        <RouterLink v-if="isDev" to="/feedback">反馈处理</RouterLink>
+        <RouterLink v-if="isPowerAdmin" to="/feedback">{{ feedbackNavLabel }}</RouterLink>
         <RouterLink v-if="isDev" to="/practice-records">用户数据</RouterLink>
-        <RouterLink v-if="isDev" to="/announcements">公告管理</RouterLink>
+        <RouterLink v-if="isPowerAdmin" to="/announcements">公告管理</RouterLink>
         <RouterLink v-if="isDev" to="/versions">版本管理</RouterLink>
         <RouterLink v-if="isDev" to="/database">数据库管理</RouterLink>
         <RouterLink v-if="isDev" to="/logs">日志查看</RouterLink>
@@ -48,7 +48,7 @@ import { useAuth } from '../composables/useAuth';
 
 const route = useRoute();
 const router = useRouter();
-const { state, logout, isDev, isTeacher } = useAuth();
+const { state, logout, isDev, isPowerAdmin, isSuperAdmin, isTeacher } = useAuth();
 
 const titles = {
   Dashboard: '仪表盘',
@@ -67,7 +67,11 @@ const titles = {
   ExperimentResults: '实验结果分析'
 };
 
-const title = computed(() => titles[route.name] || 'Admin');
+const feedbackNavLabel = computed(() => (isSuperAdmin.value ? '题目反馈' : '反馈处理'));
+const title = computed(() => {
+  if (route.name === 'Feedback' && isSuperAdmin.value) return '题目反馈';
+  return titles[route.name] || 'Admin';
+});
 const user = computed(() => state.user);
 const userTypeLabel = computed(() => {
   const normalized = String(user.value?.user_type || '').trim().toLowerCase();

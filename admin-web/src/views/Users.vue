@@ -10,6 +10,7 @@
           <select v-model="roleFilter">
             <option value="all">全部角色</option>
             <option v-if="isDev" value="dev">DEV</option>
+            <option v-if="isPowerAdmin" value="superadmin">SUPERADMIN</option>
             <option value="admin">ADMIN</option>
             <option value="user">USER</option>
           </select>
@@ -43,7 +44,7 @@
               </button>
             </template>
           </div>
-          <button v-if="isDev" @click="openCreate">新建用户</button>
+          <button v-if="isPowerAdmin" @click="openCreate">新建用户</button>
         </div>
       </div>
     </div>
@@ -90,7 +91,7 @@
                     编辑
                   </button>
                   <button
-                    v-if="isDev"
+                    v-if="isPowerAdmin"
                     class="danger"
                     :disabled="!canDelete(user)"
                     :title="deleteDisabledReason(user)"
@@ -181,9 +182,9 @@
           <label>
             角色
             <select v-model="createForm.role">
-              <option value="user">USER</option>
-              <option value="admin">ADMIN</option>
-              <option value="dev">DEV</option>
+              <option v-for="role in createRoleOptions" :key="`create-${role}`" :value="role">
+                {{ roleLabel(role) }}
+              </option>
             </select>
           </label>
           <label>
@@ -226,7 +227,7 @@ import { useRouter } from 'vue-router';
 import { apiRequest, ApiError } from '../utils/apiClient';
 import { useAuth } from '../composables/useAuth';
 
-const { state, isDev, isAdmin, logout, fetchMe } = useAuth();
+const { state, isDev, isAdmin, isSuperAdmin, isPowerAdmin, logout, fetchMe } = useAuth();
 const router = useRouter();
 
 const users = ref([]);
@@ -275,9 +276,19 @@ const toast = reactive({
 const userTypeOptions = ['student', 'public', 'teacher'];
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
+const createRoleOptions = computed(() => {
+  if (isDev.value) return ['user', 'admin', 'superadmin', 'dev'];
+  if (isSuperAdmin.value) return ['user', 'admin', 'superadmin'];
+  return ['user', 'admin'];
+});
 
 const filteredUsers = computed(() => {
-  const baseUsers = isAdmin.value ? users.value.filter((user) => user.role !== 'dev') : users.value;
+  let baseUsers = users.value;
+  if (isAdmin.value) {
+    baseUsers = users.value.filter((user) => user.role !== 'dev' && user.role !== 'superadmin');
+  } else if (isSuperAdmin.value) {
+    baseUsers = users.value.filter((user) => user.role !== 'dev');
+  }
   const term = keyword.value.trim().toLowerCase();
   if (!term) return baseUsers;
   return baseUsers.filter((user) => {
@@ -291,8 +302,17 @@ const filteredUsers = computed(() => {
 
 const roleHelp = computed(() => {
   if (!activeUser.value) return '';
+  if (isSuperAdmin.value && (activeUser.value.role === 'dev' || activeUser.value.is_initial_dev)) {
+    return 'superadmin 无法编辑 dev 用户';
+  }
+  if (isSuperAdmin.value && activeUser.value.role === 'superadmin') {
+    return 'superadmin 不能降级 superadmin';
+  }
   if (isAdmin.value && (activeUser.value.role === 'dev' || activeUser.value.is_initial_dev)) {
     return 'admin 无法编辑 dev 用户';
+  }
+  if (isAdmin.value && activeUser.value.role === 'superadmin') {
+    return 'admin 不能修改 superadmin 权限';
   }
   if (isAdmin.value && activeUser.value.role === 'admin') {
     return 'admin 不能取消任何 admin 的 admin 权限';
@@ -414,6 +434,7 @@ function formatDate(value) {
 
 function roleLabel(role) {
   if (role === 'dev') return 'DEV';
+  if (role === 'superadmin') return 'SUPERADMIN';
   if (role === 'admin') return 'ADMIN';
   return 'USER';
 }
@@ -434,7 +455,7 @@ function typeTagClass(userType) {
 
 function canEdit(user) {
   if (!user) return false;
-  if (isAdmin.value && (user.role === 'dev' || user.is_initial_dev)) {
+  if ((isAdmin.value || isSuperAdmin.value) && (user.role === 'dev' || user.is_initial_dev)) {
     return false;
   }
   return true;
@@ -442,6 +463,9 @@ function canEdit(user) {
 
 function editDisabledReason(user) {
   if (!user) return '';
+  if (isSuperAdmin.value && (user.role === 'dev' || user.is_initial_dev)) {
+    return 'superadmin 不能修改 dev 用户';
+  }
   if (isAdmin.value && (user.role === 'dev' || user.is_initial_dev)) {
     return 'admin 不能修改 dev 用户';
   }
@@ -450,10 +474,16 @@ function editDisabledReason(user) {
 
 function canEditRole(user) {
   if (!user) return false;
-  if (isAdmin.value && (user.role === 'dev' || user.is_initial_dev)) {
+  if ((isAdmin.value || isSuperAdmin.value) && (user.role === 'dev' || user.is_initial_dev)) {
     return false;
   }
   if (isAdmin.value && user.role === 'admin') {
+    return false;
+  }
+  if (isAdmin.value && user.role === 'superadmin') {
+    return false;
+  }
+  if (isSuperAdmin.value && user.role === 'superadmin') {
     return false;
   }
   if (isDev.value && user.is_initial_dev) {
@@ -464,11 +494,20 @@ function canEditRole(user) {
 
 function roleDisabledReason(user) {
   if (!user) return '';
+  if (isSuperAdmin.value && (user.role === 'dev' || user.is_initial_dev)) {
+    return 'superadmin 不能修改 dev 用户';
+  }
+  if (isSuperAdmin.value && user.role === 'superadmin') {
+    return 'superadmin 不能降级 superadmin';
+  }
   if (isAdmin.value && (user.role === 'dev' || user.is_initial_dev)) {
     return 'admin 不能修改 dev 用户';
   }
   if (isAdmin.value && user.role === 'admin') {
     return 'admin 不能取消任何 admin 的 admin 权限';
+  }
+  if (isAdmin.value && user.role === 'superadmin') {
+    return 'admin 不能取消 superadmin 权限';
   }
   if (isDev.value && user.is_initial_dev) {
     return '初始 dev 不可降级';
@@ -478,35 +517,41 @@ function roleDisabledReason(user) {
 
 function canDelete(user) {
   if (!user) return false;
+  if (!isPowerAdmin.value) return false;
   const currentUserId = state.user?.id;
-  if (isDev.value) {
-    if (user.id === currentUserId) return false;
-    if (user.is_initial_dev) return false;
-    return true;
-  }
-  return false;
+  if (user.id === currentUserId) return false;
+  if (user.is_initial_dev) return false;
+  if (isSuperAdmin.value && user.role === 'dev') return false;
+  return true;
 }
 
 function deleteDisabledReason(user) {
   if (!user) return '';
   const currentUserId = state.user?.id;
-  if (isDev.value) {
-    if (user.id === currentUserId) return 'dev 不允许删除自己的账号';
-    if (user.is_initial_dev) return '初始 dev 不可删除';
-  }
-  if (isAdmin.value) {
-    return '仅 dev 可删除用户';
-  }
+  if (!isPowerAdmin.value) return '仅 dev/superadmin 可删除用户';
+  if (user.id === currentUserId) return '不允许删除自己的账号';
+  if (user.is_initial_dev) return '初始 dev 不可删除';
+  if (isSuperAdmin.value && user.role === 'dev') return 'superadmin 不能删除 dev 用户';
   return '';
 }
 
 function roleOptions(user) {
-  if (!user) return ['user', 'admin', 'dev'];
+  if (!user) {
+    if (isDev.value) return ['user', 'admin', 'superadmin', 'dev'];
+    if (isSuperAdmin.value) return ['user', 'admin', 'superadmin'];
+    return ['user', 'admin'];
+  }
   if (isDev.value) {
     if (user.is_initial_dev) return ['dev'];
-    return ['dev', 'admin', 'user'];
+    return ['dev', 'superadmin', 'admin', 'user'];
+  }
+  if (isSuperAdmin.value) {
+    if (user.role === 'dev' || user.is_initial_dev) return ['dev'];
+    if (user.role === 'superadmin') return ['superadmin'];
+    return ['superadmin', 'admin', 'user'];
   }
   if (isAdmin.value) {
+    if (user.role === 'superadmin') return ['superadmin'];
     if (user.role === 'admin') return ['admin'];
     if (user.role === 'dev' || user.is_initial_dev) return ['dev'];
     return ['user', 'admin'];
@@ -755,6 +800,7 @@ fetchUsers();
 .users-page .table td.col-role {
   width: var(--users-col-role);
   min-width: var(--users-col-role);
+  padding-left: 4px;
 }
 
 .users-page .table th.col-email,

@@ -25,7 +25,7 @@ function buildUserFromRow(row) {
 function verifyCredentials(identifier, password) {
   const stmt = userDb.prepare('SELECT * FROM users WHERE username = ? OR email = ?')
   const user = stmt.get(identifier, identifier)
-  if (!user || !['admin', 'dev'].includes(user.role)) {
+  if (!user || !['admin', 'dev', 'superadmin'].includes(user.role)) {
     return null
   }
   const match = bcrypt.compareSync(password, user.password)

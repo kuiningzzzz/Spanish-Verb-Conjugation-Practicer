@@ -341,7 +341,7 @@ router.post('/auth/login', (req, res) => {
     return res.status(401).json({ error: '用户名或密码错误' })
   }
 
-  if (!['admin', 'dev'].includes(user.role)) {
+  if (!['admin', 'dev', 'superadmin'].includes(user.role)) {
     recordAttempt(attemptKey, false)
     return res.status(403).json({ error: '无权访问后台' })
   }
@@ -373,8 +373,16 @@ router.post('/auth/logout', requireAdmin, (req, res) => {
   res.json({ success: true })
 })
 
-function isDev(req) {
+function isStrictDev(req) {
   return req.admin?.role === 'dev'
+}
+
+function isSuperAdmin(req) {
+  return req.admin?.role === 'superadmin'
+}
+
+function isDev(req) {
+  return isStrictDev(req) || isSuperAdmin(req)
 }
 
 function forbid(res, message = '无权限') {
@@ -385,16 +393,27 @@ router.get('/users', requireAdmin, (req, res) => {
   const limit = Number(req.query.limit || 50)
   const offset = Number(req.query.offset || 0)
   const role = req.query.role
-  if (!isDev(req) && role === 'dev') {
-    return res.json({ rows: [], total: 0 })
+  if (!isStrictDev(req)) {
+    if (role === 'dev') {
+      return res.json({ rows: [], total: 0 })
+    }
+    if (req.admin?.role === 'admin' && role === 'superadmin') {
+      return res.json({ rows: [], total: 0 })
+    }
   }
+
+  const excludeRoles = isStrictDev(req)
+    ? []
+    : isSuperAdmin(req)
+      ? ['dev']
+      : ['dev', 'superadmin']
 
   const result = role
     ? listUsers(role, { limit, offset })
     : listAllUsers({
       limit,
       offset,
-      excludeRoles: isDev(req) ? [] : ['dev']
+      excludeRoles
     })
 
   res.json(result)
@@ -402,14 +421,17 @@ router.get('/users', requireAdmin, (req, res) => {
 
 router.post('/users', requireAdmin, (req, res) => {
   if (!isDev(req)) {
-    return forbid(res, '仅 dev 可以创建用户')
+    return forbid(res, '仅 dev/superadmin 可以创建用户')
   }
   const { username, email, password, role = 'user', user_type = 'student' } = req.body
   if (!username || !password) {
     return res.status(400).json({ error: '缺少必要字段' })
   }
-  if (!['user', 'admin', 'dev'].includes(role)) {
+  if (!['user', 'admin', 'dev', 'superadmin'].includes(role)) {
     return res.status(400).json({ error: '非法角色' })
+  }
+  if (isSuperAdmin(req) && role === 'dev') {
+    return forbid(res, 'superadmin 不可创建或提升 dev')
   }
   if (!ALLOWED_USER_TYPES.includes(user_type)) {
     return res.status(400).json({ error: '非法用户类型' })
@@ -423,6 +445,12 @@ router.get('/users/:id', requireAdmin, (req, res) => {
   if (!user) {
     return res.status(404).json({ error: '用户不存在' })
   }
+  if (isSuperAdmin(req) && user.role === 'dev') {
+    return res.status(404).json({ error: '用户不存在' })
+  }
+  if (req.admin?.role === 'admin' && (user.role === 'dev' || user.role === 'superadmin')) {
+    return res.status(404).json({ error: '用户不存在' })
+  }
   res.json(user)
 })
 
@@ -432,37 +460,67 @@ router.put('/users/:id', requireAdmin, (req, res) => {
     return res.status(404).json({ error: '用户不存在' })
   }
 
-  if (req.body.user_type !== undefined && !ALLOWED_USER_TYPES.includes(String(req.body.user_type))) {
+  const payload = req.body || {}
+  const hasRoleField = Object.prototype.hasOwnProperty.call(payload, 'role')
+  const nextRole = hasRoleField ? String(payload.role || '').trim() : ''
+  if (hasRoleField && !['user', 'admin', 'dev', 'superadmin'].includes(nextRole)) {
+    return res.status(400).json({ error: '非法角色' })
+  }
+
+  if (payload.user_type !== undefined && !ALLOWED_USER_TYPES.includes(String(payload.user_type))) {
     return res.status(400).json({ error: '非法用户类型' })
   }
 
-  if (target.is_initial_dev && req.body.role && req.body.role !== 'dev') {
+  if (target.is_initial_dev && hasRoleField && nextRole !== 'dev') {
     return forbid(res, '初始 dev 角色不可变更')
   }
 
-  if (target.role === 'dev' && !isDev(req)) {
+  if (isSuperAdmin(req) && (target.role === 'dev' || target.is_initial_dev)) {
+    return forbid(res, 'superadmin 不能修改 dev 用户')
+  }
+
+  if (req.admin?.role === 'admin' && (target.role === 'dev' || target.is_initial_dev)) {
     return forbid(res, '管理员不能修改 dev 用户')
   }
 
-  if (target.role === 'admin' && !isDev(req) && req.body.role && req.body.role !== 'admin') {
+  if (req.admin?.role === 'admin' && target.role === 'admin' && hasRoleField && nextRole !== 'admin') {
     return forbid(res, '不能取消管理员权限')
   }
 
-  if (!isDev(req) && req.body.role === 'dev') {
+  if (req.admin?.role === 'admin' && target.role === 'superadmin' && hasRoleField && nextRole !== 'superadmin') {
+    return forbid(res, '不能取消 superadmin 权限')
+  }
+
+  if (req.admin?.role === 'admin' && hasRoleField && nextRole === 'dev') {
     return forbid(res, '管理员不可创建或提升 dev')
   }
 
-  updateUser(req.params.id, req.body)
+  if (req.admin?.role === 'admin' && hasRoleField && nextRole === 'superadmin') {
+    return forbid(res, '管理员不可提升 superadmin')
+  }
+
+  if (isSuperAdmin(req) && hasRoleField && nextRole === 'dev') {
+    return forbid(res, 'superadmin 不可创建或提升 dev')
+  }
+
+  if (isSuperAdmin(req) && target.role === 'superadmin' && hasRoleField && nextRole !== 'superadmin') {
+    return forbid(res, 'superadmin 不能降级 superadmin')
+  }
+
+  updateUser(req.params.id, payload)
   res.json({ success: true })
 })
 
 router.delete('/users/:id', requireAdmin, (req, res) => {
   if (!isDev(req)) {
-    return forbid(res, '仅 dev 可以删除用户')
+    return forbid(res, '仅 dev/superadmin 可以删除用户')
   }
   const target = findUser(req.params.id)
   if (!target) {
     return res.status(404).json({ error: '用户不存在' })
+  }
+  if (isSuperAdmin(req) && target.role === 'dev') {
+    return forbid(res, 'superadmin 不能删除 dev 用户')
   }
   if (target.is_initial_dev) {
     return forbid(res, '不可删除初始 dev 用户')
@@ -509,7 +567,7 @@ router.delete('/admins/:id', requireAdmin, (req, res) => {
 })
 
 router.get('/versions', requireAdmin, (req, res) => {
-  if (!isDev(req)) {
+  if (!isStrictDev(req)) {
     return forbid(res, '仅 dev 可以查看版本信息')
   }
   const data = loadVersionInfo()
@@ -522,7 +580,7 @@ router.post(
   '/version/upload',
   requireAdmin,
   (req, res, next) => {
-    if (!isDev(req)) {
+    if (!isStrictDev(req)) {
       return forbid(res, '仅 dev 可以上传版本文件')
     }
     next()
@@ -556,7 +614,7 @@ router.post(
 )
 
 router.post('/versions', requireAdmin, (req, res) => {
-  if (!isDev(req)) {
+  if (!isStrictDev(req)) {
     return forbid(res, '仅 dev 可以发布新版本')
   }
   const {
@@ -1537,7 +1595,7 @@ router.delete('/question-bank/:id', requireAdmin, (req, res) => {
 })
 
 router.get('/logs', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可查看日志')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可查看日志')
   const { keyword, start, end } = req.query
   const limit = Number(req.query.limit || 50)
   const offset = Number(req.query.offset || 0)
@@ -1546,7 +1604,7 @@ router.get('/logs', requireAdmin, (req, res) => {
 })
 
 router.get('/practice-records', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可以查看用户数据')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可以查看用户数据')
   const limit = Number(req.query.limit || 50)
   const offset = Number(req.query.offset || 0)
   const keyword = req.query.keyword ? String(req.query.keyword).trim() : ''
@@ -1591,7 +1649,7 @@ router.get('/practice-records', requireAdmin, (req, res) => {
 })
 
 router.get('/practice-records/stats', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可以查看用户数据')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可以查看用户数据')
   const keyword = req.query.keyword ? String(req.query.keyword).trim() : ''
   const userId = req.query.userId ? Number(req.query.userId) : null
   const verbId = req.query.verbId ? Number(req.query.verbId) : null
@@ -1684,7 +1742,7 @@ router.delete('/question-feedback/:id', requireAdmin, (req, res) => {
 })
 
 router.get('/db-files', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可查看可备份文件')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可查看可备份文件')
   const files = getAllowedFiles().map(({ key, label, fileName }) => ({
     key,
     label,
@@ -1694,13 +1752,13 @@ router.get('/db-files', requireAdmin, (req, res) => {
 })
 
 router.get('/db-backups', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可查看备份记录')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可查看备份记录')
   const records = loadRecords(BACKUP_RECORDS_FILE)
   res.json({ records })
 })
 
 router.post('/db-backups', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可新增备份')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可新增备份')
   const requestedKeys = Array.isArray(req.body?.files) ? req.body.files : []
   const allowedFiles = getAllowedFiles()
   const allowedMap = new Map(allowedFiles.map((item) => [item.key, item]))
@@ -1743,7 +1801,7 @@ router.post('/db-backups', requireAdmin, (req, res) => {
 })
 
 router.delete('/db-backups/:id', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可删除备份记录')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可删除备份记录')
   const records = loadRecords(BACKUP_RECORDS_FILE)
   const index = records.findIndex((item) => item.id === req.params.id)
   if (index === -1) {
@@ -1759,7 +1817,7 @@ router.delete('/db-backups/:id', requireAdmin, (req, res) => {
 })
 
 router.get('/db-backups/:id/download-link', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可下载备份')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可下载备份')
   const records = loadRecords(BACKUP_RECORDS_FILE)
   const record = records.find((item) => item.id === req.params.id)
   if (!record) {
@@ -1797,7 +1855,7 @@ router.get('/db-backups/download', (req, res) => {
 })
 
 router.get('/db-backups/:id/download', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可下载备份')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可下载备份')
   const records = loadRecords(BACKUP_RECORDS_FILE)
   const record = records.find((item) => item.id === req.params.id)
   if (!record) {
@@ -1817,7 +1875,7 @@ router.get('/db-backups/:id/download', requireAdmin, (req, res) => {
 })
 
 router.post('/db-backups/:id/restore', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可还原备份')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可还原备份')
   const records = loadRecords(BACKUP_RECORDS_FILE)
   const record = records.find((item) => item.id === req.params.id)
   if (!record) {
@@ -1842,13 +1900,13 @@ router.post('/db-backups/:id/restore', requireAdmin, (req, res) => {
 })
 
 router.get('/db-imports', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可查看导入记录')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可查看导入记录')
   const records = loadRecords(IMPORT_RECORDS_FILE)
   res.json({ records })
 })
 
 router.delete('/db-imports/:id', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可删除导入记录')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可删除导入记录')
   const records = loadRecords(IMPORT_RECORDS_FILE)
   const index = records.findIndex((item) => item.id === req.params.id)
   if (index === -1) {
@@ -1863,7 +1921,7 @@ router.post(
   '/db-imports',
   requireAdmin,
   (req, res, next) => {
-    if (!isDev(req)) {
+    if (!isStrictDev(req)) {
       return forbid(res, '仅 dev 可导入备份')
     }
     next()

@@ -377,7 +377,7 @@ const DEFAULT_TENSE_OPTIONS = [
   { value: 'imperativo_negativo', label: 'Imperativo Negativo（否定命令式）', mood: 'imperativo' }
 ]
 const router = useRouter()
-const { logout, state, isDev } = useAuth()
+const { logout, state, isPowerAdmin } = useAuth()
 const TEXTBOOK_MANAGE_LOCK_HINT = '仅可管理自己上传的教材'
 
 const textbooks = ref([])
@@ -493,7 +493,7 @@ function normalizeTextbookRow(item) {
 
 function canManageTextbook(textbook) {
   if (!textbook) return false
-  if (isDev.value) return true
+  if (isPowerAdmin.value) return true
   const uploaderId = Number(textbook.uploader_id || 0)
   const actorId = Number(currentAdminId.value || 0)
   return uploaderId > 0 && actorId > 0 && uploaderId === actorId

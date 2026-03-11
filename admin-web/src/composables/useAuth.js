@@ -75,7 +75,9 @@ function logout() {
 const isAuthenticated = computed(() => Boolean(state.token && state.user));
 const isAdmin = computed(() => state.user?.role === 'admin');
 const isDev = computed(() => state.user?.role === 'dev');
-const isPrivileged = computed(() => ['admin', 'dev'].includes(state.user?.role));
+const isSuperAdmin = computed(() => state.user?.role === 'superadmin');
+const isPowerAdmin = computed(() => ['dev', 'superadmin'].includes(state.user?.role));
+const isPrivileged = computed(() => ['admin', 'dev', 'superadmin'].includes(state.user?.role));
 const isTeacher = computed(() => state.user?.user_type === 'teacher');
 const isInitialDev = computed(() => Boolean(state.user?.isInitialDev));
 
@@ -88,6 +90,8 @@ export function useAuth() {
     isAuthenticated,
     isAdmin,
     isDev,
+    isSuperAdmin,
+    isPowerAdmin,
     isPrivileged,
     isTeacher,
     isInitialDev

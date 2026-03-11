@@ -99,10 +99,10 @@
                   人称 <span class="sort-indicator">{{ sortIndicator('person') }}</span>
                 </th>
               </template>
-              <th v-if="isDev" class="col-confidence sortable" @click="toggleSort('confidence_score')">
+              <th v-if="isPowerAdmin" class="col-confidence sortable" @click="toggleSort('confidence_score')">
                 置信度 <span class="sort-indicator">{{ sortIndicator('confidence_score') }}</span>
               </th>
-              <th v-if="isDev" class="col-created sortable" @click="toggleSort('created_at')">
+              <th v-if="isPowerAdmin" class="col-created sortable" @click="toggleSort('created_at')">
                 创建时间 <span class="sort-indicator">{{ sortIndicator('created_at') }}</span>
               </th>
               <th class="col-actions"><span class="col-actions-label">操作</span></th>
@@ -126,12 +126,12 @@
                 <td class="col-tense">{{ formatTableTenseLabel(question.tense) }}</td>
                 <td class="col-person">{{ question.person }}</td>
               </template>
-              <td v-if="isDev" class="col-confidence">{{ question.confidence_score ?? '-' }}</td>
-              <td v-if="isDev" class="col-created">{{ formatDate(question.created_at) }}</td>
+              <td v-if="isPowerAdmin" class="col-confidence">{{ question.confidence_score ?? '-' }}</td>
+              <td v-if="isPowerAdmin" class="col-created">{{ formatDate(question.created_at) }}</td>
               <td class="actions col-actions">
                 <div class="actions-group">
                   <button class="ghost" @click="openEdit(question)">编辑</button>
-                  <button v-if="isDev" class="danger" @click="confirmDelete(question)">删除</button>
+                  <button v-if="isPowerAdmin" class="danger" @click="confirmDelete(question)">删除</button>
                 </div>
               </td>
             </tr>
@@ -232,7 +232,7 @@
               <span v-if="formErrors.person" class="field-error">{{ formErrors.person }}</span>
             </label>
           </div>
-          <label v-if="isDev">
+          <label v-if="isPowerAdmin">
             置信度（0-100）
             <input v-model.number="form.confidence_score" type="number" min="0" max="100" />
             <span v-if="formErrors.confidence_score" class="field-error">{{ formErrors.confidence_score }}</span>
@@ -245,7 +245,7 @@
       </div>
     </div>
 
-    <div v-if="deleteDialog && isDev" class="overlay">
+    <div v-if="deleteDialog && isPowerAdmin" class="overlay">
       <div class="modal">
         <div class="modal-header">
           <h3>确认删除</h3>
@@ -272,7 +272,7 @@ import { useRouter } from 'vue-router';
 import { apiRequest, ApiError } from '../utils/apiClient';
 import { useAuth } from '../composables/useAuth';
 
-const { logout, isDev } = useAuth();
+const { logout, isDev, isPowerAdmin } = useAuth();
 const router = useRouter();
 
 const questions = ref([]);
@@ -416,7 +416,7 @@ const isEditingPronounQuestion = computed(() => {
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
 const emptyColspan = computed(() => {
   const baseColumns = isPronounBank.value ? 6 : 7;
-  return isDev.value ? baseColumns + 2 : baseColumns;
+  return isPowerAdmin.value ? baseColumns + 2 : baseColumns;
 });
 const resolvedTenseOptions = computed(() => mergeOptions(tenseOptions.value, form.tense));
 const resolvedPersonOptions = computed(() => mergeOptions(personOptions.value, form.person));
@@ -965,8 +965,8 @@ async function submitEdit() {
 }
 
 function confirmDelete(question) {
-  if (!isDev.value) {
-    showToast('仅 dev 可删除题库内容', 'error');
+  if (!isPowerAdmin.value) {
+    showToast('仅 dev/superadmin 可删除题库内容', 'error');
     return;
   }
   deleteDialog.value = question;
@@ -978,8 +978,8 @@ function closeDelete() {
 
 async function submitDelete() {
   if (!deleteDialog.value) return;
-  if (!isDev.value) {
-    showToast('仅 dev 可删除题库内容', 'error');
+  if (!isPowerAdmin.value) {
+    showToast('仅 dev/superadmin 可删除题库内容', 'error');
     closeDelete();
     return;
   }

@@ -30,7 +30,7 @@ function requireAdmin(req, res, next) {
     const user = userDb
       .prepare('SELECT id, username, email, user_type, role, is_initial_admin, is_initial_dev FROM users WHERE id = ?')
       .get(payload.userId)
-    if (!user || !['admin', 'dev'].includes(user.role)) {
+    if (!user || !['admin', 'dev', 'superadmin'].includes(user.role)) {
       return res.status(403).json({ error: '无权限访问' })
     }
     req.admin = {

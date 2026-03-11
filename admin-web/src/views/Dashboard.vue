@@ -170,7 +170,7 @@ import { useRouter } from 'vue-router';
 import { apiRequest } from '../utils/apiClient';
 import { useAuth } from '../composables/useAuth';
 
-const { state, isDev, isAdmin } = useAuth();
+const { state, isPowerAdmin, isAdmin } = useAuth();
 const router = useRouter();
 
 const pageSize = 5;
@@ -301,7 +301,7 @@ const dashboardUserName = computed(() => state.user?.username || state.user?.ema
 const dashboardUserSuffix = computed(() => (state.user?.user_type === 'teacher' ? '老师！' : '同学！'));
 const isTeacherUser = computed(() => state.user?.user_type === 'teacher');
 const welcomeText = computed(() => `${dashboardUserName.value} ${dashboardUserSuffix.value}`);
-const showHistory = computed(() => isDev.value || isAdmin.value);
+const showHistory = computed(() => isPowerAdmin.value || isAdmin.value);
 const welcomeCardRef = ref(null);
 const welcomeTextRef = ref(null);
 const WELCOME_FONT_MAX = 34;

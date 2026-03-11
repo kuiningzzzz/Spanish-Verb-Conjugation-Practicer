@@ -37,9 +37,9 @@ const routes = [
       { path: 'class-management', name: 'ClassManagement', component: ClassManagement, meta: { requiresTeacher: true } },
       { path: 'assignment-publishing', name: 'AssignmentPublishing', component: AssignmentPublishing, meta: { requiresTeacher: true } },
       { path: 'logs', name: 'Logs', component: Logs, meta: { requiresDev: true } },
-      { path: 'feedback', name: 'Feedback', component: Feedback, meta: { requiresDev: true } },
+      { path: 'feedback', name: 'Feedback', component: Feedback, meta: { requiresPowerAdmin: true } },
       { path: 'practice-records', name: 'PracticeRecords', component: PracticeRecords, meta: { requiresDev: true } },
-      { path: 'announcements', name: 'Announcements', component: Announcements, meta: { requiresDev: true } },
+      { path: 'announcements', name: 'Announcements', component: Announcements, meta: { requiresPowerAdmin: true } },
       { path: 'versions', name: 'VersionManagement', component: VersionManagement, meta: { requiresDev: true } },
       { path: 'database', name: 'DatabaseManagement', component: DatabaseManagement, meta: { requiresDev: true } },
       { path: 'experiment-results', name: 'ExperimentResults', component: ExperimentResults, meta: { requiresDev: true } }
@@ -53,14 +53,14 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, from, next) => {
-  const { isAuthenticated, isAdmin, isDev, isPrivileged, isTeacher, fetchMe, state } = useAuth();
+  const { isAuthenticated, isDev, isPowerAdmin, isPrivileged, isTeacher, fetchMe, state } = useAuth();
 
   if (!state.user && state.token) {
     await fetchMe();
   }
 
   if (to.meta.public) {
-    if (isAuthenticated.value && isAdmin.value) {
+    if (isAuthenticated.value && isPrivileged.value) {
       next({ name: 'Dashboard' });
     } else {
       next();
@@ -78,6 +78,10 @@ router.beforeEach(async (to, from, next) => {
     return;
   }
   if (to.meta.requiresDev && !isDev.value) {
+    next({ name: 'Dashboard' });
+    return;
+  }
+  if (to.meta.requiresPowerAdmin && !isPowerAdmin.value) {
     next({ name: 'Dashboard' });
     return;
   }

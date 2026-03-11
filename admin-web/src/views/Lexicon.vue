@@ -67,7 +67,7 @@
                 <div class="lexicon-entry-actions">
                   <button class="ghost" @click="openEdit(item)">编辑</button>
                   <button class="ghost" @click="openConjugations(item)">变位</button>
-                  <button v-if="isDev" class="danger" @click="confirmDelete(item)">删除</button>
+                  <button v-if="isPowerAdmin" class="danger" @click="confirmDelete(item)">删除</button>
                 </div>
               </div>
               <p class="lexicon-entry-meaning">{{ item.meaning || '-' }}</p>
@@ -552,7 +552,7 @@ import { ref, reactive, computed, watch } from 'vue';
 import { apiRequest, ApiError } from '../utils/apiClient';
 import { useAuth } from '../composables/useAuth';
 
-const { isDev } = useAuth();
+const { isDev, isPowerAdmin } = useAuth();
 
 const rows = ref([]);
 const total = ref(0);
