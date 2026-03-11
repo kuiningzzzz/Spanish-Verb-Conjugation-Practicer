@@ -131,7 +131,7 @@
               <td class="actions col-actions">
                 <div class="actions-group">
                   <button class="ghost" @click="openEdit(question)">编辑</button>
-                  <button class="danger" @click="confirmDelete(question)">删除</button>
+                  <button v-if="isDev" class="danger" @click="confirmDelete(question)">删除</button>
                 </div>
               </td>
             </tr>
@@ -245,7 +245,7 @@
       </div>
     </div>
 
-    <div v-if="deleteDialog" class="overlay">
+    <div v-if="deleteDialog && isDev" class="overlay">
       <div class="modal">
         <div class="modal-header">
           <h3>确认删除</h3>
@@ -965,6 +965,10 @@ async function submitEdit() {
 }
 
 function confirmDelete(question) {
+  if (!isDev.value) {
+    showToast('仅 dev 可删除题库内容', 'error');
+    return;
+  }
   deleteDialog.value = question;
 }
 
@@ -974,6 +978,11 @@ function closeDelete() {
 
 async function submitDelete() {
   if (!deleteDialog.value) return;
+  if (!isDev.value) {
+    showToast('仅 dev 可删除题库内容', 'error');
+    closeDelete();
+    return;
+  }
   deleting.value = true;
   try {
     await apiRequest(`/questions/${deleteDialog.value.id}`, {

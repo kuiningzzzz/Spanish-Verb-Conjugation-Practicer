@@ -1503,6 +1503,7 @@ router.put('/questions/:id', requireAdmin, (req, res) => {
 })
 
 router.delete('/questions/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可删除题库内容')
   const source = req.query.source ? String(req.query.source).trim() : null
   Question.deletePublic(req.params.id, source)
   res.json({ success: true })
@@ -1530,6 +1531,7 @@ router.put('/question-bank/:id', requireAdmin, (req, res) => {
 })
 
 router.delete('/question-bank/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可删除题库')
   QuestionBank.delete(req.params.id)
   res.json({ success: true })
 })
