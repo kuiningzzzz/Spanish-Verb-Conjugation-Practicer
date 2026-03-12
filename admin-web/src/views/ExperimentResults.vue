@@ -930,8 +930,8 @@ function resetMessages() {
 }
 
 .accordion-item.selected {
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.25);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 2px rgba(139, 0, 18, 0.14);
 }
 
 .accordion-header {
@@ -951,7 +951,7 @@ function resetMessages() {
 .accordion-header:hover {
   transform: none;
   box-shadow: none;
-  background: #f8fafc;
+  background: var(--surface);
 }
 
 .accordion-main {
@@ -982,7 +982,7 @@ function resetMessages() {
 
 .accordion-body {
   border-top: 1px solid var(--border);
-  background: #f8fafc;
+  background: var(--surface);
   padding: 12px 14px 14px;
 }
 
@@ -1002,7 +1002,7 @@ function resetMessages() {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
-  background: #f8fafc;
+  background: var(--surface);
 }
 
 .viewer-header {
@@ -1028,8 +1028,8 @@ function resetMessages() {
 }
 
 .mode-btn.active {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: var(--theme-red);
+  border-color: var(--theme-red);
   color: #ffffff;
 }
 
@@ -1084,9 +1084,9 @@ function resetMessages() {
 }
 
 .stage-tab.active {
-  background: #2563eb;
+  background: var(--theme-red);
   color: #ffffff;
-  border-color: #2563eb;
+  border-color: var(--theme-red);
 }
 
 .slider-wrapper {
@@ -1163,7 +1163,7 @@ function resetMessages() {
   margin: 0;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--surface);
   padding: 10px;
   min-height: 72px;
   max-height: 180px;

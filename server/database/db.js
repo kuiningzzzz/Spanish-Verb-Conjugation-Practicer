@@ -89,6 +89,19 @@ function initUserDatabase() {
     ON users(email) WHERE email IS NOT NULL AND email != ''
   `)
 
+  // admin 自动生成非法词条批次计数（用于触发权限回收）
+  userDb.exec(`
+    CREATE TABLE IF NOT EXISTS admin_autofill_invalid_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      admin_id INTEGER NOT NULL,
+      batch_id TEXT NOT NULL,
+      infinitive TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      UNIQUE(admin_id, batch_id, infinitive),
+      FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `)
+
   // 练习记录表
   userDb.exec(`
     CREATE TABLE IF NOT EXISTS practice_records (
@@ -344,6 +357,8 @@ function initUserDatabase() {
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_user_textbooks ON user_textbooks(user_id)`)
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_user_lesson_progress ON user_lesson_progress(user_id, lesson_id)`)
   userDb.exec(`CREATE INDEX IF NOT EXISTS idx_admin_logs_created ON admin_logs(created_at)`)
+  userDb.exec(`CREATE INDEX IF NOT EXISTS idx_admin_autofill_invalid_batch ON admin_autofill_invalid_entries(admin_id, batch_id)`)
+  userDb.exec(`CREATE INDEX IF NOT EXISTS idx_admin_autofill_invalid_created ON admin_autofill_invalid_entries(created_at)`)
 }
 
 // 初始化词库数据库
@@ -400,8 +415,11 @@ function initVocabularyDatabase() {
       name TEXT NOT NULL,
       description TEXT,
       cover_image TEXT,
+      is_published INTEGER DEFAULT 1,
       order_index INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now', 'localtime'))
+      uploader_id INTEGER,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      updated_at TEXT DEFAULT (datetime('now', 'localtime'))
     )
   `)
 
@@ -418,8 +436,25 @@ function initVocabularyDatabase() {
       tenses TEXT,
       conjugation_types TEXT,
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      updated_at TEXT DEFAULT (datetime('now', 'localtime')),
       FOREIGN KEY (textbook_id) REFERENCES textbooks(id) ON DELETE CASCADE
     )
+  `)
+
+  // 兼容旧数据库，补充教材/课程字段
+  ensureColumn(vocabularyDb, 'textbooks', 'is_published', 'is_published INTEGER DEFAULT 1')
+  ensureColumn(vocabularyDb, 'textbooks', 'updated_at', 'updated_at TEXT')
+  ensureColumn(vocabularyDb, 'textbooks', 'uploader_id', 'uploader_id INTEGER')
+  ensureColumn(vocabularyDb, 'lessons', 'updated_at', 'updated_at TEXT')
+  vocabularyDb.exec(`
+    UPDATE textbooks
+    SET
+      is_published = COALESCE(is_published, 1),
+      updated_at = COALESCE(updated_at, created_at, datetime('now', 'localtime'))
+  `)
+  vocabularyDb.exec(`
+    UPDATE lessons
+    SET updated_at = COALESCE(updated_at, created_at, datetime('now', 'localtime'))
   `)
 
   // 课程-单词关联表

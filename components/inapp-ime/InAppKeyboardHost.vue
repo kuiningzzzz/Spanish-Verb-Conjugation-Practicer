@@ -36,7 +36,7 @@
 <script>
 import { getSpanishLayout, getNumSymbolLayout } from '@/utils/ime/keyboard-layout.js'
 import { IMECore } from '@/utils/ime/ime-core.js'
-import { subscribeActiveTarget, setActiveTarget } from '@/utils/ime/focus-controller.js'
+import { subscribeActiveTarget, setActiveTarget, dispatchMaskTap } from '@/utils/ime/focus-controller.js'
 import { getUseInAppIME, subscribeUseInAppIME } from '@/utils/ime/settings-store.js'
 
 const imeCore = new IMECore()
@@ -122,6 +122,10 @@ export default {
     },
     handleMaskTap(e) {
       const tapPoint = this.getTapPoint(e)
+      // 若当前聚焦的输入框处理了此次点击（光标重定位），则不走关闭/通知流程
+      if (tapPoint && dispatchMaskTap(tapPoint)) {
+        return
+      }
       if (!this.deferMaskDismiss) {
         this.dismissKeyboard()
       }
