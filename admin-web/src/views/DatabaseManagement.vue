@@ -510,3 +510,11 @@ async function submitDeleteImport() {
 
 onMounted(refresh);
 </script>
+
+<style scoped>
+.db-page .table td.actions {
+  display: table-cell;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+</style>

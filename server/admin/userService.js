@@ -25,7 +25,7 @@ function buildUserFromRow(row) {
 function verifyCredentials(identifier, password) {
   const stmt = userDb.prepare('SELECT * FROM users WHERE username = ? OR email = ?')
   const user = stmt.get(identifier, identifier)
-  if (!user || !['admin', 'dev'].includes(user.role)) {
+  if (!user || !['admin', 'dev', 'superadmin'].includes(user.role)) {
     return null
   }
   const match = bcrypt.compareSync(password, user.password)
@@ -41,13 +41,30 @@ function listUsers(role = 'user', { limit = 50, offset = 0 } = {}) {
   return { rows: rows.map(buildUserFromRow), total }
 }
 
-function listAllUsers({ limit = 50, offset = 0 } = {}) {
+function listAllUsers({ limit = 50, offset = 0, excludeRoles = [] } = {}) {
+  const normalizedExcludeRoles = Array.isArray(excludeRoles)
+    ? excludeRoles.map((role) => String(role || '').trim()).filter(Boolean)
+    : []
+
+  const whereClause = normalizedExcludeRoles.length
+    ? `WHERE role NOT IN (${normalizedExcludeRoles.map(() => '?').join(', ')})`
+    : ''
+
   const rows = userDb
     .prepare(
-      'SELECT id, username, email, user_type, role, is_initial_admin, is_initial_dev, created_at, updated_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?'
+      `SELECT id, username, email, user_type, role, is_initial_admin, is_initial_dev, created_at, updated_at
+       FROM users
+       ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT ? OFFSET ?`
     )
-    .all(limit, offset)
-  const total = userDb.prepare('SELECT COUNT(*) as total FROM users').get().total
+    .all(...normalizedExcludeRoles, limit, offset)
+
+  const total = userDb
+    .prepare(`SELECT COUNT(*) as total FROM users ${whereClause}`)
+    .get(...normalizedExcludeRoles)
+    .total
+
   return { rows: rows.map(buildUserFromRow), total }
 }
 
@@ -58,13 +75,13 @@ function findUser(id) {
   return stmt.get(id)
 }
 
-function createUser({ username, email, password, role = 'user' }) {
+function createUser({ username, email, password, role = 'user', user_type = 'student' }) {
   const hashed = bcrypt.hashSync(password, 10)
   const stmt = userDb.prepare(
-    'INSERT INTO users (username, email, password, role, is_initial_admin) VALUES (?, ?, ?, ?, 0)'
+    'INSERT INTO users (username, email, password, user_type, role, is_initial_admin) VALUES (?, ?, ?, ?, ?, 0)'
   )
-  const result = stmt.run(username, email || null, hashed, role)
-  AdminLog.create('info', `${role} created`, { username, email })
+  const result = stmt.run(username, email || null, hashed, user_type, role)
+  AdminLog.create('info', `${role} created`, { username, email, user_type })
   return result.lastInsertRowid
 }
 
@@ -87,6 +104,10 @@ function updateUser(id, payload) {
   if (payload.role) {
     updates.push('role = ?')
     params.push(payload.role)
+  }
+  if (payload.user_type !== undefined) {
+    updates.push('user_type = ?')
+    params.push(payload.user_type)
   }
 
   updates.push("updated_at = datetime('now', 'localtime')")

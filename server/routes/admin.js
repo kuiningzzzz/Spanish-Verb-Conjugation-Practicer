@@ -20,7 +20,9 @@ const QuestionFeedback = require('../models/QuestionFeedback')
 const AdminLog = require('../models/AdminLog')
 const PracticeRecord = require('../models/PracticeRecord')
 const Announcement = require('../models/Announcement')
-const { vocabularyDb } = require('../database/db')
+const { userDb, vocabularyDb } = require('../database/db')
+const VerbAutoFillService = require('../services/verbAutoFillService')
+const { exportVerbsAsJson } = require('../services/verbExportService')
 const fs = require('fs')
 const path = require('path')
 const AdmZip = require('adm-zip')
@@ -34,6 +36,156 @@ const BACKUP_RECORDS_FILE = path.join(DATA_DIR, 'backup_records.json')
 const IMPORT_RECORDS_FILE = path.join(DATA_DIR, 'import_records.json')
 const DOWNLOAD_TOKEN_TTL_MS = 5 * 60 * 1000
 const downloadTokens = new Map()
+const ADMIN_AUTOFILL_INVALID_LIMIT = 10
+const ADMIN_AUTOFILL_BATCH_TTL_MS = 30 * 60 * 1000
+const ADMIN_AUTOFILL_BATCH_TTL_MINUTES = Math.max(1, Math.floor(ADMIN_AUTOFILL_BATCH_TTL_MS / 60000))
+const ADMIN_AUTOFILL_REVOKED_CODE = 'ADMIN_AUTOFILL_REVOKED'
+const ADMIN_AUTOFILL_REVOKED_MESSAGE = '您输入了过多非法动词，请联系超级管理员以恢复您的管理员权限。'
+const ALLOWED_USER_TYPES = ['student', 'public', 'teacher']
+const COURSE_MATERIAL_MOOD_OPTIONS = [
+  { value: 'indicativo', label: 'Indicativo 陈述式' },
+  { value: 'subjuntivo', label: 'Subjuntivo 虚拟式' },
+  { value: 'condicional', label: 'Condicional 条件式' },
+  { value: 'imperativo', label: 'Imperativo 命令式' }
+]
+const COURSE_MATERIAL_TENSE_OPTIONS = [
+  { value: 'presente', label: 'Presente（陈述式 一般现在时）', mood: 'indicativo' },
+  { value: 'perfecto', label: 'Pretérito Perfecto（陈述式 现在完成时）', mood: 'indicativo' },
+  { value: 'imperfecto', label: 'Pretérito Imperfecto（陈述式 过去未完成时）', mood: 'indicativo' },
+  { value: 'preterito', label: 'Pretérito Indefinido（陈述式 简单过去时）', mood: 'indicativo' },
+  { value: 'futuro', label: 'Futuro Imperfecto（陈述式 将来未完成时）', mood: 'indicativo' },
+  { value: 'pluscuamperfecto', label: 'Pretérito Pluscuamperfecto（陈述式 过去完成时）', mood: 'indicativo' },
+  { value: 'futuro_perfecto', label: 'Futuro Perfecto（陈述式 将来完成时）', mood: 'indicativo' },
+  { value: 'preterito_anterior', label: 'Pretérito Anterior（陈述式 前过去时）', mood: 'indicativo' },
+  { value: 'subjuntivo_presente', label: 'Presente（虚拟式 现在时）', mood: 'subjuntivo' },
+  { value: 'subjuntivo_imperfecto', label: 'Pretérito Imperfecto（虚拟式 过去未完成时）', mood: 'subjuntivo' },
+  { value: 'subjuntivo_perfecto', label: 'Pretérito Perfecto（虚拟式 现在完成时）', mood: 'subjuntivo' },
+  { value: 'subjuntivo_pluscuamperfecto', label: 'Pretérito Pluscuamperfecto（虚拟式 过去完成时）', mood: 'subjuntivo' },
+  { value: 'subjuntivo_futuro', label: 'Futuro（虚拟式 将来未完成时）', mood: 'subjuntivo' },
+  { value: 'subjuntivo_futuro_perfecto', label: 'Futuro Perfecto（虚拟式 将来完成时）', mood: 'subjuntivo' },
+  { value: 'condicional', label: 'Condicional Simple（简单条件式）', mood: 'condicional' },
+  { value: 'condicional_perfecto', label: 'Condicional Compuesto（复合条件式）', mood: 'condicional' },
+  { value: 'imperativo_afirmativo', label: 'Imperativo（命令式）', mood: 'imperativo' },
+  { value: 'imperativo_negativo', label: 'Imperativo Negativo（否定命令式）', mood: 'imperativo' }
+]
+const COURSE_SECOND_CLASS_TENSE_KEYS = [
+  'pluscuamperfecto',
+  'futuro_perfecto',
+  'condicional_perfecto',
+  'subjuntivo_imperfecto',
+  'subjuntivo_perfecto'
+]
+const COURSE_THIRD_CLASS_TENSE_KEYS = [
+  'preterito_anterior',
+  'subjuntivo_futuro',
+  'subjuntivo_pluscuamperfecto',
+  'subjuntivo_futuro_perfecto'
+]
+const COURSE_ALL_TENSE_KEYS = COURSE_MATERIAL_TENSE_OPTIONS.map((item) => item.value)
+const COURSE_DEFAULT_TENSE_KEYS = COURSE_ALL_TENSE_KEYS.filter(
+  (value) => !COURSE_SECOND_CLASS_TENSE_KEYS.includes(value) && !COURSE_THIRD_CLASS_TENSE_KEYS.includes(value)
+)
+const COURSE_DEFAULT_CONJUGATION_TYPES = ['ar', 'er', 'ir']
+const COURSE_TENSE_TO_MOOD = COURSE_MATERIAL_TENSE_OPTIONS.reduce((acc, item) => {
+  acc[item.value] = item.mood
+  return acc
+}, {})
+
+function parseJsonArray(rawValue) {
+  if (!rawValue) return []
+  if (Array.isArray(rawValue)) return rawValue
+  try {
+    const parsed = JSON.parse(rawValue)
+    return Array.isArray(parsed) ? parsed : []
+  } catch (error) {
+    return []
+  }
+}
+
+function normalizeStringArray(values) {
+  if (!Array.isArray(values)) return []
+  return Array.from(
+    new Set(
+      values
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    )
+  )
+}
+
+function normalizeCourseTenses(values, fallbackValues = []) {
+  const fallback = Array.isArray(fallbackValues) ? fallbackValues : []
+  const source = Array.isArray(values) ? values : fallback
+  const normalized = normalizeStringArray(source)
+  return normalized.filter((item) => COURSE_ALL_TENSE_KEYS.includes(item))
+}
+
+function getCourseMoodsFromTenses(tenses) {
+  const moods = new Set()
+  normalizeStringArray(tenses).forEach((tense) => {
+    const mood = COURSE_TENSE_TO_MOOD[tense]
+    if (mood) {
+      moods.add(mood)
+    }
+  })
+  return Array.from(moods)
+}
+
+function touchCourseTextbook(textbookId) {
+  if (!textbookId) return
+  vocabularyDb.prepare(`
+    UPDATE textbooks
+    SET updated_at = datetime('now', 'localtime')
+    WHERE id = ?
+  `).run(textbookId)
+}
+
+function findCourseTextbookById(textbookId) {
+  return vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(textbookId)
+}
+
+function serializeCourseTextbook(row) {
+  return {
+    ...row,
+    lesson_count: Number(row.lesson_count || 0),
+    is_published: Number(row.is_published) === 1,
+    uploader_id: row?.uploader_id === null || row?.uploader_id === undefined
+      ? null
+      : Number(row.uploader_id),
+    updated_at: row.updated_at || row.created_at || null
+  }
+}
+
+function canManageCourseTextbook(req, textbook) {
+  if (!textbook) return false
+  if (isDev(req)) return true
+  if (req.admin?.role !== 'admin') return false
+  const uploaderId = Number(textbook.uploader_id || 0)
+  const actorId = Number(req.admin?.id || 0)
+  return uploaderId > 0 && actorId > 0 && uploaderId === actorId
+}
+
+function ensureCanManageCourseTextbook(req, res, textbook) {
+  if (canManageCourseTextbook(req, textbook)) return true
+  forbid(res, 'admin 仅可删改自己上传的教材')
+  return false
+}
+
+function serializeCourseLesson(row) {
+  const parsedTenses = normalizeCourseTenses(parseJsonArray(row.tenses), [])
+  return {
+    id: row.id,
+    textbook_id: row.textbook_id,
+    title: row.title || '',
+    lesson_number: Number(row.lesson_number || 0),
+    vocabulary_count: Number(row.vocabulary_count || 0),
+    tense_count: parsedTenses.length,
+    tenses: parsedTenses,
+    moods: normalizeStringArray(parseJsonArray(row.moods)),
+    updated_at: row.updated_at || row.created_at || null,
+    created_at: row.created_at || null
+  }
+}
 
 function loadVersionInfo() {
   try {
@@ -101,6 +253,26 @@ function formatTimestamp(date = new Date()) {
     `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
     ` ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
   )
+}
+
+function toChineseLessonNumber(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number) || number < 1 || number > 100) {
+    return String(value || '')
+  }
+  const digits = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九']
+  if (number <= 10) {
+    return number === 10 ? '十' : digits[number]
+  }
+  if (number < 20) {
+    return `十${digits[number % 10]}`
+  }
+  if (number === 100) {
+    return '一百'
+  }
+  const tens = Math.floor(number / 10)
+  const ones = number % 10
+  return ones === 0 ? `${digits[tens]}十` : `${digits[tens]}十${digits[ones]}`
 }
 
 function issueDownloadToken(recordId) {
@@ -174,7 +346,7 @@ router.post('/auth/login', (req, res) => {
     return res.status(401).json({ error: '用户名或密码错误' })
   }
 
-  if (!['admin', 'dev'].includes(user.role)) {
+  if (!['admin', 'dev', 'superadmin'].includes(user.role)) {
     recordAttempt(attemptKey, false)
     return res.status(403).json({ error: '无权访问后台' })
   }
@@ -189,6 +361,7 @@ router.post('/auth/login', (req, res) => {
       id: user.id,
       username: user.username,
       email: user.email,
+      user_type: user.user_type,
       role: user.role,
       isInitialAdmin: !!user.is_initial_admin,
       isInitialDev: !!user.is_initial_dev
@@ -205,40 +378,164 @@ router.post('/auth/logout', requireAdmin, (req, res) => {
   res.json({ success: true })
 })
 
-function isDev(req) {
+function isStrictDev(req) {
   return req.admin?.role === 'dev'
+}
+
+function isSuperAdmin(req) {
+  return req.admin?.role === 'superadmin'
+}
+
+function isDev(req) {
+  return isStrictDev(req) || isSuperAdmin(req)
 }
 
 function forbid(res, message = '无权限') {
   return res.status(403).json({ error: message })
 }
 
+function cleanupAdminAutofillInvalidRecords() {
+  const ttlModifier = `-${ADMIN_AUTOFILL_BATCH_TTL_MINUTES} minutes`
+  userDb
+    .prepare(`
+      DELETE FROM admin_autofill_invalid_entries
+      WHERE datetime(created_at) <= datetime('now', 'localtime', ?)
+    `)
+    .run(ttlModifier)
+}
+
+function hasVerbInfinitiveInLexicon(infinitive) {
+  const normalized = String(infinitive || '').trim()
+  if (!normalized) return false
+  const row = vocabularyDb
+    .prepare('SELECT 1 as found FROM verbs WHERE lower(infinitive) = lower(?) LIMIT 1')
+    .get(normalized)
+  return !!row
+}
+
+function registerAdminAutofillInvalid(req, { batchId, infinitive }) {
+  if (req.admin?.role !== 'admin') {
+    return { demoted: false, invalidCount: 0 }
+  }
+
+  if (hasVerbInfinitiveInLexicon(infinitive)) {
+    return { demoted: false, invalidCount: 0 }
+  }
+
+  const adminId = Number(req.admin?.id || 0)
+  if (!adminId) {
+    return { demoted: false, invalidCount: 0 }
+  }
+
+  const normalizedBatchId = String(batchId || '').trim().slice(0, 80)
+    || `fallback-${Math.floor(Date.now() / ADMIN_AUTOFILL_BATCH_TTL_MS)}`
+
+  const normalizedInfinitive = String(infinitive || '').trim().toLowerCase()
+  if (!normalizedInfinitive) {
+    return { demoted: false, invalidCount: 0 }
+  }
+
+  try {
+    cleanupAdminAutofillInvalidRecords()
+
+    userDb
+      .prepare(`
+        INSERT INTO admin_autofill_invalid_entries (admin_id, batch_id, infinitive)
+        VALUES (?, ?, ?)
+        ON CONFLICT(admin_id, batch_id, infinitive) DO NOTHING
+      `)
+      .run(adminId, normalizedBatchId, normalizedInfinitive)
+
+    const countRow = userDb
+      .prepare(`
+        SELECT COUNT(*) AS total
+        FROM admin_autofill_invalid_entries
+        WHERE admin_id = ? AND batch_id = ?
+      `)
+      .get(adminId, normalizedBatchId)
+    const invalidCount = Number(countRow?.total || 0)
+
+    if (invalidCount > ADMIN_AUTOFILL_INVALID_LIMIT) {
+      const result = updateUser(adminId, { role: 'user' })
+      if (result?.changes) {
+        AdminLog.create('warn', 'admin autofill privilege revoked', {
+          userId: adminId,
+          batchId: normalizedBatchId,
+          invalidCount
+        })
+        userDb
+          .prepare('DELETE FROM admin_autofill_invalid_entries WHERE admin_id = ? AND batch_id = ?')
+          .run(adminId, normalizedBatchId)
+        return { demoted: true, invalidCount }
+      }
+    }
+    return { demoted: false, invalidCount }
+  } catch (error) {
+    console.error('记录非法自动生成词条失败:', error)
+    return { demoted: false, invalidCount: 0 }
+  }
+}
+
 router.get('/users', requireAdmin, (req, res) => {
   const limit = Number(req.query.limit || 50)
   const offset = Number(req.query.offset || 0)
   const role = req.query.role
-  const result = role ? listUsers(role, { limit, offset }) : listAllUsers({ limit, offset })
+  if (!isStrictDev(req)) {
+    if (role === 'dev') {
+      return res.json({ rows: [], total: 0 })
+    }
+    if (req.admin?.role === 'admin' && role === 'superadmin') {
+      return res.json({ rows: [], total: 0 })
+    }
+  }
+
+  const excludeRoles = isStrictDev(req)
+    ? []
+    : isSuperAdmin(req)
+      ? ['dev']
+      : ['dev', 'superadmin']
+
+  const result = role
+    ? listUsers(role, { limit, offset })
+    : listAllUsers({
+      limit,
+      offset,
+      excludeRoles
+    })
+
   res.json(result)
 })
 
 router.post('/users', requireAdmin, (req, res) => {
   if (!isDev(req)) {
-    return forbid(res, '仅 dev 可以创建用户')
+    return forbid(res, '仅 dev/superadmin 可以创建用户')
   }
-  const { username, email, password, role = 'user' } = req.body
+  const { username, email, password, role = 'user', user_type = 'student' } = req.body
   if (!username || !password) {
     return res.status(400).json({ error: '缺少必要字段' })
   }
-  if (!['user', 'admin', 'dev'].includes(role)) {
+  if (!['user', 'admin', 'dev', 'superadmin'].includes(role)) {
     return res.status(400).json({ error: '非法角色' })
   }
-  const id = createUser({ username, email, password, role })
+  if (isSuperAdmin(req) && role === 'dev') {
+    return forbid(res, 'superadmin 不可创建或提升 dev')
+  }
+  if (!ALLOWED_USER_TYPES.includes(user_type)) {
+    return res.status(400).json({ error: '非法用户类型' })
+  }
+  const id = createUser({ username, email, password, role, user_type })
   res.status(201).json({ id })
 })
 
 router.get('/users/:id', requireAdmin, (req, res) => {
   const user = findUser(req.params.id)
   if (!user) {
+    return res.status(404).json({ error: '用户不存在' })
+  }
+  if (isSuperAdmin(req) && user.role === 'dev') {
+    return res.status(404).json({ error: '用户不存在' })
+  }
+  if (req.admin?.role === 'admin' && (user.role === 'dev' || user.role === 'superadmin')) {
     return res.status(404).json({ error: '用户不存在' })
   }
   res.json(user)
@@ -250,42 +547,73 @@ router.put('/users/:id', requireAdmin, (req, res) => {
     return res.status(404).json({ error: '用户不存在' })
   }
 
-  if (target.is_initial_dev && req.body.role && req.body.role !== 'dev') {
+  const payload = req.body || {}
+  const hasRoleField = Object.prototype.hasOwnProperty.call(payload, 'role')
+  const nextRole = hasRoleField ? String(payload.role || '').trim() : ''
+  if (hasRoleField && !['user', 'admin', 'dev', 'superadmin'].includes(nextRole)) {
+    return res.status(400).json({ error: '非法角色' })
+  }
+
+  if (payload.user_type !== undefined && !ALLOWED_USER_TYPES.includes(String(payload.user_type))) {
+    return res.status(400).json({ error: '非法用户类型' })
+  }
+
+  if (target.is_initial_dev && hasRoleField && nextRole !== 'dev') {
     return forbid(res, '初始 dev 角色不可变更')
   }
 
-  if (target.role === 'dev' && !isDev(req)) {
+  if (isSuperAdmin(req) && (target.role === 'dev' || target.is_initial_dev)) {
+    return forbid(res, 'superadmin 不能修改 dev 用户')
+  }
+
+  if (req.admin?.role === 'admin' && (target.role === 'dev' || target.is_initial_dev)) {
     return forbid(res, '管理员不能修改 dev 用户')
   }
 
-  if (target.role === 'admin' && !isDev(req) && req.body.role && req.body.role !== 'admin') {
+  if (req.admin?.role === 'admin' && target.role === 'admin' && hasRoleField && nextRole !== 'admin') {
     return forbid(res, '不能取消管理员权限')
   }
 
-  if (!isDev(req) && req.body.role === 'dev') {
+  if (req.admin?.role === 'admin' && target.role === 'superadmin' && hasRoleField && nextRole !== 'superadmin') {
+    return forbid(res, '不能取消 superadmin 权限')
+  }
+
+  if (req.admin?.role === 'admin' && hasRoleField && nextRole === 'dev') {
     return forbid(res, '管理员不可创建或提升 dev')
   }
 
-  updateUser(req.params.id, req.body)
+  if (req.admin?.role === 'admin' && hasRoleField && nextRole === 'superadmin') {
+    return forbid(res, '管理员不可提升 superadmin')
+  }
+
+  if (isSuperAdmin(req) && hasRoleField && nextRole === 'dev') {
+    return forbid(res, 'superadmin 不可创建或提升 dev')
+  }
+
+  if (isSuperAdmin(req) && target.role === 'superadmin' && hasRoleField && nextRole !== 'superadmin') {
+    return forbid(res, 'superadmin 不能降级 superadmin')
+  }
+
+  updateUser(req.params.id, payload)
   res.json({ success: true })
 })
 
 router.delete('/users/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) {
+    return forbid(res, '仅 dev/superadmin 可以删除用户')
+  }
   const target = findUser(req.params.id)
   if (!target) {
     return res.status(404).json({ error: '用户不存在' })
+  }
+  if (isSuperAdmin(req) && target.role === 'dev') {
+    return forbid(res, 'superadmin 不能删除 dev 用户')
   }
   if (target.is_initial_dev) {
     return forbid(res, '不可删除初始 dev 用户')
   }
   if (req.admin.id === target.id) {
     return forbid(res, '不能删除自己')
-  }
-  if (target.role === 'dev' && !isDev(req)) {
-    return forbid(res, '管理员不能删除 dev 用户')
-  }
-  if (!isDev(req) && ['admin', 'dev'].includes(target.role)) {
-    return forbid(res, '无权删除该用户')
   }
   deleteUser(req.params.id)
   res.json({ success: true })
@@ -311,6 +639,9 @@ router.post('/admins', requireAdmin, (req, res) => {
 })
 
 router.delete('/admins/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) {
+    return forbid(res, '仅 dev 可以删除管理员')
+  }
   const user = findUser(req.params.id)
   if (!user || user.role !== 'admin') {
     return res.status(404).json({ error: '管理员不存在' })
@@ -318,15 +649,12 @@ router.delete('/admins/:id', requireAdmin, (req, res) => {
   if (user.is_initial_admin) {
     return res.status(403).json({ error: '不可删除初始管理员' })
   }
-  if (!isDev(req) && !req.admin.isInitialAdmin) {
-    return forbid(res, '仅初始管理员可删除管理员')
-  }
   deleteUser(req.params.id)
   res.json({ success: true })
 })
 
 router.get('/versions', requireAdmin, (req, res) => {
-  if (!isDev(req)) {
+  if (!isStrictDev(req)) {
     return forbid(res, '仅 dev 可以查看版本信息')
   }
   const data = loadVersionInfo()
@@ -339,7 +667,7 @@ router.post(
   '/version/upload',
   requireAdmin,
   (req, res, next) => {
-    if (!isDev(req)) {
+    if (!isStrictDev(req)) {
       return forbid(res, '仅 dev 可以上传版本文件')
     }
     next()
@@ -373,7 +701,7 @@ router.post(
 )
 
 router.post('/versions', requireAdmin, (req, res) => {
-  if (!isDev(req)) {
+  if (!isStrictDev(req)) {
     return forbid(res, '仅 dev 可以发布新版本')
   }
   const {
@@ -575,6 +903,386 @@ router.delete('/announcements/:id', requireAdmin, (req, res) => {
   }
 })
 
+router.get('/course-materials/options', requireAdmin, (req, res) => {
+  res.json({
+    moods: COURSE_MATERIAL_MOOD_OPTIONS,
+    tenses: COURSE_MATERIAL_TENSE_OPTIONS,
+    defaults: {
+      selectedTenses: COURSE_DEFAULT_TENSE_KEYS,
+      secondClassTenseKeys: COURSE_SECOND_CLASS_TENSE_KEYS,
+      thirdClassTenseKeys: COURSE_THIRD_CLASS_TENSE_KEYS
+    }
+  })
+})
+
+router.get('/course-materials/textbooks', requireAdmin, (req, res) => {
+  const rows = vocabularyDb.prepare(`
+    SELECT
+      t.*,
+      COUNT(l.id) AS lesson_count
+    FROM textbooks t
+    LEFT JOIN lessons l ON l.textbook_id = t.id
+    GROUP BY t.id
+    ORDER BY datetime(COALESCE(t.updated_at, t.created_at)) DESC, t.id DESC
+  `).all()
+
+  res.json({
+    rows: rows.map((item) => serializeCourseTextbook(item))
+  })
+})
+
+router.post('/course-materials/textbooks', requireAdmin, (req, res) => {
+  const name = String(req.body?.name || '').trim()
+  if (!name) {
+    return res.status(400).json({ error: '教材名称不能为空' })
+  }
+
+  const requestedOrderIndex = Number(req.body?.orderIndex)
+  const nextOrderRow = vocabularyDb.prepare('SELECT COALESCE(MAX(order_index), 0) + 1 AS next_order FROM textbooks').get()
+  const orderIndex = Number.isFinite(requestedOrderIndex) ? requestedOrderIndex : Number(nextOrderRow?.next_order || 1)
+
+  const result = vocabularyDb.prepare(`
+    INSERT INTO textbooks (name, description, cover_image, is_published, order_index, uploader_id, created_at, updated_at)
+    VALUES (?, NULL, NULL, 0, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
+  `).run(name, orderIndex, Number(req.admin.id))
+
+  const row = vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(result.lastInsertRowid)
+  res.status(201).json({
+    row: serializeCourseTextbook({ ...row, lesson_count: 0 })
+  })
+})
+
+router.put('/course-materials/textbooks/:id/publish', requireAdmin, (req, res) => {
+  const textbookId = Number(req.params.id)
+  if (!textbookId || Number.isNaN(textbookId)) {
+    return res.status(400).json({ error: '教材ID不合法' })
+  }
+
+  if (req.body?.isPublished === undefined) {
+    return res.status(400).json({ error: '缺少发布状态' })
+  }
+
+  const textbook = findCourseTextbookById(textbookId)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+  if (!ensureCanManageCourseTextbook(req, res, textbook)) return
+
+  const isPublished = req.body.isPublished ? 1 : 0
+  vocabularyDb.prepare(`
+    UPDATE textbooks
+    SET is_published = ?, updated_at = datetime('now', 'localtime')
+    WHERE id = ?
+  `).run(isPublished, textbookId)
+
+  const updated = vocabularyDb.prepare(`
+    SELECT
+      t.*,
+      COUNT(l.id) AS lesson_count
+    FROM textbooks t
+    LEFT JOIN lessons l ON l.textbook_id = t.id
+    WHERE t.id = ?
+    GROUP BY t.id
+  `).get(textbookId)
+  res.json({
+    success: true,
+    row: serializeCourseTextbook(updated)
+  })
+})
+
+router.delete('/course-materials/textbooks/:id', requireAdmin, (req, res) => {
+  const textbookId = Number(req.params.id)
+  if (!textbookId || Number.isNaN(textbookId)) {
+    return res.status(400).json({ error: '教材ID不合法' })
+  }
+
+  const textbook = findCourseTextbookById(textbookId)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+  if (!ensureCanManageCourseTextbook(req, res, textbook)) return
+
+  vocabularyDb.prepare('DELETE FROM textbooks WHERE id = ?').run(textbookId)
+  res.json({ success: true })
+})
+
+router.get('/course-materials/textbooks/:id/lessons', requireAdmin, (req, res) => {
+  const textbookId = Number(req.params.id)
+  if (!textbookId || Number.isNaN(textbookId)) {
+    return res.status(400).json({ error: '教材ID不合法' })
+  }
+
+  const textbook = findCourseTextbookById(textbookId)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+
+  const rows = vocabularyDb.prepare(`
+    SELECT
+      l.*,
+      COALESCE(v.word_count, 0) AS vocabulary_count
+    FROM lessons l
+    LEFT JOIN (
+      SELECT lesson_id, COUNT(*) AS word_count
+      FROM lesson_verbs
+      GROUP BY lesson_id
+    ) v ON v.lesson_id = l.id
+    WHERE l.textbook_id = ?
+    ORDER BY l.lesson_number ASC, l.id ASC
+  `).all(textbookId)
+
+  res.json({
+    textbook: serializeCourseTextbook(textbook),
+    rows: rows.map((row) => serializeCourseLesson(row))
+  })
+})
+
+router.post('/course-materials/textbooks/:id/lessons', requireAdmin, (req, res) => {
+  const textbookId = Number(req.params.id)
+  if (!textbookId || Number.isNaN(textbookId)) {
+    return res.status(400).json({ error: '教材ID不合法' })
+  }
+
+  const textbook = findCourseTextbookById(textbookId)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+  if (!ensureCanManageCourseTextbook(req, res, textbook)) return
+
+  const maxNumberRow = vocabularyDb.prepare(`
+    SELECT COALESCE(MAX(lesson_number), 0) AS max_number
+    FROM lessons
+    WHERE textbook_id = ?
+  `).get(textbookId)
+
+  const nextLessonNumber = Number(maxNumberRow?.max_number || 0) + 1
+  if (nextLessonNumber > 100) {
+    return res.status(400).json({ error: '添加课程失败：已达到第一百课上限' })
+  }
+  const title = `第${toChineseLessonNumber(nextLessonNumber)}课`
+  const defaultTenses = [...COURSE_DEFAULT_TENSE_KEYS]
+  const defaultMoods = getCourseMoodsFromTenses(defaultTenses)
+
+  const result = vocabularyDb.prepare(`
+    INSERT INTO lessons (
+      textbook_id, title, lesson_number, description, grammar_points, moods, tenses, conjugation_types, created_at, updated_at
+    )
+    VALUES (?, ?, ?, NULL, NULL, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
+  `).run(
+    textbookId,
+    title,
+    nextLessonNumber,
+    JSON.stringify(defaultMoods),
+    JSON.stringify(defaultTenses),
+    JSON.stringify(COURSE_DEFAULT_CONJUGATION_TYPES)
+  )
+
+  touchCourseTextbook(textbookId)
+
+  const row = vocabularyDb.prepare(`
+    SELECT
+      l.*,
+      0 AS vocabulary_count
+    FROM lessons l
+    WHERE l.id = ?
+  `).get(result.lastInsertRowid)
+
+  res.status(201).json({
+    row: serializeCourseLesson(row)
+  })
+})
+
+router.put('/course-materials/lessons/:id', requireAdmin, (req, res) => {
+  const lessonId = Number(req.params.id)
+  if (!lessonId || Number.isNaN(lessonId)) {
+    return res.status(400).json({ error: '课程ID不合法' })
+  }
+
+  const lesson = vocabularyDb.prepare('SELECT * FROM lessons WHERE id = ?').get(lessonId)
+  if (!lesson) {
+    return res.status(404).json({ error: '课程不存在' })
+  }
+  const textbook = findCourseTextbookById(lesson.textbook_id)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+  if (!ensureCanManageCourseTextbook(req, res, textbook)) return
+
+  const payload = req.body || {}
+  const hasTitle = Object.prototype.hasOwnProperty.call(payload, 'title')
+  const hasTenses = Object.prototype.hasOwnProperty.call(payload, 'tenses')
+  if (!hasTitle && !hasTenses) {
+    return res.status(400).json({ error: '缺少可更新字段' })
+  }
+
+  const nextTitle = hasTitle ? String(payload.title || '').trim() : String(lesson.title || '').trim()
+  if (!nextTitle) {
+    return res.status(400).json({ error: '课程名称不能为空' })
+  }
+
+  const existingTenses = normalizeCourseTenses(parseJsonArray(lesson.tenses), [])
+  const nextTenses = hasTenses ? normalizeCourseTenses(payload.tenses, []) : existingTenses
+  const nextMoods = getCourseMoodsFromTenses(nextTenses)
+
+  const existingConjugationTypes = normalizeStringArray(parseJsonArray(lesson.conjugation_types))
+  const conjugationTypes = existingConjugationTypes.length > 0
+    ? existingConjugationTypes
+    : [...COURSE_DEFAULT_CONJUGATION_TYPES]
+
+  vocabularyDb.prepare(`
+    UPDATE lessons
+    SET
+      title = ?,
+      moods = ?,
+      tenses = ?,
+      conjugation_types = ?,
+      updated_at = datetime('now', 'localtime')
+    WHERE id = ?
+  `).run(
+    nextTitle,
+    JSON.stringify(nextMoods),
+    JSON.stringify(nextTenses),
+    JSON.stringify(conjugationTypes),
+    lessonId
+  )
+
+  touchCourseTextbook(lesson.textbook_id)
+
+  const row = vocabularyDb.prepare(`
+    SELECT
+      l.*,
+      COALESCE(v.word_count, 0) AS vocabulary_count
+    FROM lessons l
+    LEFT JOIN (
+      SELECT lesson_id, COUNT(*) AS word_count
+      FROM lesson_verbs
+      GROUP BY lesson_id
+    ) v ON v.lesson_id = l.id
+    WHERE l.id = ?
+  `).get(lessonId)
+
+  res.json({
+    success: true,
+    row: serializeCourseLesson(row)
+  })
+})
+
+router.delete('/course-materials/lessons/:id', requireAdmin, (req, res) => {
+  const lessonId = Number(req.params.id)
+  if (!lessonId || Number.isNaN(lessonId)) {
+    return res.status(400).json({ error: '课程ID不合法' })
+  }
+
+  const lesson = vocabularyDb.prepare('SELECT * FROM lessons WHERE id = ?').get(lessonId)
+  if (!lesson) {
+    return res.status(404).json({ error: '课程不存在' })
+  }
+  const textbook = findCourseTextbookById(lesson.textbook_id)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+  if (!ensureCanManageCourseTextbook(req, res, textbook)) return
+
+  vocabularyDb.prepare('DELETE FROM lessons WHERE id = ?').run(lessonId)
+  touchCourseTextbook(lesson.textbook_id)
+  res.json({ success: true })
+})
+
+router.get('/course-materials/lessons/:id/verbs', requireAdmin, (req, res) => {
+  const lessonId = Number(req.params.id)
+  if (!lessonId || Number.isNaN(lessonId)) {
+    return res.status(400).json({ error: '课程ID不合法' })
+  }
+
+  const lesson = vocabularyDb.prepare('SELECT * FROM lessons WHERE id = ?').get(lessonId)
+  if (!lesson) {
+    return res.status(404).json({ error: '课程不存在' })
+  }
+
+  const rows = vocabularyDb.prepare(`
+    SELECT
+      v.id,
+      v.infinitive,
+      v.meaning,
+      v.conjugation_type,
+      v.is_irregular,
+      v.is_reflexive,
+      lv.order_index
+    FROM lesson_verbs lv
+    INNER JOIN verbs v ON v.id = lv.verb_id
+    WHERE lv.lesson_id = ?
+    ORDER BY lv.order_index ASC, lv.id ASC
+  `).all(lessonId)
+
+  res.json({ rows })
+})
+
+router.put('/course-materials/lessons/:id/verbs', requireAdmin, (req, res) => {
+  const lessonId = Number(req.params.id)
+  if (!lessonId || Number.isNaN(lessonId)) {
+    return res.status(400).json({ error: '课程ID不合法' })
+  }
+
+  const lesson = vocabularyDb.prepare('SELECT * FROM lessons WHERE id = ?').get(lessonId)
+  if (!lesson) {
+    return res.status(404).json({ error: '课程不存在' })
+  }
+  const textbook = findCourseTextbookById(lesson.textbook_id)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+  if (!ensureCanManageCourseTextbook(req, res, textbook)) return
+
+  const payloadVerbIds = req.body?.verbIds
+  if (!Array.isArray(payloadVerbIds)) {
+    return res.status(400).json({ error: 'verbIds 必须为数组' })
+  }
+
+  const hasInvalidId = payloadVerbIds.some((item) => {
+    const value = Number(item)
+    return !Number.isInteger(value) || value <= 0
+  })
+  if (hasInvalidId) {
+    return res.status(400).json({ error: 'verbIds 包含非法ID' })
+  }
+
+  const normalizedVerbIds = Array.from(new Set(payloadVerbIds.map((item) => Number(item))))
+
+  if (normalizedVerbIds.length > 0) {
+    const placeholders = normalizedVerbIds.map(() => '?').join(',')
+    const existingIds = vocabularyDb.prepare(`
+      SELECT id FROM verbs WHERE id IN (${placeholders})
+    `).all(...normalizedVerbIds).map((item) => Number(item.id))
+    if (existingIds.length !== normalizedVerbIds.length) {
+      const existingSet = new Set(existingIds)
+      const missing = normalizedVerbIds.filter((item) => !existingSet.has(item))
+      return res.status(400).json({ error: `以下动词不存在：${missing.join(', ')}` })
+    }
+  }
+
+  const syncLessonVerbs = vocabularyDb.transaction((targetLessonId, verbIds) => {
+    vocabularyDb.prepare('DELETE FROM lesson_verbs WHERE lesson_id = ?').run(targetLessonId)
+    if (verbIds.length > 0) {
+      const insertStmt = vocabularyDb.prepare(`
+        INSERT INTO lesson_verbs (lesson_id, verb_id, order_index)
+        VALUES (?, ?, ?)
+      `)
+      verbIds.forEach((verbId, index) => {
+        insertStmt.run(targetLessonId, verbId, index)
+      })
+    }
+    vocabularyDb.prepare(`
+      UPDATE lessons
+      SET updated_at = datetime('now', 'localtime')
+      WHERE id = ?
+    `).run(targetLessonId)
+  })
+  syncLessonVerbs(lessonId, normalizedVerbIds)
+
+  touchCourseTextbook(lesson.textbook_id)
+  res.json({ success: true, count: normalizedVerbIds.length })
+})
+
 router.get('/lexicon', requireAdmin, (req, res) => {
   const limit = Number(req.query.limit || 50)
   const offset = Number(req.query.offset || 0)
@@ -586,27 +1294,84 @@ router.get('/verbs', requireAdmin, (req, res) => {
   const limit = Number(req.query.limit || 50)
   const offset = Number(req.query.offset || 0)
   const q = (req.query.q || '').toString().trim()
+  const idOrder = String(req.query.id_order || 'asc').toLowerCase() === 'desc' ? 'DESC' : 'ASC'
   if (q) {
     const qLower = q.toLowerCase()
     const like = `%${qLower}%`
     const rows = vocabularyDb.prepare(`
-      SELECT *,
-        (CASE WHEN lower(infinitive) = ? THEN 200 WHEN lower(infinitive) LIKE ? THEN 100 ELSE 0 END)
-        + (CASE WHEN lower(meaning) LIKE ? THEN 20 ELSE 0 END) AS score
+      SELECT *
       FROM verbs
       WHERE lower(infinitive) LIKE ? OR lower(meaning) LIKE ?
-      ORDER BY score DESC, lesson_number, id
+      ORDER BY CAST(id AS INTEGER) ${idOrder}
       LIMIT ? OFFSET ?
-    `).all(qLower, like, like, like, like, limit, offset)
+    `).all(like, like, limit, offset)
 
     const total = vocabularyDb.prepare('SELECT COUNT(*) as total FROM verbs WHERE lower(infinitive) LIKE ? OR lower(meaning) LIKE ?').get(like, like).total
     res.json({ rows, total })
     return
   }
 
-  const rows = vocabularyDb.prepare('SELECT * FROM verbs ORDER BY lesson_number, id LIMIT ? OFFSET ?').all(limit, offset)
+  const rows = vocabularyDb.prepare(`SELECT * FROM verbs ORDER BY CAST(id AS INTEGER) ${idOrder} LIMIT ? OFFSET ?`).all(limit, offset)
   const total = vocabularyDb.prepare('SELECT COUNT(*) as total FROM verbs').get().total
   res.json({ rows, total })
+})
+
+router.post('/verbs/autofill/validate', requireAdmin, async (req, res) => {
+  const infinitive = String(req.body?.infinitive || '').trim()
+  const batchId = String(req.body?.batchId || '').trim()
+  if (!infinitive) {
+    return res.status(400).json({ error: '缺少动词原形 (infinitive)' })
+  }
+
+  try {
+    const result = await VerbAutoFillService.validateInfinitive(infinitive)
+    if (!result.isValid) {
+      const enforcement = registerAdminAutofillInvalid(req, { batchId, infinitive })
+      if (enforcement.demoted) {
+        return res.status(403).json({
+          error: ADMIN_AUTOFILL_REVOKED_MESSAGE,
+          code: ADMIN_AUTOFILL_REVOKED_CODE,
+          invalidCount: enforcement.invalidCount
+        })
+      }
+      return res.json({
+        isValid: false,
+        reason: result.reason || '',
+        invalidCount: enforcement.invalidCount
+      })
+    }
+    return res.json({ isValid: true, reason: result.reason || '' })
+  } catch (error) {
+    console.error('自动补充合法性校验失败:', error)
+    return res.status(500).json({ error: '合法性校验失败' })
+  }
+})
+
+router.post('/verbs/autofill', requireAdmin, async (req, res) => {
+  const infinitive = String(req.body?.infinitive || '').trim()
+  if (!infinitive) {
+    return res.status(400).json({ error: '缺少动词原形 (infinitive)' })
+  }
+
+  try {
+    const generated = await VerbAutoFillService.generateAutofill(infinitive)
+    return res.json(generated)
+  } catch (error) {
+    console.error('自动补充生成失败:', error)
+    return res.status(500).json({ error: '自动补充失败' })
+  }
+})
+
+router.get('/verbs/export/json', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可下载词库 JSON')
+
+  try {
+    const payload = exportVerbsAsJson()
+    return res.json(payload)
+  } catch (error) {
+    console.error('导出词库 JSON 失败:', error)
+    return res.status(500).json({ error: '导出词库 JSON 失败' })
+  }
 })
 
 router.get('/verbs/:id', requireAdmin, (req, res) => {
@@ -665,22 +1430,58 @@ router.delete('/conjugations/:id', requireAdmin, (req, res) => {
 router.post('/verbs', requireAdmin, (req, res) => {
   const data = req.body || {}
   if (!data.infinitive) return res.status(400).json({ error: '缺少动词原形 (infinitive)' })
-  const id = VerbAdmin.create({
-    infinitive: data.infinitive,
-    meaning: data.meaning || null,
-    conjugationType: data.conjugation_type || data.conjugationType || 1,
-    isIrregular: data.is_irregular || data.isIrregular || 0,
-    isReflexive: data.is_reflexive || data.isReflexive || 0,
-    hasTrUse: data.has_tr_use ?? data.hasTrUse ?? 0,
-    hasIntrUse: data.has_intr_use ?? data.hasIntrUse ?? 0,
-    gerund: data.gerund || null,
-    participle: data.participle || null,
-    participleForms: data.participle_forms || null,
-    lessonNumber: data.lesson_number || null,
-    textbookVolume: data.textbook_volume || 1,
-    frequencyLevel: data.frequency_level || 1
+  const conjugations = Array.isArray(data.conjugations) ? data.conjugations : []
+  const createVerbWithConjugations = vocabularyDb.transaction((payload, rows) => {
+    const verbId = VerbAdmin.create({
+      infinitive: payload.infinitive,
+      meaning: payload.meaning || null,
+      conjugationType: payload.conjugation_type || payload.conjugationType || 1,
+      isIrregular: payload.is_irregular || payload.isIrregular || 0,
+      isReflexive: payload.is_reflexive || payload.isReflexive || 0,
+      hasTrUse: payload.has_tr_use ?? payload.hasTrUse ?? 0,
+      hasIntrUse: payload.has_intr_use ?? payload.hasIntrUse ?? 0,
+      supportsDo: payload.supports_do ?? payload.supportsDo ?? null,
+      supportsIo: payload.supports_io ?? payload.supportsIo ?? null,
+      supportsDoIo: payload.supports_do_io ?? payload.supportsDoIo ?? null,
+      gerund: payload.gerund || null,
+      participle: payload.participle || null,
+      participleForms: payload.participle_forms || null,
+      lessonNumber: payload.lesson_number || null,
+      textbookVolume: payload.textbook_volume || 1,
+      frequencyLevel: payload.frequency_level || 1
+    })
+
+    if (rows.length) {
+      const insertStmt = vocabularyDb.prepare(`
+        INSERT INTO conjugations (verb_id, tense, mood, person, conjugated_form, is_irregular)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `)
+      rows.forEach((item, index) => {
+        const tense = String(item?.tense || '').trim()
+        const mood = String(item?.mood || '').trim()
+        const person = String(item?.person || '').trim()
+        const conjugatedForm = String(item?.conjugated_form || '').trim()
+        if (!tense || !mood || !person || !conjugatedForm) {
+          const error = new Error(`第 ${index + 1} 条变位缺少必填字段`)
+          error.status = 400
+          throw error
+        }
+        insertStmt.run(verbId, tense, mood, person, conjugatedForm, item?.is_irregular ? 1 : 0)
+      })
+    }
+    return verbId
   })
-  res.status(201).json({ id })
+
+  try {
+    const id = createVerbWithConjugations(data, conjugations)
+    res.status(201).json({ id })
+  } catch (error) {
+    if (error.status === 400) {
+      return res.status(400).json({ error: error.message || '变位数据不完整' })
+    }
+    console.error('创建动词失败:', error)
+    return res.status(500).json({ error: '创建失败' })
+  }
 })
 
 router.put('/verbs/:id', requireAdmin, (req, res) => {
@@ -697,6 +1498,9 @@ router.put('/verbs/:id', requireAdmin, (req, res) => {
       is_reflexive = ?,
       has_tr_use = ?,
       has_intr_use = ?,
+      supports_do = ?,
+      supports_io = ?,
+      supports_do_io = ?,
       gerund = ?,
       participle = ?,
       participle_forms = ?,
@@ -714,6 +1518,9 @@ router.put('/verbs/:id', requireAdmin, (req, res) => {
     data.is_reflexive ?? data.isReflexive ?? existing.is_reflexive,
     data.has_tr_use ?? data.hasTrUse ?? existing.has_tr_use,
     data.has_intr_use ?? data.hasIntrUse ?? existing.has_intr_use,
+    data.supports_do ?? data.supportsDo ?? existing.supports_do,
+    data.supports_io ?? data.supportsIo ?? existing.supports_io,
+    data.supports_do_io ?? data.supportsDoIo ?? existing.supports_do_io,
     data.gerund ?? existing.gerund,
     data.participle ?? existing.participle,
     data.participle_forms ?? existing.participle_forms,
@@ -726,6 +1533,7 @@ router.put('/verbs/:id', requireAdmin, (req, res) => {
 })
 
 router.delete('/verbs/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可删除动词')
   vocabularyDb.prepare('DELETE FROM verbs WHERE id = ?').run(req.params.id)
   res.json({ success: true })
 })
@@ -856,6 +1664,7 @@ router.put('/questions/:id', requireAdmin, (req, res) => {
 })
 
 router.delete('/questions/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可删除题库内容')
   const source = req.query.source ? String(req.query.source).trim() : null
   Question.deletePublic(req.params.id, source)
   res.json({ success: true })
@@ -883,12 +1692,13 @@ router.put('/question-bank/:id', requireAdmin, (req, res) => {
 })
 
 router.delete('/question-bank/:id', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev 可删除题库')
   QuestionBank.delete(req.params.id)
   res.json({ success: true })
 })
 
 router.get('/logs', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可查看日志')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可查看日志')
   const { keyword, start, end } = req.query
   const limit = Number(req.query.limit || 50)
   const offset = Number(req.query.offset || 0)
@@ -897,7 +1707,7 @@ router.get('/logs', requireAdmin, (req, res) => {
 })
 
 router.get('/practice-records', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可以查看用户数据')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可以查看用户数据')
   const limit = Number(req.query.limit || 50)
   const offset = Number(req.query.offset || 0)
   const keyword = req.query.keyword ? String(req.query.keyword).trim() : ''
@@ -942,7 +1752,7 @@ router.get('/practice-records', requireAdmin, (req, res) => {
 })
 
 router.get('/practice-records/stats', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可以查看用户数据')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可以查看用户数据')
   const keyword = req.query.keyword ? String(req.query.keyword).trim() : ''
   const userId = req.query.userId ? Number(req.query.userId) : null
   const verbId = req.query.verbId ? Number(req.query.verbId) : null
@@ -1035,7 +1845,7 @@ router.delete('/question-feedback/:id', requireAdmin, (req, res) => {
 })
 
 router.get('/db-files', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可查看可备份文件')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可查看可备份文件')
   const files = getAllowedFiles().map(({ key, label, fileName }) => ({
     key,
     label,
@@ -1045,13 +1855,13 @@ router.get('/db-files', requireAdmin, (req, res) => {
 })
 
 router.get('/db-backups', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可查看备份记录')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可查看备份记录')
   const records = loadRecords(BACKUP_RECORDS_FILE)
   res.json({ records })
 })
 
 router.post('/db-backups', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可新增备份')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可新增备份')
   const requestedKeys = Array.isArray(req.body?.files) ? req.body.files : []
   const allowedFiles = getAllowedFiles()
   const allowedMap = new Map(allowedFiles.map((item) => [item.key, item]))
@@ -1094,7 +1904,7 @@ router.post('/db-backups', requireAdmin, (req, res) => {
 })
 
 router.delete('/db-backups/:id', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可删除备份记录')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可删除备份记录')
   const records = loadRecords(BACKUP_RECORDS_FILE)
   const index = records.findIndex((item) => item.id === req.params.id)
   if (index === -1) {
@@ -1110,7 +1920,7 @@ router.delete('/db-backups/:id', requireAdmin, (req, res) => {
 })
 
 router.get('/db-backups/:id/download-link', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可下载备份')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可下载备份')
   const records = loadRecords(BACKUP_RECORDS_FILE)
   const record = records.find((item) => item.id === req.params.id)
   if (!record) {
@@ -1148,7 +1958,7 @@ router.get('/db-backups/download', (req, res) => {
 })
 
 router.get('/db-backups/:id/download', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可下载备份')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可下载备份')
   const records = loadRecords(BACKUP_RECORDS_FILE)
   const record = records.find((item) => item.id === req.params.id)
   if (!record) {
@@ -1168,7 +1978,7 @@ router.get('/db-backups/:id/download', requireAdmin, (req, res) => {
 })
 
 router.post('/db-backups/:id/restore', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可还原备份')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可还原备份')
   const records = loadRecords(BACKUP_RECORDS_FILE)
   const record = records.find((item) => item.id === req.params.id)
   if (!record) {
@@ -1193,13 +2003,13 @@ router.post('/db-backups/:id/restore', requireAdmin, (req, res) => {
 })
 
 router.get('/db-imports', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可查看导入记录')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可查看导入记录')
   const records = loadRecords(IMPORT_RECORDS_FILE)
   res.json({ records })
 })
 
 router.delete('/db-imports/:id', requireAdmin, (req, res) => {
-  if (!isDev(req)) return forbid(res, '仅 dev 可删除导入记录')
+  if (!isStrictDev(req)) return forbid(res, '仅 dev 可删除导入记录')
   const records = loadRecords(IMPORT_RECORDS_FILE)
   const index = records.findIndex((item) => item.id === req.params.id)
   if (index === -1) {
@@ -1214,7 +2024,7 @@ router.post(
   '/db-imports',
   requireAdmin,
   (req, res, next) => {
-    if (!isDev(req)) {
+    if (!isStrictDev(req)) {
       return forbid(res, '仅 dev 可导入备份')
     }
     next()
