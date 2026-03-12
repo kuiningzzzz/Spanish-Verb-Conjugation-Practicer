@@ -54,7 +54,7 @@
               <th class="sortable" @click="toggleSort('id')">
                 ID <span class="sort-indicator">{{ sortIndicator('id') }}</span>
               </th>
-              <th>标题</th>
+              <th class="col-title">标题</th>
               <th>内容</th>
               <th class="sortable" @click="toggleSort('priority')">
                 优先级 <span class="sort-indicator">{{ sortIndicator('priority') }}</span>
@@ -63,23 +63,23 @@
               <th class="sortable" @click="toggleSort('publishTime')">
                 发布时间 <span class="sort-indicator">{{ sortIndicator('publishTime') }}</span>
               </th>
-              <th class="sortable" @click="toggleSort('isActive')">
+              <th class="sortable col-status" @click="toggleSort('isActive')">
                 状态 <span class="sort-indicator">{{ sortIndicator('isActive') }}</span>
               </th>
-              <th>操作</th>
+              <th class="col-actions">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="announcement in pagedAnnouncements" :key="announcement.id">
               <td>{{ announcement.id }}</td>
-              <td>
-                <span class="ellipsis" :title="announcement.title">
-                  {{ formatText(announcement.title, 32) }}
+              <td class="title-cell">
+                <span class="ellipsis announcement-title-ellipsis" :title="announcement.title">
+                  {{ announcement.title || '-' }}
                 </span>
               </td>
-              <td>
-                <span class="ellipsis" :title="announcement.content">
-                  {{ formatText(announcement.content, 60) }}
+              <td class="content-cell">
+                <span class="ellipsis announcement-content-ellipsis" :title="announcement.content">
+                  {{ formatText(announcement.content, 110) }}
                 </span>
               </td>
               <td>
@@ -88,15 +88,17 @@
                 </span>
               </td>
               <td>{{ announcement.publisher || '-' }}</td>
-              <td>{{ formatDate(announcement.publishTime) }}</td>
-              <td>
-                <span class="tag" :class="announcement.isActive ? 'success' : 'error'">
+              <td class="publish-time-cell">{{ formatDateTwoLine(announcement.publishTime) }}</td>
+              <td class="status-cell">
+                <span class="tag announcement-status-tag" :class="announcement.isActive ? 'success' : 'error'">
                   {{ announcement.isActive ? '启用' : '停用' }}
                 </span>
               </td>
-              <td class="actions">
-                <button class="ghost" @click="openEdit(announcement)">编辑</button>
-                <button class="danger" @click="confirmDelete(announcement)" :disabled="deleting">删除</button>
+              <td class="announcement-actions-cell">
+                <div class="announcement-actions">
+                  <button class="ghost" @click="openEdit(announcement)">编辑</button>
+                  <button class="danger" @click="confirmDelete(announcement)" :disabled="deleting">删除</button>
+                </div>
               </td>
             </tr>
             <tr v-if="!filteredAnnouncements.length">
@@ -350,6 +352,20 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
+function formatDateTwoLine(value) {
+  const formatted = formatDate(value);
+  if (formatted === '-') return '-';
+
+  const normalized = String(formatted).replace(',', ' ').trim();
+  const parts = normalized.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    const timePart = parts.pop();
+    const datePart = parts.join(' ');
+    return `${datePart}\n${timePart}`;
+  }
+  return formatted;
+}
+
 function formatText(value, maxLength) {
   if (!value) return '-';
   const text = String(value);
@@ -531,3 +547,109 @@ async function submitDelete() {
 
 onMounted(fetchAnnouncements);
 </script>
+
+<style scoped>
+.announcement-page .table {
+  table-layout: fixed;
+}
+
+.announcement-page .table th:nth-child(1),
+.announcement-page .table td:nth-child(1) {
+  width: 64px;
+}
+
+.announcement-page .table th.col-title,
+.announcement-page .table td:nth-child(2) {
+  width: 220px;
+}
+
+.announcement-page .table th:nth-child(4),
+.announcement-page .table td:nth-child(4) {
+  width: 88px;
+  padding-left: 8px;
+  white-space: nowrap;
+}
+
+.announcement-page .table th:nth-child(5),
+.announcement-page .table td:nth-child(5) {
+  width: 104px;
+  padding-left: 8px;
+}
+
+.announcement-page .table th:nth-child(6),
+.announcement-page .table td:nth-child(6) {
+  width: 148px;
+  padding-left: 8px;
+}
+
+.announcement-page .table th.col-status,
+.announcement-page .table td.status-cell {
+  width: 92px;
+  min-width: 92px;
+  padding-left: 8px;
+  white-space: nowrap;
+}
+
+.announcement-page .table th.col-actions,
+.announcement-page .table td.announcement-actions-cell {
+  width: 152px;
+  min-width: 152px;
+  padding-left: 6px;
+}
+
+.announcement-page .announcement-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.announcement-page .table td.content-cell {
+  padding-right: 6px;
+}
+
+.announcement-page .table td.title-cell {
+  padding-right: 6px;
+}
+
+.announcement-page .announcement-title-ellipsis {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.announcement-page .announcement-content-ellipsis {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.announcement-page .announcement-actions button {
+  padding: 7px 10px;
+  border-radius: 9px;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.announcement-page .announcement-status-tag {
+  display: inline-flex;
+  padding: 2px 7px;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.announcement-page .publish-time-cell {
+  white-space: pre-line;
+  line-height: 1.3;
+}
+</style>
