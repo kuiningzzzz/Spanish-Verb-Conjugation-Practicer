@@ -11,8 +11,10 @@
       <div class="toolbar management-toolbar">
         <div class="toolbar-left">
           <button v-if="activeTextbook" class="ghost" @click="backToTextbookList">返回教材列表</button>
-          <span v-else class="toolbar-count">共 {{ textbooks.length }} 本</span>
-          <button v-else class="ghost" @click="openCreateTextbookDialog">添加教材</button>
+          <template v-else>
+            <span class="toolbar-count">共 {{ textbooks.length }} 本</span>
+            <button class="ghost" @click="openCreateTextbookDialog">添加教材</button>
+          </template>
         </div>
         <div class="management-actions">
           <button
