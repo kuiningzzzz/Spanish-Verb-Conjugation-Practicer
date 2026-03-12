@@ -5,7 +5,7 @@
         <div class="header-title-row">
           <h2 v-if="!activeTextbook">教材管理</h2>
           <h2 v-else>当前教材：{{ activeTextbook.name }}</h2>
-          <span v-if="!activeTextbook" class="header-note">仅可修改自己上传的教材</span>
+          <span v-if="!activeTextbook && isAdmin" class="header-note">仅可修改自己上传的教材</span>
         </div>
       </div>
       <div class="toolbar management-toolbar">
@@ -377,7 +377,7 @@ const DEFAULT_TENSE_OPTIONS = [
   { value: 'imperativo_negativo', label: 'Imperativo Negativo（否定命令式）', mood: 'imperativo' }
 ]
 const router = useRouter()
-const { logout, state, isPowerAdmin } = useAuth()
+const { logout, state, isAdmin, isPowerAdmin } = useAuth()
 const TEXTBOOK_MANAGE_LOCK_HINT = '仅可管理自己上传的教材'
 
 const textbooks = ref([])

@@ -20,7 +20,7 @@ const QuestionFeedback = require('../models/QuestionFeedback')
 const AdminLog = require('../models/AdminLog')
 const PracticeRecord = require('../models/PracticeRecord')
 const Announcement = require('../models/Announcement')
-const { vocabularyDb } = require('../database/db')
+const { userDb, vocabularyDb } = require('../database/db')
 const VerbAutoFillService = require('../services/verbAutoFillService')
 const { exportVerbsAsJson } = require('../services/verbExportService')
 const fs = require('fs')
@@ -36,6 +36,11 @@ const BACKUP_RECORDS_FILE = path.join(DATA_DIR, 'backup_records.json')
 const IMPORT_RECORDS_FILE = path.join(DATA_DIR, 'import_records.json')
 const DOWNLOAD_TOKEN_TTL_MS = 5 * 60 * 1000
 const downloadTokens = new Map()
+const ADMIN_AUTOFILL_INVALID_LIMIT = 10
+const ADMIN_AUTOFILL_BATCH_TTL_MS = 30 * 60 * 1000
+const ADMIN_AUTOFILL_BATCH_TTL_MINUTES = Math.max(1, Math.floor(ADMIN_AUTOFILL_BATCH_TTL_MS / 60000))
+const ADMIN_AUTOFILL_REVOKED_CODE = 'ADMIN_AUTOFILL_REVOKED'
+const ADMIN_AUTOFILL_REVOKED_MESSAGE = '您输入了过多非法动词，请联系超级管理员以恢复您的管理员权限。'
 const ALLOWED_USER_TYPES = ['student', 'public', 'teacher']
 const COURSE_MATERIAL_MOOD_OPTIONS = [
   { value: 'indicativo', label: 'Indicativo 陈述式' },
@@ -387,6 +392,88 @@ function isDev(req) {
 
 function forbid(res, message = '无权限') {
   return res.status(403).json({ error: message })
+}
+
+function cleanupAdminAutofillInvalidRecords() {
+  const ttlModifier = `-${ADMIN_AUTOFILL_BATCH_TTL_MINUTES} minutes`
+  userDb
+    .prepare(`
+      DELETE FROM admin_autofill_invalid_entries
+      WHERE datetime(created_at) <= datetime('now', 'localtime', ?)
+    `)
+    .run(ttlModifier)
+}
+
+function hasVerbInfinitiveInLexicon(infinitive) {
+  const normalized = String(infinitive || '').trim()
+  if (!normalized) return false
+  const row = vocabularyDb
+    .prepare('SELECT 1 as found FROM verbs WHERE lower(infinitive) = lower(?) LIMIT 1')
+    .get(normalized)
+  return !!row
+}
+
+function registerAdminAutofillInvalid(req, { batchId, infinitive }) {
+  if (req.admin?.role !== 'admin') {
+    return { demoted: false, invalidCount: 0 }
+  }
+
+  if (hasVerbInfinitiveInLexicon(infinitive)) {
+    return { demoted: false, invalidCount: 0 }
+  }
+
+  const adminId = Number(req.admin?.id || 0)
+  if (!adminId) {
+    return { demoted: false, invalidCount: 0 }
+  }
+
+  const normalizedBatchId = String(batchId || '').trim().slice(0, 80)
+    || `fallback-${Math.floor(Date.now() / ADMIN_AUTOFILL_BATCH_TTL_MS)}`
+
+  const normalizedInfinitive = String(infinitive || '').trim().toLowerCase()
+  if (!normalizedInfinitive) {
+    return { demoted: false, invalidCount: 0 }
+  }
+
+  try {
+    cleanupAdminAutofillInvalidRecords()
+
+    userDb
+      .prepare(`
+        INSERT INTO admin_autofill_invalid_entries (admin_id, batch_id, infinitive)
+        VALUES (?, ?, ?)
+        ON CONFLICT(admin_id, batch_id, infinitive) DO NOTHING
+      `)
+      .run(adminId, normalizedBatchId, normalizedInfinitive)
+
+    const countRow = userDb
+      .prepare(`
+        SELECT COUNT(*) AS total
+        FROM admin_autofill_invalid_entries
+        WHERE admin_id = ? AND batch_id = ?
+      `)
+      .get(adminId, normalizedBatchId)
+    const invalidCount = Number(countRow?.total || 0)
+
+    if (invalidCount > ADMIN_AUTOFILL_INVALID_LIMIT) {
+      const result = updateUser(adminId, { role: 'user' })
+      if (result?.changes) {
+        AdminLog.create('warn', 'admin autofill privilege revoked', {
+          userId: adminId,
+          batchId: normalizedBatchId,
+          invalidCount
+        })
+        userDb
+          .prepare('DELETE FROM admin_autofill_invalid_entries WHERE admin_id = ? AND batch_id = ?')
+          .run(adminId, normalizedBatchId)
+        return { demoted: true, invalidCount }
+      }
+    }
+    return { demoted: false, invalidCount }
+  } catch (error) {
+    console.error('记录非法自动生成词条失败:', error)
+    return { demoted: false, invalidCount: 0 }
+  }
 }
 
 router.get('/users', requireAdmin, (req, res) => {
@@ -1231,13 +1318,29 @@ router.get('/verbs', requireAdmin, (req, res) => {
 
 router.post('/verbs/autofill/validate', requireAdmin, async (req, res) => {
   const infinitive = String(req.body?.infinitive || '').trim()
+  const batchId = String(req.body?.batchId || '').trim()
   if (!infinitive) {
     return res.status(400).json({ error: '缺少动词原形 (infinitive)' })
   }
 
   try {
     const result = await VerbAutoFillService.validateInfinitive(infinitive)
-    return res.json({ isValid: !!result.isValid, reason: result.reason || '' })
+    if (!result.isValid) {
+      const enforcement = registerAdminAutofillInvalid(req, { batchId, infinitive })
+      if (enforcement.demoted) {
+        return res.status(403).json({
+          error: ADMIN_AUTOFILL_REVOKED_MESSAGE,
+          code: ADMIN_AUTOFILL_REVOKED_CODE,
+          invalidCount: enforcement.invalidCount
+        })
+      }
+      return res.json({
+        isValid: false,
+        reason: result.reason || '',
+        invalidCount: enforcement.invalidCount
+      })
+    }
+    return res.json({ isValid: true, reason: result.reason || '' })
   } catch (error) {
     console.error('自动补充合法性校验失败:', error)
     return res.status(500).json({ error: '合法性校验失败' })

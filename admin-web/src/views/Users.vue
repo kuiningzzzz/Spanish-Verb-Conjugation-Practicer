@@ -733,6 +733,26 @@ fetchUsers();
 </script>
 
 <style scoped>
+.users-page .management-header,
+.users-page .management-toolbar,
+.users-page .management-toolbar .toolbar-left {
+  flex-wrap: nowrap;
+}
+
+.users-page .management-toolbar .toolbar-left {
+  gap: 8px;
+}
+
+.users-page .management-toolbar .toolbar-left > input {
+  width: 150px;
+  min-width: 150px;
+}
+
+.users-page .management-toolbar .toolbar-left > select {
+  width: 100px;
+  min-width: 100px;
+}
+
 .users-page {
   --users-col-id: 72px;
   --users-col-type: 108px;

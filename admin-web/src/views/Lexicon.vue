@@ -186,7 +186,10 @@
                 </div>
 
                 <p class="queue-hint">
-                  仅需录入动词原形，系统将逐条自动生成变位信息并反馈结果。AI生成可能存在错误，请核实相关信息。完成后点击按钮保存完整的词条。
+                  录入动词原形，AI将逐条生成变位信息并反馈结果。AI生成可能存在错误，请核实相关信息。完成后点击按钮保存完整的词条。
+                  <span v-if="isAdmin" class="queue-hint-warning">
+                    请尽量确保输入动词的准确性，仅需输入单个动词词根即可，输入过多非法词条可能会被取消管理员权限。
+                  </span>
                 </p>
 
                 <div class="queue-table-wrap">
@@ -549,10 +552,12 @@
 
 <script setup>
 import { ref, reactive, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { apiRequest, ApiError } from '../utils/apiClient';
 import { useAuth } from '../composables/useAuth';
 
-const { isDev, isPowerAdmin } = useAuth();
+const { isAdmin, isDev, isPowerAdmin, logout } = useAuth();
+const router = useRouter();
 
 const rows = ref([]);
 const total = ref(0);
@@ -648,6 +653,8 @@ const CREATE_FORM_KEYS = [
 ];
 const QUEUE_CACHE_KEY = 'admin_lexicon_create_queue_cache_v1';
 const QUEUE_STATUS_VALUES = new Set(['pending', 'processing', 'success', 'error', 'saved']);
+const ADMIN_AUTOFILL_REVOKED_CODE = 'ADMIN_AUTOFILL_REVOKED';
+const ADMIN_AUTOFILL_REVOKED_MESSAGE = '您输入了过多非法动词，请联系超级管理员以恢复您的管理员权限。';
 
 // conjugations state
 const conjDrawerOpen = ref(false);
@@ -1332,7 +1339,22 @@ async function hasDuplicateInLexicon(infinitive) {
   );
 }
 
-async function runAutoFillForDraft(draft) {
+function isAdminAutofillRevokedError(err) {
+  return (
+    err instanceof ApiError &&
+    err.status === 403 &&
+    (err.data?.code === ADMIN_AUTOFILL_REVOKED_CODE || err.message === ADMIN_AUTOFILL_REVOKED_MESSAGE)
+  );
+}
+
+async function handleAdminAutofillRevoked() {
+  showToast(ADMIN_AUTOFILL_REVOKED_MESSAGE, 'error');
+  await new Promise((resolve) => setTimeout(resolve, 900));
+  logout();
+  router.push({ name: 'Login', query: { error: 'forbidden' } });
+}
+
+async function runAutoFillForDraft(draft, batchId = '') {
   const targetDraft = draft || buildEmptyCreateDraft();
   const infinitive = String(targetDraft.form?.infinitive || '').trim();
   if (!infinitive) {
@@ -1345,7 +1367,7 @@ async function runAutoFillForDraft(draft) {
 
   const validation = await apiRequest('/verbs/autofill/validate', {
     method: 'POST',
-    body: { infinitive },
+    body: { infinitive, batchId },
     timeout: 30000
   });
   if (!validation?.isValid) {
@@ -1472,14 +1494,14 @@ function openQueueDetail(queueId) {
   persistQueueCache();
 }
 
-async function processQueueItem(item) {
+async function processQueueItem(item, batchId = '') {
   item.status = 'processing';
   item.message = '处理中...';
 
   try {
     const draft = item.draft || buildEmptyCreateDraft(item.infinitive);
     draft.form.infinitive = String(draft.form.infinitive || item.infinitive || '').trim();
-    const result = await runAutoFillForDraft(draft);
+    const result = await runAutoFillForDraft(draft, batchId);
     item.draft = draft;
     item.infinitive = String(draft.form.infinitive || item.infinitive || '').trim();
     item.status = 'success';
@@ -1490,6 +1512,9 @@ async function processQueueItem(item) {
     item.status = 'error';
     item.message = getActionErrorMessage(err, '处理失败');
     persistQueueCache();
+    if (isAdminAutofillRevokedError(err)) {
+      throw err;
+    }
     return false;
   }
 }
@@ -1512,16 +1537,30 @@ async function runQueueGenerate() {
   queueProcessing.value = true;
   let successCount = 0;
   let failedCount = 0;
+  const batchId = `autofill-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  let revoked = false;
 
-  for (const item of targets) {
-    const ok = await processQueueItem(item);
-    if (ok) successCount += 1;
-    else failedCount += 1;
+  try {
+    for (const item of targets) {
+      const ok = await processQueueItem(item, batchId);
+      if (ok) successCount += 1;
+      else failedCount += 1;
+    }
+  } catch (err) {
+    if (isAdminAutofillRevokedError(err)) {
+      revoked = true;
+      await handleAdminAutofillRevoked();
+      return;
+    }
+    showToast(getActionErrorMessage(err, '队列处理失败'), 'error');
+  } finally {
+    queueProcessing.value = false;
+    persistQueueCache();
   }
 
-  queueProcessing.value = false;
-  persistQueueCache();
-  showToast(`队列处理完成：成功 ${successCount}，失败 ${failedCount}`, failedCount ? 'info' : 'success');
+  if (!revoked) {
+    showToast(`队列处理完成：成功 ${successCount}，失败 ${failedCount}`, failedCount ? 'info' : 'success');
+  }
 }
 
 function findMissingConjugationsFromMap(conjugationMap) {
@@ -2555,7 +2594,14 @@ fetchRows();
   margin:0;
   font-size:12px;
   line-height:1.5;
-  color:var(--muted);
+  color:#8b0012;
+}
+
+.queue-hint-warning {
+  display:block;
+  margin-top:4px;
+  color:inherit;
+  font-weight:400;
 }
 
 .queue-table-wrap {
