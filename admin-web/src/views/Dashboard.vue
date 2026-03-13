@@ -95,7 +95,7 @@
                 <th>管理历史类型</th>
                 <th>目标ID</th>
                 <th>修改时间</th>
-                <th>操作</th>
+                <th class="history-actions-header">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -735,6 +735,14 @@ onBeforeUnmount(() => {
 
 .history-actions-cell {
   text-align: center;
+  padding-left: 18px;
+  padding-right: 0;
+}
+
+.history-actions-header {
+  text-align: center;
+  padding-left: 18px;
+  padding-right: 0;
 }
 
 .history-actions-cell .ghost {

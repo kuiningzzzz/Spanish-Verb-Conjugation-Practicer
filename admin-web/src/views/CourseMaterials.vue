@@ -56,6 +56,7 @@
         <table class="table">
           <thead>
             <tr>
+              <th>ID</th>
               <th>教材名</th>
               <th>上传者</th>
               <th>课程数</th>
@@ -66,6 +67,7 @@
           </thead>
           <tbody>
             <tr v-for="item in textbooks" :key="item.id">
+              <td>{{ item.id }}</td>
               <td>{{ item.name }}</td>
               <td>{{ displayUploader(item) }}</td>
               <td>{{ item.lesson_count || 0 }}</td>
@@ -103,7 +105,7 @@
               </td>
             </tr>
             <tr v-if="!textbooks.length">
-              <td colspan="6" class="empty">暂无教材，请先新增教材</td>
+              <td colspan="7" class="empty">暂无教材，请先新增教材</td>
             </tr>
           </tbody>
         </table>
