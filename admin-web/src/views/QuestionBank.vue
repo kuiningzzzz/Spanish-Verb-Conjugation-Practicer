@@ -144,99 +144,101 @@
     </div>
 
     <div v-if="drawerOpen" class="overlay">
-      <div class="drawer">
+      <div class="drawer edit-question-drawer">
         <header>
           <h3>编辑题目</h3>
           <button class="ghost" @click="closeDrawer">关闭</button>
         </header>
-        <form @submit.prevent="submitEdit">
-          <div class="inline-fields">
+        <form class="edit-question-form" @submit.prevent="submitEdit">
+          <div class="edit-question-scroll">
+            <div class="inline-fields">
+              <label>
+                动词ID
+                <input v-model.trim="form.verb_id" inputmode="numeric" pattern="[0-9]*" />
+                <span v-if="formErrors.verb_id" class="field-error">{{ formErrors.verb_id }}</span>
+              </label>
+              <label>
+                动词原形
+                <input v-model="form.verb_infinitive" readonly />
+              </label>
+            </div>
+            <div v-if="!isEditingPronounQuestion" class="inline-fields">
+              <label>
+                时态
+                <select v-model="form.tense">
+                  <option value="" disabled>请选择时态</option>
+                  <option v-for="tense in resolvedTenseOptions" :key="tense" :value="tense">
+                    {{ formatTenseOptionLabel(tense) }}
+                  </option>
+                </select>
+                <span v-if="formErrors.tense" class="field-error">{{ formErrors.tense }}</span>
+              </label>
+              <label>
+                语气
+                <input v-model="form.mood" readonly />
+                <span v-if="formErrors.mood" class="field-error">{{ formErrors.mood }}</span>
+              </label>
+              <label>
+                人称
+                <select v-model="form.person">
+                  <option value="" disabled>请选择人称</option>
+                  <option v-for="person in resolvedPersonOptions" :key="person" :value="person">
+                    {{ person }}
+                  </option>
+                </select>
+                <span v-if="formErrors.person" class="field-error">{{ formErrors.person }}</span>
+              </label>
+            </div>
             <label>
-              动词ID
-              <input v-model.trim="form.verb_id" inputmode="numeric" pattern="[0-9]*" />
-              <span v-if="formErrors.verb_id" class="field-error">{{ formErrors.verb_id }}</span>
+              题干
+              <textarea v-model="form.question_text" rows="4"></textarea>
+              <span v-if="formErrors.question_text" class="field-error">{{ formErrors.question_text }}</span>
             </label>
             <label>
-              动词原形
-              <input v-model="form.verb_infinitive" readonly />
+              翻译（可选）
+              <textarea v-model="form.translation" rows="3"></textarea>
+            </label>
+            <label>
+              提示（可选）
+              <input v-model="form.hint" />
+            </label>
+            <div v-if="isEditingPronounQuestion" class="inline-fields">
+              <label>
+                变位类型
+                <select v-model="form.host_form">
+                  <option value="" disabled>请选择变位类型</option>
+                  <option
+                    v-for="hostForm in resolvedHostFormOptions"
+                    :key="hostForm"
+                    :value="hostForm"
+                  >
+                    {{ formatHostFormOptionLabel(hostForm) }}
+                  </option>
+                </select>
+                <span v-if="formErrors.host_form" class="field-error">{{ formErrors.host_form }}</span>
+              </label>
+              <label>
+                代词模式
+                <select v-model="form.pronoun_pattern" :disabled="isPrnlHostForm(form.host_form)">
+                  <option v-if="isPrnlHostForm(form.host_form)" value="">不适用</option>
+                  <option v-else value="" disabled>请选择代词模式</option>
+                  <option
+                    v-for="pattern in resolvedPronounPatternOptions"
+                    :key="pattern"
+                    :value="pattern"
+                  >
+                    {{ formatPronounPatternOptionLabel(pattern) }}
+                  </option>
+                </select>
+                <span v-if="formErrors.pronoun_pattern" class="field-error">{{ formErrors.pronoun_pattern }}</span>
+              </label>
+            </div>
+            <label v-if="isPowerAdmin">
+              置信度（0-100）
+              <input v-model.number="form.confidence_score" type="number" min="0" max="100" />
+              <span v-if="formErrors.confidence_score" class="field-error">{{ formErrors.confidence_score }}</span>
             </label>
           </div>
-          <label>
-            题干
-            <textarea v-model="form.question_text" rows="4"></textarea>
-            <span v-if="formErrors.question_text" class="field-error">{{ formErrors.question_text }}</span>
-          </label>
-          <label>
-            翻译（可选）
-            <textarea v-model="form.translation" rows="3"></textarea>
-          </label>
-          <label>
-            提示（可选）
-            <input v-model="form.hint" />
-          </label>
-          <div v-if="isEditingPronounQuestion" class="inline-fields">
-            <label>
-              变位类型
-              <select v-model="form.host_form">
-                <option value="" disabled>请选择变位类型</option>
-                <option
-                  v-for="hostForm in resolvedHostFormOptions"
-                  :key="hostForm"
-                  :value="hostForm"
-                >
-                  {{ formatHostFormOptionLabel(hostForm) }}
-                </option>
-              </select>
-              <span v-if="formErrors.host_form" class="field-error">{{ formErrors.host_form }}</span>
-            </label>
-            <label>
-              代词模式
-              <select v-model="form.pronoun_pattern" :disabled="isPrnlHostForm(form.host_form)">
-                <option v-if="isPrnlHostForm(form.host_form)" value="">不适用</option>
-                <option v-else value="" disabled>请选择代词模式</option>
-                <option
-                  v-for="pattern in resolvedPronounPatternOptions"
-                  :key="pattern"
-                  :value="pattern"
-                >
-                  {{ formatPronounPatternOptionLabel(pattern) }}
-                </option>
-              </select>
-              <span v-if="formErrors.pronoun_pattern" class="field-error">{{ formErrors.pronoun_pattern }}</span>
-            </label>
-          </div>
-          <div v-else class="inline-fields">
-            <label>
-              时态
-              <select v-model="form.tense">
-                <option value="" disabled>请选择时态</option>
-                <option v-for="tense in resolvedTenseOptions" :key="tense" :value="tense">
-                  {{ formatTenseOptionLabel(tense) }}
-                </option>
-              </select>
-              <span v-if="formErrors.tense" class="field-error">{{ formErrors.tense }}</span>
-            </label>
-            <label>
-              语气
-              <input v-model="form.mood" readonly />
-              <span v-if="formErrors.mood" class="field-error">{{ formErrors.mood }}</span>
-            </label>
-            <label>
-              人称
-              <select v-model="form.person">
-                <option value="" disabled>请选择人称</option>
-                <option v-for="person in resolvedPersonOptions" :key="person" :value="person">
-                  {{ person }}
-                </option>
-              </select>
-              <span v-if="formErrors.person" class="field-error">{{ formErrors.person }}</span>
-            </label>
-          </div>
-          <label v-if="isPowerAdmin">
-            置信度（0-100）
-            <input v-model.number="form.confidence_score" type="number" min="0" max="100" />
-            <span v-if="formErrors.confidence_score" class="field-error">{{ formErrors.confidence_score }}</span>
-          </label>
           <div class="edit-drawer-actions">
             <button type="button" class="ghost" :disabled="saving" @click="closeDrawer">不保存</button>
             <button type="submit" :disabled="saving">保存</button>
@@ -1166,6 +1168,27 @@ fetchConjugationOptions();
 .question-bank-page .edit-drawer-actions button {
   flex: 1;
   width: 50%;
+}
+
+.question-bank-page .edit-question-drawer {
+  max-height: 70vh;
+}
+
+.question-bank-page .edit-question-form {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.question-bank-page .edit-question-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 @media (max-width: 960px) {
