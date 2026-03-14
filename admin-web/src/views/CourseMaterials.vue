@@ -1069,7 +1069,7 @@ async function checkLessonCoverage() {
   }
 }
 
-async function startCoverageSupplement(item) {
+async function performStartCoverageSupplement(item) {
   if (!isPowerAdmin.value) return
   coverageActionLoading[item.id] = true
   try {
@@ -1086,7 +1086,7 @@ async function startCoverageSupplement(item) {
   }
 }
 
-async function startLessonCoverageSupplement(lesson) {
+async function performStartLessonCoverageSupplement(lesson) {
   if (!isPowerAdmin.value) return
   lessonCoverageActionLoading[lesson.id] = true
   try {
@@ -1101,6 +1101,30 @@ async function startLessonCoverageSupplement(lesson) {
   } finally {
     lessonCoverageActionLoading[lesson.id] = false
   }
+}
+
+function startCoverageSupplement(item) {
+  if (!isPowerAdmin.value) return
+  openConfirmDialog({
+    title: '确定要开始补充吗？',
+    message: '题目由AI生成，请核实相关信息。',
+    confirmText: '开始',
+    onConfirm: async () => {
+      await performStartCoverageSupplement(item)
+    }
+  })
+}
+
+function startLessonCoverageSupplement(lesson) {
+  if (!isPowerAdmin.value) return
+  openConfirmDialog({
+    title: '确定要开始补充吗？',
+    message: '题目由AI生成，请核实相关信息。',
+    confirmText: '开始',
+    onConfirm: async () => {
+      await performStartLessonCoverageSupplement(lesson)
+    }
+  })
 }
 
 function confirmCancelCoverageSupplement(item) {
