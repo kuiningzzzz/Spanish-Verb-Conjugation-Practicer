@@ -20,8 +20,9 @@ const QuestionFeedback = require('../models/QuestionFeedback')
 const AdminLog = require('../models/AdminLog')
 const PracticeRecord = require('../models/PracticeRecord')
 const Announcement = require('../models/Announcement')
-const { userDb, vocabularyDb } = require('../database/db')
+const { userDb, vocabularyDb, questionDb } = require('../database/db')
 const VerbAutoFillService = require('../services/verbAutoFillService')
+const ExerciseGeneratorService = require('../services/exerciseGenerator')
 const { exportVerbsAsJson } = require('../services/verbExportService')
 const fs = require('fs')
 const path = require('path')
@@ -90,6 +91,17 @@ const COURSE_TENSE_TO_MOOD = COURSE_MATERIAL_TENSE_OPTIONS.reduce((acc, item) =>
   acc[item.value] = item.mood
   return acc
 }, {})
+const COURSE_TENSE_TO_QUESTION_TENSE = ExerciseGeneratorService.getTenseMap()
+const COURSE_LESSON_QUESTION_TARGET = 20
+const COURSE_TEXTBOOK_COVERAGE_UNCHECKED = 'unchecked'
+const COURSE_TEXTBOOK_COVERAGE_SUFFICIENT = 'sufficient'
+const COURSE_TEXTBOOK_COVERAGE_INSUFFICIENT = 'insufficient'
+const COURSE_TEXTBOOK_COVERAGE_RUNNING = 'running'
+const COURSE_TEXTBOOK_SUPPLEMENT_TASK_RETENTION_MS = 15 * 60 * 1000
+const courseTextbookCoverageTasks = new Map()
+const courseLessonCoverageTasks = new Map()
+const courseTextbookCoverageCache = new Map()
+const courseLessonCoverageCache = new Map()
 
 function parseJsonArray(rawValue) {
   if (!rawValue) return []
@@ -184,6 +196,703 @@ function serializeCourseLesson(row) {
     moods: normalizeStringArray(parseJsonArray(row.moods)),
     updated_at: row.updated_at || row.created_at || null,
     created_at: row.created_at || null
+  }
+}
+
+function listCourseTextbooksWithLessonCount() {
+  return vocabularyDb.prepare(`
+    SELECT
+      t.*,
+      COUNT(l.id) AS lesson_count
+    FROM textbooks t
+    LEFT JOIN lessons l ON l.textbook_id = t.id
+    GROUP BY t.id
+    ORDER BY datetime(COALESCE(t.updated_at, t.created_at)) DESC, t.id DESC
+  `).all()
+}
+
+function listCourseLessonsByTextbookIds(textbookIds = []) {
+  const normalizedIds = Array.from(
+    new Set(
+      (Array.isArray(textbookIds) ? textbookIds : [])
+        .map((item) => Number(item))
+        .filter((item) => Number.isInteger(item) && item > 0)
+    )
+  )
+  if (!normalizedIds.length) return []
+
+  const placeholders = normalizedIds.map(() => '?').join(',')
+  return vocabularyDb.prepare(`
+    SELECT
+      l.*,
+      COALESCE(v.word_count, 0) AS vocabulary_count
+    FROM lessons l
+    LEFT JOIN (
+      SELECT lesson_id, COUNT(*) AS word_count
+      FROM lesson_verbs
+      GROUP BY lesson_id
+    ) v ON v.lesson_id = l.id
+    WHERE l.textbook_id IN (${placeholders})
+    ORDER BY l.textbook_id ASC, l.lesson_number ASC, l.id ASC
+  `).all(...normalizedIds)
+}
+
+function loadLessonVerbIdsMap(lessonIds = []) {
+  const normalizedIds = Array.from(
+    new Set(
+      (Array.isArray(lessonIds) ? lessonIds : [])
+        .map((item) => Number(item))
+        .filter((item) => Number.isInteger(item) && item > 0)
+    )
+  )
+  const result = new Map()
+  normalizedIds.forEach((id) => {
+    result.set(id, [])
+  })
+  if (!normalizedIds.length) return result
+
+  const placeholders = normalizedIds.map(() => '?').join(',')
+  const rows = vocabularyDb.prepare(`
+    SELECT lesson_id, verb_id
+    FROM lesson_verbs
+    WHERE lesson_id IN (${placeholders})
+    ORDER BY lesson_id ASC, order_index ASC, id ASC
+  `).all(...normalizedIds)
+
+  rows.forEach((row) => {
+    const lessonId = Number(row.lesson_id)
+    const verbId = Number(row.verb_id)
+    if (!result.has(lessonId)) {
+      result.set(lessonId, [])
+    }
+    result.get(lessonId).push(verbId)
+  })
+
+  return result
+}
+
+function normalizeCourseQuestionTenses(values = []) {
+  return Array.from(
+    new Set(
+      normalizeStringArray(values)
+        .map((value) => ExerciseGeneratorService.normalizeTenseName(COURSE_TENSE_TO_QUESTION_TENSE[value] || ''))
+        .filter(Boolean)
+    )
+  )
+}
+
+function buildTraditionalCoverageWhere({ verbIds = [], questionTenses = [] } = {}) {
+  let where = 'WHERE 1 = 1'
+  const params = []
+
+  if (Array.isArray(verbIds) && verbIds.length > 0) {
+    const placeholders = verbIds.map(() => '?').join(',')
+    where += ` AND verb_id IN (${placeholders})`
+    params.push(...verbIds)
+  }
+
+  if (Array.isArray(questionTenses) && questionTenses.length > 0) {
+    const placeholders = questionTenses.map(() => '?').join(',')
+    where += ` AND tense IN (${placeholders})`
+    params.push(...questionTenses)
+  }
+
+  return { where, params }
+}
+
+function getTraditionalCoverageSnapshot({ verbIds = [], questionTenses = [] } = {}) {
+  const normalizedVerbIds = Array.from(
+    new Set(
+      (Array.isArray(verbIds) ? verbIds : [])
+        .map((item) => Number(item))
+        .filter((item) => Number.isInteger(item) && item > 0)
+    )
+  )
+  const normalizedQuestionTenses = Array.from(new Set(normalizeStringArray(questionTenses)))
+
+  if (!normalizedVerbIds.length && !normalizedQuestionTenses.length) {
+    return {
+      totalCount: 0,
+      byVerb: new Map(),
+      byTense: new Map()
+    }
+  }
+
+  const { where, params } = buildTraditionalCoverageWhere({
+    verbIds: normalizedVerbIds,
+    questionTenses: normalizedQuestionTenses
+  })
+
+  const totalRow = questionDb.prepare(`
+    SELECT COUNT(*) AS count
+    FROM public_traditional_conjugation
+    ${where}
+  `).get(...params)
+
+  const byVerb = new Map()
+  const byTense = new Map()
+
+  if (normalizedVerbIds.length) {
+    const verbRows = questionDb.prepare(`
+      SELECT verb_id, COUNT(*) AS count
+      FROM public_traditional_conjugation
+      ${where}
+      GROUP BY verb_id
+    `).all(...params)
+    verbRows.forEach((row) => {
+      byVerb.set(Number(row.verb_id), Number(row.count || 0))
+    })
+  }
+
+  if (normalizedQuestionTenses.length) {
+    const tenseRows = questionDb.prepare(`
+      SELECT tense, COUNT(*) AS count
+      FROM public_traditional_conjugation
+      ${where}
+      GROUP BY tense
+    `).all(...params)
+    tenseRows.forEach((row) => {
+      byTense.set(String(row.tense || ''), Number(row.count || 0))
+    })
+  }
+
+  return {
+    totalCount: Number(totalRow?.count || 0),
+    byVerb,
+    byTense
+  }
+}
+
+function buildCourseLessonCoverageSummary(lesson, verbIds = []) {
+  const normalizedVerbIds = Array.from(
+    new Set(
+      (Array.isArray(verbIds) ? verbIds : [])
+        .map((item) => Number(item))
+        .filter((item) => Number.isInteger(item) && item > 0)
+    )
+  )
+  const questionTenses = normalizeCourseQuestionTenses(lesson?.tenses || [])
+  const hasWords = normalizedVerbIds.length > 0
+  const hasTenses = questionTenses.length > 0
+
+  if (!hasWords && !hasTenses) {
+    return {
+      lessonId: Number(lesson?.id || 0),
+      title: String(lesson?.title || ''),
+      textbookId: Number(lesson?.textbook_id || 0),
+      hasWords,
+      hasTenses,
+      isSufficient: false,
+      isSupplementable: false,
+      totalCount: 0,
+      requiredNewCount: 0,
+      wordStats: [],
+      tenseStats: [],
+      wordDeficits: [],
+      tenseDeficits: [],
+      verbIds: normalizedVerbIds,
+      courseTenses: [],
+      questionTenses: []
+    }
+  }
+
+  const snapshot = getTraditionalCoverageSnapshot({
+    verbIds: hasWords ? normalizedVerbIds : [],
+    questionTenses: hasTenses ? questionTenses : []
+  })
+
+  const wordMinRequired = hasWords ? Math.ceil(COURSE_LESSON_QUESTION_TARGET / normalizedVerbIds.length) : 0
+  const tenseMinRequired = hasTenses ? Math.ceil(COURSE_LESSON_QUESTION_TARGET / questionTenses.length) : 0
+
+  const wordStats = hasWords
+    ? normalizedVerbIds.map((verbId) => {
+      const currentCount = Number(snapshot.byVerb.get(verbId) || 0)
+      const deficit = Math.max(0, wordMinRequired - currentCount)
+      return { verbId, currentCount, requiredCount: wordMinRequired, deficit }
+    })
+    : []
+
+  const questionTenseByCourseTense = new Map()
+  normalizeCourseTenses(lesson?.tenses || [], []).forEach((courseTense) => {
+    const questionTense = ExerciseGeneratorService.normalizeTenseName(COURSE_TENSE_TO_QUESTION_TENSE[courseTense] || '')
+    if (questionTense && !questionTenseByCourseTense.has(courseTense)) {
+      questionTenseByCourseTense.set(courseTense, questionTense)
+    }
+  })
+
+  const tenseStats = hasTenses
+    ? Array.from(questionTenseByCourseTense.entries()).map(([courseTense, questionTense]) => {
+      const currentCount = Number(snapshot.byTense.get(questionTense) || 0)
+      const deficit = Math.max(0, tenseMinRequired - currentCount)
+      return {
+        courseTense,
+        questionTense,
+        currentCount,
+        requiredCount: tenseMinRequired,
+        deficit
+      }
+    })
+    : []
+
+  const wordDeficits = wordStats.filter((item) => item.deficit > 0)
+  const tenseDeficits = tenseStats.filter((item) => item.deficit > 0)
+  const totalGap = Math.max(0, COURSE_LESSON_QUESTION_TARGET - Number(snapshot.totalCount || 0))
+  const wordGap = wordDeficits.reduce((sum, item) => sum + item.deficit, 0)
+  const tenseGap = tenseDeficits.reduce((sum, item) => sum + item.deficit, 0)
+  const requiredNewCount = Math.max(totalGap, wordGap, tenseGap)
+  const isSufficient = wordDeficits.length === 0 && tenseDeficits.length === 0
+  const isSupplementable = !isSufficient && hasWords && hasTenses && requiredNewCount > 0
+
+  return {
+    lessonId: Number(lesson?.id || 0),
+    title: String(lesson?.title || ''),
+    textbookId: Number(lesson?.textbook_id || 0),
+    hasWords,
+    hasTenses,
+    isSufficient,
+    isSupplementable,
+    totalCount: Number(snapshot.totalCount || 0),
+    requiredNewCount,
+    wordStats,
+    tenseStats,
+    wordDeficits,
+    tenseDeficits,
+    verbIds: normalizedVerbIds,
+    courseTenses: Array.from(questionTenseByCourseTense.keys()),
+    questionTenses
+  }
+}
+
+function getCourseTextbookCoverageSummary(textbookId) {
+  const numericTextbookId = Number(textbookId)
+  if (!Number.isInteger(numericTextbookId) || numericTextbookId <= 0) {
+    return null
+  }
+
+  const textbook = findCourseTextbookById(numericTextbookId)
+  if (!textbook) return null
+
+  const lessonRows = listCourseLessonsByTextbookIds([numericTextbookId]).map((row) => serializeCourseLesson(row))
+  if (!lessonRows.length) {
+    return {
+      textbookId: numericTextbookId,
+      status: COURSE_TEXTBOOK_COVERAGE_UNCHECKED,
+      lessonCount: 0,
+      canSupplement: false,
+      targetCount: 0,
+      hasBlockingLessons: false,
+      lessonSummaries: []
+    }
+  }
+
+  const lessonVerbIdsMap = loadLessonVerbIdsMap(lessonRows.map((row) => row.id))
+  const lessonSummaries = lessonRows.map((lesson) => (
+    buildCourseLessonCoverageSummary(lesson, lessonVerbIdsMap.get(Number(lesson.id)) || [])
+  ))
+  const insufficientLessons = lessonSummaries.filter((item) => !item.isSufficient)
+  const hasBlockingLessons = insufficientLessons.some((item) => !item.isSupplementable)
+  const canSupplement = insufficientLessons.length > 0 && !hasBlockingLessons
+  const targetCount = canSupplement
+    ? insufficientLessons.reduce((sum, item) => sum + Number(item.requiredNewCount || 0), 0)
+    : 0
+
+  return {
+    textbookId: numericTextbookId,
+    status: insufficientLessons.length ? COURSE_TEXTBOOK_COVERAGE_INSUFFICIENT : COURSE_TEXTBOOK_COVERAGE_SUFFICIENT,
+    lessonCount: lessonSummaries.length,
+    canSupplement,
+    targetCount,
+    hasBlockingLessons,
+    lessonSummaries
+  }
+}
+
+function getCourseLessonCoverageSummary(lessonId) {
+  const numericLessonId = Number(lessonId)
+  if (!Number.isInteger(numericLessonId) || numericLessonId <= 0) {
+    return null
+  }
+
+  const lessonRow = vocabularyDb.prepare(`
+    SELECT
+      l.*,
+      COALESCE(v.word_count, 0) AS vocabulary_count
+    FROM lessons l
+    LEFT JOIN (
+      SELECT lesson_id, COUNT(*) AS word_count
+      FROM lesson_verbs
+      GROUP BY lesson_id
+    ) v ON v.lesson_id = l.id
+    WHERE l.id = ?
+  `).get(numericLessonId)
+  if (!lessonRow) return null
+
+  const lesson = serializeCourseLesson(lessonRow)
+  const lessonVerbIdsMap = loadLessonVerbIdsMap([numericLessonId])
+  return buildCourseLessonCoverageSummary(lesson, lessonVerbIdsMap.get(numericLessonId) || [])
+}
+
+function cleanupCourseTextbookCoverageTasks() {
+  const now = Date.now()
+  courseTextbookCoverageTasks.forEach((task, textbookId) => {
+    const isRunning = task?.state === 'running' || task?.state === 'cancel_requested'
+    if (!isRunning && now - Number(task?.updatedAt || 0) >= COURSE_TEXTBOOK_SUPPLEMENT_TASK_RETENTION_MS) {
+      courseTextbookCoverageTasks.delete(textbookId)
+    }
+  })
+}
+
+function cleanupCourseLessonCoverageTasks() {
+  const now = Date.now()
+  courseLessonCoverageTasks.forEach((task, lessonId) => {
+    const isRunning = task?.state === 'running' || task?.state === 'cancel_requested'
+    if (!isRunning && now - Number(task?.updatedAt || 0) >= COURSE_TEXTBOOK_SUPPLEMENT_TASK_RETENTION_MS) {
+      courseLessonCoverageTasks.delete(lessonId)
+    }
+  })
+}
+
+function cleanupCourseCoverageCache() {
+  const now = Date.now()
+  courseTextbookCoverageCache.forEach((entry, textbookId) => {
+    if (now - Number(entry?.cachedAt || 0) >= COURSE_TEXTBOOK_SUPPLEMENT_TASK_RETENTION_MS) {
+      courseTextbookCoverageCache.delete(textbookId)
+    }
+  })
+  courseLessonCoverageCache.forEach((entry, lessonId) => {
+    if (now - Number(entry?.cachedAt || 0) >= COURSE_TEXTBOOK_SUPPLEMENT_TASK_RETENTION_MS) {
+      courseLessonCoverageCache.delete(lessonId)
+    }
+  })
+}
+
+function buildCourseTextbookCoverageRow(summary, task = null) {
+  const checkedAt = task?.updatedAt || Date.now()
+  if (task && (task.state === 'running' || task.state === 'cancel_requested')) {
+    return {
+      textbook_id: Number(summary?.textbookId || task.textbookId || 0),
+      coverage_status: COURSE_TEXTBOOK_COVERAGE_RUNNING,
+      can_supplement: false,
+      has_blocking_lessons: Boolean(summary?.hasBlockingLessons),
+      is_running: true,
+      cancel_requested: task.state === 'cancel_requested',
+      generated_count: Number(task.generatedCount || 0),
+      target_count: Number(task.targetCount || 0),
+      checked_at: new Date(checkedAt).toISOString(),
+      task_state: task.state,
+      error: task.error || ''
+    }
+  }
+
+  return {
+    textbook_id: Number(summary?.textbookId || task?.textbookId || 0),
+    coverage_status: summary?.status || COURSE_TEXTBOOK_COVERAGE_UNCHECKED,
+    can_supplement: Boolean(summary?.canSupplement),
+    has_blocking_lessons: Boolean(summary?.hasBlockingLessons),
+    is_running: false,
+    cancel_requested: false,
+    generated_count: Number(task?.generatedCount || 0),
+    target_count: Number(summary?.targetCount || 0),
+    checked_at: new Date(checkedAt).toISOString(),
+    task_state: task?.state || null,
+    error: task?.error || ''
+  }
+}
+
+function buildCourseLessonCoverageRow(summary, task = null) {
+  const checkedAt = task?.updatedAt || Date.now()
+  if (task && (task.state === 'running' || task.state === 'cancel_requested')) {
+    return {
+      lesson_id: Number(summary?.lessonId || task.lessonId || 0),
+      textbook_id: Number(summary?.textbookId || task.textbookId || 0),
+      coverage_status: COURSE_TEXTBOOK_COVERAGE_RUNNING,
+      can_supplement: false,
+      is_running: true,
+      cancel_requested: task.state === 'cancel_requested',
+      generated_count: Number(task.generatedCount || 0),
+      target_count: Number(task.targetCount || 0),
+      checked_at: new Date(checkedAt).toISOString(),
+      task_state: task.state,
+      error: task.error || ''
+    }
+  }
+
+  return {
+    lesson_id: Number(summary?.lessonId || task?.lessonId || 0),
+    textbook_id: Number(summary?.textbookId || task?.textbookId || 0),
+    coverage_status: summary?.isSufficient ? COURSE_TEXTBOOK_COVERAGE_SUFFICIENT : COURSE_TEXTBOOK_COVERAGE_INSUFFICIENT,
+    can_supplement: Boolean(summary?.isSupplementable),
+    is_running: false,
+    cancel_requested: false,
+    generated_count: Number(task?.generatedCount || 0),
+    target_count: Number(summary?.requiredNewCount || 0),
+    checked_at: new Date(checkedAt).toISOString(),
+    task_state: task?.state || null,
+    error: task?.error || ''
+  }
+}
+
+function cacheCourseTextbookCoverageRow(summary, task = null) {
+  const row = buildCourseTextbookCoverageRow(summary, task)
+  const textbookId = Number(row.textbook_id || summary?.textbookId || task?.textbookId || 0)
+  if (textbookId > 0) {
+    courseTextbookCoverageCache.set(textbookId, {
+      row,
+      cachedAt: Date.now()
+    })
+  }
+  return row
+}
+
+function cacheCourseLessonCoverageRow(summary, task = null) {
+  const row = buildCourseLessonCoverageRow(summary, task)
+  const lessonId = Number(row.lesson_id || summary?.lessonId || task?.lessonId || 0)
+  if (lessonId > 0) {
+    courseLessonCoverageCache.set(lessonId, {
+      row,
+      cachedAt: Date.now()
+    })
+  }
+  return row
+}
+
+function getCachedCourseTextbookCoverageRows(textbookIds = []) {
+  cleanupCourseCoverageCache()
+  const normalizedIds = Array.from(
+    new Set(
+      (Array.isArray(textbookIds) ? textbookIds : [])
+        .map((item) => Number(item))
+        .filter((item) => Number.isInteger(item) && item > 0)
+    )
+  )
+  return normalizedIds
+    .map((id) => courseTextbookCoverageCache.get(id)?.row || null)
+    .filter(Boolean)
+}
+
+function getCachedCourseLessonCoverageRows(lessonIds = []) {
+  cleanupCourseCoverageCache()
+  const normalizedIds = Array.from(
+    new Set(
+      (Array.isArray(lessonIds) ? lessonIds : [])
+        .map((item) => Number(item))
+        .filter((item) => Number.isInteger(item) && item > 0)
+    )
+  )
+  return normalizedIds
+    .map((id) => courseLessonCoverageCache.get(id)?.row || null)
+    .filter(Boolean)
+}
+
+function invalidateCourseTextbookCoverageCache(textbookId) {
+  const numericTextbookId = Number(textbookId)
+  if (!numericTextbookId) return
+  courseTextbookCoverageCache.delete(numericTextbookId)
+}
+
+function invalidateCourseLessonCoverageCache(lessonId) {
+  const numericLessonId = Number(lessonId)
+  if (!numericLessonId) return
+  courseLessonCoverageCache.delete(numericLessonId)
+}
+
+function invalidateCourseLessonCoverageCacheByTextbook(textbookId) {
+  const numericTextbookId = Number(textbookId)
+  if (!numericTextbookId) return
+  courseLessonCoverageCache.forEach((entry, lessonId) => {
+    if (Number(entry?.row?.textbook_id || 0) === numericTextbookId) {
+      courseLessonCoverageCache.delete(lessonId)
+    }
+  })
+}
+
+function pickRandomItem(items = []) {
+  if (!Array.isArray(items) || items.length === 0) return null
+  return items[Math.floor(Math.random() * items.length)] || null
+}
+
+function pickNextCourseLessonSupplementTarget(lessonSummary) {
+  if (!lessonSummary || !lessonSummary.isSupplementable) return null
+
+  const maxWordDeficit = lessonSummary.wordDeficits.reduce((best, item) => {
+    if (!best || item.deficit > best.deficit) return item
+    return best
+  }, null)
+  const maxTenseDeficit = lessonSummary.tenseDeficits.reduce((best, item) => {
+    if (!best || item.deficit > best.deficit) return item
+    return best
+  }, null)
+
+  const fallbackWordStat = [...(lessonSummary.wordStats || [])]
+    .sort((left, right) => left.currentCount - right.currentCount)[0] || null
+  const fallbackTenseStat = [...(lessonSummary.tenseStats || [])]
+    .sort((left, right) => left.currentCount - right.currentCount)[0] || null
+
+  const verbId = Number(maxWordDeficit?.verbId || fallbackWordStat?.verbId || pickRandomItem(lessonSummary.verbIds) || 0)
+  const courseTense = String(
+    maxTenseDeficit?.courseTense ||
+    fallbackTenseStat?.courseTense ||
+    pickRandomItem(lessonSummary.courseTenses) ||
+    ''
+  )
+  if (!verbId || !courseTense) return null
+
+  return {
+    lessonId: Number(lessonSummary.lessonId || 0),
+    verbId,
+    courseTense,
+    mood: COURSE_TENSE_TO_MOOD[courseTense]
+  }
+}
+
+async function runCourseTextbookSupplementTask(task) {
+  const maxAttempts = Math.max(Number(task.targetCount || 0) * 12, 24)
+  let attempts = 0
+
+  try {
+    while (attempts < maxAttempts) {
+      if (task.cancelRequested) {
+        task.state = 'cancel_requested'
+      }
+
+      const summary = getCourseTextbookCoverageSummary(task.textbookId)
+      task.latestSummary = summary
+      task.updatedAt = Date.now()
+      cacheCourseTextbookCoverageRow(summary, task)
+      if (!summary || summary.status !== COURSE_TEXTBOOK_COVERAGE_INSUFFICIENT) {
+        break
+      }
+
+      const nextLesson = summary.lessonSummaries.find((item) => !item.isSufficient && item.isSupplementable)
+      if (!nextLesson) {
+        break
+      }
+
+      if (task.cancelRequested) {
+        break
+      }
+
+      const target = pickNextCourseLessonSupplementTarget(nextLesson)
+      if (!target) {
+        break
+      }
+
+      const verb = VerbAdmin.findById(target.verbId)
+      if (!verb) {
+        attempts += 1
+        continue
+      }
+
+      try {
+        const generated = await ExerciseGeneratorService.generateWithAIForVerb(verb, {
+          exerciseType: 'sentence',
+          moods: target.mood ? [target.mood] : [],
+          tenses: [target.courseTense],
+          userId: task.actorId,
+          includeVos: false,
+          includeVosotros: true,
+          reduceRareTenseFrequency: false
+        })
+        if (generated?.savedQuestionCreated) {
+          task.generatedCount += 1
+          task.updatedAt = Date.now()
+          const latestSummary = getCourseTextbookCoverageSummary(task.textbookId)
+          task.latestSummary = latestSummary
+          cacheCourseTextbookCoverageRow(latestSummary, task)
+        }
+      } catch (error) {
+        task.error = error?.message || '补题生成失败'
+        task.updatedAt = Date.now()
+        cacheCourseTextbookCoverageRow(summary, task)
+      }
+
+      attempts += 1
+    }
+
+    const finalSummary = getCourseTextbookCoverageSummary(task.textbookId)
+    task.latestSummary = finalSummary
+    task.updatedAt = Date.now()
+    task.state = task.cancelRequested ? 'cancelled' : 'completed'
+    cacheCourseTextbookCoverageRow(finalSummary, task)
+  } catch (error) {
+    task.error = error?.message || '补题任务执行失败'
+    task.latestSummary = getCourseTextbookCoverageSummary(task.textbookId)
+    task.updatedAt = Date.now()
+    task.state = task.cancelRequested ? 'cancelled' : 'failed'
+    cacheCourseTextbookCoverageRow(task.latestSummary, task)
+  }
+}
+
+async function runCourseLessonSupplementTask(task) {
+  const maxAttempts = Math.max(Number(task.targetCount || 0) * 12, 24)
+  let attempts = 0
+
+  try {
+    while (attempts < maxAttempts) {
+      if (task.cancelRequested) {
+        task.state = 'cancel_requested'
+      }
+
+      const summary = getCourseLessonCoverageSummary(task.lessonId)
+      task.latestSummary = summary
+      task.updatedAt = Date.now()
+      cacheCourseLessonCoverageRow(summary, task)
+      if (!summary || summary.isSufficient || !summary.isSupplementable) {
+        break
+      }
+
+      if (task.cancelRequested) {
+        break
+      }
+
+      const target = pickNextCourseLessonSupplementTarget(summary)
+      if (!target) {
+        break
+      }
+
+      const verb = VerbAdmin.findById(target.verbId)
+      if (!verb) {
+        attempts += 1
+        continue
+      }
+
+      try {
+        const generated = await ExerciseGeneratorService.generateWithAIForVerb(verb, {
+          exerciseType: 'sentence',
+          moods: target.mood ? [target.mood] : [],
+          tenses: [target.courseTense],
+          userId: task.actorId,
+          includeVos: false,
+          includeVosotros: true,
+          reduceRareTenseFrequency: false
+        })
+        if (generated?.savedQuestionCreated) {
+          task.generatedCount += 1
+          task.updatedAt = Date.now()
+          const latestSummary = getCourseLessonCoverageSummary(task.lessonId)
+          task.latestSummary = latestSummary
+          cacheCourseLessonCoverageRow(latestSummary, task)
+        }
+      } catch (error) {
+        task.error = error?.message || '补题生成失败'
+        task.updatedAt = Date.now()
+        cacheCourseLessonCoverageRow(summary, task)
+      }
+
+      attempts += 1
+    }
+
+    const finalSummary = getCourseLessonCoverageSummary(task.lessonId)
+    task.latestSummary = finalSummary
+    task.updatedAt = Date.now()
+    task.state = task.cancelRequested ? 'cancelled' : 'completed'
+    cacheCourseLessonCoverageRow(finalSummary, task)
+  } catch (error) {
+    task.error = error?.message || '补题任务执行失败'
+    task.latestSummary = getCourseLessonCoverageSummary(task.lessonId)
+    task.updatedAt = Date.now()
+    task.state = task.cancelRequested ? 'cancelled' : 'failed'
+    cacheCourseLessonCoverageRow(task.latestSummary, task)
   }
 }
 
@@ -916,18 +1625,300 @@ router.get('/course-materials/options', requireAdmin, (req, res) => {
 })
 
 router.get('/course-materials/textbooks', requireAdmin, (req, res) => {
-  const rows = vocabularyDb.prepare(`
-    SELECT
-      t.*,
-      COUNT(l.id) AS lesson_count
-    FROM textbooks t
-    LEFT JOIN lessons l ON l.textbook_id = t.id
-    GROUP BY t.id
-    ORDER BY datetime(COALESCE(t.updated_at, t.created_at)) DESC, t.id DESC
-  `).all()
+  const rows = listCourseTextbooksWithLessonCount()
 
   res.json({
     rows: rows.map((item) => serializeCourseTextbook(item))
+  })
+})
+
+router.get('/course-materials/textbooks/question-coverage/check', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev/superadmin 可检查教材题量')
+
+  cleanupCourseTextbookCoverageTasks()
+  cleanupCourseLessonCoverageTasks()
+  cleanupCourseCoverageCache()
+
+  const textbooks = listCourseTextbooksWithLessonCount().map((item) => serializeCourseTextbook(item))
+  const rows = textbooks.map((textbook) => {
+    const summary = getCourseTextbookCoverageSummary(textbook.id) || {
+      textbookId: textbook.id,
+      status: COURSE_TEXTBOOK_COVERAGE_UNCHECKED,
+      canSupplement: false,
+      targetCount: 0,
+      hasBlockingLessons: false
+    }
+    const task = courseTextbookCoverageTasks.get(Number(textbook.id)) || null
+    return cacheCourseTextbookCoverageRow(summary, task)
+  })
+
+  res.json({ rows })
+})
+
+router.get('/course-materials/textbooks/question-coverage/cache', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev/superadmin 可查看教材题量缓存')
+
+  const textbookIds = listCourseTextbooksWithLessonCount().map((item) => Number(item.id))
+  const rows = getCachedCourseTextbookCoverageRows(textbookIds)
+  res.json({ rows })
+})
+
+router.get('/course-materials/textbooks/:id/question-coverage/supplement', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev/superadmin 可查看补题任务')
+
+  cleanupCourseTextbookCoverageTasks()
+  cleanupCourseLessonCoverageTasks()
+  cleanupCourseCoverageCache()
+
+  const textbookId = Number(req.params.id)
+  if (!textbookId || Number.isNaN(textbookId)) {
+    return res.status(400).json({ error: '教材ID不合法' })
+  }
+
+  const textbook = findCourseTextbookById(textbookId)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+
+  const summary = getCourseTextbookCoverageSummary(textbookId)
+  const task = courseTextbookCoverageTasks.get(textbookId) || null
+
+  res.json({
+    row: cacheCourseTextbookCoverageRow(summary, task)
+  })
+})
+
+router.post('/course-materials/textbooks/:id/question-coverage/supplement', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev/superadmin 可补充教材题目')
+
+  cleanupCourseTextbookCoverageTasks()
+  cleanupCourseLessonCoverageTasks()
+
+  const textbookId = Number(req.params.id)
+  if (!textbookId || Number.isNaN(textbookId)) {
+    return res.status(400).json({ error: '教材ID不合法' })
+  }
+
+  const textbook = findCourseTextbookById(textbookId)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+
+  const existingTask = courseTextbookCoverageTasks.get(textbookId)
+  if (existingTask && (existingTask.state === 'running' || existingTask.state === 'cancel_requested')) {
+    const summary = getCourseTextbookCoverageSummary(textbookId)
+    return res.json({
+      row: cacheCourseTextbookCoverageRow(summary, existingTask)
+    })
+  }
+
+  const summary = getCourseTextbookCoverageSummary(textbookId)
+  if (!summary) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+  if (summary.status !== COURSE_TEXTBOOK_COVERAGE_INSUFFICIENT) {
+    return res.status(400).json({ error: '当前教材题量已充足，无需补充' })
+  }
+  if (!summary.canSupplement || !summary.targetCount) {
+    return res.status(400).json({ error: '当前教材仅支持检查，不支持自动补题' })
+  }
+
+  const task = {
+    textbookId,
+    actorId: Number(req.admin?.id || 0),
+    state: 'running',
+    cancelRequested: false,
+    generatedCount: 0,
+    targetCount: Number(summary.targetCount || 0),
+    latestSummary: summary,
+    error: '',
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  }
+  courseTextbookCoverageTasks.set(textbookId, task)
+  cacheCourseTextbookCoverageRow(summary, task)
+
+  runCourseTextbookSupplementTask(task).catch((error) => {
+    task.error = error?.message || '补题任务执行失败'
+    task.latestSummary = getCourseTextbookCoverageSummary(task.textbookId)
+    task.updatedAt = Date.now()
+    task.state = task.cancelRequested ? 'cancelled' : 'failed'
+    cacheCourseTextbookCoverageRow(task.latestSummary, task)
+  })
+
+  res.json({
+    row: cacheCourseTextbookCoverageRow(summary, task)
+  })
+})
+
+router.delete('/course-materials/textbooks/:id/question-coverage/supplement', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev/superadmin 可取消补题任务')
+
+  cleanupCourseTextbookCoverageTasks()
+  cleanupCourseLessonCoverageTasks()
+
+  const textbookId = Number(req.params.id)
+  if (!textbookId || Number.isNaN(textbookId)) {
+    return res.status(400).json({ error: '教材ID不合法' })
+  }
+
+  const task = courseTextbookCoverageTasks.get(textbookId)
+  if (!task || (task.state !== 'running' && task.state !== 'cancel_requested')) {
+    return res.status(404).json({ error: '当前教材没有正在执行的补题任务' })
+  }
+
+  task.cancelRequested = true
+  task.state = 'cancel_requested'
+  task.updatedAt = Date.now()
+
+  const summary = getCourseTextbookCoverageSummary(textbookId)
+  res.json({
+    row: cacheCourseTextbookCoverageRow(summary, task)
+  })
+})
+
+router.get('/course-materials/textbooks/:id/lessons/question-coverage/check', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev/superadmin 可检查课程题量')
+
+  cleanupCourseLessonCoverageTasks()
+  cleanupCourseCoverageCache()
+
+  const textbookId = Number(req.params.id)
+  if (!textbookId || Number.isNaN(textbookId)) {
+    return res.status(400).json({ error: '教材ID不合法' })
+  }
+
+  const textbook = findCourseTextbookById(textbookId)
+  if (!textbook) {
+    return res.status(404).json({ error: '教材不存在' })
+  }
+
+  const summary = getCourseTextbookCoverageSummary(textbookId)
+  const rows = Array.isArray(summary?.lessonSummaries)
+    ? summary.lessonSummaries.map((lessonSummary) => {
+      const task = courseLessonCoverageTasks.get(Number(lessonSummary.lessonId)) || null
+      return cacheCourseLessonCoverageRow(lessonSummary, task)
+    })
+    : []
+
+  res.json({ rows })
+})
+
+router.get('/course-materials/textbooks/:id/lessons/question-coverage/cache', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev/superadmin 可查看课程题量缓存')
+
+  const textbookId = Number(req.params.id)
+  if (!textbookId || Number.isNaN(textbookId)) {
+    return res.status(400).json({ error: '教材ID不合法' })
+  }
+
+  const lessonRows = listCourseLessonsByTextbookIds([textbookId]).map((row) => serializeCourseLesson(row))
+  const rows = getCachedCourseLessonCoverageRows(lessonRows.map((item) => Number(item.id)))
+  res.json({ rows })
+})
+
+router.get('/course-materials/lessons/:id/question-coverage/supplement', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev/superadmin 可查看课程补题任务')
+
+  cleanupCourseLessonCoverageTasks()
+  cleanupCourseCoverageCache()
+
+  const lessonId = Number(req.params.id)
+  if (!lessonId || Number.isNaN(lessonId)) {
+    return res.status(400).json({ error: '课程ID不合法' })
+  }
+
+  const summary = getCourseLessonCoverageSummary(lessonId)
+  if (!summary) {
+    return res.status(404).json({ error: '课程不存在' })
+  }
+
+  const task = courseLessonCoverageTasks.get(lessonId) || null
+  res.json({
+    row: cacheCourseLessonCoverageRow(summary, task)
+  })
+})
+
+router.post('/course-materials/lessons/:id/question-coverage/supplement', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev/superadmin 可补充课程题目')
+
+  cleanupCourseLessonCoverageTasks()
+
+  const lessonId = Number(req.params.id)
+  if (!lessonId || Number.isNaN(lessonId)) {
+    return res.status(400).json({ error: '课程ID不合法' })
+  }
+
+  const summary = getCourseLessonCoverageSummary(lessonId)
+  if (!summary) {
+    return res.status(404).json({ error: '课程不存在' })
+  }
+
+  const existingTask = courseLessonCoverageTasks.get(lessonId)
+  if (existingTask && (existingTask.state === 'running' || existingTask.state === 'cancel_requested')) {
+    return res.json({
+      row: cacheCourseLessonCoverageRow(summary, existingTask)
+    })
+  }
+
+  if (summary.isSufficient) {
+    return res.status(400).json({ error: '当前课程题量已充足，无需补充' })
+  }
+  if (!summary.isSupplementable || !summary.requiredNewCount) {
+    return res.status(400).json({ error: '当前课程仅支持检查，不支持自动补题' })
+  }
+
+  const task = {
+    lessonId,
+    textbookId: Number(summary.textbookId || 0),
+    actorId: Number(req.admin?.id || 0),
+    state: 'running',
+    cancelRequested: false,
+    generatedCount: 0,
+    targetCount: Number(summary.requiredNewCount || 0),
+    latestSummary: summary,
+    error: '',
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  }
+  courseLessonCoverageTasks.set(lessonId, task)
+  cacheCourseLessonCoverageRow(summary, task)
+
+  runCourseLessonSupplementTask(task).catch((error) => {
+    task.error = error?.message || '补题任务执行失败'
+    task.latestSummary = getCourseLessonCoverageSummary(task.lessonId)
+    task.updatedAt = Date.now()
+    task.state = task.cancelRequested ? 'cancelled' : 'failed'
+    cacheCourseLessonCoverageRow(task.latestSummary, task)
+  })
+
+  res.json({
+    row: cacheCourseLessonCoverageRow(summary, task)
+  })
+})
+
+router.delete('/course-materials/lessons/:id/question-coverage/supplement', requireAdmin, (req, res) => {
+  if (!isDev(req)) return forbid(res, '仅 dev/superadmin 可取消课程补题任务')
+
+  cleanupCourseLessonCoverageTasks()
+
+  const lessonId = Number(req.params.id)
+  if (!lessonId || Number.isNaN(lessonId)) {
+    return res.status(400).json({ error: '课程ID不合法' })
+  }
+
+  const task = courseLessonCoverageTasks.get(lessonId)
+  if (!task || (task.state !== 'running' && task.state !== 'cancel_requested')) {
+    return res.status(404).json({ error: '当前课程没有正在执行的补题任务' })
+  }
+
+  task.cancelRequested = true
+  task.state = 'cancel_requested'
+  task.updatedAt = Date.now()
+
+  const summary = getCourseLessonCoverageSummary(lessonId)
+  res.json({
+    row: cacheCourseLessonCoverageRow(summary, task)
   })
 })
 
@@ -1003,6 +1994,9 @@ router.delete('/course-materials/textbooks/:id', requireAdmin, (req, res) => {
   if (!ensureCanManageCourseTextbook(req, res, textbook)) return
 
   vocabularyDb.prepare('DELETE FROM textbooks WHERE id = ?').run(textbookId)
+  invalidateCourseTextbookCoverageCache(textbookId)
+  invalidateCourseLessonCoverageCacheByTextbook(textbookId)
+  courseTextbookCoverageTasks.delete(textbookId)
   res.json({ success: true })
 })
 
@@ -1078,6 +2072,8 @@ router.post('/course-materials/textbooks/:id/lessons', requireAdmin, (req, res) 
   )
 
   touchCourseTextbook(textbookId)
+  invalidateCourseTextbookCoverageCache(textbookId)
+  invalidateCourseLessonCoverageCacheByTextbook(textbookId)
 
   const row = vocabularyDb.prepare(`
     SELECT
@@ -1147,6 +2143,10 @@ router.put('/course-materials/lessons/:id', requireAdmin, (req, res) => {
   )
 
   touchCourseTextbook(lesson.textbook_id)
+  if (hasTenses) {
+    invalidateCourseTextbookCoverageCache(lesson.textbook_id)
+    invalidateCourseLessonCoverageCache(lessonId)
+  }
 
   const row = vocabularyDb.prepare(`
     SELECT
@@ -1185,6 +2185,9 @@ router.delete('/course-materials/lessons/:id', requireAdmin, (req, res) => {
 
   vocabularyDb.prepare('DELETE FROM lessons WHERE id = ?').run(lessonId)
   touchCourseTextbook(lesson.textbook_id)
+  invalidateCourseTextbookCoverageCache(lesson.textbook_id)
+  invalidateCourseLessonCoverageCache(lessonId)
+  courseLessonCoverageTasks.delete(lessonId)
   res.json({ success: true })
 })
 
@@ -1280,6 +2283,8 @@ router.put('/course-materials/lessons/:id/verbs', requireAdmin, (req, res) => {
   syncLessonVerbs(lessonId, normalizedVerbIds)
 
   touchCourseTextbook(lesson.textbook_id)
+  invalidateCourseTextbookCoverageCache(lesson.textbook_id)
+  invalidateCourseLessonCoverageCache(lessonId)
   res.json({ success: true, count: normalizedVerbIds.length })
 })
 
