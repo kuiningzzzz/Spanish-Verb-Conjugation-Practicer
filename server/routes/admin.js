@@ -152,15 +152,48 @@ function touchCourseTextbook(textbookId) {
   `).run(textbookId)
 }
 
+const COURSE_TEXTBOOK_PUBLISH_DRAFT = 'draft'
+const COURSE_TEXTBOOK_PUBLISH_PENDING_REVIEW = 'pending_review'
+const COURSE_TEXTBOOK_PUBLISH_PUBLISHED = 'published'
+
+function normalizeCourseTextbookPublishStatus(status, isPublished = 0) {
+  const normalized = String(status || '').trim()
+  if ([
+    COURSE_TEXTBOOK_PUBLISH_DRAFT,
+    COURSE_TEXTBOOK_PUBLISH_PENDING_REVIEW,
+    COURSE_TEXTBOOK_PUBLISH_PUBLISHED
+  ].includes(normalized)) {
+    return normalized
+  }
+  return Number(isPublished) === 1
+    ? COURSE_TEXTBOOK_PUBLISH_PUBLISHED
+    : COURSE_TEXTBOOK_PUBLISH_DRAFT
+}
+
+function saveCourseTextbookPublishStatus(textbookId, publishStatus) {
+  const normalizedStatus = normalizeCourseTextbookPublishStatus(
+    publishStatus,
+    publishStatus === COURSE_TEXTBOOK_PUBLISH_PUBLISHED ? 1 : 0
+  )
+  const isPublished = normalizedStatus === COURSE_TEXTBOOK_PUBLISH_PUBLISHED ? 1 : 0
+  vocabularyDb.prepare(`
+    UPDATE textbooks
+    SET is_published = ?, publish_status = ?, updated_at = datetime('now', 'localtime')
+    WHERE id = ?
+  `).run(isPublished, normalizedStatus, textbookId)
+}
+
 function findCourseTextbookById(textbookId) {
   return vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(textbookId)
 }
 
 function serializeCourseTextbook(row) {
+  const publishStatus = normalizeCourseTextbookPublishStatus(row?.publish_status, row?.is_published)
   return {
     ...row,
     lesson_count: Number(row.lesson_count || 0),
-    is_published: Number(row.is_published) === 1,
+    is_published: publishStatus === COURSE_TEXTBOOK_PUBLISH_PUBLISHED,
+    publish_status: publishStatus,
     uploader_id: row?.uploader_id === null || row?.uploader_id === undefined
       ? null
       : Number(row.uploader_id),
@@ -1229,6 +1262,9 @@ router.post('/users', requireAdmin, (req, res) => {
   if (isSuperAdmin(req) && role === 'dev') {
     return forbid(res, 'superadmin 不可创建或提升 dev')
   }
+  if (isSuperAdmin(req) && role === 'superadmin') {
+    return forbid(res, 'superadmin 不可创建 superadmin')
+  }
   if (!ALLOWED_USER_TYPES.includes(user_type)) {
     return res.status(400).json({ error: '非法用户类型' })
   }
@@ -1255,6 +1291,9 @@ router.put('/users/:id', requireAdmin, (req, res) => {
   if (!target) {
     return res.status(404).json({ error: '用户不存在' })
   }
+  const actorId = Number(req.admin?.id || 0)
+  const targetId = Number(target.id || 0)
+  const isSelf = actorId > 0 && actorId === targetId
 
   const payload = req.body || {}
   const hasRoleField = Object.prototype.hasOwnProperty.call(payload, 'role')
@@ -1279,12 +1318,12 @@ router.put('/users/:id', requireAdmin, (req, res) => {
     return forbid(res, '管理员不能修改 dev 用户')
   }
 
-  if (req.admin?.role === 'admin' && target.role === 'admin' && hasRoleField && nextRole !== 'admin') {
-    return forbid(res, '不能取消管理员权限')
+  if (req.admin?.role === 'admin' && target.role === 'superadmin') {
+    return forbid(res, '管理员不能修改 superadmin 用户')
   }
 
-  if (req.admin?.role === 'admin' && target.role === 'superadmin' && hasRoleField && nextRole !== 'superadmin') {
-    return forbid(res, '不能取消 superadmin 权限')
+  if (req.admin?.role === 'admin' && target.role === 'admin' && hasRoleField && nextRole !== 'admin') {
+    return forbid(res, '不能取消管理员权限')
   }
 
   if (req.admin?.role === 'admin' && hasRoleField && nextRole === 'dev') {
@@ -1299,8 +1338,16 @@ router.put('/users/:id', requireAdmin, (req, res) => {
     return forbid(res, 'superadmin 不可创建或提升 dev')
   }
 
-  if (isSuperAdmin(req) && target.role === 'superadmin' && hasRoleField && nextRole !== 'superadmin') {
-    return forbid(res, 'superadmin 不能降级 superadmin')
+  if (isSuperAdmin(req) && target.role === 'superadmin' && !isSelf) {
+    return forbid(res, 'superadmin 不能修改其他 superadmin')
+  }
+
+  if (isSuperAdmin(req) && hasRoleField && nextRole === 'superadmin' && !isSelf) {
+    return forbid(res, 'superadmin 不可将其他用户提升为 superadmin')
+  }
+
+  if (isSuperAdmin(req) && isSelf && hasRoleField && nextRole !== 'superadmin') {
+    return forbid(res, 'superadmin 不能降级自己')
   }
 
   updateUser(req.params.id, payload)
@@ -1933,9 +1980,9 @@ router.post('/course-materials/textbooks', requireAdmin, (req, res) => {
   const orderIndex = Number.isFinite(requestedOrderIndex) ? requestedOrderIndex : Number(nextOrderRow?.next_order || 1)
 
   const result = vocabularyDb.prepare(`
-    INSERT INTO textbooks (name, description, cover_image, is_published, order_index, uploader_id, created_at, updated_at)
-    VALUES (?, NULL, NULL, 0, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
-  `).run(name, orderIndex, Number(req.admin.id))
+    INSERT INTO textbooks (name, description, cover_image, is_published, publish_status, order_index, uploader_id, created_at, updated_at)
+    VALUES (?, NULL, NULL, 0, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
+  `).run(name, COURSE_TEXTBOOK_PUBLISH_DRAFT, orderIndex, Number(req.admin.id))
 
   const row = vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(result.lastInsertRowid)
   res.status(201).json({
@@ -1949,22 +1996,57 @@ router.put('/course-materials/textbooks/:id/publish', requireAdmin, (req, res) =
     return res.status(400).json({ error: '教材ID不合法' })
   }
 
-  if (req.body?.isPublished === undefined) {
-    return res.status(400).json({ error: '缺少发布状态' })
-  }
-
   const textbook = findCourseTextbookById(textbookId)
   if (!textbook) {
     return res.status(404).json({ error: '教材不存在' })
   }
   if (!ensureCanManageCourseTextbook(req, res, textbook)) return
 
-  const isPublished = req.body.isPublished ? 1 : 0
-  vocabularyDb.prepare(`
-    UPDATE textbooks
-    SET is_published = ?, updated_at = datetime('now', 'localtime')
-    WHERE id = ?
-  `).run(isPublished, textbookId)
+  const currentStatus = normalizeCourseTextbookPublishStatus(textbook.publish_status, textbook.is_published)
+  const requestedAction = String(req.body?.action || '').trim()
+  const fallbackAction = req.body?.isPublished === undefined
+    ? ''
+    : (req.body.isPublished ? (isDev(req) ? 'publish' : 'submit') : 'unpublish')
+  const action = requestedAction || fallbackAction
+  if (!action) {
+    return res.status(400).json({ error: '缺少发布动作' })
+  }
+
+  if (action === 'submit') {
+    if (req.admin?.role !== 'admin') {
+      return forbid(res, '仅普通 admin 需要提交审核')
+    }
+    if (currentStatus === COURSE_TEXTBOOK_PUBLISH_PUBLISHED) {
+      return res.status(400).json({ error: '教材已发布，无需重复提交' })
+    }
+    if (currentStatus === COURSE_TEXTBOOK_PUBLISH_PENDING_REVIEW) {
+      return res.status(400).json({ error: '教材已在等待审核中' })
+    }
+    saveCourseTextbookPublishStatus(textbookId, COURSE_TEXTBOOK_PUBLISH_PENDING_REVIEW)
+  } else if (action === 'approve') {
+    if (!isDev(req)) {
+      return forbid(res, '仅 dev/superadmin 可确认发布教材')
+    }
+    if (currentStatus !== COURSE_TEXTBOOK_PUBLISH_PENDING_REVIEW) {
+      return res.status(400).json({ error: '当前教材不在等待审核状态' })
+    }
+    saveCourseTextbookPublishStatus(textbookId, COURSE_TEXTBOOK_PUBLISH_PUBLISHED)
+  } else if (action === 'publish') {
+    if (!isDev(req)) {
+      return forbid(res, '仅 dev/superadmin 可直接发布教材')
+    }
+    if (currentStatus === COURSE_TEXTBOOK_PUBLISH_PUBLISHED) {
+      return res.status(400).json({ error: '教材已发布' })
+    }
+    saveCourseTextbookPublishStatus(textbookId, COURSE_TEXTBOOK_PUBLISH_PUBLISHED)
+  } else if (action === 'unpublish') {
+    if (currentStatus === COURSE_TEXTBOOK_PUBLISH_DRAFT) {
+      return res.status(400).json({ error: '教材当前已是草稿状态' })
+    }
+    saveCourseTextbookPublishStatus(textbookId, COURSE_TEXTBOOK_PUBLISH_DRAFT)
+  } else {
+    return res.status(400).json({ error: '发布动作不合法' })
+  }
 
   const updated = vocabularyDb.prepare(`
     SELECT

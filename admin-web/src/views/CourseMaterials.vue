@@ -96,16 +96,17 @@
               <td class="col-lessons">{{ item.lesson_count || 0 }}</td>
               <td class="col-publish">
                 <div class="status-cell">
-                  <span class="tag" :class="item.is_published ? 'success' : 'warning'">
-                    {{ item.is_published ? '已发布' : '草稿' }}
+                  <span class="tag" :class="getTextbookPublishTagClass(item)">
+                    {{ getTextbookPublishLabel(item) }}
                   </span>
                   <button
+                    v-if="getTextbookPublishActionLabel(item)"
                     class="ghost publish-btn"
                     :disabled="publishLoading[item.id] || !canManageTextbook(item)"
                     :title="canManageTextbook(item) ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
                     @click="togglePublished(item)"
                   >
-                    {{ publishLoading[item.id] ? '处理中...' : (item.is_published ? '取消发布' : '发布教材') }}
+                    {{ publishLoading[item.id] ? '处理中...' : getTextbookPublishActionLabel(item) }}
                   </button>
                 </div>
               </td>
@@ -536,6 +537,9 @@ let toastTimer = null
 let wordSearchTimer = null
 const LESSON_TITLE_AUTO_SAVE_DEBOUNCE_MS = 450
 const COVERAGE_POLL_INTERVAL_MS = 2600
+const TEXTBOOK_PUBLISH_DRAFT = 'draft'
+const TEXTBOOK_PUBLISH_PENDING_REVIEW = 'pending_review'
+const TEXTBOOK_PUBLISH_PUBLISHED = 'published'
 let coveragePollTimer = null
 let lessonCoveragePollTimer = null
 
@@ -588,12 +592,28 @@ function normalizeTextbookRow(item) {
   const normalizedUploaderId = rawUploaderId === null || rawUploaderId === undefined || rawUploaderId === ''
     ? null
     : Number(rawUploaderId)
+  const publishStatus = normalizeTextbookPublishStatus(item?.publish_status, item?.is_published)
   return {
     ...item,
     lesson_count: Number(item.lesson_count || 0),
-    is_published: item.is_published === true || Number(item.is_published) === 1,
+    is_published: publishStatus === TEXTBOOK_PUBLISH_PUBLISHED,
+    publish_status: publishStatus,
     uploader_id: Number.isFinite(normalizedUploaderId) ? normalizedUploaderId : null
   }
+}
+
+function normalizeTextbookPublishStatus(status, isPublished) {
+  const normalized = String(status || '').trim()
+  if ([
+    TEXTBOOK_PUBLISH_DRAFT,
+    TEXTBOOK_PUBLISH_PENDING_REVIEW,
+    TEXTBOOK_PUBLISH_PUBLISHED
+  ].includes(normalized)) {
+    return normalized
+  }
+  return isPublished === true || Number(isPublished) === 1
+    ? TEXTBOOK_PUBLISH_PUBLISHED
+    : TEXTBOOK_PUBLISH_DRAFT
 }
 
 function normalizeCoverageRow(item = {}) {
@@ -889,6 +909,43 @@ function canManageTextbook(textbook) {
   const uploaderId = Number(textbook.uploader_id || 0)
   const actorId = Number(currentAdminId.value || 0)
   return uploaderId > 0 && actorId > 0 && uploaderId === actorId
+}
+
+function getTextbookPublishStatus(textbook) {
+  return normalizeTextbookPublishStatus(textbook?.publish_status, textbook?.is_published)
+}
+
+function getTextbookPublishLabel(textbook) {
+  const status = getTextbookPublishStatus(textbook)
+  if (status === TEXTBOOK_PUBLISH_PUBLISHED) return '已发布'
+  if (status === TEXTBOOK_PUBLISH_PENDING_REVIEW) return '等待审核'
+  return '草稿'
+}
+
+function getTextbookPublishTagClass(textbook) {
+  const status = getTextbookPublishStatus(textbook)
+  if (status === TEXTBOOK_PUBLISH_PUBLISHED) return 'success'
+  if (status === TEXTBOOK_PUBLISH_PENDING_REVIEW) return 'pending'
+  return 'warning'
+}
+
+function getTextbookPublishAction(textbook) {
+  const status = getTextbookPublishStatus(textbook)
+  if (status === TEXTBOOK_PUBLISH_PUBLISHED) return 'unpublish'
+  if (status === TEXTBOOK_PUBLISH_PENDING_REVIEW) {
+    return isPowerAdmin.value ? 'approve' : 'unpublish'
+  }
+  return isPowerAdmin.value ? 'publish' : 'submit'
+}
+
+function getTextbookPublishActionLabel(textbook) {
+  if (!canManageTextbook(textbook)) return ''
+  const action = getTextbookPublishAction(textbook)
+  if (action === 'submit') return '提交教材'
+  if (action === 'approve') return '确认发布'
+  if (action === 'publish') return '发布教材'
+  if (action === 'unpublish') return '取消发布'
+  return ''
 }
 
 function showTextbookManageForbiddenToast() {
@@ -1253,25 +1310,53 @@ async function togglePublished(item) {
     showTextbookManageForbiddenToast()
     return
   }
-  const isCancelPublish = Boolean(item.is_published)
+  const publishStatus = getTextbookPublishStatus(item)
+  const action = getTextbookPublishAction(item)
+  let title = '确认发布教材'
+  let message = ''
+  let hint = ''
+  let successMessage = '教材状态已更新'
+
+  if (action === 'submit') {
+    title = '提交教材'
+    message = '教材内容经过超级管理员审核后，即可向全体用户发布，请确保教材内容合法。'
+    successMessage = '教材已提交审核'
+  } else if (action === 'approve') {
+    title = '确认发布教材'
+    message = '确认后教材即向全体用户发布，请确保教材内容合法。'
+    successMessage = '教材已发布'
+  } else if (action === 'publish') {
+    title = '确认发布教材'
+    message = '请确保课程练习内容完整。发布后仍可以对课程内容进行修改。'
+    successMessage = '教材已发布'
+  } else if (action === 'unpublish') {
+    title = '确认取消发布'
+    message = publishStatus === TEXTBOOK_PUBLISH_PENDING_REVIEW
+      ? '取消后教材将退出审核流程。已设置的课程内容不会删除。'
+      : '取消后用户将无法将该教材添加至课程练习。已设置的课程内容不会删除。'
+    if (isAdmin.value) {
+      hint = '取消后需重新经过审核才能再次发布。'
+    }
+    successMessage = '教材已改为草稿'
+  } else {
+    return
+  }
+
   openConfirmDialog({
-    title: isCancelPublish ? '确认取消发布' : '确认发布教材',
-    message: isCancelPublish
-      ? '取消后用户将无法将该教材添加至课程练习。已设置的课程内容不会删除。'
-      : '请确保课程练习内容完整。发布后仍可以对课程内容进行修改。',
-    hint: '',
+    title,
+    message,
+    hint,
     confirmText: '确定',
     onConfirm: async () => {
       publishLoading[item.id] = true
       try {
         const data = await apiRequest(`/course-materials/textbooks/${item.id}/publish`, {
           method: 'PUT',
-          body: { isPublished: !item.is_published }
+          body: { action }
         })
         const updated = normalizeTextbookRow({
           ...item,
-          ...(data?.row || {}),
-          is_published: data?.row?.is_published ?? !item.is_published
+          ...(data?.row || {})
         })
         const index = textbooks.value.findIndex((row) => row.id === item.id)
         if (index > -1) {
@@ -1280,7 +1365,7 @@ async function togglePublished(item) {
         if (activeTextbook.value?.id === item.id) {
           activeTextbook.value = { ...activeTextbook.value, ...updated }
         }
-        showToast(updated.is_published ? '教材已发布' : '教材已改为草稿', 'success')
+        showToast(successMessage, 'success')
       } finally {
         publishLoading[item.id] = false
       }
@@ -1804,6 +1889,12 @@ onBeforeUnmount(() => {
   border-color: rgba(133, 94, 44, 0.2);
 }
 
+.tag.pending {
+  background: rgba(181, 112, 18, 0.14);
+  color: #8c5611;
+  border-color: rgba(181, 112, 18, 0.2);
+}
+
 .publish-btn {
   padding: 6px 10px;
 }
@@ -1848,7 +1939,7 @@ onBeforeUnmount(() => {
 }
 
 .power-coverage-table .col-publish {
-  width: 172px;
+  width: 188px;
 }
 
 .power-coverage-table .col-updated {

@@ -416,6 +416,7 @@ function initVocabularyDatabase() {
       description TEXT,
       cover_image TEXT,
       is_published INTEGER DEFAULT 1,
+      publish_status TEXT DEFAULT 'published',
       order_index INTEGER DEFAULT 0,
       uploader_id INTEGER,
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
@@ -443,6 +444,7 @@ function initVocabularyDatabase() {
 
   // 兼容旧数据库，补充教材/课程字段
   ensureColumn(vocabularyDb, 'textbooks', 'is_published', 'is_published INTEGER DEFAULT 1')
+  ensureColumn(vocabularyDb, 'textbooks', 'publish_status', "publish_status TEXT DEFAULT 'published'")
   ensureColumn(vocabularyDb, 'textbooks', 'updated_at', 'updated_at TEXT')
   ensureColumn(vocabularyDb, 'textbooks', 'uploader_id', 'uploader_id INTEGER')
   ensureColumn(vocabularyDb, 'lessons', 'updated_at', 'updated_at TEXT')
@@ -450,6 +452,11 @@ function initVocabularyDatabase() {
     UPDATE textbooks
     SET
       is_published = COALESCE(is_published, 1),
+      publish_status = CASE
+        WHEN publish_status IN ('draft', 'pending_review', 'published') THEN publish_status
+        WHEN COALESCE(is_published, 1) = 1 THEN 'published'
+        ELSE 'draft'
+      END,
       updated_at = COALESCE(updated_at, created_at, datetime('now', 'localtime'))
   `)
   vocabularyDb.exec(`
