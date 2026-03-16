@@ -1427,6 +1427,7 @@ class ExerciseGeneratorService {
 
     // 验证通过，保存到公共题库（统一初始置信度为50）
     let savedQuestionId = null
+    let savedQuestionCreated = false
     try {
       const questionData = {
         verbId: verb.id,
@@ -1556,6 +1557,7 @@ class ExerciseGeneratorService {
 
     // 保存到公共题库
     let savedQuestionId = null
+    let savedQuestionCreated = false
     try {
       const questionData = {
         verbId: verb.id,
@@ -1574,6 +1576,7 @@ class ExerciseGeneratorService {
 
       if (!Question.existsInPublic(verb.id, questionData.questionText, PUBLIC_SOURCE_TRADITIONAL)) {
         savedQuestionId = Question.addToPublic(questionData)
+        savedQuestionCreated = true
         console.log(`新题目已加入公共题库: ${verb.infinitive} (ID: ${savedQuestionId})`)
       } else {
         const existing = Question.findByVerbAndText(verb.id, questionData.questionText, PUBLIC_SOURCE_TRADITIONAL)
@@ -1591,6 +1594,7 @@ class ExerciseGeneratorService {
 
     const exercise = {
       questionId: savedQuestionId,  // 添加questionId
+      savedQuestionCreated,
       questionSource: PUBLIC_SOURCE_TRADITIONAL,
       questionBank: 'traditional',
       publicQuestionSource: PUBLIC_SOURCE_TRADITIONAL,
