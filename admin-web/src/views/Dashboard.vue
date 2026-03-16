@@ -1,62 +1,77 @@
 <template>
-  <div class="dashboard-page" :class="{ 'with-history': showHistory }">
-    <div class="dashboard-top-row">
-      <section ref="welcomeCardRef" class="card dashboard-welcome-card">
-        <h2 ref="welcomeTextRef" class="dashboard-welcome-text" :style="welcomeTextStyle">欢迎回来，{{ welcomeText }}</h2>
-        <p class="dashboard-welcome-subtext">
-          在这里，您可以编辑用户信息、增设动词词条、调整题库内容、管理课程教材。
-        </p>
-        <p v-if="isTeacherUser" class="dashboard-welcome-subtext">
-          作为教师，您还可以管理您的班级、发布和检查作业。
-        </p>
-      </section>
+  <div class="dashboard-page" :class="{ 'with-history': showHistory, 'history-expanded': showHistory && historyExpanded }">
+    <transition name="dashboard-top-collapse">
+      <div v-show="!showHistory || !historyExpanded" class="dashboard-top-row">
+        <section ref="welcomeCardRef" class="card dashboard-welcome-card">
+          <h2 ref="welcomeTextRef" class="dashboard-welcome-text" :style="welcomeTextStyle">欢迎回来，{{ welcomeText }}</h2>
+          <p class="dashboard-welcome-subtext">
+            在这里，您可以编辑用户信息、增设动词词条、调整题库内容、管理课程教材。
+          </p>
+          <p v-if="isTeacherUser" class="dashboard-welcome-subtext">
+            作为教师，您还可以管理您的班级、发布和检查作业。
+          </p>
+        </section>
 
-      <section v-if="showHistory" class="card dashboard-summary-card">
-        <h3 class="dashboard-summary-title">管理总览</h3>
-        <div class="dashboard-summary-list">
-          <button
-            v-for="item in dashboardStatsCards"
-            :key="item.key"
-            class="summary-item"
-            type="button"
-            @click="goTo(item.routeName)"
-          >
-            <span class="summary-main">
-              <span class="summary-icon" :class="`icon-${item.key}`" aria-hidden="true">
-                <svg v-if="item.key === 'users'" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="8" r="3.2" />
-                  <path d="M5.5 18.4c0-2.7 2.9-4.9 6.5-4.9s6.5 2.2 6.5 4.9" />
-                </svg>
-                <svg v-else-if="item.key === 'verbs'" viewBox="0 0 24 24" fill="none">
-                  <path d="M5.5 4.5h10a2 2 0 0 1 2 2v12.8a.2.2 0 0 1-.32.15L13.2 16.5a2 2 0 0 0-2.4 0l-3.98 2.95a.2.2 0 0 1-.32-.15V6.5a2 2 0 0 1 2-2z" />
-                  <path d="M9 8.5h6M9 11.5h6" />
-                </svg>
-                <svg v-else-if="item.key === 'questions'" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 18.5v.01" />
-                  <path d="M9.6 9.2a2.8 2.8 0 1 1 4.8 1.95c-.7.72-1.4 1.22-1.4 2.35" />
-                  <circle cx="12" cy="12" r="8.5" />
-                </svg>
-                <svg v-else-if="item.key === 'textbooks'" viewBox="0 0 24 24" fill="none">
-                  <path d="M6.5 5.2h9.2a2.3 2.3 0 0 1 2.3 2.3v11.3H8.8a2.3 2.3 0 0 0-2.3 2.3V5.2z" />
-                  <path d="M6.5 18.8h11.5" />
-                  <path d="M8.5 7.8h7.5" />
-                  <path d="M8.5 10.9h7.5" />
-                </svg>
-                <svg v-else viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="8.5" />
-                </svg>
+        <section v-if="showHistory" class="card dashboard-summary-card">
+          <h3 class="dashboard-summary-title">管理总览</h3>
+          <div class="dashboard-summary-list">
+            <button
+              v-for="item in dashboardStatsCards"
+              :key="item.key"
+              class="summary-item"
+              type="button"
+              @click="goTo(item.routeName)"
+            >
+              <span class="summary-main">
+                <span class="summary-icon" :class="`icon-${item.key}`" aria-hidden="true">
+                  <svg v-if="item.key === 'users'" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="8" r="3.2" />
+                    <path d="M5.5 18.4c0-2.7 2.9-4.9 6.5-4.9s6.5 2.2 6.5 4.9" />
+                  </svg>
+                  <svg v-else-if="item.key === 'verbs'" viewBox="0 0 24 24" fill="none">
+                    <path d="M5.5 4.5h10a2 2 0 0 1 2 2v12.8a.2.2 0 0 1-.32.15L13.2 16.5a2 2 0 0 0-2.4 0l-3.98 2.95a.2.2 0 0 1-.32-.15V6.5a2 2 0 0 1 2-2z" />
+                    <path d="M9 8.5h6M9 11.5h6" />
+                  </svg>
+                  <svg v-else-if="item.key === 'questions'" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 18.5v.01" />
+                    <path d="M9.6 9.2a2.8 2.8 0 1 1 4.8 1.95c-.7.72-1.4 1.22-1.4 2.35" />
+                    <circle cx="12" cy="12" r="8.5" />
+                  </svg>
+                  <svg v-else-if="item.key === 'textbooks'" viewBox="0 0 24 24" fill="none">
+                    <path d="M6.5 5.2h9.2a2.3 2.3 0 0 1 2.3 2.3v11.3H8.8a2.3 2.3 0 0 0-2.3 2.3V5.2z" />
+                    <path d="M6.5 18.8h11.5" />
+                    <path d="M8.5 7.8h7.5" />
+                    <path d="M8.5 10.9h7.5" />
+                  </svg>
+                  <svg v-else viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="8.5" />
+                  </svg>
+                </span>
+                <span class="summary-text">{{ item.label }}：{{ formatStatCount(item.value, item.unit) }}</span>
               </span>
-              <span class="summary-text">{{ item.label }}：{{ formatStatCount(item.value, item.unit) }}</span>
-            </span>
-            <span class="summary-arrow" aria-hidden="true">›</span>
-          </button>
-        </div>
-      </section>
-    </div>
+              <span class="summary-arrow" aria-hidden="true">›</span>
+            </button>
+          </div>
+        </section>
+      </div>
+    </transition>
 
     <section v-if="showHistory" class="card history-panel history-panel-single">
       <div class="management-header history-panel-header">
         <h3 class="history-panel-title">管理历史</h3>
+        <button
+          class="history-expand-toggle"
+          :title="historyExpanded ? '收起管理历史' : '展开管理历史'"
+          @click="toggleHistoryExpanded"
+        >
+          <span
+            aria-hidden="true"
+            class="history-expand-icon"
+            :class="{ expanded: historyExpanded }"
+          >
+            ⌃
+          </span>
+        </button>
         <div class="history-header-side">
           <button v-if="isDev" class="danger" :disabled="historyLoading || batchDeleting" @click="openBatchDeleteDialog">
             {{ batchDeleting ? '删除中...' : '删除 30 天前历史' }}
@@ -265,7 +280,8 @@ import { useAuth } from '../composables/useAuth';
 const { state, isPowerAdmin, isAdmin, isDev } = useAuth();
 const router = useRouter();
 
-const pageSize = 5;
+const historyExpanded = ref(false);
+const pageSize = 10;
 const page = ref(1);
 const historyRows = ref([]);
 const historyTotal = ref(0);
@@ -575,6 +591,10 @@ async function changePage(nextPage) {
   await fetchHistory();
 }
 
+async function toggleHistoryExpanded() {
+  historyExpanded.value = !historyExpanded.value;
+}
+
 async function adjustWelcomeTextSize() {
   if (!welcomeTextRef.value) return;
 
@@ -731,6 +751,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .dashboard-page {
+  --history-toggle-shift-x: 30px;
+  --history-toggle-shift-y: -12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -746,6 +768,7 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 12px;
   min-height: 0;
+  transform-origin: top center;
 }
 
 .dashboard-page.with-history .dashboard-top-row {
@@ -926,13 +949,19 @@ onBeforeUnmount(() => {
 
 .history-panel-single {
   width: 100%;
+  transition: transform 0.24s ease, box-shadow 0.24s ease;
 }
 
 .dashboard-page.with-history .history-panel-single {
   flex: 1;
 }
 
+.dashboard-page.history-expanded .history-panel-single {
+  transform: translateY(0px);
+}
+
 .history-panel-header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -944,6 +973,45 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: 24px;
   color: var(--theme-red-dark);
+}
+
+.history-expand-toggle {
+  position: absolute;
+  left: calc(50% - var(--history-toggle-shift-x));
+  top: var(--history-toggle-shift-y);
+  transform: translateX(-50%);
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--theme-red-dark);
+  cursor: pointer;
+  transition: transform 0.22s ease, color 0.22s ease, opacity 0.22s ease;
+}
+
+.history-expand-icon {
+  display: inline-block;
+  transform-origin: center;
+  transition: transform 0.22s ease;
+}
+
+.history-expand-icon.expanded {
+  transform: scaleY(-1);
+}
+
+.history-expand-toggle:hover {
+  color: var(--theme-red);
+}
+
+.history-expand-toggle:active {
+  transform: translateX(-50%) scale(0.92);
 }
 
 .history-header-side {
@@ -962,6 +1030,10 @@ onBeforeUnmount(() => {
 .history-table {
   table-layout: fixed;
   font-size: 13px;
+}
+
+.history-table-shell {
+  scroll-behavior: smooth;
 }
 
 .history-table th,
@@ -1115,6 +1187,26 @@ onBeforeUnmount(() => {
   line-height: 1.45;
 }
 
+.dashboard-top-collapse-enter-active,
+.dashboard-top-collapse-leave-active {
+  transition: opacity 0.26s ease, transform 0.26s ease, max-height 0.26s ease, margin 0.26s ease;
+  overflow: hidden;
+}
+
+.dashboard-top-collapse-enter-from,
+.dashboard-top-collapse-leave-to {
+  opacity: 0;
+  transform: translateY(-16px) scaleY(0.96);
+  max-height: 0;
+}
+
+.dashboard-top-collapse-enter-to,
+.dashboard-top-collapse-leave-from {
+  opacity: 1;
+  transform: translateY(0) scaleY(1);
+  max-height: 420px;
+}
+
 @media (max-width: 960px) {
   .dashboard-top-row {
     flex-direction: column;
@@ -1126,6 +1218,13 @@ onBeforeUnmount(() => {
 
   .history-panel-header {
     align-items: flex-start;
+  }
+
+  .history-expand-toggle {
+    position: static;
+    transform: none;
+    order: 3;
+    font-size: 20px;
   }
 
   .history-header-side {
