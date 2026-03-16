@@ -1,5 +1,4 @@
-FROM alpine:3.19 AS builder
-RUN apk add --no-cache nodejs npm
+FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install
