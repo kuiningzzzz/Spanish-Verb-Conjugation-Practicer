@@ -2790,8 +2790,8 @@ router.put('/conjugations/:id', requireAdmin, (req, res) => {
       target_id: Number(id),
       action_type: 'update_conjugation',
       changed_fields: diff.changedFields,
-      before_data: diff.beforeData,
-      after_data: diff.afterData
+      before_data: existing,
+      after_data: updated
     })
   }
   res.json({ success: true })

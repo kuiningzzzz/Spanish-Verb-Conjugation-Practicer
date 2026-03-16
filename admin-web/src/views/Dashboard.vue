@@ -459,6 +459,219 @@ function formatFieldDisplay(key, value) {
   return String(value);
 }
 
+function formatConjugationIrregularLabel(value) {
+  return Number(value) === 1 || value === true ? '不规则' : '规则';
+}
+
+function normalizeConjugationTextKey(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  return raw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+}
+
+function normalizeConjugationMoodLabel(mood) {
+  const raw = String(mood || '').trim();
+  if (!raw) return '';
+
+  const directMap = {
+    '陈述式': '陈述式',
+    '复合陈述式': '陈述式',
+    '虚拟式': '虚拟式',
+    '复合虚拟式': '虚拟式',
+    '条件式': '条件式',
+    '命令式': '命令式'
+  };
+  if (directMap[raw]) return directMap[raw];
+
+  const normalized = normalizeConjugationTextKey(raw);
+  const normalizedMap = {
+    indicativo: '陈述式',
+    indicativo_compuesto: '陈述式',
+    subjuntivo: '虚拟式',
+    subjuntivo_compuesto: '虚拟式',
+    condicional: '条件式',
+    imperativo: '命令式'
+  };
+  return normalizedMap[normalized] || raw;
+}
+
+function resolveConjugationMoodAndTense(mood, tense) {
+  const rawTense = String(tense || '').trim();
+  const normalizedTense = normalizeConjugationTextKey(rawTense);
+  let moodLabel = normalizeConjugationMoodLabel(mood);
+
+  const conditionalKeys = [
+    '条件式',
+    'condicional',
+    'conditional',
+    '条件完成时',
+    'condicional_perfecto',
+    'conditional_perfect'
+  ];
+  const imperativeKeys = [
+    '肯定命令式',
+    '否定命令式',
+    'imperativo_afirmativo',
+    'imperativo_negativo',
+    'afirmativo',
+    'negativo'
+  ];
+
+  if (conditionalKeys.includes(rawTense) || conditionalKeys.includes(normalizedTense)) {
+    moodLabel = '条件式';
+  } else if (imperativeKeys.includes(rawTense) || imperativeKeys.includes(normalizedTense)) {
+    moodLabel = '命令式';
+  }
+
+  if (!rawTense) {
+    return {
+      mood: moodLabel || '',
+      tense: ''
+    };
+  }
+
+  const tenseDisplayMap = {
+    '陈述式': {
+      '现在时': '一般现在时',
+      presente: '一般现在时',
+      present: '一般现在时',
+      '现在完成时': '现在完成时',
+      perfecto: '现在完成时',
+      preterito_perfecto: '现在完成时',
+      preterite_perfect: '现在完成时',
+      '未完成过去时': '过去未完成时',
+      '过去未完成时': '过去未完成时',
+      imperfecto: '过去未完成时',
+      preterito_imperfecto: '过去未完成时',
+      imperfect: '过去未完成时',
+      '简单过去时': '简单过去时',
+      preterito: '简单过去时',
+      preterito_indefinido: '简单过去时',
+      preterite: '简单过去时',
+      '过去完成时': '过去完成时',
+      pluscuamperfecto: '过去完成时',
+      pluperfect: '过去完成时',
+      '将来时': '将来未完成时',
+      futuro: '将来未完成时',
+      future: '将来未完成时',
+      '将来完成时': '将来完成时',
+      futuro_perfecto: '将来完成时',
+      future_perfect: '将来完成时',
+      '前过去时': '前过去时',
+      '先过去时': '前过去时',
+      preterito_anterior: '前过去时',
+      preterite_anterior: '前过去时'
+    },
+    '虚拟式': {
+      '虚拟现在时': '现在时',
+      subjuntivo_presente: '现在时',
+      presente: '现在时',
+      present: '现在时',
+      '虚拟过去时': '过去未完成时',
+      '虚拟过去未完成时': '过去未完成时',
+      subjuntivo_imperfecto: '过去未完成时',
+      imperfecto: '过去未完成时',
+      imperfect: '过去未完成时',
+      preterito_imperfecto: '过去未完成时',
+      '虚拟现在完成时': '现在完成时',
+      subjuntivo_perfecto: '现在完成时',
+      perfecto: '现在完成时',
+      preterito_perfecto: '现在完成时',
+      preterite_perfect: '现在完成时',
+      '虚拟过去完成时': '过去完成时',
+      subjuntivo_pluscuamperfecto: '过去完成时',
+      pluscuamperfecto: '过去完成时',
+      pluperfect: '过去完成时',
+      '虚拟将来未完成时': '将来未完成时',
+      '虚拟将来时': '将来未完成时',
+      subjuntivo_futuro: '将来未完成时',
+      futuro: '将来未完成时',
+      future: '将来未完成时',
+      '虚拟将来完成时': '将来完成时',
+      subjuntivo_futuro_perfecto: '将来完成时',
+      futuro_perfecto: '将来完成时',
+      future_perfect: '将来完成时'
+    },
+    '条件式': {
+      '条件式': '简单条件式',
+      condicional: '简单条件式',
+      conditional: '简单条件式',
+      '条件完成时': '复合条件式',
+      condicional_perfecto: '复合条件式',
+      conditional_perfect: '复合条件式'
+    },
+    '命令式': {
+      '肯定命令式': '命令式',
+      imperativo_afirmativo: '命令式',
+      afirmativo: '命令式',
+      '否定命令式': '否定命令式',
+      imperativo_negativo: '否定命令式',
+      negativo: '否定命令式'
+    }
+  };
+
+  const moodMap = tenseDisplayMap[moodLabel] || {};
+  const display = moodMap[rawTense] || moodMap[normalizedTense];
+  if (display) {
+    return {
+      mood: moodLabel || '',
+      tense: display
+    };
+  }
+
+  let normalizedDisplay = rawTense;
+  if (moodLabel && rawTense.startsWith(`${moodLabel} `)) {
+    normalizedDisplay = rawTense.slice(moodLabel.length).trim();
+  }
+
+  return {
+    mood: moodLabel || '',
+    tense: normalizedDisplay || rawTense
+  };
+}
+
+function formatConjugationPersonLabel(person) {
+  const raw = String(person || '').trim();
+  if (!raw) return '';
+
+  const personMap = {
+    yo: 'yo',
+    'tú': 'tú',
+    'él/ella/usted': 'él/ella/usted',
+    nosotros: 'nosotros',
+    vosotros: 'vosotros',
+    'ellos/ellas/ustedes': 'ellos/ellas/ustedes',
+    vos: 'vos',
+    'tú (afirmativo)': 'tú (afirmativo)',
+    'tú (negativo)': 'tú (negativo)',
+    usted: 'usted',
+    'nosotros/nosotras': 'nosotros/nosotras',
+    'vosotros/vosotras': 'vosotros/vosotras',
+    ustedes: 'ustedes'
+  };
+
+  return personMap[raw] || raw;
+}
+
+function buildConjugationSummary(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return '-';
+  const { mood, tense } = resolveConjugationMoodAndTense(payload.mood, payload.tense);
+
+  const parts = [
+    mood || '未设语气',
+    tense || '未设时态',
+    formatConjugationPersonLabel(payload.person) || '未设人称',
+    payload.conjugated_form || '未设变位',
+    formatConjugationIrregularLabel(payload.is_irregular)
+  ];
+
+  return parts.join(' / ');
+}
+
 function buildDetailEntries(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return [];
   return Object.entries(payload)
@@ -473,7 +686,11 @@ function buildDetailEntries(payload) {
 
 const totalPages = computed(() => Math.max(1, Math.ceil(historyTotal.value / pageSize)));
 const detailTitle = computed(() => (detailItem.value ? `${formatHistoryType(detailItem.value.history_type)}详情` : '详情'));
+const isConjugationUpdateDetail = computed(() => detailItem.value?.action_type === 'update_conjugation');
 const detailChangedFields = computed(() => {
+  if (isConjugationUpdateDetail.value) {
+    return [];
+  }
   const fields = Array.isArray(detailItem.value?.changed_fields) ? detailItem.value.changed_fields : [];
   return fields.map((field) => ({
     key: field,
@@ -486,14 +703,28 @@ const detailSections = computed(() => {
     sections.push({
       key: 'before',
       title: '修改前',
-      entries: buildDetailEntries(detailItem.value.before_data)
+      entries: isConjugationUpdateDetail.value
+        ? [{
+            key: 'conjugation_summary_before',
+            label: '完整变位描述',
+            display: buildConjugationSummary(detailItem.value.before_data),
+            isComplex: false
+          }]
+        : buildDetailEntries(detailItem.value.before_data)
     });
   }
   if (detailItem.value?.after_data) {
     sections.push({
       key: 'after',
-      title: '修改内容',
-      entries: buildDetailEntries(detailItem.value.after_data)
+      title: isConjugationUpdateDetail.value ? '修改后' : '修改内容',
+      entries: isConjugationUpdateDetail.value
+        ? [{
+            key: 'conjugation_summary_after',
+            label: '完整变位描述',
+            display: buildConjugationSummary(detailItem.value.after_data),
+            isComplex: false
+          }]
+        : buildDetailEntries(detailItem.value.after_data)
     });
   }
   if (detailItem.value?.snapshot_data) {
