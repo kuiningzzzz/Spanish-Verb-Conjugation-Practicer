@@ -5,11 +5,13 @@ const path = require('path')
 const userDb = new Database(path.join(__dirname, '../data/user_data.db'))      // 用户数据库
 const vocabularyDb = new Database(path.join(__dirname, '../data/vocabulary.db')) // 词库数据库
 const questionDb = new Database(path.join(__dirname, '../data/questions.db'))   // 题库数据库
+const adminHistoryDb = new Database(path.join(__dirname, '../data/admin_history.db')) // 管理历史数据库
 
 // 启用外键约束
 userDb.pragma('foreign_keys = ON')
 vocabularyDb.pragma('foreign_keys = ON')
 questionDb.pragma('foreign_keys = ON')
+adminHistoryDb.pragma('foreign_keys = ON')
 
 function ensureColumn(dbInstance, table, column, definition) {
   const tableInfo = dbInstance.prepare(`PRAGMA table_info(${table})`).all()
@@ -50,6 +52,9 @@ function initDatabase() {
 
   console.log('   • 题库数据库: questions.db')
   initQuestionDatabase()
+
+  console.log('   • 管理历史数据库: admin_history.db')
+  initAdminHistoryDatabase()
 
   console.log('\x1b[32m   ✓ 数据库初始化完成\x1b[0m')
 }
@@ -416,6 +421,7 @@ function initVocabularyDatabase() {
       description TEXT,
       cover_image TEXT,
       is_published INTEGER DEFAULT 1,
+      publish_status TEXT DEFAULT 'published',
       order_index INTEGER DEFAULT 0,
       uploader_id INTEGER,
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
@@ -443,6 +449,7 @@ function initVocabularyDatabase() {
 
   // 兼容旧数据库，补充教材/课程字段
   ensureColumn(vocabularyDb, 'textbooks', 'is_published', 'is_published INTEGER DEFAULT 1')
+  ensureColumn(vocabularyDb, 'textbooks', 'publish_status', "publish_status TEXT DEFAULT 'published'")
   ensureColumn(vocabularyDb, 'textbooks', 'updated_at', 'updated_at TEXT')
   ensureColumn(vocabularyDb, 'textbooks', 'uploader_id', 'uploader_id INTEGER')
   ensureColumn(vocabularyDb, 'lessons', 'updated_at', 'updated_at TEXT')
@@ -450,6 +457,11 @@ function initVocabularyDatabase() {
     UPDATE textbooks
     SET
       is_published = COALESCE(is_published, 1),
+      publish_status = CASE
+        WHEN publish_status IN ('draft', 'pending_review', 'published') THEN publish_status
+        WHEN COALESCE(is_published, 1) = 1 THEN 'published'
+        ELSE 'draft'
+      END,
       updated_at = COALESCE(updated_at, created_at, datetime('now', 'localtime'))
   `)
   vocabularyDb.exec(`
@@ -611,11 +623,91 @@ function initQuestionDatabase() {
   `)
 }
 
+function initAdminHistoryDatabase() {
+  adminHistoryDb.exec(`
+    CREATE TABLE IF NOT EXISTS user_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      operator_username TEXT NOT NULL,
+      operator_role TEXT NOT NULL,
+      history_type TEXT NOT NULL DEFAULT 'user' CHECK(history_type = 'user'),
+      target_id INTEGER NOT NULL,
+      action_type TEXT NOT NULL,
+      changed_fields TEXT,
+      before_data TEXT,
+      after_data TEXT,
+      snapshot_data TEXT,
+      visibility_scope TEXT NOT NULL DEFAULT 'all' CHECK(visibility_scope IN ('all', 'superadmin_dev')),
+      modified_at TEXT DEFAULT (datetime('now', 'localtime'))
+    )
+  `)
+
+  adminHistoryDb.exec(`
+    CREATE TABLE IF NOT EXISTS lexicon_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      operator_username TEXT NOT NULL,
+      operator_role TEXT NOT NULL,
+      history_type TEXT NOT NULL DEFAULT 'lexicon' CHECK(history_type = 'lexicon'),
+      target_id INTEGER NOT NULL,
+      action_type TEXT NOT NULL,
+      changed_fields TEXT,
+      before_data TEXT,
+      after_data TEXT,
+      snapshot_data TEXT,
+      visibility_scope TEXT NOT NULL DEFAULT 'all' CHECK(visibility_scope IN ('all', 'superadmin_dev')),
+      modified_at TEXT DEFAULT (datetime('now', 'localtime'))
+    )
+  `)
+
+  adminHistoryDb.exec(`
+    CREATE TABLE IF NOT EXISTS question_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      operator_username TEXT NOT NULL,
+      operator_role TEXT NOT NULL,
+      history_type TEXT NOT NULL CHECK(history_type IN ('question_traditional', 'question_pronoun')),
+      target_id INTEGER NOT NULL,
+      action_type TEXT NOT NULL,
+      changed_fields TEXT,
+      before_data TEXT,
+      after_data TEXT,
+      snapshot_data TEXT,
+      visibility_scope TEXT NOT NULL DEFAULT 'all' CHECK(visibility_scope IN ('all', 'superadmin_dev')),
+      modified_at TEXT DEFAULT (datetime('now', 'localtime'))
+    )
+  `)
+
+  adminHistoryDb.exec(`
+    CREATE TABLE IF NOT EXISTS textbook_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      operator_username TEXT NOT NULL,
+      operator_role TEXT NOT NULL,
+      history_type TEXT NOT NULL DEFAULT 'textbook' CHECK(history_type = 'textbook'),
+      target_id INTEGER NOT NULL,
+      action_type TEXT NOT NULL,
+      changed_fields TEXT,
+      before_data TEXT,
+      after_data TEXT,
+      snapshot_data TEXT,
+      visibility_scope TEXT NOT NULL DEFAULT 'all' CHECK(visibility_scope IN ('all', 'superadmin_dev')),
+      modified_at TEXT DEFAULT (datetime('now', 'localtime'))
+    )
+  `)
+
+  adminHistoryDb.exec(`CREATE INDEX IF NOT EXISTS idx_user_history_modified_at ON user_history(modified_at)`)
+  adminHistoryDb.exec(`CREATE INDEX IF NOT EXISTS idx_user_history_operator_role ON user_history(operator_role)`)
+  adminHistoryDb.exec(`CREATE INDEX IF NOT EXISTS idx_lexicon_history_modified_at ON lexicon_history(modified_at)`)
+  adminHistoryDb.exec(`CREATE INDEX IF NOT EXISTS idx_lexicon_history_operator_role ON lexicon_history(operator_role)`)
+  adminHistoryDb.exec(`CREATE INDEX IF NOT EXISTS idx_question_history_modified_at ON question_history(modified_at)`)
+  adminHistoryDb.exec(`CREATE INDEX IF NOT EXISTS idx_question_history_operator_role ON question_history(operator_role)`)
+  adminHistoryDb.exec(`CREATE INDEX IF NOT EXISTS idx_textbook_history_modified_at ON textbook_history(modified_at)`)
+  adminHistoryDb.exec(`CREATE INDEX IF NOT EXISTS idx_textbook_history_operator_role ON textbook_history(operator_role)`)
+}
+
 // 导出数据库实例和初始化函数
 module.exports = {
   userDb,           // 用户数据库
   vocabularyDb,     // 词库数据库
   questionDb,       // 题库数据库
+  adminHistoryDb,   // 管理历史数据库
   db: userDb,       // 为了向后兼容，默认导出用户数据库
   initDatabase
 }

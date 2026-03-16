@@ -11,12 +11,32 @@
       <div class="toolbar management-toolbar">
         <div class="toolbar-left">
           <button v-if="activeTextbook" class="ghost" @click="backToTextbookList">返回教材列表</button>
-          <template v-else>
-            <span class="toolbar-count">共 {{ textbooks.length }} 本</span>
-            <button class="ghost" @click="openCreateTextbookDialog">添加教材</button>
-          </template>
+          <span v-else class="toolbar-count">共 {{ textbooks.length }} 本</span>
+          <button
+            v-if="!activeTextbook && isPowerAdmin"
+            class="ghost"
+            @click="checkTextbookCoverage"
+            :disabled="loadingCurrentView || coverageCheckLoading"
+          >
+            {{ coverageCheckLoading ? '检查中...' : '检查题目数量' }}
+          </button>
+          <button
+            v-if="!activeTextbook"
+            class="ghost"
+            @click="openCreateTextbookDialog"
+          >
+            添加教材
+          </button>
         </div>
         <div class="management-actions">
+          <button
+            v-if="activeTextbook && isPowerAdmin"
+            class="ghost"
+            @click="checkLessonCoverage"
+            :disabled="loadingLessons || addingLesson || lessonCoverageCheckLoading"
+          >
+            {{ lessonCoverageCheckLoading ? '检查中...' : '检查题目数量' }}
+          </button>
           <button
             v-if="!activeTextbook"
             class="danger"
@@ -55,69 +75,109 @@
       <div v-else-if="loadingCurrentView" class="loading">加载中...</div>
 
       <div v-else-if="!activeTextbook" class="management-table-scroll">
-        <table class="table">
+        <table :class="['table', { 'power-coverage-table': isPowerAdmin }]">
           <thead>
             <tr>
-              <th>教材名</th>
-              <th>上传者</th>
-              <th>课程数</th>
-              <th>发布状态</th>
-              <th>最近修改时间</th>
+              <th class="col-id">ID</th>
+              <th class="col-name">教材名</th>
+              <th class="col-uploader">上传者</th>
+              <th class="col-lessons">课程数</th>
+              <th class="col-publish">发布状态</th>
+              <th class="col-updated">最近修改时间</th>
+              <th v-if="isPowerAdmin" class="col-coverage">题目数量状态</th>
               <th class="col-actions"><span class="col-actions-label">操作</span></th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="item in textbooks" :key="item.id">
-              <td>{{ item.name }}</td>
-              <td>{{ displayUploader(item) }}</td>
-              <td>{{ item.lesson_count || 0 }}</td>
-              <td>
+              <td class="col-id">{{ item.id }}</td>
+              <td class="col-name">{{ item.name }}</td>
+              <td class="col-uploader">{{ displayUploader(item) }}</td>
+              <td class="col-lessons">{{ item.lesson_count || 0 }}</td>
+              <td class="col-publish">
                 <div class="status-cell">
-                  <span class="tag" :class="item.is_published ? 'success' : 'warning'">
-                    {{ item.is_published ? '已发布' : '草稿' }}
+                  <span class="tag" :class="getTextbookPublishTagClass(item)">
+                    {{ getTextbookPublishLabel(item) }}
                   </span>
                   <button
+                    v-if="getTextbookPublishActionLabel(item)"
                     class="ghost publish-btn"
                     :disabled="publishLoading[item.id] || !canManageTextbook(item)"
                     :title="canManageTextbook(item) ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
                     @click="togglePublished(item)"
                   >
-                    {{ publishLoading[item.id] ? '处理中...' : (item.is_published ? '取消发布' : '发布教材') }}
+                    {{ publishLoading[item.id] ? '处理中...' : getTextbookPublishActionLabel(item) }}
                   </button>
                 </div>
               </td>
-              <td>{{ formatDateTime(item.updated_at || item.created_at) }}</td>
+              <td class="col-updated multiline-datetime">{{ formatDateTimeMultiline(item.updated_at || item.created_at) }}</td>
+              <td v-if="isPowerAdmin" class="col-coverage">
+                <div class="coverage-cell">
+                  <template v-if="getCoverageState(item).coverage_status === 'running'">
+                    <span class="coverage-progress">
+                      {{ getCoverageState(item).generated_count }}/{{ getCoverageState(item).target_count }}
+                    </span>
+                    <button
+                      class="danger coverage-action-btn"
+                      :disabled="coverageActionLoading[item.id] || getCoverageState(item).cancel_requested"
+                      @click="confirmCancelCoverageSupplement(item)"
+                    >
+                      {{ getCoverageState(item).cancel_requested ? '取消中...' : '取消生成' }}
+                    </button>
+                  </template>
+                  <template v-else-if="getCoverageState(item).coverage_status === 'sufficient'">
+                    <span class="tag success">充足</span>
+                  </template>
+                  <template v-else-if="getCoverageState(item).coverage_status === 'insufficient'">
+                    <span class="tag warning">不足</span>
+                    <button
+                      v-if="getCoverageState(item).can_supplement"
+                      class="ghost coverage-action-btn"
+                      :disabled="coverageActionLoading[item.id]"
+                      @click="startCoverageSupplement(item)"
+                    >
+                      {{ coverageActionLoading[item.id] ? '启动中...' : '开始补充' }}
+                    </button>
+                  </template>
+                  <template v-else>
+                    <span class="coverage-placeholder">-</span>
+                  </template>
+                </div>
+              </td>
               <td class="actions textbook-actions">
-                <button
-                  class="ghost"
-                  @click="enterTextbook(item)"
-                >
-                  {{ canManageTextbook(item) ? '设置课程' : '查看教材' }}
-                </button>
-                <button
-                  class="danger"
-                  :disabled="deleteLoading[item.id] || !canManageTextbook(item)"
-                  :title="canManageTextbook(item) ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
-                  @click="confirmDeleteTextbook(item)"
-                >
-                  删除
-                </button>
+                <div class="actions-group">
+                  <button
+                    class="ghost"
+                    @click="enterTextbook(item)"
+                  >
+                    {{ canManageTextbook(item) ? '设置课程' : '查看教材' }}
+                  </button>
+                  <button
+                    class="danger"
+                    :disabled="deleteLoading[item.id] || !canManageTextbook(item)"
+                    :title="canManageTextbook(item) ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
+                    @click="confirmDeleteTextbook(item)"
+                  >
+                    删除
+                  </button>
+                </div>
               </td>
             </tr>
             <tr v-if="!textbooks.length">
-              <td colspan="6" class="empty">暂无教材，请先新增教材</td>
+              <td :colspan="isPowerAdmin ? 8 : 7" class="empty">暂无教材，请先新增教材</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <div v-else class="management-table-scroll">
-        <table class="table">
+        <table :class="['table', { 'lesson-coverage-table': isPowerAdmin }]">
           <thead>
             <tr>
               <th>课程名</th>
               <th>本课单词数</th>
               <th>本课时态数</th>
+              <th v-if="isPowerAdmin" class="lesson-col-coverage">题目状态</th>
               <th class="lesson-col-actions"><span class="lesson-col-actions-label">操作</span></th>
             </tr>
           </thead>
@@ -138,35 +198,70 @@
               </td>
               <td>{{ lesson.vocabulary_count || 0 }}</td>
               <td>{{ lesson.tense_count || 0 }}</td>
+              <td v-if="isPowerAdmin" class="lesson-col-coverage">
+                <div class="coverage-cell">
+                  <template v-if="getLessonCoverageState(lesson).coverage_status === 'running'">
+                    <span class="coverage-progress">
+                      {{ getLessonCoverageState(lesson).generated_count }}/{{ getLessonCoverageState(lesson).target_count }}
+                    </span>
+                    <button
+                      class="danger coverage-action-btn"
+                      :disabled="lessonCoverageActionLoading[lesson.id] || getLessonCoverageState(lesson).cancel_requested"
+                      @click="confirmCancelLessonCoverageSupplement(lesson)"
+                    >
+                      {{ getLessonCoverageState(lesson).cancel_requested ? '取消中...' : '取消生成' }}
+                    </button>
+                  </template>
+                  <template v-else-if="getLessonCoverageState(lesson).coverage_status === 'sufficient'">
+                    <span class="tag success">充足</span>
+                  </template>
+                  <template v-else-if="getLessonCoverageState(lesson).coverage_status === 'insufficient'">
+                    <span class="tag warning">不足</span>
+                    <button
+                      v-if="getLessonCoverageState(lesson).can_supplement"
+                      class="ghost coverage-action-btn"
+                      :disabled="lessonCoverageActionLoading[lesson.id]"
+                      @click="startLessonCoverageSupplement(lesson)"
+                    >
+                      {{ lessonCoverageActionLoading[lesson.id] ? '启动中...' : '开始补充' }}
+                    </button>
+                  </template>
+                  <template v-else>
+                    <span class="coverage-placeholder">-</span>
+                  </template>
+                </div>
+              </td>
               <td class="actions lesson-actions">
-                <button
-                  class="ghost"
-                  :disabled="!canManageActiveTextbook"
-                  :title="canManageActiveTextbook ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
-                  @click="openWordDialog(lesson)"
-                >
-                  设置单词
-                </button>
-                <button
-                  class="ghost"
-                  :disabled="!canManageActiveTextbook"
-                  :title="canManageActiveTextbook ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
-                  @click="openTenseDialog(lesson)"
-                >
-                  设置时态
-                </button>
-                <button
-                  class="danger"
-                  :disabled="deleteLoading[lesson.id] || !canManageActiveTextbook"
-                  :title="canManageActiveTextbook ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
-                  @click="confirmDeleteLesson(lesson)"
-                >
-                  删除
-                </button>
+                <div class="actions-group">
+                  <button
+                    class="ghost"
+                    :disabled="!canManageActiveTextbook"
+                    :title="canManageActiveTextbook ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
+                    @click="openWordDialog(lesson)"
+                  >
+                    设置单词
+                  </button>
+                  <button
+                    class="ghost"
+                    :disabled="!canManageActiveTextbook"
+                    :title="canManageActiveTextbook ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
+                    @click="openTenseDialog(lesson)"
+                  >
+                    设置时态
+                  </button>
+                  <button
+                    class="danger"
+                    :disabled="deleteLoading[lesson.id] || !canManageActiveTextbook"
+                    :title="canManageActiveTextbook ? '' : TEXTBOOK_MANAGE_LOCK_HINT"
+                    @click="confirmDeleteLesson(lesson)"
+                  >
+                    删除
+                  </button>
+                </div>
               </td>
             </tr>
             <tr v-if="!lessons.length">
-              <td colspan="4" class="empty">当前教材还没有课程，点击右上角“添加课程”开始设置</td>
+              <td :colspan="isPowerAdmin ? 5 : 4" class="empty">当前教材还没有课程，点击右上角“添加课程”开始设置</td>
             </tr>
           </tbody>
         </table>
@@ -396,6 +491,12 @@ const deleteLoading = reactive({})
 const saveLessonTitleLoading = reactive({})
 const lessonTitleSaveTimers = new Map()
 const uploaderNameMap = reactive({})
+const coverageStates = reactive({})
+const coverageActionLoading = reactive({})
+const coverageCheckLoading = ref(false)
+const lessonCoverageStates = reactive({})
+const lessonCoverageActionLoading = reactive({})
+const lessonCoverageCheckLoading = ref(false)
 
 const createTextbookDialogOpen = ref(false)
 const createTextbookForm = reactive({ name: '' })
@@ -435,6 +536,12 @@ const toast = reactive({
 let toastTimer = null
 let wordSearchTimer = null
 const LESSON_TITLE_AUTO_SAVE_DEBOUNCE_MS = 450
+const COVERAGE_POLL_INTERVAL_MS = 2600
+const TEXTBOOK_PUBLISH_DRAFT = 'draft'
+const TEXTBOOK_PUBLISH_PENDING_REVIEW = 'pending_review'
+const TEXTBOOK_PUBLISH_PUBLISHED = 'published'
+let coveragePollTimer = null
+let lessonCoveragePollTimer = null
 
 const loadingCurrentView = computed(() => (activeTextbook.value ? loadingLessons.value : loadingTextbooks.value))
 const currentAdminId = computed(() => Number(state.user?.id || 0))
@@ -485,12 +592,315 @@ function normalizeTextbookRow(item) {
   const normalizedUploaderId = rawUploaderId === null || rawUploaderId === undefined || rawUploaderId === ''
     ? null
     : Number(rawUploaderId)
+  const publishStatus = normalizeTextbookPublishStatus(item?.publish_status, item?.is_published)
   return {
     ...item,
     lesson_count: Number(item.lesson_count || 0),
-    is_published: item.is_published === true || Number(item.is_published) === 1,
+    is_published: publishStatus === TEXTBOOK_PUBLISH_PUBLISHED,
+    publish_status: publishStatus,
     uploader_id: Number.isFinite(normalizedUploaderId) ? normalizedUploaderId : null
   }
+}
+
+function normalizeTextbookPublishStatus(status, isPublished) {
+  const normalized = String(status || '').trim()
+  if ([
+    TEXTBOOK_PUBLISH_DRAFT,
+    TEXTBOOK_PUBLISH_PENDING_REVIEW,
+    TEXTBOOK_PUBLISH_PUBLISHED
+  ].includes(normalized)) {
+    return normalized
+  }
+  return isPublished === true || Number(isPublished) === 1
+    ? TEXTBOOK_PUBLISH_PUBLISHED
+    : TEXTBOOK_PUBLISH_DRAFT
+}
+
+function normalizeCoverageRow(item = {}) {
+  return {
+    textbook_id: Number(item.textbook_id || 0),
+    coverage_status: String(item.coverage_status || 'unchecked'),
+    can_supplement: Boolean(item.can_supplement),
+    has_blocking_lessons: Boolean(item.has_blocking_lessons),
+    is_running: Boolean(item.is_running),
+    cancel_requested: Boolean(item.cancel_requested),
+    generated_count: Number(item.generated_count || 0),
+    target_count: Number(item.target_count || 0),
+    checked_at: item.checked_at || null,
+    task_state: item.task_state || null,
+    error: String(item.error || '')
+  }
+}
+
+function normalizeLessonCoverageRow(item = {}) {
+  return {
+    lesson_id: Number(item.lesson_id || 0),
+    textbook_id: Number(item.textbook_id || 0),
+    coverage_status: String(item.coverage_status || 'unchecked'),
+    can_supplement: Boolean(item.can_supplement),
+    is_running: Boolean(item.is_running),
+    cancel_requested: Boolean(item.cancel_requested),
+    generated_count: Number(item.generated_count || 0),
+    target_count: Number(item.target_count || 0),
+    checked_at: item.checked_at || null,
+    task_state: item.task_state || null,
+    error: String(item.error || '')
+  }
+}
+
+function applyCoverageRow(item) {
+  const row = normalizeCoverageRow(item)
+  if (!row.textbook_id) return
+  coverageStates[row.textbook_id] = row
+  if (row.coverage_status !== 'running') {
+    delete coverageActionLoading[row.textbook_id]
+  }
+}
+
+function applyCoverageRows(rows = [], options = {}) {
+  const { clearExisting = false } = options
+  if (clearExisting) {
+    Object.keys(coverageStates).forEach((key) => {
+      delete coverageStates[key]
+    })
+    Object.keys(coverageActionLoading).forEach((key) => {
+      delete coverageActionLoading[key]
+    })
+  }
+  ;(Array.isArray(rows) ? rows : []).forEach((item) => {
+    applyCoverageRow(item)
+  })
+  if (hasRunningCoverageTasks()) {
+    scheduleCoveragePolling()
+  } else {
+    stopCoveragePolling()
+  }
+}
+
+function applyLessonCoverageRow(item) {
+  const row = normalizeLessonCoverageRow(item)
+  if (!row.lesson_id) return
+  lessonCoverageStates[row.lesson_id] = row
+  if (row.coverage_status !== 'running') {
+    delete lessonCoverageActionLoading[row.lesson_id]
+  }
+}
+
+function applyLessonCoverageRows(rows = [], options = {}) {
+  const { clearExisting = false } = options
+  if (clearExisting) {
+    Object.keys(lessonCoverageStates).forEach((key) => {
+      delete lessonCoverageStates[key]
+    })
+    Object.keys(lessonCoverageActionLoading).forEach((key) => {
+      delete lessonCoverageActionLoading[key]
+    })
+  }
+  ;(Array.isArray(rows) ? rows : []).forEach((item) => {
+    applyLessonCoverageRow(item)
+  })
+  if (hasRunningLessonCoverageTasks()) {
+    scheduleLessonCoveragePolling()
+  } else {
+    stopLessonCoveragePolling()
+  }
+}
+
+function getCoverageState(textbook) {
+  const textbookId = Number(textbook?.id || textbook?.textbook_id || 0)
+  if (!textbookId) {
+    return normalizeCoverageRow()
+  }
+  return coverageStates[textbookId] || normalizeCoverageRow({ textbook_id: textbookId })
+}
+
+function getLessonCoverageState(lesson) {
+  const lessonId = Number(lesson?.id || lesson?.lesson_id || 0)
+  if (!lessonId) {
+    return normalizeLessonCoverageRow()
+  }
+  return lessonCoverageStates[lessonId] || normalizeLessonCoverageRow({ lesson_id: lessonId })
+}
+
+function resetCoverageStateForTextbook(textbookId) {
+  const numericId = Number(textbookId)
+  if (!numericId) return
+  delete coverageStates[numericId]
+  delete coverageActionLoading[numericId]
+  if (!hasRunningCoverageTasks()) {
+    stopCoveragePolling()
+  }
+}
+
+function resetLessonCoverageState(lessonId) {
+  const numericId = Number(lessonId)
+  if (!numericId) return
+  delete lessonCoverageStates[numericId]
+  delete lessonCoverageActionLoading[numericId]
+  if (!hasRunningLessonCoverageTasks()) {
+    stopLessonCoveragePolling()
+  }
+}
+
+function resetAllLessonCoverageStates() {
+  Object.keys(lessonCoverageStates).forEach((key) => {
+    delete lessonCoverageStates[key]
+  })
+  Object.keys(lessonCoverageActionLoading).forEach((key) => {
+    delete lessonCoverageActionLoading[key]
+  })
+  stopLessonCoveragePolling()
+}
+
+function pruneCoverageStates() {
+  const activeIds = new Set(textbooks.value.map((item) => Number(item.id)))
+  Object.keys(coverageStates).forEach((key) => {
+    const numericId = Number(key)
+    if (!activeIds.has(numericId)) {
+      delete coverageStates[numericId]
+    }
+  })
+  Object.keys(coverageActionLoading).forEach((key) => {
+    const numericId = Number(key)
+    if (!activeIds.has(numericId)) {
+      delete coverageActionLoading[numericId]
+    }
+  })
+  if (!hasRunningCoverageTasks()) {
+    stopCoveragePolling()
+  }
+}
+
+function pruneLessonCoverageStates() {
+  const activeIds = new Set(lessons.value.map((item) => Number(item.id)))
+  Object.keys(lessonCoverageStates).forEach((key) => {
+    const numericId = Number(key)
+    if (!activeIds.has(numericId)) {
+      delete lessonCoverageStates[numericId]
+    }
+  })
+  Object.keys(lessonCoverageActionLoading).forEach((key) => {
+    const numericId = Number(key)
+    if (!activeIds.has(numericId)) {
+      delete lessonCoverageActionLoading[numericId]
+    }
+  })
+  if (!hasRunningLessonCoverageTasks()) {
+    stopLessonCoveragePolling()
+  }
+}
+
+function hasRunningCoverageTasks() {
+  return Object.values(coverageStates).some((item) => item?.coverage_status === 'running')
+}
+
+function hasRunningLessonCoverageTasks() {
+  return Object.values(lessonCoverageStates).some((item) => item?.coverage_status === 'running')
+}
+
+function stopCoveragePolling() {
+  if (coveragePollTimer) {
+    clearTimeout(coveragePollTimer)
+    coveragePollTimer = null
+  }
+}
+
+function stopLessonCoveragePolling() {
+  if (lessonCoveragePollTimer) {
+    clearTimeout(lessonCoveragePollTimer)
+    lessonCoveragePollTimer = null
+  }
+}
+
+async function pollCoverageTasksOnce() {
+  const runningIds = textbooks.value
+    .map((item) => Number(item.id))
+    .filter((id) => coverageStates[id]?.coverage_status === 'running')
+
+  if (!runningIds.length) {
+    stopCoveragePolling()
+    return
+  }
+
+  const results = await Promise.allSettled(
+    runningIds.map((id) => apiRequest(`/course-materials/textbooks/${id}/question-coverage/supplement`))
+  )
+
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      applyCoverageRow(result.value?.row || {})
+      if ((result.value?.row?.coverage_status || '') !== 'running') {
+        delete coverageActionLoading[runningIds[index]]
+      }
+      return
+    }
+
+    const error = result.reason
+    if (error instanceof ApiError && error.status === 401) {
+      showToast('登录已过期', 'error')
+      logout()
+      router.push({ name: 'Login', query: { error: 'expired' } })
+      return
+    }
+  })
+
+  if (hasRunningCoverageTasks()) {
+    scheduleCoveragePolling()
+  } else {
+    stopCoveragePolling()
+  }
+}
+
+async function pollLessonCoverageTasksOnce() {
+  const runningIds = lessons.value
+    .map((item) => Number(item.id))
+    .filter((id) => lessonCoverageStates[id]?.coverage_status === 'running')
+
+  if (!runningIds.length) {
+    stopLessonCoveragePolling()
+    return
+  }
+
+  const results = await Promise.allSettled(
+    runningIds.map((id) => apiRequest(`/course-materials/lessons/${id}/question-coverage/supplement`))
+  )
+
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      applyLessonCoverageRow(result.value?.row || {})
+      if ((result.value?.row?.coverage_status || '') !== 'running') {
+        delete lessonCoverageActionLoading[runningIds[index]]
+      }
+      return
+    }
+
+    const error = result.reason
+    if (error instanceof ApiError && error.status === 401) {
+      showToast('登录已过期', 'error')
+      logout()
+      router.push({ name: 'Login', query: { error: 'expired' } })
+    }
+  })
+
+  if (hasRunningLessonCoverageTasks()) {
+    scheduleLessonCoveragePolling()
+  } else {
+    stopLessonCoveragePolling()
+  }
+}
+
+function scheduleCoveragePolling() {
+  stopCoveragePolling()
+  coveragePollTimer = setTimeout(() => {
+    pollCoverageTasksOnce()
+  }, COVERAGE_POLL_INTERVAL_MS)
+}
+
+function scheduleLessonCoveragePolling() {
+  stopLessonCoveragePolling()
+  lessonCoveragePollTimer = setTimeout(() => {
+    pollLessonCoverageTasksOnce()
+  }, COVERAGE_POLL_INTERVAL_MS)
 }
 
 function canManageTextbook(textbook) {
@@ -499,6 +909,43 @@ function canManageTextbook(textbook) {
   const uploaderId = Number(textbook.uploader_id || 0)
   const actorId = Number(currentAdminId.value || 0)
   return uploaderId > 0 && actorId > 0 && uploaderId === actorId
+}
+
+function getTextbookPublishStatus(textbook) {
+  return normalizeTextbookPublishStatus(textbook?.publish_status, textbook?.is_published)
+}
+
+function getTextbookPublishLabel(textbook) {
+  const status = getTextbookPublishStatus(textbook)
+  if (status === TEXTBOOK_PUBLISH_PUBLISHED) return '已发布'
+  if (status === TEXTBOOK_PUBLISH_PENDING_REVIEW) return '等待审核'
+  return '草稿'
+}
+
+function getTextbookPublishTagClass(textbook) {
+  const status = getTextbookPublishStatus(textbook)
+  if (status === TEXTBOOK_PUBLISH_PUBLISHED) return 'success'
+  if (status === TEXTBOOK_PUBLISH_PENDING_REVIEW) return 'pending'
+  return 'warning'
+}
+
+function getTextbookPublishAction(textbook) {
+  const status = getTextbookPublishStatus(textbook)
+  if (status === TEXTBOOK_PUBLISH_PUBLISHED) return 'unpublish'
+  if (status === TEXTBOOK_PUBLISH_PENDING_REVIEW) {
+    return isPowerAdmin.value ? 'approve' : 'unpublish'
+  }
+  return isPowerAdmin.value ? 'publish' : 'submit'
+}
+
+function getTextbookPublishActionLabel(textbook) {
+  if (!canManageTextbook(textbook)) return ''
+  const action = getTextbookPublishAction(textbook)
+  if (action === 'submit') return '提交教材'
+  if (action === 'approve') return '确认发布'
+  if (action === 'publish') return '发布教材'
+  if (action === 'unpublish') return '取消发布'
+  return ''
 }
 
 function showTextbookManageForbiddenToast() {
@@ -578,6 +1025,14 @@ function formatDateTime(value) {
   })
 }
 
+function formatDateTimeMultiline(value) {
+  const formatted = formatDateTime(value)
+  if (!formatted || formatted === '-') return formatted
+  const parts = String(formatted).split(' ')
+  if (parts.length < 2) return formatted
+  return `${parts[0]}\n${parts.slice(1).join(' ')}`
+}
+
 async function loadCourseMaterialOptions() {
   try {
     const data = await apiRequest('/course-materials/options')
@@ -607,12 +1062,170 @@ async function refreshTextbooks() {
       }
     }
     ensureUploaderNames(textbooks.value)
+    pruneCoverageStates()
+    if (isPowerAdmin.value && !activeTextbook.value) {
+      loadCachedTextbookCoverage()
+    }
   } catch (error) {
     pageError.value = error instanceof ApiError ? error.message : '加载教材失败'
     handleApiError(error, '加载教材失败')
   } finally {
     loadingTextbooks.value = false
   }
+}
+
+async function loadCachedTextbookCoverage() {
+  if (!isPowerAdmin.value) return
+  try {
+    const data = await apiRequest('/course-materials/textbooks/question-coverage/cache')
+    applyCoverageRows(data?.rows || [], { clearExisting: true })
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+      return
+    }
+  }
+}
+
+async function checkTextbookCoverage() {
+  if (!isPowerAdmin.value || activeTextbook.value) return
+  coverageCheckLoading.value = true
+  try {
+    const data = await apiRequest('/course-materials/textbooks/question-coverage/check')
+    applyCoverageRows(data?.rows || [], { clearExisting: true })
+    showToast('教材题量检查已完成', 'success')
+  } catch (error) {
+    handleApiError(error, '检查教材题量失败')
+  } finally {
+    coverageCheckLoading.value = false
+  }
+}
+
+async function loadCachedLessonCoverage() {
+  if (!isPowerAdmin.value || !activeTextbook.value?.id) return
+  try {
+    const data = await apiRequest(`/course-materials/textbooks/${activeTextbook.value.id}/lessons/question-coverage/cache`)
+    applyLessonCoverageRows(data?.rows || [], { clearExisting: true })
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+      return
+    }
+  }
+}
+
+async function checkLessonCoverage() {
+  if (!isPowerAdmin.value || !activeTextbook.value?.id) return
+  lessonCoverageCheckLoading.value = true
+  try {
+    const data = await apiRequest(`/course-materials/textbooks/${activeTextbook.value.id}/lessons/question-coverage/check`)
+    applyLessonCoverageRows(data?.rows || [], { clearExisting: true })
+    showToast('课程题量检查已完成', 'success')
+  } catch (error) {
+    handleApiError(error, '检查课程题量失败')
+  } finally {
+    lessonCoverageCheckLoading.value = false
+  }
+}
+
+async function performStartCoverageSupplement(item) {
+  if (!isPowerAdmin.value) return
+  coverageActionLoading[item.id] = true
+  try {
+    const data = await apiRequest(`/course-materials/textbooks/${item.id}/question-coverage/supplement`, {
+      method: 'POST'
+    })
+    applyCoverageRow(data?.row || {})
+    scheduleCoveragePolling()
+    showToast(`已开始补充教材「${item.name}」的题目`, 'success')
+  } catch (error) {
+    handleApiError(error, '启动补题失败')
+  } finally {
+    coverageActionLoading[item.id] = false
+  }
+}
+
+async function performStartLessonCoverageSupplement(lesson) {
+  if (!isPowerAdmin.value) return
+  lessonCoverageActionLoading[lesson.id] = true
+  try {
+    const data = await apiRequest(`/course-materials/lessons/${lesson.id}/question-coverage/supplement`, {
+      method: 'POST'
+    })
+    applyLessonCoverageRow(data?.row || {})
+    scheduleLessonCoveragePolling()
+    showToast(`已开始补充课程「${lesson.title}」的题目`, 'success')
+  } catch (error) {
+    handleApiError(error, '启动课程补题失败')
+  } finally {
+    lessonCoverageActionLoading[lesson.id] = false
+  }
+}
+
+function startCoverageSupplement(item) {
+  if (!isPowerAdmin.value) return
+  openConfirmDialog({
+    title: '确定要开始补充吗？',
+    message: '题目由AI生成，请核实相关信息。',
+    confirmText: '开始',
+    onConfirm: async () => {
+      await performStartCoverageSupplement(item)
+    }
+  })
+}
+
+function startLessonCoverageSupplement(lesson) {
+  if (!isPowerAdmin.value) return
+  openConfirmDialog({
+    title: '确定要开始补充吗？',
+    message: '题目由AI生成，请核实相关信息。',
+    confirmText: '开始',
+    onConfirm: async () => {
+      await performStartLessonCoverageSupplement(lesson)
+    }
+  })
+}
+
+function confirmCancelCoverageSupplement(item) {
+  openConfirmDialog({
+    title: '确认取消生成',
+    message: `即将取消教材「${item.name}」的自动补题。`,
+    hint: '已成功生成的题目会保留，未完成部分将停止继续生成。',
+    confirmText: '确定',
+    onConfirm: async () => {
+      coverageActionLoading[item.id] = true
+      try {
+        const data = await apiRequest(`/course-materials/textbooks/${item.id}/question-coverage/supplement`, {
+          method: 'DELETE'
+        })
+        applyCoverageRow(data?.row || {})
+        scheduleCoveragePolling()
+        showToast('补题任务正在取消', 'success')
+      } finally {
+        coverageActionLoading[item.id] = false
+      }
+    }
+  })
+}
+
+function confirmCancelLessonCoverageSupplement(lesson) {
+  openConfirmDialog({
+    title: '确认取消生成',
+    message: `即将取消课程「${lesson.title}」的自动补题。`,
+    hint: '已成功生成的题目会保留，未完成部分将停止继续生成。',
+    confirmText: '确定',
+    onConfirm: async () => {
+      lessonCoverageActionLoading[lesson.id] = true
+      try {
+        const data = await apiRequest(`/course-materials/lessons/${lesson.id}/question-coverage/supplement`, {
+          method: 'DELETE'
+        })
+        applyLessonCoverageRow(data?.row || {})
+        scheduleLessonCoveragePolling()
+        showToast('课程补题任务正在取消', 'success')
+      } finally {
+        lessonCoverageActionLoading[lesson.id] = false
+      }
+    }
+  })
 }
 
 async function loadLessons() {
@@ -631,6 +1244,10 @@ async function loadLessons() {
     lessons.value = Array.isArray(data?.rows)
       ? data.rows.map((item) => normalizeLessonRow(item))
       : []
+    pruneLessonCoverageStates()
+    if (isPowerAdmin.value) {
+      loadCachedLessonCoverage()
+    }
   } catch (error) {
     pageError.value = error instanceof ApiError ? error.message : '加载课程失败'
     handleApiError(error, '加载课程失败')
@@ -641,6 +1258,7 @@ async function loadLessons() {
 
 function enterTextbook(textbook) {
   clearAllLessonTitleSaveTimers()
+  resetAllLessonCoverageStates()
   activeTextbook.value = normalizeTextbookRow(textbook)
   lessons.value = []
   loadLessons()
@@ -648,6 +1266,7 @@ function enterTextbook(textbook) {
 
 function backToTextbookList() {
   clearAllLessonTitleSaveTimers()
+  resetAllLessonCoverageStates()
   activeTextbook.value = null
   lessons.value = []
   pageError.value = ''
@@ -691,25 +1310,53 @@ async function togglePublished(item) {
     showTextbookManageForbiddenToast()
     return
   }
-  const isCancelPublish = Boolean(item.is_published)
+  const publishStatus = getTextbookPublishStatus(item)
+  const action = getTextbookPublishAction(item)
+  let title = '确认发布教材'
+  let message = ''
+  let hint = ''
+  let successMessage = '教材状态已更新'
+
+  if (action === 'submit') {
+    title = '提交教材'
+    message = '教材内容经过超级管理员审核后，即可向全体用户发布，请确保教材内容合法。'
+    successMessage = '教材已提交审核'
+  } else if (action === 'approve') {
+    title = '确认发布教材'
+    message = '确认后教材即向全体用户发布，请确保教材内容合法。'
+    successMessage = '教材已发布'
+  } else if (action === 'publish') {
+    title = '确认发布教材'
+    message = '请确保课程练习内容完整。发布后仍可以对课程内容进行修改。'
+    successMessage = '教材已发布'
+  } else if (action === 'unpublish') {
+    title = '确认取消发布'
+    message = publishStatus === TEXTBOOK_PUBLISH_PENDING_REVIEW
+      ? '取消后教材将退出审核流程。已设置的课程内容不会删除。'
+      : '取消后用户将无法将该教材添加至课程练习。已设置的课程内容不会删除。'
+    if (isAdmin.value) {
+      hint = '取消后需重新经过审核才能再次发布。'
+    }
+    successMessage = '教材已改为草稿'
+  } else {
+    return
+  }
+
   openConfirmDialog({
-    title: isCancelPublish ? '确认取消发布' : '确认发布教材',
-    message: isCancelPublish
-      ? '取消后用户将无法将该教材添加至课程练习。已设置的课程内容不会删除。'
-      : '请确保课程练习内容完整。发布后仍可以对课程内容进行修改。',
-    hint: '',
+    title,
+    message,
+    hint,
     confirmText: '确定',
     onConfirm: async () => {
       publishLoading[item.id] = true
       try {
         const data = await apiRequest(`/course-materials/textbooks/${item.id}/publish`, {
           method: 'PUT',
-          body: { isPublished: !item.is_published }
+          body: { action }
         })
         const updated = normalizeTextbookRow({
           ...item,
-          ...(data?.row || {}),
-          is_published: data?.row?.is_published ?? !item.is_published
+          ...(data?.row || {})
         })
         const index = textbooks.value.findIndex((row) => row.id === item.id)
         if (index > -1) {
@@ -718,7 +1365,7 @@ async function togglePublished(item) {
         if (activeTextbook.value?.id === item.id) {
           activeTextbook.value = { ...activeTextbook.value, ...updated }
         }
-        showToast(updated.is_published ? '教材已发布' : '教材已改为草稿', 'success')
+        showToast(successMessage, 'success')
       } finally {
         publishLoading[item.id] = false
       }
@@ -770,6 +1417,7 @@ function confirmDeleteTextbook(item) {
       deleteLoading[item.id] = true
       try {
         await apiRequest(`/course-materials/textbooks/${item.id}`, { method: 'DELETE' })
+        resetCoverageStateForTextbook(item.id)
         showToast('教材已删除', 'success')
         if (activeTextbook.value?.id === item.id) {
           backToTextbookList()
@@ -793,6 +1441,8 @@ async function addLesson() {
     await apiRequest(`/course-materials/textbooks/${activeTextbook.value.id}/lessons`, {
       method: 'POST'
     })
+    resetCoverageStateForTextbook(activeTextbook.value.id)
+    resetAllLessonCoverageStates()
     showToast('课程已添加', 'success')
     await Promise.all([loadLessons(), refreshTextbooks()])
   } catch (error) {
@@ -892,6 +1542,8 @@ function confirmDeleteLesson(lesson) {
       deleteLoading[lesson.id] = true
       try {
         await apiRequest(`/course-materials/lessons/${lesson.id}`, { method: 'DELETE' })
+        resetCoverageStateForTextbook(activeTextbook.value?.id)
+        resetAllLessonCoverageStates()
         showToast('课程已删除', 'success')
         await Promise.all([loadLessons(), refreshTextbooks()])
       } finally {
@@ -1009,6 +1661,8 @@ async function saveLessonWords() {
         verbIds: wordSelectedRows.value.map((item) => Number(item.id))
       }
     })
+    resetCoverageStateForTextbook(activeTextbook.value?.id)
+    resetLessonCoverageState(wordDialogLesson.value.id)
     showToast('课程单词已保存', 'success')
     closeWordDialog()
     await Promise.all([loadLessons(), refreshTextbooks()])
@@ -1119,6 +1773,8 @@ async function saveLessonTenses() {
         titleDraft: updated.title || lessons.value[index].titleDraft
       }
     }
+    resetCoverageStateForTextbook(activeTextbook.value?.id)
+    resetLessonCoverageState(tenseDialogLesson.value?.id)
     showToast('课程时态已保存', 'success')
     closeTenseDialog()
     await refreshTextbooks()
@@ -1146,6 +1802,8 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   clearAllLessonTitleSaveTimers()
+  stopCoveragePolling()
+  stopLessonCoveragePolling()
 })
 </script>
 
@@ -1176,8 +1834,22 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .course-materials-page :deep(td.actions) {
+  display: table-cell;
+}
+
+.course-materials-page :deep(td.actions .actions-group) {
+  display: flex;
   justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
 }
 
 .course-materials-page :deep(th.col-actions) {
@@ -1217,8 +1889,77 @@ onBeforeUnmount(() => {
   border-color: rgba(133, 94, 44, 0.2);
 }
 
+.tag.pending {
+  background: rgba(181, 112, 18, 0.14);
+  color: #8c5611;
+  border-color: rgba(181, 112, 18, 0.2);
+}
+
 .publish-btn {
   padding: 6px 10px;
+}
+
+.coverage-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.coverage-progress,
+.coverage-placeholder {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.coverage-action-btn {
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.multiline-datetime {
+  white-space: pre-line;
+  line-height: 1.45;
+}
+
+.power-coverage-table .col-id {
+  width: 60px;
+}
+
+.power-coverage-table .col-name {
+  width: 160px;
+}
+
+.power-coverage-table .col-uploader {
+  width: 112px;
+}
+
+.power-coverage-table .col-lessons {
+  width: 86px;
+}
+
+.power-coverage-table .col-publish {
+  width: 188px;
+}
+
+.power-coverage-table .col-updated {
+  width: 118px;
+}
+
+.power-coverage-table .col-coverage {
+  width: 170px;
+}
+
+.course-materials-page :deep(.power-coverage-table th.col-actions .col-actions-label) {
+  min-width: 118px;
+}
+
+.lesson-coverage-table .lesson-col-coverage {
+  width: 168px;
+}
+
+.course-materials-page :deep(.lesson-coverage-table th.lesson-col-actions .lesson-col-actions-label) {
+  min-width: 224px;
 }
 
 .lesson-title-cell {

@@ -128,7 +128,7 @@
             <span v-if="formErrors.username" class="field-error">{{ formErrors.username }}</span>
           </label>
           <label>
-            重置密码（可选）
+            重置密码
             <input v-model="form.password" type="password" />
             <span v-if="formErrors.password" class="field-error">{{ formErrors.password }}</span>
           </label>
@@ -278,7 +278,7 @@ const userTypeOptions = ['student', 'public', 'teacher'];
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
 const createRoleOptions = computed(() => {
   if (isDev.value) return ['user', 'admin', 'superadmin', 'dev'];
-  if (isSuperAdmin.value) return ['user', 'admin', 'superadmin'];
+  if (isSuperAdmin.value) return ['user', 'admin'];
   return ['user', 'admin'];
 });
 
@@ -302,11 +302,15 @@ const filteredUsers = computed(() => {
 
 const roleHelp = computed(() => {
   if (!activeUser.value) return '';
+  const currentUserId = state.user?.id;
   if (isSuperAdmin.value && (activeUser.value.role === 'dev' || activeUser.value.is_initial_dev)) {
     return 'superadmin 无法编辑 dev 用户';
   }
+  if (isSuperAdmin.value && activeUser.value.role === 'superadmin' && activeUser.value.id !== currentUserId) {
+    return 'superadmin 不能修改其他 superadmin';
+  }
   if (isSuperAdmin.value && activeUser.value.role === 'superadmin') {
-    return 'superadmin 不能降级 superadmin';
+    return 'superadmin 不能降级自己';
   }
   if (isAdmin.value && (activeUser.value.role === 'dev' || activeUser.value.is_initial_dev)) {
     return 'admin 无法编辑 dev 用户';
@@ -455,7 +459,11 @@ function typeTagClass(userType) {
 
 function canEdit(user) {
   if (!user) return false;
+  const currentUserId = state.user?.id;
   if ((isAdmin.value || isSuperAdmin.value) && (user.role === 'dev' || user.is_initial_dev)) {
+    return false;
+  }
+  if (isSuperAdmin.value && user.role === 'superadmin' && user.id !== currentUserId) {
     return false;
   }
   return true;
@@ -463,8 +471,12 @@ function canEdit(user) {
 
 function editDisabledReason(user) {
   if (!user) return '';
+  const currentUserId = state.user?.id;
   if (isSuperAdmin.value && (user.role === 'dev' || user.is_initial_dev)) {
     return 'superadmin 不能修改 dev 用户';
+  }
+  if (isSuperAdmin.value && user.role === 'superadmin' && user.id !== currentUserId) {
+    return 'superadmin 不能修改其他 superadmin';
   }
   if (isAdmin.value && (user.role === 'dev' || user.is_initial_dev)) {
     return 'admin 不能修改 dev 用户';
@@ -494,11 +506,15 @@ function canEditRole(user) {
 
 function roleDisabledReason(user) {
   if (!user) return '';
+  const currentUserId = state.user?.id;
   if (isSuperAdmin.value && (user.role === 'dev' || user.is_initial_dev)) {
     return 'superadmin 不能修改 dev 用户';
   }
+  if (isSuperAdmin.value && user.role === 'superadmin' && user.id !== currentUserId) {
+    return 'superadmin 不能修改其他 superadmin';
+  }
   if (isSuperAdmin.value && user.role === 'superadmin') {
-    return 'superadmin 不能降级 superadmin';
+    return 'superadmin 不能降级自己';
   }
   if (isAdmin.value && (user.role === 'dev' || user.is_initial_dev)) {
     return 'admin 不能修改 dev 用户';
@@ -538,7 +554,7 @@ function deleteDisabledReason(user) {
 function roleOptions(user) {
   if (!user) {
     if (isDev.value) return ['user', 'admin', 'superadmin', 'dev'];
-    if (isSuperAdmin.value) return ['user', 'admin', 'superadmin'];
+    if (isSuperAdmin.value) return ['user', 'admin'];
     return ['user', 'admin'];
   }
   if (isDev.value) {
@@ -548,7 +564,7 @@ function roleOptions(user) {
   if (isSuperAdmin.value) {
     if (user.role === 'dev' || user.is_initial_dev) return ['dev'];
     if (user.role === 'superadmin') return ['superadmin'];
-    return ['superadmin', 'admin', 'user'];
+    return ['admin', 'user'];
   }
   if (isAdmin.value) {
     if (user.role === 'superadmin') return ['superadmin'];
