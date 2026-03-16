@@ -2229,7 +2229,10 @@ router.post('/course-materials/textbooks', requireAdmin, (req, res) => {
   recordHistoryFromRequest(req, 'textbook', {
     history_type: 'textbook',
     target_id: Number(result.lastInsertRowid),
-    action_type: 'create_textbook'
+    action_type: 'create_textbook',
+    after_data: {
+      name: row?.name || name
+    }
   })
   res.status(201).json({
     row: serializeCourseTextbook({ ...row, lesson_count: 0 })
@@ -2312,7 +2315,10 @@ router.put('/course-materials/textbooks/:id/publish', requireAdmin, (req, res) =
   recordHistoryFromRequest(req, 'textbook', {
     history_type: 'textbook',
     target_id: textbookId,
-    action_type: historyActionTypeMap[action] || 'update_textbook'
+    action_type: historyActionTypeMap[action] || 'update_textbook',
+    after_data: {
+      name: updated?.name || textbook?.name || null
+    }
   })
   res.json({
     success: true,
@@ -2852,10 +2858,14 @@ router.post('/verbs', requireAdmin, (req, res) => {
 
   try {
     const id = createVerbWithConjugations(data, conjugations)
+    const createdVerb = VerbAdmin.findById(id)
     recordHistoryFromRequest(req, 'lexicon', {
       history_type: 'lexicon',
       target_id: Number(id),
-      action_type: 'create_verb'
+      action_type: 'create_verb',
+      after_data: {
+        infinitive: createdVerb?.infinitive || data.infinitive
+      }
     })
     res.status(201).json({ id })
   } catch (error) {

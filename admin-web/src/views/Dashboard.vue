@@ -331,8 +331,14 @@ const FIELD_LABELS = {
   username: '用户名',
   email: '邮箱',
   password: '密码（已修改）',
+  school: '学校',
+  enrollment_year: '入学年份',
   role: '角色',
   user_type: '类型',
+  subscription_end_date: '订阅截止时间',
+  participate_in_leaderboard: '参与排行榜',
+  is_initial_admin: '初始管理员',
+  is_initial_dev: '初始开发者',
   id: 'ID',
   infinitive: '动词原形',
   meaning: '释义',
@@ -355,6 +361,7 @@ const FIELD_LABELS = {
   mood: '语气',
   person: '人称',
   conjugated_form: '变位',
+  question_bank: '题目类型',
   question_text: '题干',
   correct_answer: '答案',
   example_sentence: '例句',
@@ -368,6 +375,10 @@ const FIELD_LABELS = {
   do_pronoun: 'DO 代词',
   textbook: '教材内容',
   lessons: '课程内容',
+  lesson: '课程内容',
+  verb: '动词详情',
+  verbs: '动词列表',
+  conjugations: '变位信息',
   verb_ids: '动词ID列表',
   name: '教材名',
   description: '描述',
@@ -385,6 +396,19 @@ const FIELD_LABELS = {
   tenses: '时态列表',
   conjugation_types: '变位类型列表'
 };
+
+const HIDDEN_DETAIL_FIELDS = new Set([
+  'password',
+  'avatar',
+  'is_initial_admin',
+  'is_initial_dev',
+  'unique_id',
+  'participate_in_leaderboard',
+  'example_sentence',
+  'question_type',
+  'question_source',
+  'public_question_source'
+]);
 
 function formatHistoryType(value) {
   if (!value) return '-';
@@ -404,18 +428,41 @@ function isComplexValue(value) {
   return Array.isArray(value) || (value && typeof value === 'object');
 }
 
+function localizeDetailValue(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => localizeDetailValue(item));
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.entries(value).reduce((acc, [key, nestedValue]) => {
+      if (HIDDEN_DETAIL_FIELDS.has(key)) {
+        return acc;
+      }
+      acc[formatFieldLabel(key)] = localizeDetailValue(nestedValue);
+      return acc;
+    }, {});
+  }
+
+  if (typeof value === 'boolean') {
+    return value ? '是' : '否';
+  }
+
+  return value;
+}
+
 function formatFieldDisplay(key, value) {
   if (key === 'password') return '已隐藏';
+  if (key === 'avatar') return null;
   if (value === null || value === undefined || value === '') return '-';
   if (typeof value === 'boolean') return value ? '是' : '否';
-  if (isComplexValue(value)) return JSON.stringify(value, null, 2);
+  if (isComplexValue(value)) return JSON.stringify(localizeDetailValue(value), null, 2);
   return String(value);
 }
 
 function buildDetailEntries(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return [];
   return Object.entries(payload)
-    .filter(([key]) => key !== 'password')
+    .filter(([key]) => !HIDDEN_DETAIL_FIELDS.has(key))
     .map(([key, value]) => ({
       key,
       label: formatFieldLabel(key),
@@ -445,7 +492,7 @@ const detailSections = computed(() => {
   if (detailItem.value?.after_data) {
     sections.push({
       key: 'after',
-      title: '修改后',
+      title: '修改内容',
       entries: buildDetailEntries(detailItem.value.after_data)
     });
   }
