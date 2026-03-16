@@ -58,11 +58,17 @@
       <div class="management-header history-panel-header">
         <h3 class="history-panel-title">管理历史</h3>
         <div class="history-header-side">
-          <span class="muted history-record-total">共 {{ mergedHistory.length }} 条记录</span>
-          <div class="pagination inline-pagination compact-pagination" v-if="mergedHistory.length > pageSize">
+          <button v-if="isDev" class="danger" :disabled="historyLoading || batchDeleting" @click="openBatchDeleteDialog">
+            {{ batchDeleting ? '删除中...' : '删除 30 天前历史' }}
+          </button>
+          <button class="ghost" :disabled="historyLoading" @click="refreshHistory">
+            {{ historyLoading ? '刷新中...' : '刷新' }}
+          </button>
+          <span class="muted history-record-total">共 {{ historyTotal }} 条记录</span>
+          <div class="pagination inline-pagination compact-pagination" v-if="historyTotal > pageSize">
             <button
               class="ghost"
-              :disabled="page === 1"
+              :disabled="page === 1 || historyLoading"
               @click="changePage(page - 1)"
             >
               ←
@@ -70,7 +76,7 @@
             <span>第 {{ page }} / {{ totalPages }} 页</span>
             <button
               class="ghost"
-              :disabled="page === totalPages"
+              :disabled="page === totalPages || historyLoading"
               @click="changePage(page + 1)"
             >
               →
@@ -80,45 +86,60 @@
       </div>
 
       <div class="management-page-body">
-        <div class="management-table-scroll history-table-shell">
+        <div v-if="historyError" class="error-block">
+          <p class="error">{{ historyError }}</p>
+          <button class="ghost" @click="refreshHistory">重试</button>
+        </div>
+        <div v-else-if="historyLoading" class="loading">加载中...</div>
+        <div v-else class="management-table-scroll history-table-shell">
           <table class="table history-table">
             <colgroup>
-              <col style="width: 22%" />
-              <col style="width: 22%" />
-              <col style="width: 16%" />
+              <col style="width: 21%" />
               <col style="width: 24%" />
-              <col style="width: 16%" />
+              <col style="width: 14%" />
+              <col style="width: 23%" />
+              <col style="width: 18%" />
             </colgroup>
             <thead>
               <tr>
                 <th>修改人</th>
-                <th>管理历史类型</th>
+                <th>操作类型</th>
                 <th>目标ID</th>
                 <th>修改时间</th>
                 <th class="history-actions-header">操作</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in pagedItems" :key="item.id" class="history-row">
+              <tr v-for="item in historyRows" :key="`${item.record_source}-${item.id}`" class="history-row">
                 <td class="history-cell">
-                  <span class="ellipsis" :title="item.username">{{ item.username }}</span>
+                  <span class="ellipsis" :title="item.operator_username">{{ item.operator_username }}</span>
                 </td>
                 <td class="history-cell">
-                  <span class="ellipsis" :title="item.historyType">{{ item.historyType }}</span>
+                  <span class="ellipsis" :title="formatActionType(item.action_type)">{{ formatActionType(item.action_type) }}</span>
                 </td>
                 <td class="history-cell">
-                  <span class="ellipsis" :title="String(item.targetId)">{{ item.targetId }}</span>
+                  <span class="ellipsis" :title="String(item.target_id)">{{ item.target_id }}</span>
                 </td>
                 <td class="history-cell">
-                  <span class="ellipsis" :title="formatDate(item.modifiedAt)">
-                    {{ formatDateDay(item.modifiedAt) }}
+                  <span class="ellipsis" :title="formatDate(item.modified_at)">
+                    {{ formatDate(item.modified_at) }}
                   </span>
                 </td>
                 <td class="history-actions-cell">
-                  <button class="ghost" @click="openDetail(item)">详情</button>
+                  <div class="history-actions-group">
+                    <button class="ghost" @click="openDetail(item)">详情</button>
+                    <button
+                      v-if="isDev"
+                      class="danger"
+                      :disabled="deletingHistory"
+                      @click="openDeleteDialog(item)"
+                    >
+                      删除
+                    </button>
+                  </div>
                 </td>
               </tr>
-              <tr v-if="!pagedItems.length">
+              <tr v-if="!historyRows.length">
                 <td colspan="5" class="empty">暂无记录</td>
               </tr>
             </tbody>
@@ -133,31 +154,102 @@
           <h3>{{ detailTitle }}</h3>
           <button class="ghost" @click="closeDetail">关闭</button>
         </div>
-        <div class="detail-grid">
-          <div class="detail-item">
-            <span class="detail-label">修改人</span>
-            <span class="detail-value">{{ detailItem?.username || '-' }}</span>
+        <div v-if="detailLoading" class="loading history-detail-loading">加载中...</div>
+        <div v-else-if="detailError" class="error-block history-detail-error">
+          <p class="error">{{ detailError }}</p>
+          <button class="ghost" @click="closeDetail">关闭</button>
+        </div>
+        <div v-else class="history-detail-scroll">
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-label">修改人</span>
+              <span class="detail-value">{{ detailItem?.operator_username || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">修改人角色</span>
+              <span class="detail-value">{{ detailItem?.operator_role || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">管理历史类型</span>
+              <span class="detail-value">{{ formatHistoryType(detailItem?.history_type) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">目标ID</span>
+              <span class="detail-value">{{ detailItem?.target_id ?? '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">操作类型</span>
+              <span class="detail-value">{{ formatActionType(detailItem?.action_type) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">修改时间</span>
+              <span class="detail-value">{{ formatDate(detailItem?.modified_at) }}</span>
+            </div>
           </div>
-          <div class="detail-item">
-            <span class="detail-label">管理历史类型</span>
-            <span class="detail-value">{{ detailItem?.historyType || '-' }}</span>
+
+          <section v-if="detailChangedFields.length" class="detail-section">
+            <h4 class="detail-section-title">变更字段</h4>
+            <div class="detail-chip-list">
+              <span v-for="item in detailChangedFields" :key="item.key" class="detail-chip">
+                {{ item.label }}
+              </span>
+            </div>
+          </section>
+
+          <section
+            v-for="section in detailSections"
+            :key="section.key"
+            class="detail-section"
+          >
+            <h4 class="detail-section-title">{{ section.title }}</h4>
+            <div class="detail-payload-grid">
+              <div
+                v-for="entry in section.entries"
+                :key="`${section.key}-${entry.key}`"
+                class="detail-payload-item"
+              >
+                <span class="detail-label">{{ entry.label }}</span>
+                <pre v-if="entry.isComplex" class="detail-json">{{ entry.display }}</pre>
+                <span v-else class="detail-value">{{ entry.display }}</span>
+              </div>
+            </div>
+          </section>
+
+          <div v-if="!detailSections.length && !detailChangedFields.length" class="empty history-detail-empty">
+            暂无更多详情
           </div>
-          <div class="detail-item">
-            <span class="detail-label">{{ detailTargetLabel }}</span>
-            <span class="detail-value">{{ detailItem?.targetId || '-' }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">修改时间</span>
-            <span class="detail-value">{{ formatDate(detailItem?.modifiedAt) }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">操作类型</span>
-            <span class="detail-value">{{ detailItem?.action || '-' }}</span>
-          </div>
-          <div class="detail-item detail-span">
-            <span class="detail-label">操作说明</span>
-            <span class="detail-value muted">{{ detailItem?.description || '暂无更多信息' }}</span>
-          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="deleteDialog" class="overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>确认删除历史</h3>
+          <button class="ghost" @click="closeDeleteDialog">关闭</button>
+        </div>
+        <p>
+          即将删除历史记录：<strong>{{ formatHistoryType(deleteDialog.history_type) }}</strong>（ID: {{ deleteDialog.id }}）
+        </p>
+        <p class="muted">删除后不可恢复。</p>
+        <div class="modal-actions">
+          <button class="ghost" @click="closeDeleteDialog">取消</button>
+          <button class="danger" :disabled="deletingHistory" @click="submitDeleteHistory">确认删除</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="batchDeleteDialogOpen" class="overlay">
+      <div class="modal warning">
+        <div class="modal-header">
+          <h3>确认删除旧历史</h3>
+          <button class="ghost" @click="closeBatchDeleteDialog">关闭</button>
+        </div>
+        <p>将删除所有早于 30 天的管理历史记录。</p>
+        <p class="muted">此操作不可恢复，请确认无误。</p>
+        <div class="modal-actions">
+          <button class="ghost" @click="closeBatchDeleteDialog">取消</button>
+          <button class="danger" :disabled="batchDeleting" @click="submitDeleteOlderHistory">确认删除</button>
         </div>
       </div>
     </div>
@@ -170,133 +262,186 @@ import { useRouter } from 'vue-router';
 import { apiRequest } from '../utils/apiClient';
 import { useAuth } from '../composables/useAuth';
 
-const { state, isPowerAdmin, isAdmin } = useAuth();
+const { state, isPowerAdmin, isAdmin, isDev } = useAuth();
 const router = useRouter();
 
 const pageSize = 5;
-
-function buildHistory({ count, usernames, targetStart, actions, descriptions, prefix }) {
-  const now = Date.now();
-  return Array.from({ length: count }, (_, index) => ({
-    id: `${prefix}-${index + 1}`,
-    username: usernames[index % usernames.length],
-    targetId: targetStart + index,
-    modifiedAt: new Date(now - index * 60 * 60 * 1000).toISOString(),
-    action: actions[index % actions.length],
-    description: descriptions[index % descriptions.length]
-  }));
-}
-
-const userHistory = ref(
-  buildHistory({
-    count: 16,
-    prefix: 'user',
-    usernames: ['admin_zoe', 'dev_ming', 'admin_kai', 'ops_lina'],
-    targetStart: 1001,
-    actions: ['更新用户角色', '重置用户密码', '编辑用户资料', '禁用用户'],
-    descriptions: [
-      '角色由 user 调整为 admin',
-      '通过后台重置密码并触发通知',
-      '更新用户名与邮箱信息',
-      '因违规操作暂时禁用账号'
-    ]
-  })
-);
-
-const lexiconHistory = ref(
-  buildHistory({
-    count: 12,
-    prefix: 'lexicon',
-    usernames: ['admin_zoe', 'lexi_hao', 'dev_ming'],
-    targetStart: 3201,
-    actions: ['更新动词释义', '补充变位', '修正标签', '调整示例'],
-    descriptions: [
-      '补充新的中文释义与词性',
-      '新增虚拟式变位',
-      '修正时态标签与分类',
-      '替换更准确的例句'
-    ]
-  })
-);
-
-const questionHistory = ref(
-  buildHistory({
-    count: 14,
-    prefix: 'question',
-    usernames: ['admin_kai', 'dev_ming', 'qa_suri'],
-    targetStart: 8801,
-    actions: ['更新题干', '修正答案', '调整难度', '更新置信度'],
-    descriptions: [
-      '优化题干表述，使题目更清晰',
-      '修正正确答案与解析',
-      '根据反馈调整题目难度',
-      '依据答题数据更新置信度'
-    ]
-  })
-);
-
-const courseMaterialHistory = ref(
-  buildHistory({
-    count: 11,
-    prefix: 'course-material',
-    usernames: ['admin_zoe', 'dev_ming', 'editor_yan'],
-    targetStart: 501,
-    actions: ['更新教材信息', '调整课程排序', '补充教材说明', '修正课程标签'],
-    descriptions: [
-      '更新课程教材基础信息与展示文案',
-      '调整课程与教材的排序关系',
-      '补充教材说明与适用范围',
-      '修正课程教材标签与分类'
-    ]
-  })
-);
-
-const panels = computed(() => [
-  {
-    key: 'users',
-    title: '用户管理历史',
-    targetLabel: '用户ID',
-    items: userHistory.value
-  },
-  {
-    key: 'lexicon',
-    title: '词库管理历史',
-    targetLabel: '动词ID',
-    items: lexiconHistory.value
-  },
-  {
-    key: 'questions',
-    title: '题库管理历史',
-    targetLabel: '题目ID',
-    items: questionHistory.value
-  },
-  {
-    key: 'courseMaterials',
-    title: '课程教材管理历史',
-    targetLabel: '教材ID',
-    items: courseMaterialHistory.value
-  }
-]);
-
-const mergedHistory = computed(() =>
-  panels.value
-    .flatMap((panel) =>
-      panel.items.map((item) => ({
-        ...item,
-        panelKey: panel.key,
-        historyType: panel.title,
-        targetLabel: panel.targetLabel
-      }))
-    )
-    .sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime())
-);
 const page = ref(1);
+const historyRows = ref([]);
+const historyTotal = ref(0);
+const historyLoading = ref(false);
+const historyError = ref('');
 
 const detailOpen = ref(false);
 const detailItem = ref(null);
+const detailLoading = ref(false);
+const detailError = ref('');
 
-const detailTitle = computed(() => (detailItem.value?.historyType ? `${detailItem.value.historyType}详情` : '详情'));
-const detailTargetLabel = computed(() => detailItem.value?.targetLabel || '目标ID');
+const deleteDialog = ref(null);
+const deletingHistory = ref(false);
+const batchDeleteDialogOpen = ref(false);
+const batchDeleting = ref(false);
+
+const HISTORY_TYPE_LABELS = {
+  user: '用户(user)',
+  lexicon: '词库(lexicon)',
+  question_traditional: '题库(question_traditional)',
+  question_pronoun: '题库(question_pronoun)',
+  textbook: '教材(textbook)'
+};
+
+const ACTION_TYPE_LABELS = {
+  update_user: '编辑用户',
+  delete_user: '删除用户',
+  create_verb: '新建动词',
+  update_verb: '编辑动词',
+  delete_verb: '删除动词',
+  create_conjugation: '新增变位',
+  update_conjugation: '编辑变位',
+  delete_conjugation: '删除变位',
+  update_question: '编辑题目',
+  delete_question: '删除题目',
+  delete_question_auto: '系统自动删除题目',
+  create_textbook: '新建教材',
+  update_textbook: '编辑教材',
+  submit_textbook_publish: '提交发布教材',
+  approve_textbook_publish: '确认发布教材',
+  publish_textbook: '发布教材',
+  unpublish_textbook: '取消发布教材',
+  delete_textbook: '删除教材'
+};
+
+const FIELD_LABELS = {
+  username: '用户名',
+  email: '邮箱',
+  password: '密码（已修改）',
+  role: '角色',
+  user_type: '类型',
+  id: 'ID',
+  infinitive: '动词原形',
+  meaning: '释义',
+  conjugation_type: '变位类型',
+  is_irregular: '是否不规则',
+  is_reflexive: '是否自反',
+  has_tr_use: '及物用法',
+  has_intr_use: '不及物用法',
+  supports_do: '支持 DO',
+  supports_io: '支持 IO',
+  supports_do_io: '支持 DO+IO',
+  gerund: '副动词',
+  participle: '过去分词',
+  participle_forms: '过去分词其它形式',
+  lesson_number: '课次',
+  textbook_volume: '教材册数',
+  frequency_level: '频率等级',
+  verb_id: '动词ID',
+  tense: '时态',
+  mood: '语气',
+  person: '人称',
+  conjugated_form: '变位',
+  question_text: '题干',
+  correct_answer: '答案',
+  example_sentence: '例句',
+  translation: '翻译',
+  hint: '提示',
+  confidence_score: '置信度',
+  host_form: '变位形式',
+  host_form_zh: '变位形式中文',
+  pronoun_pattern: '代词模式',
+  io_pronoun: 'IO 代词',
+  do_pronoun: 'DO 代词',
+  textbook: '教材内容',
+  lessons: '课程内容',
+  verb_ids: '动词ID列表',
+  name: '教材名',
+  description: '描述',
+  cover_image: '封面',
+  is_published: '是否发布',
+  publish_status: '发布状态',
+  order_index: '排序',
+  uploader_id: '上传者ID',
+  created_at: '创建时间',
+  updated_at: '更新时间',
+  textbook_id: '教材ID',
+  title: '标题',
+  grammar_points: '语法点',
+  moods: '语气列表',
+  tenses: '时态列表',
+  conjugation_types: '变位类型列表'
+};
+
+function formatHistoryType(value) {
+  if (!value) return '-';
+  return HISTORY_TYPE_LABELS[value] || value;
+}
+
+function formatActionType(value) {
+  if (!value) return '-';
+  return ACTION_TYPE_LABELS[value] || value;
+}
+
+function formatFieldLabel(key) {
+  return FIELD_LABELS[key] || key;
+}
+
+function isComplexValue(value) {
+  return Array.isArray(value) || (value && typeof value === 'object');
+}
+
+function formatFieldDisplay(key, value) {
+  if (key === 'password') return '已隐藏';
+  if (value === null || value === undefined || value === '') return '-';
+  if (typeof value === 'boolean') return value ? '是' : '否';
+  if (isComplexValue(value)) return JSON.stringify(value, null, 2);
+  return String(value);
+}
+
+function buildDetailEntries(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return [];
+  return Object.entries(payload)
+    .filter(([key]) => key !== 'password')
+    .map(([key, value]) => ({
+      key,
+      label: formatFieldLabel(key),
+      display: formatFieldDisplay(key, value),
+      isComplex: isComplexValue(value)
+    }));
+}
+
+const totalPages = computed(() => Math.max(1, Math.ceil(historyTotal.value / pageSize)));
+const detailTitle = computed(() => (detailItem.value ? `${formatHistoryType(detailItem.value.history_type)}详情` : '详情'));
+const detailChangedFields = computed(() => {
+  const fields = Array.isArray(detailItem.value?.changed_fields) ? detailItem.value.changed_fields : [];
+  return fields.map((field) => ({
+    key: field,
+    label: field === 'password' ? '密码（已修改）' : formatFieldLabel(field)
+  }));
+});
+const detailSections = computed(() => {
+  const sections = [];
+  if (detailItem.value?.before_data) {
+    sections.push({
+      key: 'before',
+      title: '修改前',
+      entries: buildDetailEntries(detailItem.value.before_data)
+    });
+  }
+  if (detailItem.value?.after_data) {
+    sections.push({
+      key: 'after',
+      title: '修改后',
+      entries: buildDetailEntries(detailItem.value.after_data)
+    });
+  }
+  if (detailItem.value?.snapshot_data) {
+    sections.push({
+      key: 'snapshot',
+      title: '保留内容',
+      entries: buildDetailEntries(detailItem.value.snapshot_data)
+    });
+  }
+  return sections.filter((section) => section.entries.length);
+});
 const dashboardUserName = computed(() => state.user?.username || state.user?.email || '管理员');
 const dashboardUserSuffix = computed(() => (state.user?.user_type === 'teacher' ? '老师！' : '同学！'));
 const isTeacherUser = computed(() => state.user?.user_type === 'teacher');
@@ -323,16 +468,6 @@ const dashboardStatsCards = computed(() => [
   { key: 'questions', label: '题库总量', value: dashboardStats.questions, unit: '题', routeName: 'QuestionBank' },
   { key: 'textbooks', label: '录入教材', value: dashboardStats.textbooks, unit: '本', routeName: 'CourseMaterials' }
 ]);
-
-const totalPages = computed(() => Math.max(1, Math.ceil(mergedHistory.value.length / pageSize)));
-const pagedItems = computed(() => {
-  const start = (page.value - 1) * pageSize;
-  return mergedHistory.value.slice(start, start + pageSize);
-});
-
-function changePage(nextPage) {
-  page.value = Math.min(Math.max(nextPage, 1), totalPages.value);
-}
 
 function extractTotal(result) {
   if (result.status !== 'fulfilled') return null;
@@ -393,6 +528,53 @@ function goTo(routeName) {
   router.push({ name: routeName });
 }
 
+async function fetchHistory() {
+  if (!showHistory.value) return;
+
+  historyLoading.value = true;
+  historyError.value = '';
+
+  try {
+    const data = await apiRequest('/history', {
+      params: {
+        limit: pageSize,
+        offset: (page.value - 1) * pageSize
+      }
+    });
+
+    const nextRows = Array.isArray(data?.rows) ? data.rows : [];
+    const nextTotal = Number.isFinite(Number(data?.total)) ? Number(data.total) : 0;
+    const maxPage = Math.max(1, Math.ceil(nextTotal / pageSize));
+
+    if (page.value > maxPage) {
+      page.value = maxPage;
+      historyLoading.value = false;
+      await fetchHistory();
+      return;
+    }
+
+    historyRows.value = nextRows;
+    historyTotal.value = nextTotal;
+  } catch (error) {
+    historyRows.value = [];
+    historyTotal.value = 0;
+    historyError.value = error.message || '加载管理历史失败';
+  } finally {
+    historyLoading.value = false;
+  }
+}
+
+async function refreshHistory() {
+  await fetchHistory();
+}
+
+async function changePage(nextPage) {
+  const safePage = Math.min(Math.max(nextPage, 1), totalPages.value);
+  if (safePage === page.value) return;
+  page.value = safePage;
+  await fetchHistory();
+}
+
 async function adjustWelcomeTextSize() {
   if (!welcomeTextRef.value) return;
 
@@ -410,14 +592,26 @@ async function adjustWelcomeTextSize() {
   welcomeFontSize.value = Math.max(WELCOME_FONT_MIN, scaled);
 }
 
-function openDetail(item) {
-  detailItem.value = item;
+async function openDetail(item) {
   detailOpen.value = true;
+  detailLoading.value = true;
+  detailError.value = '';
+  detailItem.value = null;
+
+  try {
+    const data = await apiRequest(`/history/${item.record_source}/${item.id}`);
+    detailItem.value = data?.row || null;
+  } catch (error) {
+    detailError.value = error.message || '加载详情失败';
+  } finally {
+    detailLoading.value = false;
+  }
 }
 
 function closeDetail() {
   detailOpen.value = false;
   detailItem.value = null;
+  detailError.value = '';
 }
 
 function formatDate(value) {
@@ -435,18 +629,70 @@ function formatDate(value) {
       });
 }
 
-function formatDateDay(value) {
-  if (!value) return '-';
-  const date = new Date(String(value).replace(' ', 'T'));
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString([], {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  });
+function openDeleteDialog(item) {
+  deleteDialog.value = item;
+}
+
+function closeDeleteDialog() {
+  deleteDialog.value = null;
+}
+
+async function submitDeleteHistory() {
+  if (!deleteDialog.value) return;
+
+  deletingHistory.value = true;
+  try {
+    await apiRequest(`/history/${deleteDialog.value.record_source}/${deleteDialog.value.id}`, {
+      method: 'DELETE'
+    });
+    const deletedSource = deleteDialog.value.record_source;
+    const deletedId = deleteDialog.value.id;
+    closeDeleteDialog();
+    if (detailItem.value && detailItem.value.id === deletedId && detailItem.value.record_source === deletedSource) {
+      closeDetail();
+    }
+    if (page.value > 1 && historyRows.value.length === 1) {
+      page.value -= 1;
+    }
+    await fetchHistory();
+  } catch (error) {
+    if (typeof window !== 'undefined') {
+      window.alert(error.message || '删除管理历史失败');
+    }
+  } finally {
+    deletingHistory.value = false;
+  }
+}
+
+function openBatchDeleteDialog() {
+  batchDeleteDialogOpen.value = true;
+}
+
+function closeBatchDeleteDialog() {
+  batchDeleteDialogOpen.value = false;
+}
+
+async function submitDeleteOlderHistory() {
+  batchDeleting.value = true;
+  try {
+    await apiRequest('/history/delete-older-than', {
+      method: 'POST',
+      body: {
+        days: 30
+      }
+    });
+    closeBatchDeleteDialog();
+    if (page.value > 1 && historyRows.value.length === 0) {
+      page.value = 1;
+    }
+    await fetchHistory();
+  } catch (error) {
+    if (typeof window !== 'undefined') {
+      window.alert(error.message || '删除旧管理历史失败');
+    }
+  } finally {
+    batchDeleting.value = false;
+  }
 }
 
 const welcomeResizeObserver = ref(null);
@@ -455,6 +701,7 @@ onMounted(() => {
   adjustWelcomeTextSize();
   if (showHistory.value) {
     fetchDashboardStats();
+    fetchHistory();
   }
 
   if (typeof ResizeObserver !== 'undefined' && welcomeCardRef.value) {
@@ -735,17 +982,24 @@ onBeforeUnmount(() => {
 
 .history-actions-cell {
   text-align: center;
-  padding-left: 18px;
+  padding-left: 12px;
   padding-right: 0;
 }
 
 .history-actions-header {
   text-align: center;
-  padding-left: 18px;
+  padding-left: 12px;
   padding-right: 0;
 }
 
-.history-actions-cell .ghost {
+.history-actions-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.history-actions-group .ghost,
+.history-actions-group .danger {
   font-size: 12px;
   padding: 4px 8px;
   line-height: 1.1;
@@ -766,7 +1020,99 @@ onBeforeUnmount(() => {
 }
 
 .history-detail {
-  width: min(560px, 96vw);
+  width: min(900px, calc(100vw - 48px));
+  height: min(720px, calc(100vh - 48px));
+  display: flex;
+  flex-direction: column;
+}
+
+.history-detail-loading,
+.history-detail-error,
+.history-detail-empty {
+  margin: auto 0;
+}
+
+.history-detail-scroll {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-right: 4px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detail-item,
+.detail-payload-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.detail-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.detail-value {
+  color: var(--text-main);
+  word-break: break-word;
+}
+
+.detail-section {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detail-section-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--theme-red-dark);
+}
+
+.detail-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detail-chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(139, 0, 18, 0.08);
+  color: var(--theme-red-dark);
+  font-size: 12px;
+}
+
+.detail-payload-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detail-json {
+  margin: 0;
+  padding: 10px;
+  border-radius: 10px;
+  background: #fff7f5;
+  border: 1px solid rgba(139, 0, 18, 0.12);
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 @media (max-width: 960px) {
@@ -786,6 +1132,16 @@ onBeforeUnmount(() => {
     width: 100%;
     margin-left: 0;
     justify-content: space-between;
+  }
+
+  .detail-grid,
+  .detail-payload-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-actions-group {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
 </style>

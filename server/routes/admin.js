@@ -18,6 +18,7 @@ const QuestionBank = require('../models/QuestionBank')
 const Feedback = require('../models/Feedback')
 const QuestionFeedback = require('../models/QuestionFeedback')
 const AdminLog = require('../models/AdminLog')
+const AdminHistory = require('../models/AdminHistory')
 const PracticeRecord = require('../models/PracticeRecord')
 const Announcement = require('../models/Announcement')
 const { userDb, vocabularyDb, questionDb } = require('../database/db')
@@ -102,6 +103,167 @@ const courseTextbookCoverageTasks = new Map()
 const courseLessonCoverageTasks = new Map()
 const courseTextbookCoverageCache = new Map()
 const courseLessonCoverageCache = new Map()
+
+const USER_HISTORY_FIELDS = ['email', 'username', 'password', 'role', 'user_type']
+const VERB_HISTORY_FIELDS = [
+  'infinitive',
+  'meaning',
+  'conjugation_type',
+  'is_irregular',
+  'is_reflexive',
+  'has_tr_use',
+  'has_intr_use',
+  'supports_do',
+  'supports_io',
+  'supports_do_io',
+  'gerund',
+  'participle',
+  'participle_forms',
+  'lesson_number',
+  'textbook_volume',
+  'frequency_level'
+]
+const CONJUGATION_HISTORY_FIELDS = ['verb_id', 'tense', 'mood', 'person', 'conjugated_form', 'is_irregular']
+const QUESTION_TRADITIONAL_HISTORY_FIELDS = [
+  'verb_id',
+  'question_text',
+  'correct_answer',
+  'example_sentence',
+  'translation',
+  'hint',
+  'tense',
+  'mood',
+  'person',
+  'confidence_score'
+]
+const QUESTION_PRONOUN_HISTORY_FIELDS = [
+  ...QUESTION_TRADITIONAL_HISTORY_FIELDS,
+  'host_form',
+  'host_form_zh',
+  'pronoun_pattern',
+  'io_pronoun',
+  'do_pronoun'
+]
+
+function areSameHistoryValue(left, right) {
+  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null)
+}
+
+function buildHistoryDiff(beforeData = {}, afterData = {}, fields = []) {
+  const changedFields = []
+  const before = {}
+  const after = {}
+
+  fields.forEach((field) => {
+    const beforeValue = beforeData?.[field] ?? null
+    const afterValue = afterData?.[field] ?? null
+
+    if (!areSameHistoryValue(beforeValue, afterValue)) {
+      changedFields.push(field)
+      before[field] = beforeValue
+      after[field] = afterValue
+    }
+  })
+
+  return {
+    changedFields,
+    beforeData: changedFields.length ? before : null,
+    afterData: changedFields.length ? after : null
+  }
+}
+
+function getHistoryActorFromRequest(req) {
+  return {
+    operator_username: String(req.admin?.username || 'unknown').trim() || 'unknown',
+    operator_role: String(req.admin?.role || 'admin').trim() || 'admin'
+  }
+}
+
+function recordHistorySafe(source, payload = {}) {
+  try {
+    AdminHistory.create(source, payload)
+  } catch (error) {
+    console.error('记录管理历史失败:', error)
+  }
+}
+
+function recordHistoryFromRequest(req, source, payload = {}) {
+  recordHistorySafe(source, {
+    ...getHistoryActorFromRequest(req),
+    ...payload
+  })
+}
+
+function findRawUserById(userId) {
+  return userDb.prepare('SELECT * FROM users WHERE id = ?').get(userId)
+}
+
+function findRawConjugationById(conjugationId) {
+  return vocabularyDb.prepare('SELECT * FROM conjugations WHERE id = ?').get(conjugationId)
+}
+
+function buildVerbDeleteSnapshot(verbId) {
+  const verb = VerbAdmin.findById(verbId)
+  if (!verb) return null
+  const conjugations = vocabularyDb.prepare(`
+    SELECT *
+    FROM conjugations
+    WHERE verb_id = ?
+    ORDER BY id ASC
+  `).all(verbId)
+  return {
+    verb,
+    conjugations
+  }
+}
+
+function buildTextbookDeleteSnapshot(textbookId) {
+  const textbook = findCourseTextbookById(textbookId)
+  if (!textbook) return null
+
+  const lessons = vocabularyDb.prepare(`
+    SELECT *
+    FROM lessons
+    WHERE textbook_id = ?
+    ORDER BY lesson_number ASC, id ASC
+  `).all(textbookId)
+
+  const lessonIds = lessons.map((lesson) => Number(lesson.id)).filter((id) => Number.isInteger(id) && id > 0)
+  const verbIdMap = new Map()
+
+  if (lessonIds.length > 0) {
+    const placeholders = lessonIds.map(() => '?').join(',')
+    const rows = vocabularyDb.prepare(`
+      SELECT lesson_id, verb_id
+      FROM lesson_verbs
+      WHERE lesson_id IN (${placeholders})
+      ORDER BY lesson_id ASC, order_index ASC, id ASC
+    `).all(...lessonIds)
+
+    rows.forEach((row) => {
+      const lessonId = Number(row.lesson_id)
+      if (!verbIdMap.has(lessonId)) {
+        verbIdMap.set(lessonId, [])
+      }
+      verbIdMap.get(lessonId).push(Number(row.verb_id))
+    })
+  }
+
+  return {
+    textbook,
+    lessons: lessons.map((lesson) => ({
+      ...lesson,
+      verb_ids: verbIdMap.get(Number(lesson.id)) || []
+    }))
+  }
+}
+
+function getQuestionHistoryTypeFromSource(source) {
+  const normalized = String(source || '').trim().toLowerCase()
+  return normalized === 'public_pronoun' || normalized === 'pronoun'
+    ? 'question_pronoun'
+    : 'question_traditional'
+}
 
 function parseJsonArray(rawValue) {
   if (!rawValue) return []
@@ -1136,6 +1298,61 @@ function forbid(res, message = '无权限') {
   return res.status(403).json({ error: message })
 }
 
+router.get('/history', requireAdmin, (req, res) => {
+  const limit = Number(req.query.limit || 20)
+  const offset = Number(req.query.offset || 0)
+  const result = AdminHistory.list(req.admin?.role, { limit, offset })
+  res.json(result)
+})
+
+router.get('/history/:source/:id', requireAdmin, (req, res) => {
+  const source = String(req.params.source || '').trim()
+  const id = Number(req.params.id)
+  if (!id || Number.isNaN(id)) {
+    return res.status(400).json({ error: '历史ID不合法' })
+  }
+  const row = AdminHistory.findBySourceAndId(source, id, req.admin?.role)
+  if (!row) {
+    return res.status(404).json({ error: '历史记录不存在' })
+  }
+  res.json({ row })
+})
+
+router.delete('/history/:source/:id', requireAdmin, (req, res) => {
+  if (!isStrictDev(req)) {
+    return forbid(res, '仅 dev 可删除管理历史')
+  }
+  const source = String(req.params.source || '').trim()
+  const id = Number(req.params.id)
+  if (!id || Number.isNaN(id)) {
+    return res.status(400).json({ error: '历史ID不合法' })
+  }
+  const row = AdminHistory.findBySourceAndId(source, id, req.admin?.role)
+  if (!row) {
+    return res.status(404).json({ error: '历史记录不存在' })
+  }
+  const result = AdminHistory.deleteBySourceAndId(source, id)
+  if (!result?.changes) {
+    return res.status(404).json({ error: '历史记录不存在' })
+  }
+  res.json({ success: true })
+})
+
+router.post('/history/delete-older-than', requireAdmin, (req, res) => {
+  if (!isStrictDev(req)) {
+    return forbid(res, '仅 dev 可删除旧管理历史')
+  }
+  const days = Number(req.body?.days)
+  const safeDays = Number.isFinite(days) && days >= 0 ? Math.floor(days) : 30
+  const result = AdminHistory.deleteOlderThan(safeDays)
+  res.json({
+    success: true,
+    deleted: result.deleted,
+    breakdown: result.breakdown,
+    days: safeDays
+  })
+})
+
 function cleanupAdminAutofillInvalidRecords() {
   const ttlModifier = `-${ADMIN_AUTOFILL_BATCH_TTL_MINUTES} minutes`
   userDb
@@ -1287,7 +1504,7 @@ router.get('/users/:id', requireAdmin, (req, res) => {
 })
 
 router.put('/users/:id', requireAdmin, (req, res) => {
-  const target = findUser(req.params.id)
+  const target = findRawUserById(req.params.id)
   if (!target) {
     return res.status(404).json({ error: '用户不存在' })
   }
@@ -1351,6 +1568,18 @@ router.put('/users/:id', requireAdmin, (req, res) => {
   }
 
   updateUser(req.params.id, payload)
+  const updated = findRawUserById(req.params.id)
+  const userDiff = buildHistoryDiff(target, updated, USER_HISTORY_FIELDS)
+  if (userDiff.changedFields.length > 0) {
+    recordHistoryFromRequest(req, 'user', {
+      history_type: 'user',
+      target_id: Number(updated.id),
+      action_type: 'update_user',
+      changed_fields: userDiff.changedFields,
+      before_data: userDiff.beforeData,
+      after_data: userDiff.afterData
+    })
+  }
   res.json({ success: true })
 })
 
@@ -1358,7 +1587,7 @@ router.delete('/users/:id', requireAdmin, (req, res) => {
   if (!isDev(req)) {
     return forbid(res, '仅 dev/superadmin 可以删除用户')
   }
-  const target = findUser(req.params.id)
+  const target = findRawUserById(req.params.id)
   if (!target) {
     return res.status(404).json({ error: '用户不存在' })
   }
@@ -1372,6 +1601,12 @@ router.delete('/users/:id', requireAdmin, (req, res) => {
     return forbid(res, '不能删除自己')
   }
   deleteUser(req.params.id)
+  recordHistoryFromRequest(req, 'user', {
+    history_type: 'user',
+    target_id: Number(target.id),
+    action_type: 'delete_user',
+    snapshot_data: target
+  })
   res.json({ success: true })
 })
 
@@ -1398,7 +1633,7 @@ router.delete('/admins/:id', requireAdmin, (req, res) => {
   if (!isDev(req)) {
     return forbid(res, '仅 dev 可以删除管理员')
   }
-  const user = findUser(req.params.id)
+  const user = findRawUserById(req.params.id)
   if (!user || user.role !== 'admin') {
     return res.status(404).json({ error: '管理员不存在' })
   }
@@ -1406,6 +1641,12 @@ router.delete('/admins/:id', requireAdmin, (req, res) => {
     return res.status(403).json({ error: '不可删除初始管理员' })
   }
   deleteUser(req.params.id)
+  recordHistoryFromRequest(req, 'user', {
+    history_type: 'user',
+    target_id: Number(user.id),
+    action_type: 'delete_user',
+    snapshot_data: user
+  })
   res.json({ success: true })
 })
 
@@ -1985,6 +2226,11 @@ router.post('/course-materials/textbooks', requireAdmin, (req, res) => {
   `).run(name, COURSE_TEXTBOOK_PUBLISH_DRAFT, orderIndex, Number(req.admin.id))
 
   const row = vocabularyDb.prepare('SELECT * FROM textbooks WHERE id = ?').get(result.lastInsertRowid)
+  recordHistoryFromRequest(req, 'textbook', {
+    history_type: 'textbook',
+    target_id: Number(result.lastInsertRowid),
+    action_type: 'create_textbook'
+  })
   res.status(201).json({
     row: serializeCourseTextbook({ ...row, lesson_count: 0 })
   })
@@ -2057,6 +2303,17 @@ router.put('/course-materials/textbooks/:id/publish', requireAdmin, (req, res) =
     WHERE t.id = ?
     GROUP BY t.id
   `).get(textbookId)
+  const historyActionTypeMap = {
+    submit: 'submit_textbook_publish',
+    approve: 'approve_textbook_publish',
+    publish: 'publish_textbook',
+    unpublish: 'unpublish_textbook'
+  }
+  recordHistoryFromRequest(req, 'textbook', {
+    history_type: 'textbook',
+    target_id: textbookId,
+    action_type: historyActionTypeMap[action] || 'update_textbook'
+  })
   res.json({
     success: true,
     row: serializeCourseTextbook(updated)
@@ -2075,10 +2332,17 @@ router.delete('/course-materials/textbooks/:id', requireAdmin, (req, res) => {
   }
   if (!ensureCanManageCourseTextbook(req, res, textbook)) return
 
+  const snapshot = buildTextbookDeleteSnapshot(textbookId)
   vocabularyDb.prepare('DELETE FROM textbooks WHERE id = ?').run(textbookId)
   invalidateCourseTextbookCoverageCache(textbookId)
   invalidateCourseLessonCoverageCacheByTextbook(textbookId)
   courseTextbookCoverageTasks.delete(textbookId)
+  recordHistoryFromRequest(req, 'textbook', {
+    history_type: 'textbook',
+    target_id: textbookId,
+    action_type: 'delete_textbook',
+    snapshot_data: snapshot
+  })
   res.json({ success: true })
 })
 
@@ -2483,6 +2747,13 @@ router.post('/verbs/:id/conjugations', requireAdmin, (req, res) => {
   }
   const stmt = vocabularyDb.prepare('INSERT INTO conjugations (verb_id, tense, mood, person, conjugated_form, is_irregular) VALUES (?, ?, ?, ?, ?, ?)')
   const result = stmt.run(verbId, tense, mood, person, conjugated_form, is_irregular ? 1 : 0)
+  const created = findRawConjugationById(result.lastInsertRowid)
+  recordHistoryFromRequest(req, 'lexicon', {
+    history_type: 'lexicon',
+    target_id: Number(result.lastInsertRowid),
+    action_type: 'create_conjugation',
+    after_data: created
+  })
   res.status(201).json({ id: result.lastInsertRowid })
 })
 
@@ -2500,17 +2771,37 @@ router.get('/conjugations/:id', requireAdmin, (req, res) => {
 // 更新变位
 router.put('/conjugations/:id', requireAdmin, (req, res) => {
   const id = req.params.id
-  const existing = vocabularyDb.prepare('SELECT * FROM conjugations WHERE id = ?').get(id)
+  const existing = findRawConjugationById(id)
   if (!existing) return res.status(404).json({ error: '记录不存在' })
   const { tense, mood, person, conjugated_form, is_irregular } = req.body || {}
   const stmt = vocabularyDb.prepare('UPDATE conjugations SET tense = ?, mood = ?, person = ?, conjugated_form = ?, is_irregular = ? WHERE id = ?')
   stmt.run(tense || existing.tense, mood || existing.mood, person || existing.person, conjugated_form || existing.conjugated_form, is_irregular ?? existing.is_irregular, id)
+  const updated = findRawConjugationById(id)
+  const diff = buildHistoryDiff(existing, updated, CONJUGATION_HISTORY_FIELDS)
+  if (diff.changedFields.length > 0) {
+    recordHistoryFromRequest(req, 'lexicon', {
+      history_type: 'lexicon',
+      target_id: Number(id),
+      action_type: 'update_conjugation',
+      changed_fields: diff.changedFields,
+      before_data: diff.beforeData,
+      after_data: diff.afterData
+    })
+  }
   res.json({ success: true })
 })
 
 // 删除变位
 router.delete('/conjugations/:id', requireAdmin, (req, res) => {
+  const existing = findRawConjugationById(req.params.id)
+  if (!existing) return res.status(404).json({ error: '记录不存在' })
   vocabularyDb.prepare('DELETE FROM conjugations WHERE id = ?').run(req.params.id)
+  recordHistoryFromRequest(req, 'lexicon', {
+    history_type: 'lexicon',
+    target_id: Number(existing.id),
+    action_type: 'delete_conjugation',
+    snapshot_data: existing
+  })
   res.json({ success: true })
 })
 
@@ -2561,6 +2852,11 @@ router.post('/verbs', requireAdmin, (req, res) => {
 
   try {
     const id = createVerbWithConjugations(data, conjugations)
+    recordHistoryFromRequest(req, 'lexicon', {
+      history_type: 'lexicon',
+      target_id: Number(id),
+      action_type: 'create_verb'
+    })
     res.status(201).json({ id })
   } catch (error) {
     if (error.status === 400) {
@@ -2616,12 +2912,32 @@ router.put('/verbs/:id', requireAdmin, (req, res) => {
     data.frequency_level ?? existing.frequency_level,
     id
   )
+  const updated = VerbAdmin.findById(id)
+  const diff = buildHistoryDiff(existing, updated, VERB_HISTORY_FIELDS)
+  if (diff.changedFields.length > 0) {
+    recordHistoryFromRequest(req, 'lexicon', {
+      history_type: 'lexicon',
+      target_id: Number(id),
+      action_type: 'update_verb',
+      changed_fields: diff.changedFields,
+      before_data: diff.beforeData,
+      after_data: diff.afterData
+    })
+  }
   res.json({ success: true })
 })
 
 router.delete('/verbs/:id', requireAdmin, (req, res) => {
   if (!isDev(req)) return forbid(res, '仅 dev 可删除动词')
+  const snapshot = buildVerbDeleteSnapshot(req.params.id)
+  if (!snapshot) return res.status(404).json({ error: '记录不存在' })
   vocabularyDb.prepare('DELETE FROM verbs WHERE id = ?').run(req.params.id)
+  recordHistoryFromRequest(req, 'lexicon', {
+    history_type: 'lexicon',
+    target_id: Number(req.params.id),
+    action_type: 'delete_verb',
+    snapshot_data: snapshot
+  })
   res.json({ success: true })
 })
 
@@ -2747,13 +3063,39 @@ router.put('/questions/:id', requireAdmin, (req, res) => {
   }
 
   Question.updatePublic(req.params.id, payload, targetSource)
+  const updated = Question.findPublicById(req.params.id, targetSource)
+  const questionDiff = buildHistoryDiff(
+    item,
+    updated,
+    getQuestionHistoryTypeFromSource(targetSource) === 'question_pronoun'
+      ? QUESTION_PRONOUN_HISTORY_FIELDS
+      : QUESTION_TRADITIONAL_HISTORY_FIELDS
+  )
+  if (questionDiff.changedFields.length > 0) {
+    recordHistoryFromRequest(req, 'question', {
+      history_type: getQuestionHistoryTypeFromSource(targetSource),
+      target_id: Number(req.params.id),
+      action_type: 'update_question',
+      changed_fields: questionDiff.changedFields,
+      before_data: questionDiff.beforeData,
+      after_data: questionDiff.afterData
+    })
+  }
   res.json({ success: true })
 })
 
 router.delete('/questions/:id', requireAdmin, (req, res) => {
   if (!isDev(req)) return forbid(res, '仅 dev 可删除题库内容')
   const source = req.query.source ? String(req.query.source).trim() : null
+  const item = Question.findPublicById(req.params.id, source)
+  if (!item) return res.status(404).json({ error: '记录不存在' })
   Question.deletePublic(req.params.id, source)
+  recordHistoryFromRequest(req, 'question', {
+    history_type: getQuestionHistoryTypeFromSource(item.public_question_source || source),
+    target_id: Number(req.params.id),
+    action_type: 'delete_question',
+    snapshot_data: item
+  })
   res.json({ success: true })
 })
 

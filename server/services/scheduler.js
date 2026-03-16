@@ -1,6 +1,48 @@
 const cron = require('node-cron')
 const Question = require('../models/Question')
+const AdminHistory = require('../models/AdminHistory')
 const VerificationCode = require('../models/VerificationCode')
+const { questionDb } = require('../database/db')
+
+function listPublicQuestionsForHistory(tableName, ids = [], publicQuestionSource) {
+  if (!Array.isArray(ids) || ids.length === 0) return []
+  const placeholders = ids.map(() => '?').join(',')
+  const rows = questionDb.prepare(`
+    SELECT *
+    FROM ${tableName}
+    WHERE id IN (${placeholders})
+  `).all(...ids)
+
+  return rows.map((row) => ({
+    ...row,
+    public_question_source: publicQuestionSource
+  }))
+}
+
+function recordAutoDeletedQuestionHistory(snapshots = {}) {
+  const traditionalRows = Array.isArray(snapshots.traditionalRows) ? snapshots.traditionalRows : []
+  const pronounRows = Array.isArray(snapshots.pronounRows) ? snapshots.pronounRows : []
+  const rows = [
+    ...traditionalRows.map((row) => ({ row, historyType: 'question_traditional' })),
+    ...pronounRows.map((row) => ({ row, historyType: 'question_pronoun' }))
+  ]
+
+  rows.forEach(({ row, historyType }) => {
+    try {
+      AdminHistory.create('question', {
+        operator_username: 'system',
+        operator_role: 'system',
+        history_type: historyType,
+        target_id: Number(row.id),
+        action_type: 'delete_question_auto',
+        snapshot_data: row,
+        visibility_scope: 'superadmin_dev'
+      })
+    } catch (error) {
+      console.error('记录系统删题历史失败:', error)
+    }
+  })
+}
 
 function getNonNegativeInteger(value, fallback) {
   const parsed = Number(value)
@@ -57,6 +99,18 @@ class SchedulerService {
       const cleanupConfig = this.getQuestionCleanupConfig()
       const cleanupPlan = Question.planOldPublicQuestionCleanup(cleanupConfig)
       const plannedQuestionDeletes = cleanupPlan.traditionalIds.length + cleanupPlan.pronounIds.length
+      const questionSnapshots = {
+        traditionalRows: listPublicQuestionsForHistory(
+          'public_traditional_conjugation',
+          cleanupPlan.traditionalIds,
+          'public_traditional'
+        ),
+        pronounRows: listPublicQuestionsForHistory(
+          'public_conjugation_with_pronoun',
+          cleanupPlan.pronounIds,
+          'public_pronoun'
+        )
+      }
 
       console.log(`\n🧹 开始清理超过${cleanupPlan.daysOld}天的旧题目...`)
       console.log('-'.repeat(60))
@@ -73,6 +127,10 @@ class SchedulerService {
       console.log('\n📝 步骤2: 清理公共题库题目...')
       const questionsDeleted = Question.deletePublicQuestionsByIds(cleanupPlan)
       console.log(`   ✓ 已删除 \x1b[33m${questionsDeleted}\x1b[0m 道超过${cleanupPlan.daysOld}天且超出保留阈值的公共题库题目`)
+
+      if (questionsDeleted > 0) {
+        recordAutoDeletedQuestionHistory(questionSnapshots)
+      }
       
       console.log('-'.repeat(60))
       console.log(`\x1b[32m✓ 清理完成\x1b[0m | 记录: ${recordsDeleted} 条 | 题目: ${questionsDeleted} 道\n`)
